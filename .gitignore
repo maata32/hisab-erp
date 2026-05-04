@@ -48,3 +48,6 @@ logs/
 
 # Spring Modulith generated
 **/spring-modulith-docs/
+
+# Office lock files
+~$*
