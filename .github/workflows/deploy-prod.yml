@@ -1,0 +1,55 @@
+name: deploy-prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Image tag to deploy (e.g. v0.2.0 or short-sha)'
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Manual SSH deploy to production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PROD_SSH_KEY }}
+
+      - name: Add prod host to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ vars.PROD_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Sync compose
+        run: |
+          rsync -avz --delete infra/docker/prod/docker-compose.yml \
+            deploy@${{ vars.PROD_HOST }}:/opt/minierp/docker-compose.yml
+
+      - name: Update version & restart
+        run: |
+          ssh deploy@${{ vars.PROD_HOST }} \
+            "cd /opt/minierp && \
+             sudo sed -i.bak 's/^APP_VERSION=.*/APP_VERSION=${{ inputs.version }}/' /etc/minierp/.env && \
+             docker compose --env-file /etc/minierp/.env pull && \
+             docker compose --env-file /etc/minierp/.env up -d --remove-orphans"
+
+      - name: Smoke test
+        run: |
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS https://api.${{ vars.PROD_DOMAIN }}/api/v1/health > /dev/null; then
+              echo "OK"; exit 0
+            fi
+            sleep 10
+          done
+          echo "Smoke test failed; check Grafana / SSH for details."; exit 1

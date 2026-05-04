@@ -1,0 +1,8 @@
+# Default owner — adjust to your team
+*                       @your-org/maintainers
+
+backend/                @your-org/backend
+frontend/               @your-org/frontend
+infra/                  @your-org/devops
+.github/workflows/      @your-org/devops
+docs/                   @your-org/maintainers

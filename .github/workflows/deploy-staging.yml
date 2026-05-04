@@ -1,0 +1,53 @@
+name: deploy-staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: SSH deploy to staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    if: ${{ vars.STAGING_HOST != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.STAGING_SSH_KEY }}
+
+      - name: Add staging host to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ vars.STAGING_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Sync compose & env
+        run: |
+          rsync -avz --delete infra/docker/prod/docker-compose.yml \
+            deploy@${{ vars.STAGING_HOST }}:/opt/minierp/docker-compose.yml
+
+      - name: Pull & restart
+        run: |
+          ssh deploy@${{ vars.STAGING_HOST }} \
+            'cd /opt/minierp && \
+             docker compose --env-file /etc/minierp/.env pull && \
+             docker compose --env-file /etc/minierp/.env up -d --remove-orphans && \
+             docker image prune -f'
+
+      - name: Smoke test
+        run: |
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS https://api.${{ vars.STAGING_DOMAIN }}/api/v1/health > /dev/null; then
+              echo "OK"; exit 0
+            fi
+            sleep 10
+          done
+          echo "Smoke test failed"; exit 1

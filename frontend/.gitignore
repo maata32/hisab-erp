@@ -1,0 +1,24 @@
+# Nx + Angular
+/node_modules
+/dist
+/tmp
+/.nx/cache
+/.nx/workspace-data
+/coverage
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+.env.*.local

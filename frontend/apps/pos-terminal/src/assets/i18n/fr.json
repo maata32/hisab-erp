@@ -1,0 +1,26 @@
+{
+  "common": { "loading": "Chargement…", "logout": "Déconnexion" },
+  "auth": {
+    "tenantCode": "Code organisation",
+    "email": "Email",
+    "password": "Mot de passe",
+    "submit": "Se connecter",
+    "bad_credentials": "Identifiants invalides"
+  },
+  "pos": {
+    "offline_banner": "Mode hors-ligne — les ventes seront synchronisées dès le retour de la connexion.",
+    "tab": { "sale": "Vente", "session": "Session" },
+    "sale": {
+      "coming_soon": {
+        "title": "Module POS — Phase 1A",
+        "description": "Vente offline, panier, paiement, ticket thermique seront implémentés en Phase 1A."
+      }
+    },
+    "session": {
+      "coming_soon": {
+        "title": "Sessions caisse — Phase 1A",
+        "description": "Ouverture/clôture de session, mouvements de caisse, réconciliation."
+      }
+    }
+  }
+}

@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0002-organizations" author="mini-erp">
+        <createTable tableName="organizations">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="code" type="varchar(50)"><constraints nullable="false" unique="true" uniqueConstraintName="uk_organizations_code"/></column>
+            <column name="name" type="varchar(200)"><constraints nullable="false"/></column>
+            <column name="logo_url" type="varchar(500)"/>
+            <column name="address" type="varchar(500)"/>
+            <column name="phone" type="varchar(30)"/>
+            <column name="email" type="varchar(200)"/>
+            <column name="type" type="varchar(20)" defaultValue="BOUTIQUE"><constraints nullable="false"/></column>
+            <column name="currency" type="varchar(3)" defaultValue="MRU"><constraints nullable="false"/></column>
+            <column name="locale" type="varchar(10)" defaultValue="fr"><constraints nullable="false"/></column>
+            <column name="timezone" type="varchar(50)" defaultValue="Africa/Nouakchott"><constraints nullable="false"/></column>
+            <column name="status" type="varchar(20)" defaultValue="TRIAL"><constraints nullable="false"/></column>
+            <column name="trial_ends_at" type="timestamptz"/>
+            <column name="subscription_plan_id" type="uuid"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="organizations" indexName="idx_organizations_status">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0002-subscription-plans" author="mini-erp">
+        <createTable tableName="subscription_plans">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="code" type="varchar(50)"><constraints nullable="false" unique="true" uniqueConstraintName="uk_subscription_plans_code"/></column>
+            <column name="name" type="varchar(100)"><constraints nullable="false"/></column>
+            <column name="monthly_price" type="numeric(15,2)"><constraints nullable="false"/></column>
+            <column name="annual_price" type="numeric(15,2)"/>
+            <column name="max_cash_registers" type="int"/>
+            <column name="max_users" type="int"/>
+            <column name="max_products" type="int"/>
+            <column name="is_active" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="features" type="jsonb"/>
+            <column name="enabled_modules" type="jsonb"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="0002-subscriptions" author="mini-erp">
+        <createTable tableName="subscriptions">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="organization_id" type="uuid"><constraints nullable="false" unique="true" uniqueConstraintName="uk_subscriptions_org" foreignKeyName="fk_subscriptions_organization" referencedTableName="organizations" referencedColumnNames="id"/></column>
+            <column name="plan_id" type="uuid"><constraints nullable="false" foreignKeyName="fk_subscriptions_plan" referencedTableName="subscription_plans" referencedColumnNames="id"/></column>
+            <column name="status" type="varchar(20)" defaultValue="TRIAL"><constraints nullable="false"/></column>
+            <column name="billing_cycle" type="varchar(10)" defaultValue="MONTHLY"><constraints nullable="false"/></column>
+            <column name="period_start" type="timestamptz"><constraints nullable="false"/></column>
+            <column name="period_end" type="timestamptz"><constraints nullable="false"/></column>
+            <column name="next_billing_date" type="timestamptz"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="0002-tenant-settings" author="mini-erp">
+        <createTable tableName="tenant_settings">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="organization_id" type="uuid"><constraints nullable="false" unique="true" uniqueConstraintName="uk_tenant_settings_org" foreignKeyName="fk_tenant_settings_organization" referencedTableName="organizations" referencedColumnNames="id"/></column>
+            <column name="delivery_settings" type="jsonb"/>
+            <column name="pos_settings" type="jsonb"/>
+            <column name="payment_settings" type="jsonb"/>
+            <column name="expiry_settings" type="jsonb"/>
+            <column name="notification_settings" type="jsonb"/>
+            <column name="invoice_settings" type="jsonb"/>
+            <column name="pricing_settings" type="jsonb"/>
+            <column name="custom_settings" type="jsonb"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="0002-seed-plans" author="mini-erp">
+        <sql>
+            INSERT INTO subscription_plans (id, code, name, monthly_price, annual_price, max_cash_registers, max_users, max_products, is_active, features, enabled_modules)
+            VALUES
+              (uuid_generate_v4(), 'STARTER',    'Starter',    1500.00,  15000.00,  1, 3,    500, true,  '{"thermalPrinter":true,"offlinePos":true}'::jsonb, '["pos","catalog","inventory"]'::jsonb),
+              (uuid_generate_v4(), 'PRO',        'Pro',        4500.00,  45000.00,  3, 10,  5000, true,  '{"thermalPrinter":true,"offlinePos":true,"multiWarehouse":true,"barcodes":true}'::jsonb, '["pos","catalog","inventory","sales","customer","payment"]'::jsonb),
+              (uuid_generate_v4(), 'BUSINESS',   'Business',  10000.00, 100000.00, 10, 30, 30000, true, '{"thermalPrinter":true,"offlinePos":true,"multiWarehouse":true,"barcodes":true,"lotExpiry":true,"hr":true,"reporting":true}'::jsonb, '["pos","catalog","inventory","sales","customer","payment","lot-expiry","hr","reporting","expense","purchase"]'::jsonb),
+              (uuid_generate_v4(), 'ENTERPRISE', 'Enterprise',     0.00,      0.00, NULL, NULL, NULL, true, '{"all":true,"customSla":true}'::jsonb, '["all"]'::jsonb);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

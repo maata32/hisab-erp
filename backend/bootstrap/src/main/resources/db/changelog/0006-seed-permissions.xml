@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Permissions are global (no tenant_id) and form a fixed catalog. Roles are tenant-scoped
+        and seeded by the application on org creation (see TenantRolesBootstrapper). Here we
+        only seed the catalog of permission codes.
+    -->
+
+    <changeSet id="0006-seed-permission-catalog" author="mini-erp">
+        <sql>
+            INSERT INTO permissions (id, code, resource, action, description) VALUES
+              -- Tenant
+              (uuid_generate_v4(), 'organization:read',     'organization', 'read',   'Read tenant organization'),
+              (uuid_generate_v4(), 'organization:update',   'organization', 'update', 'Update tenant organization profile'),
+              (uuid_generate_v4(), 'tenant_settings:read',  'tenant_settings', 'read',   'Read tenant settings'),
+              (uuid_generate_v4(), 'tenant_settings:update','tenant_settings', 'update', 'Update tenant settings'),
+              -- Identity
+              (uuid_generate_v4(), 'user:read',             'user', 'read',   'Read users'),
+              (uuid_generate_v4(), 'user:create',           'user', 'create', 'Create users'),
+              (uuid_generate_v4(), 'user:update',           'user', 'update', 'Update users'),
+              (uuid_generate_v4(), 'user:delete',           'user', 'delete', 'Delete users'),
+              (uuid_generate_v4(), 'role:read',             'role', 'read',   'Read roles'),
+              (uuid_generate_v4(), 'role:assign',           'role', 'assign', 'Assign roles to users'),
+              (uuid_generate_v4(), 'role:create',           'role', 'create', 'Create custom roles'),
+              -- Catalog
+              (uuid_generate_v4(), 'product:read',          'product', 'read',   'Read products'),
+              (uuid_generate_v4(), 'product:create',        'product', 'create', 'Create products'),
+              (uuid_generate_v4(), 'product:update',        'product', 'update', 'Update products'),
+              (uuid_generate_v4(), 'product:delete',        'product', 'delete', 'Delete products'),
+              (uuid_generate_v4(), 'price:update',          'price', 'update', 'Manage prices'),
+              -- Inventory
+              (uuid_generate_v4(), 'stock:read',            'stock', 'read',   'Read stock'),
+              (uuid_generate_v4(), 'stock:adjust',          'stock', 'adjust', 'Adjust stock'),
+              (uuid_generate_v4(), 'warehouse:manage',      'warehouse', 'manage', 'Manage warehouses'),
+              -- POS
+              (uuid_generate_v4(), 'pos:operate',           'pos', 'operate', 'Operate the POS terminal'),
+              (uuid_generate_v4(), 'pos:open_session',      'pos', 'open_session', 'Open a cash session'),
+              (uuid_generate_v4(), 'pos:close_session',     'pos', 'close_session', 'Close a cash session'),
+              (uuid_generate_v4(), 'pos:cancel_sale',       'pos', 'cancel_sale', 'Cancel a completed sale'),
+              (uuid_generate_v4(), 'pos:apply_discount',    'pos', 'apply_discount', 'Apply discount on sale'),
+              -- Sales
+              (uuid_generate_v4(), 'sale:read',             'sale', 'read',    'Read sales'),
+              (uuid_generate_v4(), 'sale:create',           'sale', 'create',  'Create sales'),
+              (uuid_generate_v4(), 'invoice:read',          'invoice', 'read',    'Read invoices'),
+              (uuid_generate_v4(), 'invoice:issue',         'invoice', 'issue',   'Issue invoices'),
+              (uuid_generate_v4(), 'invoice:cancel',        'invoice', 'cancel',  'Cancel invoices'),
+              -- Customer
+              (uuid_generate_v4(), 'customer:read',         'customer', 'read',   'Read customers'),
+              (uuid_generate_v4(), 'customer:create',       'customer', 'create', 'Create customers'),
+              (uuid_generate_v4(), 'customer:update',       'customer', 'update', 'Update customers'),
+              -- Payment
+              (uuid_generate_v4(), 'payment:read',          'payment', 'read',   'Read payments'),
+              (uuid_generate_v4(), 'payment:create',        'payment', 'create', 'Record payments'),
+              (uuid_generate_v4(), 'payment:cancel',        'payment', 'cancel', 'Cancel payments'),
+              (uuid_generate_v4(), 'credit:grant',          'credit', 'grant',  'Grant customer credits'),
+              (uuid_generate_v4(), 'credit:withdraw',       'credit', 'withdraw', 'Withdraw from customer credit'),
+              -- Delivery
+              (uuid_generate_v4(), 'delivery:read',         'delivery', 'read',     'Read deliveries'),
+              (uuid_generate_v4(), 'delivery:plan',         'delivery', 'plan',     'Plan deliveries'),
+              (uuid_generate_v4(), 'delivery:execute',      'delivery', 'execute',  'Mark deliveries as completed'),
+              -- Expense
+              (uuid_generate_v4(), 'expense:read',          'expense', 'read',     'Read expenses'),
+              (uuid_generate_v4(), 'expense:create',        'expense', 'create',   'Create expenses'),
+              (uuid_generate_v4(), 'expense:approve',       'expense', 'approve',  'Approve expenses'),
+              -- HR
+              (uuid_generate_v4(), 'employee:read',         'employee', 'read',    'Read employees'),
+              (uuid_generate_v4(), 'employee:manage',       'employee', 'manage',  'Manage employees'),
+              (uuid_generate_v4(), 'salary:manage',         'salary', 'manage',    'Manage salaries'),
+              -- Reporting
+              (uuid_generate_v4(), 'report:view',           'report', 'view',      'View reports'),
+              (uuid_generate_v4(), 'report:export',         'report', 'export',    'Export reports'),
+              -- Audit
+              (uuid_generate_v4(), 'audit:read',            'audit', 'read',       'Read audit log');
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,15 @@
+spring:
+  liquibase:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+app:
+  security:
+    jwt:
+      secret: TEST_SECRET_AT_LEAST_32_CHARACTERS_LONG_FOR_HS256_OK

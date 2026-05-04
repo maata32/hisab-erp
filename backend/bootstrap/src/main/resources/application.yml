@@ -1,0 +1,121 @@
+spring:
+  application:
+    name: mini-erp
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/minierp}
+    username: ${SPRING_DATASOURCE_USERNAME:minierp}
+    password: ${SPRING_DATASOURCE_PASSWORD:minierp}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: ${DB_POOL_MIN:5}
+      connection-timeout: 10000
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      pool-name: minierp-pool
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc.time_zone: UTC
+        format_sql: false
+        order_inserts: true
+        order_updates: true
+        batch_versioned_data: true
+        jdbc.batch_size: 50
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    contexts: ${LIQUIBASE_CONTEXTS:default}
+    parameters:
+      app_user: ${SPRING_DATASOURCE_USERNAME:minierp}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+  cache:
+    type: redis
+    redis:
+      time-to-live: ${CACHE_TTL_MS:300000}
+      cache-null-values: false
+  modulith:
+    events:
+      jdbc-schema-initialization:
+        enabled: true
+  mvc:
+    problemdetails:
+      enabled: false
+
+server:
+  port: ${SERVER_PORT:8080}
+  forward-headers-strategy: framework
+  shutdown: graceful
+  compression:
+    enabled: true
+    mime-types: application/json,text/plain,text/html,text/css,application/javascript
+  error:
+    include-message: always
+    include-binding-errors: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,modulith
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: mini-erp
+      env: ${APP_ENV:dev}
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_RATE:0.1}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    try-it-out-enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+
+app:
+  version: ${APP_VERSION:0.1.0-SNAPSHOT}
+  api:
+    public-url: ${APP_PUBLIC_URL:http://localhost:8080}
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:4200,http://localhost:4201}
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:mini-erp}
+      audience: ${JWT_AUDIENCE:mini-erp-clients}
+      secret: ${JWT_SECRET:CHANGE_ME_DEV_SECRET_AT_LEAST_32_CHARACTERS_LONG_PLEASE}
+      access-token-ttl: ${JWT_ACCESS_TTL:PT15M}
+      refresh-token-ttl: ${JWT_REFRESH_TTL:P7D}
+  pii:
+    encryption-key: ${PII_ENCRYPTION_KEY:dev-pii-key-change-in-prod-32chars}
+
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.minierp: ${LOG_LEVEL_APP:INFO}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}
+    org.hibernate.orm.jdbc.bind: ${LOG_LEVEL_SQL:WARN}
+    org.springframework.security: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{40} - %msg%n"

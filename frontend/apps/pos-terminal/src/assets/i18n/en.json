@@ -1,0 +1,26 @@
+{
+  "common": { "loading": "Loading…", "logout": "Logout" },
+  "auth": {
+    "tenantCode": "Organization code",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "bad_credentials": "Invalid credentials"
+  },
+  "pos": {
+    "offline_banner": "Offline mode — sales will sync when connectivity returns.",
+    "tab": { "sale": "Sale", "session": "Session" },
+    "sale": {
+      "coming_soon": {
+        "title": "POS module — Phase 1A",
+        "description": "Offline sale, cart, payment, thermal receipt to be implemented in Phase 1A."
+      }
+    },
+    "session": {
+      "coming_soon": {
+        "title": "Cash sessions — Phase 1A",
+        "description": "Open/close session, cash movements, reconciliation."
+      }
+    }
+  }
+}

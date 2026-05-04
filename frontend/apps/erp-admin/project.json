@@ -1,0 +1,82 @@
+{
+  "name": "erp-admin",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/erp-admin/src",
+  "tags": ["scope:admin", "type:app"],
+  "targets": {
+    "build": {
+      "executor": "@angular-devkit/build-angular:browser",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/erp-admin",
+        "index": "apps/erp-admin/src/index.html",
+        "main": "apps/erp-admin/src/main.ts",
+        "polyfills": ["zone.js"],
+        "tsConfig": "apps/erp-admin/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "assets": [
+          "apps/erp-admin/src/favicon.ico",
+          "apps/erp-admin/src/assets",
+          {
+            "glob": "**/*",
+            "input": "node_modules/primeicons",
+            "output": "/assets/primeicons"
+          }
+        ],
+        "styles": [
+          "node_modules/primeng/resources/themes/lara-light-blue/theme.css",
+          "node_modules/primeng/resources/primeng.min.css",
+          "node_modules/primeicons/primeicons.css",
+          "apps/erp-admin/src/styles.scss"
+        ],
+        "scripts": []
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "1.5mb", "maximumError": "3mb" },
+            { "type": "anyComponentStyle", "maximumWarning": "8kb", "maximumError": "16kb" }
+          ],
+          "outputHashing": "all",
+          "fileReplacements": [
+            {
+              "replace": "apps/erp-admin/src/environments/environment.ts",
+              "with": "apps/erp-admin/src/environments/environment.prod.ts"
+            }
+          ]
+        },
+        "development": {
+          "buildOptimizer": false,
+          "optimization": false,
+          "vendorChunk": true,
+          "extractLicenses": false,
+          "sourceMap": true,
+          "namedChunks": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve": {
+      "executor": "@angular-devkit/build-angular:dev-server",
+      "configurations": {
+        "production": { "buildTarget": "erp-admin:build:production" },
+        "development": { "buildTarget": "erp-admin:build:development" }
+      },
+      "options": {
+        "port": 4200,
+        "proxyConfig": "apps/erp-admin/proxy.conf.json"
+      },
+      "defaultConfiguration": "development"
+    },
+    "lint": { "executor": "@nx/eslint:lint" },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": { "jestConfig": "apps/erp-admin/jest.config.ts" }
+    },
+    "e2e": {
+      "executor": "@nx/playwright:playwright",
+      "options": { "config": "apps/erp-admin/playwright.config.ts" }
+    }
+  }
+}

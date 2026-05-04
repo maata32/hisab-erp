@@ -1,0 +1,11 @@
+{
+  "name": "shared-auth",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared-auth/src",
+  "projectType": "library",
+  "tags": ["scope:shared", "type:data-access"],
+  "targets": {
+    "lint": { "executor": "@nx/eslint:lint" },
+    "test": { "executor": "@nx/jest:jest", "options": { "jestConfig": "libs/shared-auth/jest.config.ts" } }
+  }
+}

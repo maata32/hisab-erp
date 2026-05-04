@@ -1,0 +1,12 @@
+hcloud_token         = "PASTE_HETZNER_TOKEN_HERE"
+cloudflare_api_token = null     # set to your Cloudflare token, or leave null
+cloudflare_zone_id   = null
+
+root_domain          = "minierp.example.com"
+admin_ssh_keys       = ["my-laptop"]      # names of SSH keys uploaded to Hetzner
+
+location             = "fsn1"             # fsn1 / nbg1 / hel1 / ash / hil
+server_type          = "cx32"             # 4 vCPU / 8 GB RAM
+extra_volume_gb      = 100
+
+allowed_admin_cidrs  = []                 # ["1.2.3.4/32"] — REQUIRED for SSH

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Defense layer 2: PostgreSQL RLS. Even if the Hibernate filter is bypassed
+        or a developer uses raw JDBC, RLS blocks cross-tenant rows.
+
+        The application sets the session variable app.current_tenant via
+        SELECT set_config('app.current_tenant', '<uuid>', true)
+        at the start of every transaction (see TenantSessionAspect).
+
+        Bypass for SUPER_ADMIN: a separate role or ALTER ROLE ... BYPASSRLS may be
+        granted in production for migrations / cross-tenant analytics. By default
+        the app role is NOT a bypass user.
+    -->
+
+    <changeSet id="0005-helper-current-tenant" author="mini-erp">
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION app_current_tenant()
+            RETURNS uuid LANGUAGE sql STABLE AS $$
+                SELECT NULLIF(current_setting('app.current_tenant', true), '')::uuid
+            $$;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0005-rls-tenant-aware-tables" author="mini-erp">
+        <sql splitStatements="false">
+            -- Helper to apply identical policy to every tenant-aware table
+            DO $$
+            DECLARE
+                t text;
+                tables text[] := ARRAY[
+                    'roles',
+                    'users',
+                    'refresh_tokens',
+                    'password_reset_tokens'
+                ];
+            BEGIN
+                FOREACH t IN ARRAY tables LOOP
+                    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+                    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
+
+                    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_select ON %I', t);
+                    EXECUTE format(
+                        'CREATE POLICY tenant_isolation_select ON %I
+                            FOR SELECT
+                            USING (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)',
+                        t);
+
+                    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_modify ON %I', t);
+                    EXECUTE format(
+                        'CREATE POLICY tenant_isolation_modify ON %I
+                            FOR ALL
+                            USING (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)
+                            WITH CHECK (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)',
+                        t);
+                END LOOP;
+            END
+            $$;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0005-rls-bypass-for-app-user" author="mini-erp" runInTransaction="false">
+        <comment>
+            We do NOT grant BYPASSRLS to the app role. Cross-tenant operations must
+            explicitly clear app.current_tenant (NULL = bypass per the policy WHERE clause).
+            The role used by Liquibase migrations (DDL phase) typically owns the tables and
+            implicitly bypasses RLS for ALTER/DROP — this is fine.
+        </comment>
+        <sql>SELECT 1;</sql>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,50 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*~
+
+# Java / Maven
+**/target/
+**/.mvn/wrapper/maven-wrapper.jar
+**/dependency-reduced-pom.xml
+*.class
+hs_err_pid*
+
+# Node / Nx
+**/node_modules/
+**/dist/
+**/coverage/
+**/.nx/cache/
+**/.nx/workspace-data/
+*.tsbuildinfo
+
+# Docker / runtime data
+**/postgres-data/
+**/redis-data/
+**/minio-data/
+
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+**/terraform.tfstate
+**/terraform.tfstate.*
+**/terraform.tfvars
+**/*.tfplan
+
+# Secrets / env (NEVER commit)
+.env
+.env.local
+.env.*.local
+.env.prod
+
+# Logs
+*.log
+logs/
+
+# Spring Modulith generated
+**/spring-modulith-docs/

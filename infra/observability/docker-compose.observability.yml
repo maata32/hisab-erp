@@ -1,0 +1,93 @@
+# Optional observability addon — extends the prod or dev stack.
+# Usage:
+#   docker compose -f infra/docker/prod/docker-compose.yml -f infra/observability/docker-compose.observability.yml up -d
+#
+# Exposes Grafana on https://grafana.${ROOT_DOMAIN} (Traefik routed in prod).
+
+name: minierp-prod
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks: [minierp-internal]
+    deploy:
+      resources:
+        limits: { memory: 768M }
+
+  loki:
+    image: grafana/loki:3.2.0
+    container_name: loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki-data:/loki
+    networks: [minierp-internal]
+    deploy:
+      resources:
+        limits: { memory: 512M }
+
+  promtail:
+    image: grafana/promtail:3.2.0
+    container_name: promtail
+    restart: unless-stopped
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log:/var/log:ro
+      - ./promtail.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks: [minierp-internal]
+    deploy:
+      resources:
+        limits: { memory: 128M }
+
+  tempo:
+    image: grafana/tempo:2.6.0
+    container_name: tempo
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    networks: [minierp-internal]
+    deploy:
+      resources:
+        limits: { memory: 384M }
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_SERVER_ROOT_URL: https://grafana.${ROOT_DOMAIN}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    networks: [minierp-internal, minierp-public]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=minierp_minierp-public"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.${ROOT_DOMAIN}`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=le"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    deploy:
+      resources:
+        limits: { memory: 384M }
+
+volumes:
+  prometheus-data:
+  loki-data:
+  tempo-data:
+  grafana-data:

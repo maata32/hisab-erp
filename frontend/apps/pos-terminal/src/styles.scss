@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body { height: 100%; margin: 0; overscroll-behavior: none; }
+
+[dir='rtl'] { direction: rtl; text-align: right; }
+
+.btn-touch { min-width: 44px; min-height: 44px; }
+
+:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }

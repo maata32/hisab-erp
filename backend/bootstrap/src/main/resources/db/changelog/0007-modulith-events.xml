@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Schema for Spring Modulith event publication registry (JDBC variant).
+        Mirrors the schema shipped in spring-modulith-events-jdbc/META-INF/sql/schema-postgresql.sql
+        — kept in our own Liquibase track so we control migrations centrally.
+    -->
+
+    <changeSet id="0007-event-publication" author="mini-erp">
+        <createTable tableName="event_publication">
+            <column name="id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="listener_id" type="text"><constraints nullable="false"/></column>
+            <column name="event_type" type="text"><constraints nullable="false"/></column>
+            <column name="serialized_event" type="text"><constraints nullable="false"/></column>
+            <column name="publication_date" type="timestamp(6) with time zone"><constraints nullable="false"/></column>
+            <column name="completion_date" type="timestamp(6) with time zone"/>
+        </createTable>
+        <createIndex tableName="event_publication" indexName="event_publication_serialized_event_hash">
+            <column name="serialized_event"/>
+        </createIndex>
+        <createIndex tableName="event_publication" indexName="event_publication_by_completion_date">
+            <column name="completion_date"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

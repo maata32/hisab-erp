@@ -1,0 +1,83 @@
+#cloud-config
+hostname: minierp-app
+preserve_hostname: false
+timezone: UTC
+
+package_update: true
+package_upgrade: true
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - ufw
+  - fail2ban
+  - unattended-upgrades
+  - docker.io
+  - docker-compose-plugin
+
+users:
+  - name: deploy
+    groups: docker, sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys: []   # populated via ssh_keys arg on the hcloud_server resource
+
+write_files:
+  - path: /etc/sysctl.d/99-minierp.conf
+    content: |
+      net.ipv4.ip_forward = 1
+      net.ipv4.tcp_keepalive_time = 300
+      vm.swappiness = 10
+      fs.file-max = 1048576
+
+  - path: /etc/docker/daemon.json
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "20m", "max-file": "5" },
+        "live-restore": true,
+        "storage-driver": "overlay2"
+      }
+
+  - path: /etc/minierp/.env.template
+    permissions: "0600"
+    owner: root:root
+    content: |
+      # Copy this template, fill it in, then chmod 600.
+      # Generate strong values with: openssl rand -base64 32
+      ROOT_DOMAIN=${root_domain}
+      ACME_EMAIL=ops@${root_domain}
+      IMAGE_REGISTRY=ghcr.io/your-org
+      APP_VERSION=v0.1.0
+      POSTGRES_PASSWORD=
+      REDIS_PASSWORD=
+      JWT_SECRET=
+      PII_ENCRYPTION_KEY=
+      MINIO_ROOT_PASSWORD=
+      GRAFANA_ADMIN_PASSWORD=
+
+runcmd:
+  # Mount the data volume at /var/lib/docker
+  - mkdir -p /var/lib/docker
+  - if [ -e ${docker_volume_path} ]; then mkfs.ext4 -F ${docker_volume_path} || true; fi
+  - if [ -e ${docker_volume_path} ]; then echo "${docker_volume_path} /var/lib/docker ext4 defaults,nofail 0 2" >> /etc/fstab && mount -a; fi
+
+  - systemctl enable --now docker
+  - systemctl enable --now fail2ban
+
+  # Firewall (cloud firewall already covers ingress; ufw is defense-in-depth on the host)
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw --force enable
+
+  - mkdir -p /etc/minierp /opt/minierp
+  - chown root:root /etc/minierp /etc/minierp/.env.template
+  - chmod 750 /etc/minierp
+
+  - sysctl -p /etc/sysctl.d/99-minierp.conf
+
+  - echo "==== Cloud-init done. Next: scp the prod docker-compose.yml + .env into /opt/minierp/, then 'docker compose --env-file /etc/minierp/.env up -d'."

@@ -1,0 +1,95 @@
+{
+  "app": {
+    "name": "Mini-ERP",
+    "tagline": "Modular commercial ERP for Mauritania"
+  },
+  "common": {
+    "loading": "Loading…",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "search": "Search",
+    "logout": "Logout",
+    "back": "Back"
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "tenantCode": "Organization code",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "demo_hint": "Demo: tenant 'demo' / admin@demo.local / Admin1234!"
+    },
+    "bad_credentials": "Invalid credentials",
+    "account_locked": "Account locked. Try again later.",
+    "required": "Authentication required"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "organizations": "Organizations",
+    "users": "Users",
+    "audit": "Audit log",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome {{name}}",
+    "foundation_status": "Phase 0 Foundation — deployed",
+    "foundation_message": "The core infrastructure is ready. Business modules (POS, sales, payments…) will be added in Phase 1A.",
+    "kpi": {
+      "tenants": "Organizations",
+      "users": "Users",
+      "sales_today": "Today's sales",
+      "audit_events": "Audit events",
+      "placeholder": "Data available after seeding",
+      "phase_1a": "Available in Phase 1A"
+    }
+  },
+  "organizations": {
+    "title": "Organizations",
+    "subtitle": "All client organizations",
+    "code": "Code",
+    "name": "Name",
+    "type": "Type",
+    "status": "Status",
+    "currency": "Currency",
+    "locale": "Locale",
+    "empty": {
+      "title": "No organizations",
+      "description": "Create the first organization via the API."
+    }
+  },
+  "users": {
+    "title": "Users",
+    "coming_soon": {
+      "title": "Coming soon",
+      "description": "Full user CRUD will be added in Phase 1."
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "subtitle": "Immutable trail of sensitive operations",
+    "column": {
+      "when": "Date",
+      "action": "Action",
+      "entity": "Entity",
+      "actor": "Actor",
+      "ip": "IP"
+    },
+    "empty": {
+      "title": "No audit events"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "coming_soon": {
+      "title": "Coming soon",
+      "description": "Tenant settings configuration (VAT, currencies, notifications…)"
+    }
+  },
+  "errors": {
+    "forbidden": "You do not have permission to access this page.",
+    "back_home": "Back to home"
+  }
+}

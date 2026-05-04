@@ -1,0 +1,95 @@
+{
+  "app": {
+    "name": "Mini-ERP",
+    "tagline": "ERP commercial modulaire pour la Mauritanie"
+  },
+  "common": {
+    "loading": "Chargement…",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "search": "Rechercher",
+    "logout": "Se déconnecter",
+    "back": "Retour"
+  },
+  "auth": {
+    "login": {
+      "title": "Connexion",
+      "tenantCode": "Code organisation",
+      "email": "Adresse email",
+      "password": "Mot de passe",
+      "submit": "Se connecter",
+      "demo_hint": "Démo : tenant 'demo' / admin@demo.local / Admin1234!"
+    },
+    "bad_credentials": "Identifiants invalides",
+    "account_locked": "Compte verrouillé. Réessayez plus tard.",
+    "required": "Authentification requise"
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "organizations": "Organisations",
+    "users": "Utilisateurs",
+    "audit": "Journal d'audit",
+    "settings": "Paramètres"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "welcome": "Bienvenue {{name}}",
+    "foundation_status": "Fondation Phase 0 — déployée",
+    "foundation_message": "L'infrastructure de base est prête. Les modules métier (POS, ventes, paiements…) seront ajoutés en Phase 1A.",
+    "kpi": {
+      "tenants": "Organisations",
+      "users": "Utilisateurs",
+      "sales_today": "Ventes du jour",
+      "audit_events": "Événements d'audit",
+      "placeholder": "Données disponibles après amorçage",
+      "phase_1a": "Disponible en Phase 1A"
+    }
+  },
+  "organizations": {
+    "title": "Organisations",
+    "subtitle": "Toutes les organisations clientes",
+    "code": "Code",
+    "name": "Nom",
+    "type": "Type",
+    "status": "Statut",
+    "currency": "Devise",
+    "locale": "Langue",
+    "empty": {
+      "title": "Aucune organisation",
+      "description": "Créez la première organisation depuis l'API."
+    }
+  },
+  "users": {
+    "title": "Utilisateurs",
+    "coming_soon": {
+      "title": "Disponible bientôt",
+      "description": "La gestion CRUD des utilisateurs sera ajoutée en Phase 1."
+    }
+  },
+  "audit": {
+    "title": "Journal d'audit",
+    "subtitle": "Trace immuable des opérations sensibles",
+    "column": {
+      "when": "Date",
+      "action": "Action",
+      "entity": "Entité",
+      "actor": "Acteur",
+      "ip": "IP"
+    },
+    "empty": {
+      "title": "Aucun événement audité"
+    }
+  },
+  "settings": {
+    "title": "Paramètres",
+    "coming_soon": {
+      "title": "Disponible bientôt",
+      "description": "Configuration des paramètres locataire (TVA, devises, notifications…)"
+    }
+  },
+  "errors": {
+    "forbidden": "Vous n'avez pas la permission d'accéder à cette page.",
+    "back_home": "Retour à l'accueil"
+  }
+}

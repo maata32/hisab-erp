@@ -1,0 +1,35 @@
+spring:
+  jpa:
+    properties:
+      hibernate:
+        format_sql: false
+        generate_statistics: false
+  datasource:
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:30}
+      minimum-idle: ${DB_POOL_MIN:10}
+
+server:
+  tomcat:
+    threads:
+      max: ${TOMCAT_MAX_THREADS:200}
+    accept-count: 100
+    connection-timeout: 20000
+
+logging:
+  level:
+    root: WARN
+    com.minierp: INFO
+    org.hibernate.SQL: WARN
+
+management:
+  endpoint:
+    health:
+      show-details: when-authorized
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_RATE:0.05}

@@ -1,0 +1,33 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "ES2022",
+    "module": "ES2022",
+    "lib": ["ES2022", "dom"],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "baseUrl": ".",
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": false,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "useDefineForClassFields": false,
+    "paths": {
+      "@minierp/shared-api": ["libs/shared-api/src/index.ts"],
+      "@minierp/shared-auth": ["libs/shared-auth/src/index.ts"],
+      "@minierp/shared-ui": ["libs/shared-ui/src/index.ts"],
+      "@minierp/shared-i18n": ["libs/shared-i18n/src/index.ts"],
+      "@minierp/shared-util": ["libs/shared-util/src/index.ts"],
+      "@minierp/shared-data-access": ["libs/shared-data-access/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "tmp"]
+}

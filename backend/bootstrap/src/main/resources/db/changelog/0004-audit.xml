@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0004-audit-log" author="mini-erp">
+        <createTable tableName="audit_log">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="tenant_id" type="uuid"/>
+            <column name="actor_user_id" type="uuid"/>
+            <column name="action" type="varchar(100)"><constraints nullable="false"/></column>
+            <column name="entity_type" type="varchar(100)"><constraints nullable="false"/></column>
+            <column name="entity_id" type="varchar(100)"/>
+            <column name="old_value" type="jsonb"/>
+            <column name="new_value" type="jsonb"/>
+            <column name="ip_address" type="varchar(45)"/>
+            <column name="user_agent" type="varchar(500)"/>
+            <column name="occurred_at" type="timestamptz"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="audit_log" indexName="idx_audit_log_tenant_time">
+            <column name="tenant_id"/><column name="occurred_at"/>
+        </createIndex>
+        <createIndex tableName="audit_log" indexName="idx_audit_log_actor_time">
+            <column name="actor_user_id"/><column name="occurred_at"/>
+        </createIndex>
+        <createIndex tableName="audit_log" indexName="idx_audit_log_entity">
+            <column name="entity_type"/><column name="entity_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0004-audit-log-immutable" author="mini-erp">
+        <comment>audit_log is append-only — block UPDATE and DELETE at the DB level.</comment>
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION audit_log_block_modification()
+            RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN
+                RAISE EXCEPTION 'audit_log is append-only; % is forbidden', TG_OP;
+            END
+            $$;
+
+            DROP TRIGGER IF EXISTS audit_log_no_update ON audit_log;
+            CREATE TRIGGER audit_log_no_update
+                BEFORE UPDATE ON audit_log
+                FOR EACH ROW EXECUTE FUNCTION audit_log_block_modification();
+
+            DROP TRIGGER IF EXISTS audit_log_no_delete ON audit_log;
+            CREATE TRIGGER audit_log_no_delete
+                BEFORE DELETE ON audit_log
+                FOR EACH ROW EXECUTE FUNCTION audit_log_block_modification();
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

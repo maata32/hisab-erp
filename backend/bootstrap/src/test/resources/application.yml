@@ -1,0 +1,21 @@
+spring:
+  profiles:
+    active: test
+  datasource:
+    url: jdbc:tc:postgresql:16-alpine:///minierp_test
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  cache:
+    type: simple
+  modulith:
+    events:
+      jdbc-schema-initialization:
+        enabled: true
+
+app:
+  security:
+    jwt:
+      secret: TEST_SECRET_AT_LEAST_32_CHARACTERS_LONG_FOR_HS256_OK
