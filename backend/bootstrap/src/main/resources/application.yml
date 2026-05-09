@@ -36,6 +36,15 @@ spring:
     contexts: ${LIQUIBASE_CONTEXTS:default}
     parameters:
       app_user: ${SPRING_DATASOURCE_USERNAME:minierp}
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
   data:
     redis:
       host: ${REDIS_HOST:localhost}

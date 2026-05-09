@@ -8,12 +8,24 @@ COPY shared/pom.xml shared/pom.xml
 COPY tenant/pom.xml tenant/pom.xml
 COPY identity/pom.xml identity/pom.xml
 COPY audit/pom.xml audit/pom.xml
+COPY uom/pom.xml uom/pom.xml
+COPY catalog/pom.xml catalog/pom.xml
+COPY pricing/pom.xml pricing/pom.xml
+COPY inventory/pom.xml inventory/pom.xml
+COPY notifications/pom.xml notifications/pom.xml
+COPY pos/pom.xml pos/pom.xml
 COPY bootstrap/pom.xml bootstrap/pom.xml
 RUN mvn -B -ntp -pl bootstrap -am dependency:go-offline -DskipTests || true
 COPY shared/src shared/src
 COPY tenant/src tenant/src
 COPY identity/src identity/src
 COPY audit/src audit/src
+COPY uom/src uom/src
+COPY catalog/src catalog/src
+COPY pricing/src pricing/src
+COPY inventory/src inventory/src
+COPY notifications/src notifications/src
+COPY pos/src pos/src
 COPY bootstrap/src bootstrap/src
 RUN mvn -B -ntp -pl bootstrap -am package -DskipTests
 RUN cp bootstrap/target/bootstrap-*.jar /workspace/app.jar

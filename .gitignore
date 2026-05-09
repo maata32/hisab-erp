@@ -51,3 +51,6 @@ logs/
 
 # Office lock files
 ~$*
+
+# Angular build cache
+.angular/
