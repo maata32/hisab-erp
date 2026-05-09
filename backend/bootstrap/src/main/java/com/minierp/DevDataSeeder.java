@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
@@ -36,6 +37,7 @@ public class DevDataSeeder implements ApplicationRunner {
         UUID demoOrgId = ensureDemoOrg();
         ensureTenantAdmin(demoOrgId);
         ensureSuperAdmin(demoOrgId);
+        ensurePhase1aData(demoOrgId);
         log.info("Dev data seeded. Demo tenant code: 'demo'");
         log.info("  Tenant admin: admin@demo.local / Admin1234!");
         log.info("  Super admin:  root@minierp.local / Root12345!");
@@ -103,5 +105,138 @@ public class DevDataSeeder implements ApplicationRunner {
         }
         log.warn("Role {} not found for tenant {} after 5s", code, orgId);
         return null;
+    }
+
+    // ── Phase 1A: UoM / Catalog / Pricing / Inventory / POS ──────────────────
+
+    private void ensurePhase1aData(UUID orgId) {
+        jdbc.queryForObject("SELECT set_config('app.current_tenant',?,false)",
+                String.class, orgId.toString());
+
+        UUID uomCatId = ensureUomCategory(orgId, "COUNT", "Count");
+        UUID pceId    = ensureUom(orgId, uomCatId, "PCE", "Piece");
+
+        UUID catId  = ensureProductCategory(orgId, "GENERAL", "Général");
+        UUID prod1  = ensureProduct(orgId, "DEMO-001", "Eau minérale 1.5L", pceId, catId);
+        UUID prod2  = ensureProduct(orgId, "DEMO-002", "Pain de mie", pceId, catId);
+
+        UUID tierId = ensurePriceTier(orgId, "RETAIL", "Tarif public");
+        ensureProductPrice(orgId, prod1, pceId, tierId, new BigDecimal("50.00"));
+        ensureProductPrice(orgId, prod2, pceId, tierId, new BigDecimal("25.00"));
+
+        UUID whId = ensureWarehouse(orgId, "MAIN", "Entrepôt principal");
+        ensureCashRegister(orgId, "REG-01", "Caisse 01", whId, tierId);
+
+        log.info("Phase 1A dev data seeded (UoM, catalog, pricing, inventory, POS).");
+    }
+
+    private UUID ensureUomCategory(UUID orgId, String code, String name) {
+        UUID id = queryId("SELECT id FROM uom_categories WHERE tenant_id = ? AND code = ?", orgId, code);
+        if (id != null) return id;
+        id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO uom_categories (id, tenant_id, code, name, created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, now(), now(), 0)
+                """, id, orgId, code, name);
+        return id;
+    }
+
+    private UUID ensureUom(UUID orgId, UUID categoryId, String code, String name) {
+        UUID id = queryId("SELECT id FROM uoms WHERE tenant_id = ? AND code = ?", orgId, code);
+        if (id != null) return id;
+        id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO uoms (id, tenant_id, category_id, code, name,
+                                  ratio_to_base, is_base, decimal_places,
+                                  created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, ?, 1, true, 0, now(), now(), 0)
+                """, id, orgId, categoryId, code, name);
+        return id;
+    }
+
+    private UUID ensureProductCategory(UUID orgId, String code, String name) {
+        UUID id = queryId("SELECT id FROM product_categories WHERE tenant_id = ? AND code = ?", orgId, code);
+        if (id != null) return id;
+        id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO product_categories (id, tenant_id, code, name, sort_order,
+                                                is_active, created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, 0, true, now(), now(), 0)
+                """, id, orgId, code, name);
+        return id;
+    }
+
+    private UUID ensureProduct(UUID orgId, String sku, String name, UUID baseUomId, UUID categoryId) {
+        UUID id = queryId("SELECT id FROM products WHERE tenant_id = ? AND sku = ?", orgId, sku);
+        if (id != null) return id;
+        id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO products (id, tenant_id, sku, name, category_id, base_uom_id,
+                                      default_tax_rate, tracks_lots, tracks_serial,
+                                      is_sellable, is_purchasable, is_active,
+                                      created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, ?, ?, 0.00, false, false, true, true, true, now(), now(), 0)
+                """, id, orgId, sku, name, categoryId, baseUomId);
+        return id;
+    }
+
+    private UUID ensurePriceTier(UUID orgId, String code, String name) {
+        UUID id = queryId("SELECT id FROM price_tiers WHERE tenant_id = ? AND code = ?", orgId, code);
+        if (id != null) return id;
+        id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO price_tiers (id, tenant_id, code, name, is_default, is_active,
+                                         created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, true, true, now(), now(), 0)
+                """, id, orgId, code, name);
+        return id;
+    }
+
+    private void ensureProductPrice(UUID orgId, UUID productId, UUID uomId, UUID tierId, BigDecimal amount) {
+        Integer n = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM product_prices
+                WHERE tenant_id = ? AND product_id = ? AND uom_id = ?
+                  AND price_tier_id = ? AND valid_from = '2000-01-01'
+                """, Integer.class, orgId, productId, uomId, tierId);
+        if (n != null && n > 0) return;
+        jdbc.update("""
+                INSERT INTO product_prices (id, tenant_id, product_id, uom_id, price_tier_id,
+                                            amount, currency, tax_inclusive, valid_from,
+                                            created_at, updated_at, version)
+                VALUES (uuid_generate_v4(), ?, ?, ?, ?, ?, 'MRU', false, '2000-01-01', now(), now(), 0)
+                """, orgId, productId, uomId, tierId, amount);
+    }
+
+    private UUID ensureWarehouse(UUID orgId, String code, String name) {
+        UUID id = queryId("SELECT id FROM warehouses WHERE tenant_id = ? AND code = ?", orgId, code);
+        if (id != null) return id;
+        id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO warehouses (id, tenant_id, code, name, is_default, is_active,
+                                        created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, true, true, now(), now(), 0)
+                """, id, orgId, code, name);
+        return id;
+    }
+
+    private UUID ensureCashRegister(UUID orgId, String code, String name, UUID warehouseId, UUID priceTierId) {
+        UUID id = queryId("SELECT id FROM cash_registers WHERE tenant_id = ? AND code = ?", orgId, code);
+        if (id != null) return id;
+        id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO cash_registers (id, tenant_id, code, name, warehouse_id,
+                                            default_price_tier_id, receipt_width_mm, is_active,
+                                            created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, ?, ?, 80, true, now(), now(), 0)
+                """, id, orgId, code, name, warehouseId, priceTierId);
+        return id;
+    }
+
+    private UUID queryId(String sql, Object... args) {
+        try {
+            return jdbc.queryForObject(sql, UUID.class, args);
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            return null;
+        }
     }
 }

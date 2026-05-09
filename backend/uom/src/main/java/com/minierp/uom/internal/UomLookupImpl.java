@@ -24,14 +24,14 @@ class UomLookupImpl implements UomLookup {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "uoms:byId", unless = "#result == null || !#result.isPresent()")
+    @Cacheable(value = "uoms:byId", unless = "#result == null")
     public Optional<UomDto> findById(UUID id) {
         return uoms.findById(id).map(this::toDto);
     }
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "uoms:byCode", unless = "#result == null || !#result.isPresent()")
+    @Cacheable(value = "uoms:byCode", unless = "#result == null")
     public Optional<UomDto> findByCode(String code) {
         return uoms.findByCode(code).map(this::toDto);
     }
