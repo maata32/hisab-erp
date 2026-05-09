@@ -1,5 +1,5 @@
 {
-  "common": { "loading": "Loading…", "logout": "Logout" },
+  "common": { "loading": "Loading…", "logout": "Logout", "save": "Save", "cancel": "Cancel" },
   "auth": {
     "tenantCode": "Organization code",
     "email": "Email",
@@ -11,16 +11,66 @@
     "offline_banner": "Offline mode — sales will sync when connectivity returns.",
     "tab": { "sale": "Sale", "session": "Session" },
     "sale": {
-      "coming_soon": {
-        "title": "POS module — Phase 1A",
-        "description": "Offline sale, cart, payment, thermal receipt to be implemented in Phase 1A."
+      "no_session": {
+        "title": "No active session",
+        "description": "Open a cash session before making sales."
+      },
+      "go_to_session": "Open session",
+      "search_placeholder": "Search product or scan barcode…",
+      "no_products": "No products found",
+      "cart": "Cart",
+      "cart_empty": "Cart is empty",
+      "subtotal": "Subtotal",
+      "tax": "Tax",
+      "total": "Total",
+      "pay": "Pay",
+      "payment": {
+        "title": "Payment",
+        "cash": "Cash",
+        "card": "Card",
+        "mobile": "Mobile",
+        "credit": "Credit",
+        "paid": "Total paid",
+        "change": "Change due",
+        "confirm": "Confirm sale"
+      },
+      "receipt": {
+        "title": "Sale confirmed",
+        "success": "Sale recorded successfully",
+        "print": "Print receipt",
+        "new_sale": "New sale"
       }
     },
     "session": {
-      "coming_soon": {
-        "title": "Cash sessions — Phase 1A",
-        "description": "Open/close session, cash movements, reconciliation."
-      }
+      "open": {
+        "title": "Open cash session",
+        "submit": "Open session"
+      },
+      "no_registers": "No registers found. Ask your admin to create one.",
+      "register": "Cash register",
+      "select_register": "Select register",
+      "opening_float": "Opening float",
+      "opened_at": "Opened",
+      "status": { "open": "Open", "closed": "Closed" },
+      "pending_sales": "pending sales to sync",
+      "kpi": {
+        "opening_float": "Opening float",
+        "total_sales": "Total sales",
+        "cash_in": "Cash in",
+        "expected": "Expected closing"
+      },
+      "cash_in": "Cash In",
+      "cash_out": "Cash Out",
+      "amount": "Amount",
+      "reason": "Reason",
+      "close": {
+        "button": "Close session",
+        "title": "Close session",
+        "hint": "Count the cash in the drawer and enter the amount below.",
+        "confirm": "Confirm close"
+      },
+      "counted_closing": "Counted closing amount",
+      "close_note": "Note (optional)"
     }
   }
 }

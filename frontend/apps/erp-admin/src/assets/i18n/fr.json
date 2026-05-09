@@ -83,9 +83,43 @@
   },
   "settings": {
     "title": "Paramètres",
-    "coming_soon": {
-      "title": "Disponible bientôt",
-      "description": "Configuration des paramètres locataire (TVA, devises, notifications…)"
+    "subtitle": "Configurez votre organisation et les paramètres POS",
+    "tab": {
+      "org": "Organisation",
+      "pos": "POS",
+      "invoice": "Facturation",
+      "payment": "Paiements"
+    },
+    "org": {
+      "code": "Code organisation",
+      "name": "Nom",
+      "email": "Email",
+      "phone": "Téléphone",
+      "address": "Adresse",
+      "locale": "Langue",
+      "timezone": "Fuseau horaire",
+      "currency": "Devise"
+    },
+    "pos": {
+      "receipt_width": "Largeur du ticket thermique",
+      "receipt_width_hint": "58 mm = 32 colonnes, 80 mm = 48 colonnes",
+      "default_payment": "Mode de paiement par défaut",
+      "allow_discounts": "Autoriser les remises",
+      "max_discount": "Remise maximale",
+      "require_customer_credit": "Exiger un client pour les ventes à crédit"
+    },
+    "invoice": {
+      "tax_enabled": "TVA activée",
+      "tax_rate": "Taux de TVA par défaut",
+      "tax_rate_hint": "ex: 0.16 pour 16%",
+      "prices_include_tax": "Prix TTC (TVA incluse)",
+      "number_prefix": "Préfixe numéro de facture"
+    },
+    "payment": {
+      "credit_limit_behavior": "Comportement du plafond de crédit",
+      "credit_limit_hint": "WARN = autoriser avec avertissement, BLOCK = rejeter, OFF = ignorer",
+      "terms_days": "Délai de paiement par défaut",
+      "allow_overpayment": "Autoriser le surpaiement"
     }
   },
   "errors": {

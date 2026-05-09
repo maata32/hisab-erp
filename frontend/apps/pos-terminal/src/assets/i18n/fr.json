@@ -1,5 +1,5 @@
 {
-  "common": { "loading": "Chargement…", "logout": "Déconnexion" },
+  "common": { "loading": "Chargement…", "logout": "Déconnexion", "save": "Enregistrer", "cancel": "Annuler" },
   "auth": {
     "tenantCode": "Code organisation",
     "email": "Email",
@@ -11,16 +11,66 @@
     "offline_banner": "Mode hors-ligne — les ventes seront synchronisées dès le retour de la connexion.",
     "tab": { "sale": "Vente", "session": "Session" },
     "sale": {
-      "coming_soon": {
-        "title": "Module POS — Phase 1A",
-        "description": "Vente offline, panier, paiement, ticket thermique seront implémentés en Phase 1A."
+      "no_session": {
+        "title": "Aucune session active",
+        "description": "Ouvrez une session de caisse avant d'effectuer des ventes."
+      },
+      "go_to_session": "Ouvrir une session",
+      "search_placeholder": "Rechercher un article ou scanner un code-barres…",
+      "no_products": "Aucun article trouvé",
+      "cart": "Panier",
+      "cart_empty": "Le panier est vide",
+      "subtotal": "Sous-total",
+      "tax": "TVA",
+      "total": "Total",
+      "pay": "Encaisser",
+      "payment": {
+        "title": "Paiement",
+        "cash": "Espèces",
+        "card": "Carte",
+        "mobile": "Mobile",
+        "credit": "Crédit",
+        "paid": "Total payé",
+        "change": "Rendu",
+        "confirm": "Valider la vente"
+      },
+      "receipt": {
+        "title": "Vente enregistrée",
+        "success": "Vente enregistrée avec succès",
+        "print": "Imprimer le ticket",
+        "new_sale": "Nouvelle vente"
       }
     },
     "session": {
-      "coming_soon": {
-        "title": "Sessions caisse — Phase 1A",
-        "description": "Ouverture/clôture de session, mouvements de caisse, réconciliation."
-      }
+      "open": {
+        "title": "Ouvrir une session de caisse",
+        "submit": "Ouvrir la session"
+      },
+      "no_registers": "Aucune caisse trouvée. Demandez à votre administrateur d'en créer une.",
+      "register": "Caisse",
+      "select_register": "Sélectionner une caisse",
+      "opening_float": "Fond de caisse initial",
+      "opened_at": "Ouverte le",
+      "status": { "open": "Ouverte", "closed": "Fermée" },
+      "pending_sales": "vente(s) en attente de synchronisation",
+      "kpi": {
+        "opening_float": "Fond initial",
+        "total_sales": "Total ventes",
+        "cash_in": "Entrées",
+        "expected": "Fermeture attendue"
+      },
+      "cash_in": "Entrée de caisse",
+      "cash_out": "Sortie de caisse",
+      "amount": "Montant",
+      "reason": "Motif",
+      "close": {
+        "button": "Clôturer la session",
+        "title": "Clôturer la session",
+        "hint": "Comptez les espèces dans le tiroir et saisissez le montant ci-dessous.",
+        "confirm": "Confirmer la clôture"
+      },
+      "counted_closing": "Montant compté à la fermeture",
+      "close_note": "Note (facultative)"
     }
   }
 }

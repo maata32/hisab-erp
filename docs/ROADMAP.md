@@ -28,16 +28,16 @@ Goal: a sellable product for small boutiques. After this phase, a single-cash-re
 
 | | Item | Notes |
 |---|---|---|
-| ⬜ | Catalog module: Product, ProductCategory, Brand, ProductVariant, ProductImage | |
-| ⬜ | UoM module: UomCategory, Uom, ProductUom, conversions | Same-category check; ratio math |
-| ⬜ | Pricing module: PriceTier, ProductPrice, PriceResolverService | Composite uniqueness; tier per customer |
-| ⬜ | Inventory v1: Warehouse, Stock, StockMovement | Single warehouse default; CMP costing |
-| ⬜ | POS counter: CashRegister, CashSession, Sale, SaleLine, CashMovement | One open session per register; idempotency key |
-| ⬜ | Offline POS: Dexie.js cache + sync queue + idempotent `/pos/sales/sync` | Per spec §3.1.5 |
-| ⬜ | Thermal receipt (ESC/POS direct, 58/80 mm) | |
-| ⬜ | Notifications stub: SMS adapter (Chinguitel/Mauritel) + email | Stubs in V1 (per ADR-001) |
-| ⬜ | Settings UI for tenant admin | |
-| ⬜ | Mandatory tests: idempotency, cross-tenant for new entities, sync of 1000 sales | |
+| ✅ | Catalog module: Product, ProductCategory, Brand, ProductVariant, ProductImage | |
+| ✅ | UoM module: UomCategory, Uom, ProductUom, conversions | Same-category check; ratio math |
+| ✅ | Pricing module: PriceTier, ProductPrice, PriceResolverService | Composite uniqueness; tier per customer |
+| ✅ | Inventory v1: Warehouse, Stock, StockMovement | Single warehouse default; CMP costing |
+| ✅ | POS counter: CashRegister, CashSession, Sale, SaleLine, CashMovement | One open session per register; idempotency key |
+| ✅ | Offline POS: Dexie.js cache + sync queue + idempotent `/pos/sales/sync` | Per spec §3.1.5 |
+| ✅ | Thermal receipt (ESC/POS direct, 58/80 mm) | EscPosEncoder + Web USB + HTML fallback |
+| ✅ | Notifications stub: SMS adapter (Chinguitel/Mauritel) + email | Stubs in V1 (per ADR-001) |
+| ✅ | Settings UI for tenant admin | Org profile + POS + Invoice + Payment tabs |
+| ✅ | Mandatory tests: idempotency, cross-tenant for new entities, sync of 1000 sales | |
 
 ## Phase 1B — Sales / Invoicing / Delivery / Payments (~8–10 weeks)
 

@@ -83,9 +83,43 @@
   },
   "settings": {
     "title": "الإعدادات",
-    "coming_soon": {
-      "title": "قريبًا",
-      "description": "تكوين إعدادات المستأجر (ضريبة القيمة المضافة، العملات، الإشعارات…)"
+    "subtitle": "تكوين إعدادات منظمتك ونقطة البيع",
+    "tab": {
+      "org": "المنظمة",
+      "pos": "نقطة البيع",
+      "invoice": "الفواتير",
+      "payment": "المدفوعات"
+    },
+    "org": {
+      "code": "رمز المنظمة",
+      "name": "الاسم",
+      "email": "البريد الإلكتروني",
+      "phone": "الهاتف",
+      "address": "العنوان",
+      "locale": "اللغة",
+      "timezone": "المنطقة الزمنية",
+      "currency": "العملة"
+    },
+    "pos": {
+      "receipt_width": "عرض الإيصال الحراري",
+      "receipt_width_hint": "58 مم = 32 عموداً، 80 مم = 48 عموداً",
+      "default_payment": "طريقة الدفع الافتراضية",
+      "allow_discounts": "السماح بالخصومات",
+      "max_discount": "الخصم الأقصى",
+      "require_customer_credit": "تطلب بيانات العميل للمبيعات الآجلة"
+    },
+    "invoice": {
+      "tax_enabled": "ضريبة القيمة المضافة مفعّلة",
+      "tax_rate": "معدل الضريبة الافتراضي",
+      "tax_rate_hint": "مثال: 0.16 لـ 16%",
+      "prices_include_tax": "الأسعار شاملة الضريبة",
+      "number_prefix": "بادئة رقم الفاتورة"
+    },
+    "payment": {
+      "credit_limit_behavior": "سلوك حد الائتمان",
+      "credit_limit_hint": "WARN = السماح مع تحذير، BLOCK = الرفض، OFF = تجاهل الحد",
+      "terms_days": "مدة الدفع الافتراضية",
+      "allow_overpayment": "السماح بالدفع الزائد"
     }
   },
   "errors": {

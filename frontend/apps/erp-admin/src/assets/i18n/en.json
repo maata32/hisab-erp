@@ -83,9 +83,43 @@
   },
   "settings": {
     "title": "Settings",
-    "coming_soon": {
-      "title": "Coming soon",
-      "description": "Tenant settings configuration (VAT, currencies, notifications…)"
+    "subtitle": "Configure your organization and POS settings",
+    "tab": {
+      "org": "Organization",
+      "pos": "POS",
+      "invoice": "Invoice",
+      "payment": "Payment"
+    },
+    "org": {
+      "code": "Organization code",
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "address": "Address",
+      "locale": "Language",
+      "timezone": "Timezone",
+      "currency": "Currency"
+    },
+    "pos": {
+      "receipt_width": "Thermal receipt width",
+      "receipt_width_hint": "58 mm = 32 columns, 80 mm = 48 columns",
+      "default_payment": "Default payment method",
+      "allow_discounts": "Allow discounts",
+      "max_discount": "Maximum discount",
+      "require_customer_credit": "Require customer for credit sales"
+    },
+    "invoice": {
+      "tax_enabled": "Tax (VAT) enabled",
+      "tax_rate": "Default tax rate",
+      "tax_rate_hint": "e.g. 0.16 for 16%",
+      "prices_include_tax": "Prices include tax",
+      "number_prefix": "Invoice number prefix"
+    },
+    "payment": {
+      "credit_limit_behavior": "Credit limit behavior",
+      "credit_limit_hint": "WARN = allow with warning, BLOCK = reject, OFF = ignore limit",
+      "terms_days": "Default payment terms",
+      "allow_overpayment": "Allow overpayment"
     }
   },
   "errors": {
