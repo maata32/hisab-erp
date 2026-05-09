@@ -22,5 +22,6 @@ export const appRoutes: Routes = [
       },
     ],
   },
+  { path: 'auth/login', redirectTo: 'login' },
   { path: '**', redirectTo: '' },
 ];
