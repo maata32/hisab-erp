@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.minierp</groupId>
+        <artifactId>minierp-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>pricing</artifactId>
+    <name>Mini-ERP :: Pricing</name>
+    <description>Price tiers, product prices, price resolver</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>shared</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>catalog</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>uom</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>tenant</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.modulith</groupId>
+            <artifactId>spring-modulith-events-api</artifactId>
+        </dependency>
+    </dependencies>
+</project>

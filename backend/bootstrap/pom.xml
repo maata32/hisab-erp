@@ -31,6 +31,30 @@
             <groupId>com.minierp</groupId>
             <artifactId>audit</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>uom</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>catalog</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>pricing</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>inventory</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>notifications</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>pos</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -90,6 +114,22 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <environmentVariables>
+                        <DOCKER_HOST>unix:///var/run/docker.sock</DOCKER_HOST>
+                        <DOCKER_API_VERSION>1.44</DOCKER_API_VERSION>
+                        <TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE>/var/run/docker.sock</TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE>
+                        <TESTCONTAINERS_HOST_OVERRIDE>localhost</TESTCONTAINERS_HOST_OVERRIDE>
+                    </environmentVariables>
+                    <systemPropertyVariables>
+                        <org.slf4j.simpleLogger.defaultLogLevel>WARN</org.slf4j.simpleLogger.defaultLogLevel>
+                        <DOCKER_API_VERSION>1.44</DOCKER_API_VERSION>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

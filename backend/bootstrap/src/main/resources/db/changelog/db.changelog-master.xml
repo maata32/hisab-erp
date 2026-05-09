@@ -12,5 +12,11 @@
     <include file="db/changelog/0005-rls-policies.xml"/>
     <include file="db/changelog/0006-seed-permissions.xml"/>
     <include file="db/changelog/0007-modulith-events.xml"/>
+    <include file="db/changelog/0008-uom.xml"/>
+    <include file="db/changelog/0009-catalog.xml"/>
+    <include file="db/changelog/0010-pricing.xml"/>
+    <include file="db/changelog/0011-inventory.xml"/>
+    <include file="db/changelog/0012-pos.xml"/>
+    <include file="db/changelog/0013-rls-phase1a.xml"/>
 
 </databaseChangeLog>

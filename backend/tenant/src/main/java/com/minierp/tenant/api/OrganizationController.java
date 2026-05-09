@@ -6,8 +6,6 @@ import com.minierp.shared.util.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -76,24 +74,6 @@ public class OrganizationController {
     public OrganizationDto me() {
         return service.get(CurrentUserHolder.require().tenantId());
     }
-
-    public record OrganizationDto(
-            UUID id, String code, String name, String type,
-            String status, String currency, String locale, String timezone,
-            String email, String phone, String address) {}
-
-    public record CreateOrganizationRequest(
-            @NotBlank @Size(min = 2, max = 50) @Pattern(regexp = "^[a-z0-9-]+$",
-                    message = "Code must be lowercase alphanumeric with dashes only") String code,
-            @NotBlank @Size(min = 2, max = 200) String name,
-            @NotBlank String type,
-            @Size(max = 3) String currency,
-            @Size(max = 10) String locale,
-            @Size(max = 50) String timezone,
-            @Size(max = 200) String email,
-            @Size(max = 30) String phone,
-            @Size(max = 500) String address,
-            UUID subscriptionPlanId) {}
 
     public record UpdateOrganizationRequest(
             @Size(max = 200) String name,

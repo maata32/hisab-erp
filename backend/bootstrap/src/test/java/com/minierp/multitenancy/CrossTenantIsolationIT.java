@@ -11,12 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.List;
 import java.util.UUID;
@@ -36,22 +31,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest(classes = MiniErpApplication.class)
 @ActiveProfiles({"test"})
-@Testcontainers
 @DisplayName("Cross-tenant isolation — Hibernate filter + PG RLS")
 class CrossTenantIsolationIT {
-
-    @Container
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine")
-            .withDatabaseName("minierp_test")
-            .withUsername("test")
-            .withPassword("test");
-
-    @DynamicPropertySource
-    static void props(DynamicPropertyRegistry reg) {
-        reg.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        reg.add("spring.datasource.username", POSTGRES::getUsername);
-        reg.add("spring.datasource.password", POSTGRES::getPassword);
-    }
 
     @PersistenceContext
     EntityManager em;

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0013-rls-phase1a" author="mini-erp">
+        <sql splitStatements="false">
+            DO $$
+            DECLARE
+                t text;
+                tables text[] := ARRAY[
+                    'uom_categories',
+                    'uoms',
+                    'product_categories',
+                    'brands',
+                    'products',
+                    'product_packagings',
+                    'product_variants',
+                    'product_images',
+                    'price_tiers',
+                    'product_prices',
+                    'warehouses',
+                    'stocks',
+                    'stock_movements',
+                    'cash_registers',
+                    'cash_sessions',
+                    'sale_number_sequences',
+                    'sales',
+                    'sale_lines',
+                    'cash_movements'
+                ];
+            BEGIN
+                FOREACH t IN ARRAY tables LOOP
+                    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+                    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
+
+                    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_select ON %I', t);
+                    EXECUTE format(
+                        'CREATE POLICY tenant_isolation_select ON %I
+                            FOR SELECT
+                            USING (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)',
+                        t);
+
+                    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_modify ON %I', t);
+                    EXECUTE format(
+                        'CREATE POLICY tenant_isolation_modify ON %I
+                            FOR ALL
+                            USING (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)
+                            WITH CHECK (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)',
+                        t);
+                END LOOP;
+            END
+            $$;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

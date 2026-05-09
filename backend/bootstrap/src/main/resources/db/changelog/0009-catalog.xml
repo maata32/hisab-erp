@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0009-product-categories" author="mini-erp">
+        <createTable tableName="product_categories">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="code" type="varchar(50)"><constraints nullable="false"/></column>
+            <column name="name" type="varchar(200)"><constraints nullable="false"/></column>
+            <column name="parent_id" type="uuid"/>
+            <column name="sort_order" type="int" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="is_active" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="product_categories" columnNames="tenant_id,code"
+                             constraintName="uk_product_categories_tenant_code"/>
+        <createIndex tableName="product_categories" indexName="idx_product_categories_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0009-brands" author="mini-erp">
+        <createTable tableName="brands">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="code" type="varchar(50)"><constraints nullable="false"/></column>
+            <column name="name" type="varchar(200)"><constraints nullable="false"/></column>
+            <column name="description" type="varchar(1000)"/>
+            <column name="logo_url" type="varchar(500)"/>
+            <column name="is_active" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="brands" columnNames="tenant_id,code"
+                             constraintName="uk_brands_tenant_code"/>
+        <createIndex tableName="brands" indexName="idx_brands_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0009-products" author="mini-erp">
+        <createTable tableName="products">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="sku" type="varchar(64)"><constraints nullable="false"/></column>
+            <column name="barcode" type="varchar(64)"/>
+            <column name="name" type="varchar(250)"><constraints nullable="false"/></column>
+            <column name="description" type="varchar(2000)"/>
+            <column name="category_id" type="uuid"/>
+            <column name="brand_id" type="uuid"/>
+            <column name="base_uom_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="default_tax_rate" type="numeric(5,4)" defaultValueNumeric="0.16"><constraints nullable="false"/></column>
+            <column name="tracks_lots" type="boolean" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="tracks_serial" type="boolean" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="is_sellable" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="is_purchasable" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="is_active" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="image_url" type="varchar(500)"/>
+            <column name="weight_grams" type="numeric(12,3)"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="products" columnNames="tenant_id,sku"
+                             constraintName="uk_products_tenant_sku"/>
+        <addUniqueConstraint tableName="products" columnNames="tenant_id,barcode"
+                             constraintName="uk_products_tenant_barcode"/>
+        <createIndex tableName="products" indexName="idx_products_category">
+            <column name="category_id"/>
+        </createIndex>
+        <createIndex tableName="products" indexName="idx_products_brand">
+            <column name="brand_id"/>
+        </createIndex>
+        <createIndex tableName="products" indexName="idx_products_active">
+            <column name="is_active"/>
+        </createIndex>
+        <createIndex tableName="products" indexName="idx_products_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0009-product-packagings" author="mini-erp">
+        <createTable tableName="product_packagings">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="product_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="uom_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="factor" type="numeric(19,6)"><constraints nullable="false"/></column>
+            <column name="barcode" type="varchar(64)"/>
+            <column name="is_default_sale" type="boolean" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="is_default_purchase" type="boolean" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="product_packagings" columnNames="product_id,uom_id"
+                             constraintName="uk_product_packagings_product_uom"/>
+        <createIndex tableName="product_packagings" indexName="idx_product_packagings_product">
+            <column name="product_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0009-product-variants" author="mini-erp">
+        <createTable tableName="product_variants">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="product_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="sku" type="varchar(64)"/>
+            <column name="barcode" type="varchar(64)"/>
+            <column name="attributes" type="jsonb"/>
+            <column name="is_active" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <sql>CREATE UNIQUE INDEX uk_product_variants_tenant_sku ON product_variants(tenant_id, sku) WHERE sku IS NOT NULL;</sql>
+        <createIndex tableName="product_variants" indexName="idx_product_variants_product">
+            <column name="product_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0009-product-images" author="mini-erp">
+        <createTable tableName="product_images">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="product_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="url" type="varchar(500)"><constraints nullable="false"/></column>
+            <column name="position" type="int" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="alt_text" type="varchar(200)"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="product_images" indexName="idx_product_images_product">
+            <column name="product_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

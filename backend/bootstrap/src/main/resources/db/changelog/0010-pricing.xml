@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0010-price-tiers" author="mini-erp">
+        <createTable tableName="price_tiers">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="code" type="varchar(50)"><constraints nullable="false"/></column>
+            <column name="name" type="varchar(200)"><constraints nullable="false"/></column>
+            <column name="is_default" type="boolean" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="is_active" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="price_tiers" columnNames="tenant_id,code"
+                             constraintName="uk_price_tiers_tenant_code"/>
+        <createIndex tableName="price_tiers" indexName="idx_price_tiers_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0010-product-prices" author="mini-erp">
+        <createTable tableName="product_prices">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="product_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="uom_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="price_tier_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="amount" type="numeric(19,4)"><constraints nullable="false"/></column>
+            <column name="currency" type="varchar(3)" defaultValue="MRU"><constraints nullable="false"/></column>
+            <column name="tax_inclusive" type="boolean" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="valid_from" type="date" defaultValueDate="2000-01-01"><constraints nullable="false"/></column>
+            <column name="valid_to" type="date"/>
+            <column name="min_qty" type="numeric(19,6)"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="product_prices"
+                             columnNames="tenant_id,product_id,uom_id,price_tier_id,valid_from"
+                             constraintName="uk_product_prices_unique"/>
+        <createIndex tableName="product_prices" indexName="idx_product_prices_product">
+            <column name="product_id"/>
+        </createIndex>
+        <createIndex tableName="product_prices" indexName="idx_product_prices_tier">
+            <column name="price_tier_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

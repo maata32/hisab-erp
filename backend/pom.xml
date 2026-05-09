@@ -23,6 +23,12 @@
         <module>tenant</module>
         <module>identity</module>
         <module>audit</module>
+        <module>uom</module>
+        <module>catalog</module>
+        <module>pricing</module>
+        <module>inventory</module>
+        <module>notifications</module>
+        <module>pos</module>
         <module>bootstrap</module>
     </modules>
 
@@ -36,7 +42,7 @@
         <jjwt.version>0.12.6</jjwt.version>
         <springdoc.version>2.6.0</springdoc.version>
         <archunit.version>1.3.0</archunit.version>
-        <testcontainers.version>1.20.3</testcontainers.version>
+        <testcontainers.version>1.21.0</testcontainers.version>
         <openhtmltopdf.version>1.0.10</openhtmltopdf.version>
         <poi.version>5.3.0</poi.version>
         <cron-utils.version>9.2.1</cron-utils.version>
@@ -81,6 +87,36 @@
             <dependency>
                 <groupId>com.minierp</groupId>
                 <artifactId>audit</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.minierp</groupId>
+                <artifactId>uom</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.minierp</groupId>
+                <artifactId>catalog</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.minierp</groupId>
+                <artifactId>pricing</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.minierp</groupId>
+                <artifactId>inventory</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.minierp</groupId>
+                <artifactId>notifications</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.minierp</groupId>
+                <artifactId>pos</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

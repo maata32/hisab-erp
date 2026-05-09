@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0012-cash-registers" author="mini-erp">
+        <createTable tableName="cash_registers">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="code" type="varchar(50)"><constraints nullable="false"/></column>
+            <column name="name" type="varchar(200)"><constraints nullable="false"/></column>
+            <column name="warehouse_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="default_price_tier_id" type="uuid"/>
+            <column name="receipt_width_mm" type="int" defaultValueNumeric="80"><constraints nullable="false"/></column>
+            <column name="is_active" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="cash_registers" columnNames="tenant_id,code"
+                             constraintName="uk_cash_registers_tenant_code"/>
+        <createIndex tableName="cash_registers" indexName="idx_cash_registers_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0012-cash-sessions" author="mini-erp">
+        <createTable tableName="cash_sessions">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="register_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="cashier_user_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="status" type="varchar(20)" defaultValue="OPEN"><constraints nullable="false"/></column>
+            <column name="opened_at" type="timestamptz"><constraints nullable="false"/></column>
+            <column name="closed_at" type="timestamptz"/>
+            <column name="opening_float" type="numeric(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="expected_closing" type="numeric(19,2)"/>
+            <column name="counted_closing" type="numeric(19,2)"/>
+            <column name="difference" type="numeric(19,2)"/>
+            <column name="total_sales" type="numeric(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="total_cash_in" type="numeric(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="total_cash_out" type="numeric(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="note" type="varchar(500)"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <!-- Only one OPEN session per register per tenant -->
+        <sql>CREATE UNIQUE INDEX uk_cash_sessions_register_open
+             ON cash_sessions(tenant_id, register_id) WHERE status = 'OPEN';</sql>
+        <createIndex tableName="cash_sessions" indexName="idx_cash_sessions_register">
+            <column name="register_id"/>
+        </createIndex>
+        <createIndex tableName="cash_sessions" indexName="idx_cash_sessions_status">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0012-sale-number-sequences" author="mini-erp">
+        <createTable tableName="sale_number_sequences">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="year" type="int"><constraints nullable="false"/></column>
+            <column name="counter" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="sale_number_sequences" columnNames="tenant_id,year"
+                             constraintName="uk_sale_number_sequences_tenant_year"/>
+    </changeSet>
+
+    <changeSet id="0012-sales" author="mini-erp">
+        <createTable tableName="sales">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="idempotency_key" type="varchar(64)"><constraints nullable="false"/></column>
+            <column name="number" type="varchar(30)"><constraints nullable="false"/></column>
+            <column name="register_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="session_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="warehouse_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="cashier_user_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="customer_id" type="uuid"/>
+            <column name="status" type="varchar(20)" defaultValue="COMPLETED"><constraints nullable="false"/></column>
+            <column name="currency" type="varchar(3)" defaultValue="MRU"><constraints nullable="false"/></column>
+            <column name="subtotal" type="numeric(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="tax_amount" type="numeric(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="discount_amount" type="numeric(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="total" type="numeric(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="paid_cash" type="numeric(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="paid_card" type="numeric(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="paid_mobile" type="numeric(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="paid_credit" type="numeric(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="change_due" type="numeric(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="completed_at" type="timestamptz"><constraints nullable="false"/></column>
+            <column name="note" type="varchar(1000)"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="sales" columnNames="tenant_id,idempotency_key"
+                             constraintName="uk_sales_idempotency"/>
+        <addUniqueConstraint tableName="sales" columnNames="tenant_id,number"
+                             constraintName="uk_sales_number"/>
+        <createIndex tableName="sales" indexName="idx_sales_session">
+            <column name="session_id"/>
+        </createIndex>
+        <createIndex tableName="sales" indexName="idx_sales_register">
+            <column name="register_id"/>
+        </createIndex>
+        <createIndex tableName="sales" indexName="idx_sales_completed">
+            <column name="completed_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0012-sale-lines" author="mini-erp">
+        <createTable tableName="sale_lines">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="sale_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="line_number" type="int"><constraints nullable="false"/></column>
+            <column name="product_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="uom_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="quantity" type="numeric(19,6)"><constraints nullable="false"/></column>
+            <column name="base_quantity" type="numeric(19,6)"><constraints nullable="false"/></column>
+            <column name="unit_price" type="numeric(19,4)"><constraints nullable="false"/></column>
+            <column name="unit_discount" type="numeric(19,4)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="tax_rate" type="numeric(5,4)"><constraints nullable="false"/></column>
+            <column name="subtotal" type="numeric(19,2)"><constraints nullable="false"/></column>
+            <column name="tax_amount" type="numeric(19,2)"><constraints nullable="false"/></column>
+            <column name="total" type="numeric(19,2)"><constraints nullable="false"/></column>
+            <column name="tax_inclusive" type="boolean" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="snapshot_name" type="varchar(250)"/>
+            <column name="snapshot_sku" type="varchar(64)"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="sale_lines" indexName="idx_sale_lines_sale">
+            <column name="sale_id"/>
+        </createIndex>
+        <createIndex tableName="sale_lines" indexName="idx_sale_lines_product">
+            <column name="product_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0012-cash-movements" author="mini-erp">
+        <createTable tableName="cash_movements">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="session_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="type" type="varchar(20)"><constraints nullable="false"/></column>
+            <column name="amount" type="numeric(19,2)"><constraints nullable="false"/></column>
+            <column name="reason" type="varchar(500)"/>
+            <column name="occurred_at" type="timestamptz"><constraints nullable="false"/></column>
+            <column name="user_id" type="uuid"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="cash_movements" indexName="idx_cash_movements_session">
+            <column name="session_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

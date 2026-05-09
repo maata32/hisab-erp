@@ -9,18 +9,18 @@ import java.util.Map;
  * Subclasses set the HTTP status they map to via the GlobalExceptionHandler.
  */
 @Getter
-public abstract class BusinessException extends RuntimeException {
+public class BusinessException extends RuntimeException {
 
     private final String messageKey;
     private final transient Map<String, Object> args;
 
-    protected BusinessException(String messageKey, Map<String, Object> args) {
+    public BusinessException(String messageKey, Map<String, Object> args) {
         super(messageKey);
         this.messageKey = messageKey;
         this.args = args == null ? Map.of() : args;
     }
 
-    protected BusinessException(String messageKey) {
+    public BusinessException(String messageKey) {
         this(messageKey, Map.of());
     }
 }

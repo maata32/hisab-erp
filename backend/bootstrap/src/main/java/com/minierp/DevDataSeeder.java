@@ -2,8 +2,8 @@ package com.minierp;
 
 import com.minierp.identity.security.PasswordHasher;
 import com.minierp.shared.tenant.TenantContext;
-import com.minierp.tenant.api.OrganizationController.CreateOrganizationRequest;
-import com.minierp.tenant.internal.OrganizationService;
+import com.minierp.tenant.api.CreateOrganizationRequest;
+import com.minierp.tenant.api.OrganizationApi;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -11,7 +11,6 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -26,7 +25,7 @@ import java.util.UUID;
 @Slf4j
 public class DevDataSeeder implements ApplicationRunner {
 
-    private final OrganizationService organizationService;
+    private final OrganizationApi organizationApi;
     private final JdbcTemplate jdbc;
     private final PasswordHasher hasher;
 
@@ -48,7 +47,7 @@ public class DevDataSeeder implements ApplicationRunner {
         if (exists != null && exists > 0) {
             return jdbc.queryForObject("SELECT id FROM organizations WHERE code = 'demo'", UUID.class);
         }
-        var dto = organizationService.create(new CreateOrganizationRequest(
+        var dto = organizationApi.create(new CreateOrganizationRequest(
                 "demo", "Demo Boutique", "BOUTIQUE",
                 "MRU", "fr", "Africa/Nouakchott",
                 "demo@minierp.local", null, null, null));

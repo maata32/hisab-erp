@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0011-warehouses" author="mini-erp">
+        <createTable tableName="warehouses">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="code" type="varchar(50)"><constraints nullable="false"/></column>
+            <column name="name" type="varchar(200)"><constraints nullable="false"/></column>
+            <column name="address" type="varchar(500)"/>
+            <column name="phone" type="varchar(30)"/>
+            <column name="is_default" type="boolean" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="is_active" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="warehouses" columnNames="tenant_id,code"
+                             constraintName="uk_warehouses_tenant_code"/>
+        <createIndex tableName="warehouses" indexName="idx_warehouses_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0011-stocks" author="mini-erp">
+        <createTable tableName="stocks">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="warehouse_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="product_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="qty_on_hand" type="numeric(19,6)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="qty_reserved" type="numeric(19,6)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="average_cost" type="numeric(19,6)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="stocks" columnNames="warehouse_id,product_id"
+                             constraintName="uk_stocks_warehouse_product"/>
+        <createIndex tableName="stocks" indexName="idx_stocks_product">
+            <column name="product_id"/>
+        </createIndex>
+        <createIndex tableName="stocks" indexName="idx_stocks_warehouse">
+            <column name="warehouse_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0011-stock-movements" author="mini-erp">
+        <createTable tableName="stock_movements">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="warehouse_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="product_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="type" type="varchar(30)"><constraints nullable="false"/></column>
+            <column name="qty_signed" type="numeric(19,6)"><constraints nullable="false"/></column>
+            <column name="unit_cost" type="numeric(19,6)"/>
+            <column name="reference_type" type="varchar(30)"/>
+            <column name="reference_id" type="uuid"/>
+            <column name="reference_number" type="varchar(60)"/>
+            <column name="note" type="varchar(500)"/>
+            <column name="occurred_at" type="timestamptz"><constraints nullable="false"/></column>
+            <column name="user_id" type="uuid"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="stock_movements" indexName="idx_stock_movements_warehouse_product">
+            <column name="warehouse_id"/>
+            <column name="product_id"/>
+        </createIndex>
+        <createIndex tableName="stock_movements" indexName="idx_stock_movements_occurred">
+            <column name="occurred_at"/>
+        </createIndex>
+        <createIndex tableName="stock_movements" indexName="idx_stock_movements_ref">
+            <column name="reference_type"/>
+            <column name="reference_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

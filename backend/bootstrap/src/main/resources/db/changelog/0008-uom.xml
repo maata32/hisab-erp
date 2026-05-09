@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0008-uom-categories" author="mini-erp">
+        <createTable tableName="uom_categories">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="code" type="varchar(50)"><constraints nullable="false"/></column>
+            <column name="name" type="varchar(100)"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="uom_categories" columnNames="tenant_id,code"
+                             constraintName="uk_uom_categories_tenant_code"/>
+        <createIndex tableName="uom_categories" indexName="idx_uom_categories_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0008-uoms" author="mini-erp">
+        <createTable tableName="uoms">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="category_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="code" type="varchar(30)"><constraints nullable="false"/></column>
+            <column name="name" type="varchar(100)"><constraints nullable="false"/></column>
+            <column name="ratio_to_base" type="numeric(19,6)"><constraints nullable="false"/></column>
+            <column name="is_base" type="boolean" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="decimal_places" type="int" defaultValueNumeric="3"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="uoms" columnNames="tenant_id,code"
+                             constraintName="uk_uoms_tenant_code"/>
+        <createIndex tableName="uoms" indexName="idx_uoms_category">
+            <column name="category_id"/>
+        </createIndex>
+        <createIndex tableName="uoms" indexName="idx_uoms_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

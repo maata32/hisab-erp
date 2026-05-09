@@ -2,12 +2,23 @@ spring:
   profiles:
     active: test
   datasource:
-    url: jdbc:tc:postgresql:16-alpine:///minierp_test
-    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    url: jdbc:postgresql://localhost:5433/minierp_test
+    username: minierp_app
+    password: minierp
+    driver-class-name: org.postgresql.Driver
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    contexts: default
+    url: jdbc:postgresql://localhost:5433/minierp_test
+    user: minierp
+    password: minierp
+  mail:
+    host: localhost
+    port: 25
   data:
     redis:
       host: localhost
-      port: 6379
+      port: 6380
   cache:
     type: simple
   modulith:

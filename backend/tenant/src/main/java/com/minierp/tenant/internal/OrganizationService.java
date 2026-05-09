@@ -6,8 +6,9 @@ import com.minierp.shared.error.ConflictException;
 import com.minierp.shared.error.NotFoundException;
 import com.minierp.shared.security.CurrentUserHolder;
 import com.minierp.shared.util.PageResponse;
-import com.minierp.tenant.api.OrganizationController.CreateOrganizationRequest;
-import com.minierp.tenant.api.OrganizationController.OrganizationDto;
+import com.minierp.tenant.api.CreateOrganizationRequest;
+import com.minierp.tenant.api.OrganizationApi;
+import com.minierp.tenant.api.OrganizationDto;
 import com.minierp.tenant.api.OrganizationController.UpdateOrganizationRequest;
 import com.minierp.tenant.events.OrganizationCreatedEvent;
 import com.minierp.tenant.events.OrganizationStatusChangedEvent;
@@ -25,7 +26,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class OrganizationService {
+public class OrganizationService implements OrganizationApi {
 
     private final OrganizationRepository orgs;
     private final TenantSettingsRepository settings;
