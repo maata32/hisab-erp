@@ -24,13 +24,13 @@ public class CashRegisterController {
     private final PosService posService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('pos:read')")
+    @PreAuthorize("hasAuthority('pos:operate')")
     public List<CashRegisterDto> list() {
         return posService.listRegisters();
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('pos:manage')")
+    @PreAuthorize("hasAuthority('warehouse:manage')")
     @ResponseStatus(HttpStatus.CREATED)
     public CashRegisterDto create(@Valid @RequestBody CreateRequest req) {
         return posService.createRegister(new CreateRegisterRequest(

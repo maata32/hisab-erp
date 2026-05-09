@@ -29,14 +29,14 @@ public class PosController {
     // ── Sessions ─────────────────────────────────────────────────────────────
 
     @PostMapping("/sessions")
-    @PreAuthorize("hasAuthority('pos:cashier')")
+    @PreAuthorize("hasAuthority('pos:open_session')")
     @ResponseStatus(HttpStatus.CREATED)
     public CashSessionDto openSession(@Valid @RequestBody OpenSessionRequest req) {
         return posService.openSession(req.registerId(), req.openingFloat(), currentUserId());
     }
 
     @PostMapping("/sessions/{id}/close")
-    @PreAuthorize("hasAuthority('pos:cashier')")
+    @PreAuthorize("hasAuthority('pos:close_session')")
     public CashSessionDto closeSession(
             @PathVariable UUID id,
             @Valid @RequestBody CloseSessionRequest req) {
@@ -44,7 +44,7 @@ public class PosController {
     }
 
     @GetMapping("/sessions/{id}")
-    @PreAuthorize("hasAuthority('pos:read')")
+    @PreAuthorize("hasAuthority('pos:operate')")
     public CashSessionDto getSession(@PathVariable UUID id) {
         return posService.getSession(id);
     }
@@ -52,26 +52,26 @@ public class PosController {
     // ── Sales ────────────────────────────────────────────────────────────────
 
     @PostMapping("/sales")
-    @PreAuthorize("hasAuthority('pos:cashier')")
+    @PreAuthorize("hasAuthority('pos:operate')")
     @ResponseStatus(HttpStatus.CREATED)
     public SaleDto createSale(@Valid @RequestBody CreateSaleRequest req) {
         return posService.createSale(req, currentUserId());
     }
 
     @PostMapping("/sales/sync")
-    @PreAuthorize("hasAuthority('pos:cashier')")
+    @PreAuthorize("hasAuthority('pos:operate')")
     public SyncSalesResponse syncSales(@Valid @RequestBody SyncRequest req) {
         return posService.syncSales(req.sales(), currentUserId());
     }
 
     @GetMapping("/sales/{id}")
-    @PreAuthorize("hasAuthority('pos:read')")
+    @PreAuthorize("hasAuthority('pos:operate')")
     public SaleDto getSale(@PathVariable UUID id) {
         return posService.getSale(id);
     }
 
     @GetMapping("/sessions/{sessionId}/sales")
-    @PreAuthorize("hasAuthority('pos:read')")
+    @PreAuthorize("hasAuthority('pos:operate')")
     public PageResponse<SaleDto> listSalesBySession(
             @PathVariable UUID sessionId,
             Pageable pageable) {
@@ -81,7 +81,7 @@ public class PosController {
     // ── Cash movements ───────────────────────────────────────────────────────
 
     @PostMapping("/sessions/{id}/cash-in")
-    @PreAuthorize("hasAuthority('pos:cashier')")
+    @PreAuthorize("hasAuthority('pos:operate')")
     @ResponseStatus(HttpStatus.CREATED)
     public CashMovementDto cashIn(
             @PathVariable UUID id,
@@ -90,7 +90,7 @@ public class PosController {
     }
 
     @PostMapping("/sessions/{id}/cash-out")
-    @PreAuthorize("hasAuthority('pos:cashier')")
+    @PreAuthorize("hasAuthority('pos:operate')")
     @ResponseStatus(HttpStatus.CREATED)
     public CashMovementDto cashOut(
             @PathVariable UUID id,
