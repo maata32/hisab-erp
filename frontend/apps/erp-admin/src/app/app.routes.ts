@@ -34,6 +34,36 @@ export const appRoutes: Routes = [
         loadComponent: () =>
           import('./features/settings/settings.page').then((m) => m.SettingsPage),
       },
+      {
+        path: 'customers',
+        loadComponent: () =>
+          import('./features/customers/customer-list.page').then((m) => m.CustomerListPage),
+      },
+      {
+        path: 'quotes',
+        loadComponent: () =>
+          import('./features/sales/quote-list.page').then((m) => m.QuoteListPage),
+      },
+      {
+        path: 'orders',
+        loadComponent: () =>
+          import('./features/sales/order-list.page').then((m) => m.OrderListPage),
+      },
+      {
+        path: 'invoices',
+        loadComponent: () =>
+          import('./features/sales/invoice-list.page').then((m) => m.InvoiceListPage),
+      },
+      {
+        path: 'deliveries',
+        loadComponent: () =>
+          import('./features/deliveries/delivery-list.page').then((m) => m.DeliveryListPage),
+      },
+      {
+        path: 'payments',
+        loadComponent: () =>
+          import('./features/payments/payment-list.page').then((m) => m.PaymentListPage),
+      },
     ],
   },
   {

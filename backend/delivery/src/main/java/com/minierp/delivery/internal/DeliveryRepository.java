@@ -1,0 +1,12 @@
+package com.minierp.delivery.internal;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.UUID;
+
+interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
+    Page<Delivery> findByCustomerId(UUID customerId, Pageable pageable);
+    Page<Delivery> findAll(Pageable pageable);
+}

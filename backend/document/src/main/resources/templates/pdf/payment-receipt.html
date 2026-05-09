@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #222; }
+  .page { padding: 30px; max-width: 600px; margin: 0 auto; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; border-bottom: 2px solid #d97706; padding-bottom: 16px; }
+  .logo-block .company-name { font-size: 18px; font-weight: bold; color: #d97706; }
+  .doc-title h1 { font-size: 22px; font-weight: bold; color: #d97706; }
+  .doc-title { text-align: right; }
+  .doc-title .doc-number { font-size: 13px; color: #555; }
+  .doc-title .doc-date { font-size: 11px; color: #888; margin-top: 2px; }
+  .amount-block { background: #fffbeb; border: 2px solid #d97706; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
+  .amount-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+  .amount-value { font-size: 32px; font-weight: bold; color: #d97706; margin-top: 4px; }
+  .details-table { width: 100%; border-collapse: collapse; }
+  .details-table tr { border-bottom: 1px solid #f3f4f6; }
+  .details-table td { padding: 8px 4px; }
+  .details-table td:first-child { color: #888; width: 45%; }
+  .details-table td:last-child { font-weight: 500; }
+  .allocations { margin-top: 16px; }
+  .allocations h3 { font-size: 11px; font-weight: bold; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .alloc-table { width: 100%; border-collapse: collapse; }
+  .alloc-table th { padding: 6px 8px; background: #fef3c7; font-size: 10px; text-align: left; }
+  .alloc-table td { padding: 5px 8px; border-bottom: 1px solid #fef3c7; }
+  .text-right { text-align: right; }
+  .footer { margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 10px; text-align: center; font-size: 9px; color: #aaa; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="logo-block">
+      <img th:if="${logoUrl}" th:src="${logoUrl}" alt="Logo" style="max-height:60px;max-width:160px;"/>
+      <div th:if="${!logoUrl}" class="company-name" th:text="${orgName}"></div>
+    </div>
+    <div class="doc-title">
+      <h1>REÇU DE PAIEMENT</h1>
+      <div class="doc-number" th:text="${payment.number}"></div>
+      <div class="doc-date">Date : <span th:text="${#temporals.format(payment.paymentDate,'dd/MM/yyyy')}"></span></div>
+    </div>
+  </div>
+
+  <div class="amount-block">
+    <div class="amount-label">Montant reçu</div>
+    <div class="amount-value" th:text="${payment.currency + ' ' + #numbers.formatDecimal(payment.amount,1,2)}"></div>
+  </div>
+
+  <table class="details-table">
+    <tr>
+      <td>Client</td>
+      <td th:text="${customer.name}"></td>
+    </tr>
+    <tr>
+      <td>Mode de paiement</td>
+      <td th:text="${payment.methodLabel}"></td>
+    </tr>
+    <tr th:if="${payment.reference}">
+      <td>Référence</td>
+      <td th:text="${payment.reference}"></td>
+    </tr>
+    <tr>
+      <td>Statut</td>
+      <td style="color:#166534;font-weight:bold;" th:text="${payment.statusLabel}"></td>
+    </tr>
+    <tr th:if="${payment.notes}">
+      <td>Notes</td>
+      <td th:text="${payment.notes}"></td>
+    </tr>
+  </table>
+
+  <div class="allocations" th:if="${!payment.allocations.isEmpty()}">
+    <h3>Affectation</h3>
+    <table class="alloc-table">
+      <thead>
+        <tr>
+          <th>Document</th>
+          <th class="text-right">Montant alloué</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="alloc : ${payment.allocations}">
+          <td th:text="${alloc.targetLabel}"></td>
+          <td class="text-right" th:text="${#numbers.formatDecimal(alloc.allocatedAmount,1,2)}"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    <span th:text="${orgName}"></span> — Document généré par Mini-ERP<br/>
+    Merci pour votre confiance.
+  </div>
+</div>
+</body>
+</html>

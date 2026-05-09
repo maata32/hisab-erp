@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0018-rls-phase1b" author="mini-erp">
+        <sql splitStatements="false">
+            DO $$
+            DECLARE
+                t text;
+                tables text[] := ARRAY[
+                    'customers',
+                    'customer_balances',
+                    'customer_credits',
+                    'document_number_sequences',
+                    'quotes',
+                    'quote_lines',
+                    'orders',
+                    'order_lines',
+                    'invoices',
+                    'invoice_lines',
+                    'credit_notes',
+                    'deliveries',
+                    'delivery_lines',
+                    'payments'
+                ];
+            BEGIN
+                FOREACH t IN ARRAY tables LOOP
+                    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+                    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
+
+                    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_select ON %I', t);
+                    EXECUTE format(
+                        'CREATE POLICY tenant_isolation_select ON %I
+                            FOR SELECT
+                            USING (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)',
+                        t);
+
+                    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_modify ON %I', t);
+                    EXECUTE format(
+                        'CREATE POLICY tenant_isolation_modify ON %I
+                            FOR ALL
+                            USING (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)
+                            WITH CHECK (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)',
+                        t);
+                END LOOP;
+            END
+            $$;
+        </sql>
+    </changeSet>
+
+    <!-- Seed Phase 1B permissions (simplified read/write pattern used by controllers) -->
+    <changeSet id="0018-seed-phase1b-permissions" author="mini-erp">
+        <sql>
+            INSERT INTO permissions (id, code, resource, action, description) VALUES
+              (uuid_generate_v4(), 'customer:write',  'customer',  'write',  'Create/update/deactivate customers'),
+              (uuid_generate_v4(), 'sales:read',      'sales',     'read',   'Read quotes, orders and invoices'),
+              (uuid_generate_v4(), 'sales:write',     'sales',     'write',  'Create and manage quotes, orders and invoices'),
+              (uuid_generate_v4(), 'delivery:write',  'delivery',  'write',  'Create and manage deliveries'),
+              (uuid_generate_v4(), 'payment:write',   'payment',   'write',  'Record and confirm payments')
+            ON CONFLICT ON CONSTRAINT uk_permissions_code DO NOTHING;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

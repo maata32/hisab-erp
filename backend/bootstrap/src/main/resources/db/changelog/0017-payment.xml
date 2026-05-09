@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0017-payment-tables" author="mini-erp">
+        <sql>
+            CREATE TABLE payments (
+                id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                tenant_id       UUID NOT NULL,
+                number          VARCHAR(30) NOT NULL,
+                type            VARCHAR(40) NOT NULL,
+                party_id        UUID NOT NULL,
+                amount          NUMERIC(19,2) NOT NULL,
+                currency        VARCHAR(3) NOT NULL DEFAULT 'MRU',
+                payment_date    DATE NOT NULL,
+                method          VARCHAR(30) NOT NULL,
+                reference       VARCHAR(100),
+                bank_account    VARCHAR(100),
+                session_id      UUID,
+                status          VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
+                notes           VARCHAR(1000),
+                confirmed_at    TIMESTAMPTZ,
+                confirmed_by    UUID,
+                created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+                created_by      UUID,
+                updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_by      UUID,
+                version         BIGINT NOT NULL DEFAULT 0,
+                CONSTRAINT uk_payments_tenant_number UNIQUE (tenant_id, number)
+            );
+
+            CREATE INDEX idx_payments_party  ON payments(party_id);
+            CREATE INDEX idx_payments_status ON payments(status);
+            CREATE INDEX idx_payments_date   ON payments(payment_date);
+
+            CREATE TABLE payment_allocations (
+                id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                payment_id       UUID NOT NULL,
+                target_type      VARCHAR(30) NOT NULL,
+                target_id        UUID NOT NULL,
+                allocated_amount NUMERIC(19,2) NOT NULL,
+                notes            VARCHAR(500),
+                created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+                created_by       UUID,
+                updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_by       UUID,
+                version          BIGINT NOT NULL DEFAULT 0
+            );
+
+            CREATE INDEX idx_pay_alloc_payment ON payment_allocations(payment_id);
+            CREATE INDEX idx_pay_alloc_target  ON payment_allocations(target_id);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

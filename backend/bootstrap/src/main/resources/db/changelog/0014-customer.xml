@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0014-customer-tables" author="mini-erp">
+        <sql>
+            CREATE TABLE customers (
+                id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                tenant_id   UUID NOT NULL,
+                code        VARCHAR(50) NOT NULL,
+                type        VARCHAR(20) NOT NULL DEFAULT 'INDIVIDUAL',
+                name        VARCHAR(250) NOT NULL,
+                email       VARCHAR(150),
+                phone       VARCHAR(30),
+                address     VARCHAR(500),
+                credit_limit NUMERIC(19,2) NOT NULL DEFAULT 0,
+                currency    VARCHAR(3) NOT NULL DEFAULT 'MRU',
+                notes       VARCHAR(500),
+                active      BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+                created_by  UUID,
+                updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_by  UUID,
+                version     BIGINT NOT NULL DEFAULT 0,
+                CONSTRAINT uk_customers_tenant_code UNIQUE (tenant_id, code)
+            );
+
+            CREATE INDEX idx_customers_tenant ON customers(tenant_id);
+            CREATE INDEX idx_customers_email  ON customers(email);
+            CREATE INDEX idx_customers_phone  ON customers(phone);
+
+            CREATE TABLE customer_balances (
+                id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                tenant_id       UUID NOT NULL,
+                customer_id     UUID NOT NULL,
+                total_invoiced  NUMERIC(19,2) NOT NULL DEFAULT 0,
+                total_paid      NUMERIC(19,2) NOT NULL DEFAULT 0,
+                balance         NUMERIC(19,2) NOT NULL DEFAULT 0,
+                overdue_amount  NUMERIC(19,2) NOT NULL DEFAULT 0,
+                last_payment_date DATE,
+                created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+                created_by      UUID,
+                updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_by      UUID,
+                version         BIGINT NOT NULL DEFAULT 0,
+                CONSTRAINT uk_customer_balances_customer UNIQUE (tenant_id, customer_id)
+            );
+
+            CREATE TABLE customer_credits (
+                id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                tenant_id           UUID NOT NULL,
+                customer_id         UUID NOT NULL,
+                initial_amount      NUMERIC(19,2) NOT NULL,
+                remaining_amount    NUMERIC(19,2) NOT NULL,
+                source              VARCHAR(30) NOT NULL,
+                source_payment_id   UUID,
+                expires_at          DATE,
+                status              VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+                notes               VARCHAR(500),
+                created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                created_by          UUID,
+                updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_by          UUID,
+                version             BIGINT NOT NULL DEFAULT 0
+            );
+
+            CREATE INDEX idx_customer_credits_customer ON customer_credits(customer_id);
+            CREATE INDEX idx_customer_credits_status   ON customer_credits(status);
+
+            CREATE TABLE customer_credit_usages (
+                id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                customer_credit_id  UUID NOT NULL,
+                payment_id          UUID NOT NULL,
+                amount_used         NUMERIC(19,2) NOT NULL,
+                created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                created_by          UUID,
+                updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_by          UUID,
+                version             BIGINT NOT NULL DEFAULT 0
+            );
+
+            CREATE INDEX idx_credit_usages_credit ON customer_credit_usages(customer_credit_id);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

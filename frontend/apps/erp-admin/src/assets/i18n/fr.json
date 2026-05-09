@@ -10,7 +10,9 @@
     "delete": "Supprimer",
     "search": "Rechercher",
     "logout": "Se déconnecter",
-    "back": "Retour"
+    "back": "Retour",
+    "active": "Actif",
+    "inactive": "Inactif"
   },
   "auth": {
     "login": {
@@ -27,6 +29,12 @@
   },
   "nav": {
     "dashboard": "Tableau de bord",
+    "customers": "Clients",
+    "quotes": "Devis",
+    "orders": "Commandes",
+    "invoices": "Factures",
+    "deliveries": "Livraisons",
+    "payments": "Paiements",
     "organizations": "Organisations",
     "users": "Utilisateurs",
     "audit": "Journal d'audit",
@@ -144,6 +152,105 @@
       "credit_limit_hint": "WARN = autoriser avec avertissement, BLOCK = rejeter, OFF = ignorer",
       "terms_days": "Délai de paiement par défaut",
       "allow_overpayment": "Autoriser le surpaiement"
+    }
+  },
+  "customers": {
+    "title": "Clients",
+    "subtitle": "Gérer les clients et leurs soldes de crédit",
+    "code": "Code",
+    "name": "Nom",
+    "type": "Type",
+    "email": "Email",
+    "phone": "Téléphone",
+    "creditLimit": "Limite de crédit",
+    "status": "Statut",
+    "empty": "Aucun client trouvé",
+    "types": {
+      "INDIVIDUAL": "Particulier",
+      "COMPANY": "Entreprise",
+      "GOVERNMENT": "Gouvernement"
+    }
+  },
+  "sales": {
+    "number": "Numéro",
+    "customer": "Client",
+    "issueDate": "Date d'émission",
+    "orderDate": "Date de commande",
+    "validUntil": "Valable jusqu'au",
+    "total": "Total",
+    "status": "Statut",
+    "delivery": "Livraison",
+    "statuses": {
+      "DRAFT": "Brouillon",
+      "SENT": "Envoyé",
+      "ACCEPTED": "Accepté",
+      "REJECTED": "Refusé",
+      "EXPIRED": "Expiré",
+      "CONFIRMED": "Confirmé",
+      "INVOICED": "Facturé",
+      "CANCELLED": "Annulé",
+      "ISSUED": "Émis",
+      "PARTIAL": "Partiel",
+      "PAID": "Payé",
+      "OVERDUE": "En retard"
+    }
+  },
+  "quotes": {
+    "title": "Devis",
+    "subtitle": "Propositions commerciales et estimations",
+    "empty": "Aucun devis trouvé"
+  },
+  "orders": {
+    "title": "Commandes",
+    "subtitle": "Commandes clients confirmées",
+    "empty": "Aucune commande trouvée"
+  },
+  "invoices": {
+    "title": "Factures",
+    "subtitle": "Factures clients et avoirs",
+    "dueDate": "Date d'échéance",
+    "balance": "Reste à payer",
+    "empty": "Aucune facture trouvée"
+  },
+  "deliveries": {
+    "title": "Livraisons",
+    "subtitle": "Suivi des expéditions et statuts de livraison",
+    "scheduledDate": "Prévu le",
+    "deliveredAt": "Livré le",
+    "progress": "Progression",
+    "address": "Adresse",
+    "empty": "Aucune livraison trouvée",
+    "statuses": {
+      "PENDING": "En attente",
+      "IN_PROGRESS": "En cours",
+      "PARTIAL": "Partielle",
+      "DELIVERED": "Livré",
+      "CANCELLED": "Annulé"
+    }
+  },
+  "payments": {
+    "title": "Paiements",
+    "subtitle": "Encaissements et allocations de paiement",
+    "party": "Client",
+    "date": "Date",
+    "amount": "Montant",
+    "method": "Mode",
+    "reference": "Référence",
+    "receipt": "Reçu",
+    "empty": "Aucun paiement trouvé",
+    "statuses": {
+      "DRAFT": "Brouillon",
+      "CONFIRMED": "Confirmé",
+      "CANCELLED": "Annulé"
+    },
+    "methods": {
+      "CASH": "Espèces",
+      "CHECK": "Chèque",
+      "BANK_TRANSFER": "Virement bancaire",
+      "MOBILE_MONEY": "Mobile Money",
+      "CARD": "Carte bancaire",
+      "CREDIT_USAGE": "Crédit",
+      "COMPENSATION": "Compensation"
     }
   },
   "errors": {

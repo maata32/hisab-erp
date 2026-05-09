@@ -18,5 +18,10 @@
     <include file="db/changelog/0011-inventory.xml"/>
     <include file="db/changelog/0012-pos.xml"/>
     <include file="db/changelog/0013-rls-phase1a.xml"/>
+    <include file="db/changelog/0014-customer.xml"/>
+    <include file="db/changelog/0015-sales.xml"/>
+    <include file="db/changelog/0016-delivery.xml"/>
+    <include file="db/changelog/0017-payment.xml"/>
+    <include file="db/changelog/0018-rls-phase1b.xml"/>
 
 </databaseChangeLog>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0016-delivery-tables" author="mini-erp">
+        <sql>
+            CREATE TABLE deliveries (
+                id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                tenant_id       UUID NOT NULL,
+                number          VARCHAR(30) NOT NULL,
+                customer_id     UUID NOT NULL,
+                order_id        UUID,
+                status          VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+                scheduled_date  DATE,
+                delivered_at    TIMESTAMPTZ,
+                delivered_by    UUID,
+                signed_by       VARCHAR(200),
+                address         VARCHAR(500),
+                contact_phone   VARCHAR(30),
+                notes           VARCHAR(1000),
+                created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+                created_by      UUID,
+                updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_by      UUID,
+                version         BIGINT NOT NULL DEFAULT 0,
+                CONSTRAINT uk_deliveries_tenant_number UNIQUE (tenant_id, number)
+            );
+
+            CREATE INDEX idx_deliveries_customer ON deliveries(customer_id);
+            CREATE INDEX idx_deliveries_order    ON deliveries(order_id);
+            CREATE INDEX idx_deliveries_status   ON deliveries(status);
+
+            CREATE TABLE delivery_lines (
+                id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                tenant_id           UUID NOT NULL,
+                delivery_id         UUID NOT NULL,
+                order_line_id       UUID,
+                product_id          UUID NOT NULL,
+                uom_id              UUID NOT NULL,
+                quantity_ordered    NUMERIC(19,6) NOT NULL,
+                quantity_delivered  NUMERIC(19,6) NOT NULL DEFAULT 0,
+                snapshot_name       VARCHAR(250),
+                snapshot_sku        VARCHAR(64),
+                status              VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+                created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                created_by          UUID,
+                updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_by          UUID,
+                version             BIGINT NOT NULL DEFAULT 0
+            );
+
+            CREATE INDEX idx_delivery_lines_delivery ON delivery_lines(delivery_id);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

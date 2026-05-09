@@ -10,7 +10,9 @@
     "delete": "Delete",
     "search": "Search",
     "logout": "Logout",
-    "back": "Back"
+    "back": "Back",
+    "active": "Active",
+    "inactive": "Inactive"
   },
   "auth": {
     "login": {
@@ -27,6 +29,12 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "customers": "Customers",
+    "quotes": "Quotes",
+    "orders": "Orders",
+    "invoices": "Invoices",
+    "deliveries": "Deliveries",
+    "payments": "Payments",
     "organizations": "Organizations",
     "users": "Users",
     "audit": "Audit log",
@@ -144,6 +152,105 @@
       "credit_limit_hint": "WARN = allow with warning, BLOCK = reject, OFF = ignore limit",
       "terms_days": "Default payment terms",
       "allow_overpayment": "Allow overpayment"
+    }
+  },
+  "customers": {
+    "title": "Customers",
+    "subtitle": "Manage clients and their credit balances",
+    "code": "Code",
+    "name": "Name",
+    "type": "Type",
+    "email": "Email",
+    "phone": "Phone",
+    "creditLimit": "Credit limit",
+    "status": "Status",
+    "empty": "No customers found",
+    "types": {
+      "INDIVIDUAL": "Individual",
+      "COMPANY": "Company",
+      "GOVERNMENT": "Government"
+    }
+  },
+  "sales": {
+    "number": "Number",
+    "customer": "Customer",
+    "issueDate": "Issue date",
+    "orderDate": "Order date",
+    "validUntil": "Valid until",
+    "total": "Total",
+    "status": "Status",
+    "delivery": "Delivery",
+    "statuses": {
+      "DRAFT": "Draft",
+      "SENT": "Sent",
+      "ACCEPTED": "Accepted",
+      "REJECTED": "Rejected",
+      "EXPIRED": "Expired",
+      "CONFIRMED": "Confirmed",
+      "INVOICED": "Invoiced",
+      "CANCELLED": "Cancelled",
+      "ISSUED": "Issued",
+      "PARTIAL": "Partial",
+      "PAID": "Paid",
+      "OVERDUE": "Overdue"
+    }
+  },
+  "quotes": {
+    "title": "Quotes",
+    "subtitle": "Sales proposals and estimates",
+    "empty": "No quotes found"
+  },
+  "orders": {
+    "title": "Orders",
+    "subtitle": "Confirmed customer orders",
+    "empty": "No orders found"
+  },
+  "invoices": {
+    "title": "Invoices",
+    "subtitle": "Customer invoices and credit notes",
+    "dueDate": "Due date",
+    "balance": "Balance due",
+    "empty": "No invoices found"
+  },
+  "deliveries": {
+    "title": "Deliveries",
+    "subtitle": "Track shipments and delivery status",
+    "scheduledDate": "Scheduled",
+    "deliveredAt": "Delivered at",
+    "progress": "Progress",
+    "address": "Address",
+    "empty": "No deliveries found",
+    "statuses": {
+      "PENDING": "Pending",
+      "IN_PROGRESS": "In progress",
+      "PARTIAL": "Partial",
+      "DELIVERED": "Delivered",
+      "CANCELLED": "Cancelled"
+    }
+  },
+  "payments": {
+    "title": "Payments",
+    "subtitle": "Customer receipts and payment allocations",
+    "party": "Customer",
+    "date": "Date",
+    "amount": "Amount",
+    "method": "Method",
+    "reference": "Reference",
+    "receipt": "Receipt",
+    "empty": "No payments found",
+    "statuses": {
+      "DRAFT": "Draft",
+      "CONFIRMED": "Confirmed",
+      "CANCELLED": "Cancelled"
+    },
+    "methods": {
+      "CASH": "Cash",
+      "CHECK": "Check",
+      "BANK_TRANSFER": "Bank transfer",
+      "MOBILE_MONEY": "Mobile Money",
+      "CARD": "Card",
+      "CREDIT_USAGE": "Credit",
+      "COMPENSATION": "Compensation"
     }
   },
   "errors": {

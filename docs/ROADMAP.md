@@ -39,18 +39,21 @@ Goal: a sellable product for small boutiques. After this phase, a single-cash-re
 | ✅ | Settings UI for tenant admin | Org profile + POS + Invoice + Payment tabs |
 | ✅ | Mandatory tests: idempotency, cross-tenant for new entities, sync of 1000 sales | |
 
-## Phase 1B — Sales / Invoicing / Delivery / Payments (~8–10 weeks)
+## Phase 1B — Sales / Invoicing / Delivery / Payments ✅ DELIVERED 2026-05-09
 
 | | Item |
 |---|---|
-| ⬜ | Sales: Quote, Order, Invoice, CreditNote, DocumentNumberSequence (atomic numbering) |
-| ⬜ | Customer module: Customer, Supplier, balances, credits, credit usage |
-| ⬜ | Configurable Delivery (3 levels: tenant, module, document) |
-| ⬜ | Payments module: Payment, PaymentAllocation across 7 target types, customer credits |
-| ⬜ | PDF generation: Thymeleaf + OpenHTMLtoPDF templates per document type |
-| ⬜ | Invoice → payment → balance reconciliation |
-| ⬜ | VAT (16%) on documents (per ADR-002) |
-| ⬜ | Mandatory tests: 100-thread atomic numbering, 5 partial deliveries, payment allocation across N invoices |
+| ✅ | Sales: Quote, Order, Invoice, CreditNote, DocumentNumberSequence (atomic numbering) |
+| ✅ | Customer module: Customer, balances, credits, credit usage |
+| ✅ | Delivery module: full workflow PENDING → IN_PROGRESS → PARTIAL → DELIVERED |
+| ✅ | Payments module: Payment, PaymentAllocation, FIFO auto-allocate, daily overdue job |
+| ✅ | PDF generation: Thymeleaf + OpenHTMLtoPDF 1.1.18 — Invoice, Quote, Delivery Note, Receipt |
+| ✅ | Invoice → payment → balance reconciliation |
+| ✅ | VAT configurable per tenant (enabled/disabled/rate) |
+| ✅ | Mandatory tests: 100-thread atomic numbering, 5 partial deliveries, FIFO payment allocation |
+| ✅ | DB migrations 0014–0018 (customer, sales, delivery, payment, RLS + permissions) |
+| ✅ | erp-admin UI: Customers, Quotes, Orders, Invoices, Deliveries, Payments pages |
+| ✅ | i18n EN/FR/AR for all Phase 1B strings |
 
 ## Phase 1C — Advanced Stock / Expiry / Expenses (~6–8 weeks)
 

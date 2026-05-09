@@ -10,7 +10,9 @@
     "delete": "حذف",
     "search": "بحث",
     "logout": "تسجيل الخروج",
-    "back": "رجوع"
+    "back": "رجوع",
+    "active": "نشط",
+    "inactive": "غير نشط"
   },
   "auth": {
     "login": {
@@ -27,6 +29,12 @@
   },
   "nav": {
     "dashboard": "لوحة القيادة",
+    "customers": "العملاء",
+    "quotes": "عروض الأسعار",
+    "orders": "الطلبات",
+    "invoices": "الفواتير",
+    "deliveries": "التسليمات",
+    "payments": "المدفوعات",
     "organizations": "المنظمات",
     "users": "المستخدمون",
     "audit": "سجل التدقيق",
@@ -144,6 +152,105 @@
       "credit_limit_hint": "WARN = السماح مع تحذير، BLOCK = الرفض، OFF = تجاهل الحد",
       "terms_days": "مدة الدفع الافتراضية",
       "allow_overpayment": "السماح بالدفع الزائد"
+    }
+  },
+  "customers": {
+    "title": "العملاء",
+    "subtitle": "إدارة العملاء وأرصدة الائتمان",
+    "code": "الرمز",
+    "name": "الاسم",
+    "type": "النوع",
+    "email": "البريد الإلكتروني",
+    "phone": "الهاتف",
+    "creditLimit": "حد الائتمان",
+    "status": "الحالة",
+    "empty": "لا يوجد عملاء",
+    "types": {
+      "INDIVIDUAL": "فرد",
+      "COMPANY": "شركة",
+      "GOVERNMENT": "حكومة"
+    }
+  },
+  "sales": {
+    "number": "الرقم",
+    "customer": "العميل",
+    "issueDate": "تاريخ الإصدار",
+    "orderDate": "تاريخ الطلب",
+    "validUntil": "صالح حتى",
+    "total": "الإجمالي",
+    "status": "الحالة",
+    "delivery": "التسليم",
+    "statuses": {
+      "DRAFT": "مسودة",
+      "SENT": "مُرسل",
+      "ACCEPTED": "مقبول",
+      "REJECTED": "مرفوض",
+      "EXPIRED": "منتهي الصلاحية",
+      "CONFIRMED": "مؤكد",
+      "INVOICED": "مُفوتر",
+      "CANCELLED": "ملغى",
+      "ISSUED": "مُصدر",
+      "PARTIAL": "جزئي",
+      "PAID": "مدفوع",
+      "OVERDUE": "متأخر"
+    }
+  },
+  "quotes": {
+    "title": "عروض الأسعار",
+    "subtitle": "العروض التجارية والتقديرات",
+    "empty": "لا يوجد عروض أسعار"
+  },
+  "orders": {
+    "title": "الطلبات",
+    "subtitle": "طلبات العملاء المؤكدة",
+    "empty": "لا يوجد طلبات"
+  },
+  "invoices": {
+    "title": "الفواتير",
+    "subtitle": "فواتير العملاء وأوامر الخصم",
+    "dueDate": "تاريخ الاستحقاق",
+    "balance": "المبلغ المتبقي",
+    "empty": "لا يوجد فواتير"
+  },
+  "deliveries": {
+    "title": "التسليمات",
+    "subtitle": "تتبع الشحنات وحالات التسليم",
+    "scheduledDate": "مجدول في",
+    "deliveredAt": "سُلِّم في",
+    "progress": "التقدم",
+    "address": "العنوان",
+    "empty": "لا يوجد تسليمات",
+    "statuses": {
+      "PENDING": "قيد الانتظار",
+      "IN_PROGRESS": "قيد التنفيذ",
+      "PARTIAL": "جزئي",
+      "DELIVERED": "تم التسليم",
+      "CANCELLED": "ملغى"
+    }
+  },
+  "payments": {
+    "title": "المدفوعات",
+    "subtitle": "إيصالات العملاء وتخصيصات الدفع",
+    "party": "العميل",
+    "date": "التاريخ",
+    "amount": "المبلغ",
+    "method": "طريقة الدفع",
+    "reference": "المرجع",
+    "receipt": "إيصال",
+    "empty": "لا يوجد مدفوعات",
+    "statuses": {
+      "DRAFT": "مسودة",
+      "CONFIRMED": "مؤكد",
+      "CANCELLED": "ملغى"
+    },
+    "methods": {
+      "CASH": "نقداً",
+      "CHECK": "شيك",
+      "BANK_TRANSFER": "تحويل مصرفي",
+      "MOBILE_MONEY": "موبايل موني",
+      "CARD": "بطاقة مصرفية",
+      "CREDIT_USAGE": "رصيد",
+      "COMPENSATION": "تعويض"
     }
   },
   "errors": {

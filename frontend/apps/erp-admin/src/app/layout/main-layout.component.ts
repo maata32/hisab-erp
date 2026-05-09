@@ -126,8 +126,14 @@ export class MainLayoutComponent {
 
   protected readonly items: NavItem[] = [
     { label: 'nav.dashboard', icon: 'pi pi-home', path: '/dashboard' },
+    { label: 'nav.customers', icon: 'pi pi-users', path: '/customers', permission: 'customer:read' },
+    { label: 'nav.quotes', icon: 'pi pi-file', path: '/quotes', permission: 'sales:read' },
+    { label: 'nav.orders', icon: 'pi pi-shopping-cart', path: '/orders', permission: 'sales:read' },
+    { label: 'nav.invoices', icon: 'pi pi-receipt', path: '/invoices', permission: 'sales:read' },
+    { label: 'nav.deliveries', icon: 'pi pi-truck', path: '/deliveries', permission: 'delivery:read' },
+    { label: 'nav.payments', icon: 'pi pi-credit-card', path: '/payments', permission: 'payment:read' },
     { label: 'nav.organizations', icon: 'pi pi-building', path: '/organizations', role: 'SUPER_ADMIN' },
-    { label: 'nav.users', icon: 'pi pi-users', path: '/users', permission: 'user:read' },
+    { label: 'nav.users', icon: 'pi pi-id-card', path: '/users', permission: 'user:read' },
     { label: 'nav.audit', icon: 'pi pi-shield', path: '/audit', permission: 'audit:read' },
     { label: 'nav.settings', icon: 'pi pi-cog', path: '/settings', permission: 'tenant_settings:read' },
   ];
