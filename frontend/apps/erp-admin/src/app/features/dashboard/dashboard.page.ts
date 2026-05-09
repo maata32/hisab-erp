@@ -17,6 +17,7 @@ import { AUTH_SERVICE } from '@minierp/shared-auth';
         </p>
       </header>
 
+      <!-- KPI cards -->
       <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         @for (kpi of kpis; track kpi.key) {
           <div class="bg-white rounded-lg border border-gray-200 p-5">
@@ -30,18 +31,46 @@ import { AUTH_SERVICE } from '@minierp/shared-auth';
         }
       </div>
 
-      <div class="bg-white rounded-lg border border-gray-200 p-6">
-        <h2 class="text-lg font-semibold mb-2">{{ 'dashboard.foundation_status' | translate }}</h2>
-        <p class="text-sm text-gray-600">
-          {{ 'dashboard.foundation_message' | translate }}
-        </p>
-        <ul class="mt-4 grid gap-2 text-sm">
-          <li class="flex items-center gap-2"><i class="pi pi-check-circle text-green-500"></i> Multi-tenant isolation (Hibernate filter + Postgres RLS)</li>
-          <li class="flex items-center gap-2"><i class="pi pi-check-circle text-green-500"></i> JWT authentication with 9 roles</li>
-          <li class="flex items-center gap-2"><i class="pi pi-check-circle text-green-500"></i> Audit logging (immutable)</li>
-          <li class="flex items-center gap-2"><i class="pi pi-check-circle text-green-500"></i> i18n FR / AR (RTL) / EN</li>
-          <li class="flex items-center gap-2"><i class="pi pi-check-circle text-green-500"></i> Liquibase migrations + tenant settings</li>
-        </ul>
+      <!-- Phase progress -->
+      <div class="grid gap-4 grid-cols-1 lg:grid-cols-2">
+
+        <!-- Phase 1A — delivered -->
+        <div class="bg-white rounded-lg border border-green-200 p-6">
+          <div class="flex items-center gap-3 mb-3">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+              <i class="pi pi-check-circle text-xs"></i>
+              {{ 'dashboard.phase.delivered' | translate }}
+            </span>
+            <h2 class="text-base font-semibold text-gray-800">{{ 'dashboard.phase1a.title' | translate }}</h2>
+          </div>
+          <ul class="space-y-1.5 text-sm text-gray-700">
+            @for (item of phase1aItems; track item) {
+              <li class="flex items-start gap-2">
+                <i class="pi pi-check-circle text-green-500 mt-0.5 shrink-0"></i>
+                <span>{{ item | translate }}</span>
+              </li>
+            }
+          </ul>
+        </div>
+
+        <!-- Phase 1B — next -->
+        <div class="bg-white rounded-lg border border-blue-200 p-6">
+          <div class="flex items-center gap-3 mb-3">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+              <i class="pi pi-arrow-right text-xs"></i>
+              {{ 'dashboard.phase.next' | translate }}
+            </span>
+            <h2 class="text-base font-semibold text-gray-800">{{ 'dashboard.phase1b.title' | translate }}</h2>
+          </div>
+          <ul class="space-y-1.5 text-sm text-gray-500">
+            @for (item of phase1bItems; track item) {
+              <li class="flex items-start gap-2">
+                <i class="pi pi-circle text-blue-300 mt-0.5 shrink-0"></i>
+                <span>{{ item | translate }}</span>
+              </li>
+            }
+          </ul>
+        </div>
       </div>
     </div>
   `,
@@ -54,9 +83,29 @@ export class DashboardPage {
   }
 
   protected readonly kpis = [
-    { key: 'tenants', label: 'dashboard.kpi.tenants', value: '—', hint: 'dashboard.kpi.placeholder', icon: 'pi pi-building' },
-    { key: 'users', label: 'dashboard.kpi.users', value: '—', hint: 'dashboard.kpi.placeholder', icon: 'pi pi-users' },
-    { key: 'sales', label: 'dashboard.kpi.sales_today', value: '—', hint: 'dashboard.kpi.phase_1a', icon: 'pi pi-shopping-cart' },
-    { key: 'audits', label: 'dashboard.kpi.audit_events', value: '—', hint: 'dashboard.kpi.placeholder', icon: 'pi pi-shield' },
+    { key: 'tenants',  label: 'dashboard.kpi.tenants',     value: '—', hint: 'dashboard.kpi.placeholder', icon: 'pi pi-building' },
+    { key: 'users',    label: 'dashboard.kpi.users',       value: '—', hint: 'dashboard.kpi.placeholder', icon: 'pi pi-users' },
+    { key: 'sales',    label: 'dashboard.kpi.sales_today', value: '—', hint: 'dashboard.kpi.sales_hint',  icon: 'pi pi-shopping-cart' },
+    { key: 'audits',   label: 'dashboard.kpi.audit_events',value: '—', hint: 'dashboard.kpi.placeholder', icon: 'pi pi-shield' },
+  ];
+
+  protected readonly phase1aItems = [
+    'dashboard.phase1a.catalog',
+    'dashboard.phase1a.uom',
+    'dashboard.phase1a.pricing',
+    'dashboard.phase1a.inventory',
+    'dashboard.phase1a.pos',
+    'dashboard.phase1a.offline',
+    'dashboard.phase1a.receipt',
+    'dashboard.phase1a.notifications',
+    'dashboard.phase1a.settings',
+  ];
+
+  protected readonly phase1bItems = [
+    'dashboard.phase1b.sales',
+    'dashboard.phase1b.customers',
+    'dashboard.phase1b.payments',
+    'dashboard.phase1b.pdf',
+    'dashboard.phase1b.vat',
   ];
 }

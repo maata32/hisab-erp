@@ -35,15 +35,37 @@
   "dashboard": {
     "title": "Dashboard",
     "welcome": "Welcome {{name}}",
-    "foundation_status": "Phase 0 Foundation — deployed",
-    "foundation_message": "The core infrastructure is ready. Business modules (POS, sales, payments…) will be added in Phase 1A.",
+    "phase": {
+      "delivered": "Delivered",
+      "next": "Next sprint"
+    },
+    "phase1a": {
+      "title": "Phase 1A — POS MVP",
+      "catalog": "Catalog: Product, Category, Brand, Variant",
+      "uom": "Units of measure and conversions",
+      "pricing": "Price tiers and price resolver",
+      "inventory": "Inventory v1: Warehouse, Movements, Average cost",
+      "pos": "POS counter: Register, Session, Sale, Cash movements",
+      "offline": "Offline POS: Dexie.js + idempotent sync queue",
+      "receipt": "Thermal receipt ESC/POS 58/80 mm + HTML fallback",
+      "notifications": "SMS / email notification stubs (Chinguitel/Mauritel)",
+      "settings": "Settings UI: Organization, POS, Invoice, Payment"
+    },
+    "phase1b": {
+      "title": "Phase 1B — Sales / Invoicing / Payments",
+      "sales": "Quote, Order, Invoice, Credit note, Atomic numbering",
+      "customers": "Customer/Supplier module, balances, credits",
+      "payments": "Payments, allocation across 7 target types, customer credits",
+      "pdf": "PDF generation: Thymeleaf + OpenHTMLtoPDF",
+      "vat": "VAT 16% on documents (ADR-002)"
+    },
     "kpi": {
       "tenants": "Organizations",
       "users": "Users",
       "sales_today": "Today's sales",
       "audit_events": "Audit events",
       "placeholder": "Data available after seeding",
-      "phase_1a": "Available in Phase 1A"
+      "sales_hint": "Open a POS session to start selling"
     }
   },
   "organizations": {

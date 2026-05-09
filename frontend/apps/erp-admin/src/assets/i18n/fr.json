@@ -35,15 +35,37 @@
   "dashboard": {
     "title": "Tableau de bord",
     "welcome": "Bienvenue {{name}}",
-    "foundation_status": "Fondation Phase 0 — déployée",
-    "foundation_message": "L'infrastructure de base est prête. Les modules métier (POS, ventes, paiements…) seront ajoutés en Phase 1A.",
+    "phase": {
+      "delivered": "Livré",
+      "next": "Prochain sprint"
+    },
+    "phase1a": {
+      "title": "Phase 1A — POS MVP",
+      "catalog": "Catalogue : Produit, Catégorie, Marque, Variante",
+      "uom": "Unités de mesure et conversions",
+      "pricing": "Grilles tarifaires et résolution de prix",
+      "inventory": "Stock v1 : Entrepôt, Mouvements, Coût moyen",
+      "pos": "Caisse : Registre, Session, Vente, Mouvements de caisse",
+      "offline": "POS hors-ligne : Dexie.js + file de sync idempotente",
+      "receipt": "Ticket thermique ESC/POS 58/80 mm + fallback HTML",
+      "notifications": "Stub notifications SMS / email (Chinguitel/Mauritel)",
+      "settings": "Interface Paramètres : Organisation, POS, Facturation, Paiements"
+    },
+    "phase1b": {
+      "title": "Phase 1B — Ventes / Facturation / Paiements",
+      "sales": "Devis, Commande, Facture, Avoir, Numérotation atomique",
+      "customers": "Module Client/Fournisseur, soldes, crédits",
+      "payments": "Paiements, allocation sur 7 types de cibles, crédits clients",
+      "pdf": "Génération PDF : Thymeleaf + OpenHTMLtoPDF",
+      "vat": "TVA 16 % sur les documents (ADR-002)"
+    },
     "kpi": {
       "tenants": "Organisations",
       "users": "Utilisateurs",
       "sales_today": "Ventes du jour",
       "audit_events": "Événements d'audit",
       "placeholder": "Données disponibles après amorçage",
-      "phase_1a": "Disponible en Phase 1A"
+      "sales_hint": "Ouvrez une session POS pour commencer"
     }
   },
   "organizations": {
