@@ -40,6 +40,7 @@ public class DevDataSeeder implements ApplicationRunner {
         ensurePhase1aData(demoOrgId);
         log.info("Dev data seeded. Demo tenant code: 'demo'");
         log.info("  Tenant admin: admin@demo.local / Admin1234!");
+        log.info("  Cashier:      cashier@demo.local / Cash1234!");
         log.info("  Super admin:  root@minierp.local / Root12345!");
     }
 
@@ -58,6 +59,7 @@ public class DevDataSeeder implements ApplicationRunner {
 
     private void ensureTenantAdmin(UUID orgId) {
         upsertUser(orgId, "admin@demo.local", "Admin Demo", "Admin1234!", "TENANT_ADMIN", false);
+        upsertUser(orgId, "cashier@demo.local", "Cashier Demo", "Cash1234!", "CASHIER", false);
     }
 
     private void ensureSuperAdmin(UUID orgId) {

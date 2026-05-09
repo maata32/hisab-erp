@@ -31,7 +31,7 @@ RUN mvn -B -ntp -pl bootstrap -am package -DskipTests
 RUN cp bootstrap/target/bootstrap-*.jar /workspace/app.jar
 
 FROM eclipse-temurin:21-jre-alpine
-RUN apk add --no-cache curl tzdata gcompat && \
+RUN apk add --no-cache curl tzdata gcompat argon2-libs && \
     cp /usr/share/zoneinfo/Africa/Nouakchott /etc/localtime && \
     echo "Africa/Nouakchott" > /etc/timezone && \
     addgroup -S minierp && adduser -S -G minierp minierp
