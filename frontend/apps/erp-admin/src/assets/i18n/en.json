@@ -128,7 +128,9 @@
       "default_payment": "Default payment method",
       "allow_discounts": "Allow discounts",
       "max_discount": "Maximum discount",
-      "require_customer_credit": "Require customer for credit sales"
+      "require_customer_credit": "Require customer for credit sales",
+      "currency_decimals": "Currency decimal places",
+      "currency_decimals_hint": "0 = MRU (Ouguiya, no sub-unit) · 2 = EUR/USD"
     },
     "invoice": {
       "tax_enabled": "Tax (VAT) enabled",

@@ -128,7 +128,9 @@
       "default_payment": "Mode de paiement par défaut",
       "allow_discounts": "Autoriser les remises",
       "max_discount": "Remise maximale",
-      "require_customer_credit": "Exiger un client pour les ventes à crédit"
+      "require_customer_credit": "Exiger un client pour les ventes à crédit",
+      "currency_decimals": "Décimales monnaie",
+      "currency_decimals_hint": "0 = MRU (Ouguiya, sans centime) · 2 = EUR/USD"
     },
     "invoice": {
       "tax_enabled": "TVA activée",

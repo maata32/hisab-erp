@@ -13,6 +13,7 @@ import { MessageService } from 'primeng/api';
 import { SessionService } from '../services/session.service';
 import { PosApiService } from '../services/pos-api.service';
 import { SyncService } from '../services/sync.service';
+import { PosSettingsService } from '../services/pos-settings.service';
 import { CashRegister, CashSession } from '../models/pos.models';
 
 @Component({
@@ -120,19 +121,19 @@ import { CashRegister, CashSession } from '../models/pos.models';
         <div class="grid grid-cols-2 gap-3">
           <div class="bg-white rounded-lg shadow p-3 text-center">
             <p class="text-xs text-gray-500">{{ 'pos.session.kpi.opening_float' | translate }}</p>
-            <p class="text-lg font-bold">{{ sessionSvc.currentSession()?.openingFloat | number: '1.2-2' }}</p>
+            <p class="text-lg font-bold">{{ fmtSvc.format(sessionSvc.currentSession()?.openingFloat ?? 0) }}</p>
           </div>
           <div class="bg-white rounded-lg shadow p-3 text-center">
             <p class="text-xs text-gray-500">{{ 'pos.session.kpi.total_sales' | translate }}</p>
-            <p class="text-lg font-bold text-green-600">{{ sessionSvc.currentSession()?.totalSales | number: '1.2-2' }}</p>
+            <p class="text-lg font-bold text-green-600">{{ fmtSvc.format(sessionSvc.currentSession()?.totalSales ?? 0) }}</p>
           </div>
           <div class="bg-white rounded-lg shadow p-3 text-center">
             <p class="text-xs text-gray-500">{{ 'pos.session.kpi.cash_in' | translate }}</p>
-            <p class="text-lg font-bold text-blue-600">{{ sessionSvc.currentSession()?.totalCashIn | number: '1.2-2' }}</p>
+            <p class="text-lg font-bold text-blue-600">{{ fmtSvc.format(sessionSvc.currentSession()?.totalCashIn ?? 0) }}</p>
           </div>
           <div class="bg-white rounded-lg shadow p-3 text-center">
             <p class="text-xs text-gray-500">{{ 'pos.session.kpi.expected' | translate }}</p>
-            <p class="text-lg font-bold">{{ sessionSvc.currentSession()?.expectedClosing | number: '1.2-2' }}</p>
+            <p class="text-lg font-bold">{{ fmtSvc.format(sessionSvc.currentSession()?.expectedClosing ?? 0) }}</p>
           </div>
         </div>
 
@@ -244,6 +245,7 @@ import { CashRegister, CashSession } from '../models/pos.models';
 })
 export class SessionPage implements OnInit {
   protected readonly sessionSvc = inject(SessionService);
+  protected readonly fmtSvc = inject(PosSettingsService);
   private readonly api = inject(PosApiService);
   private readonly sync = inject(SyncService);
   private readonly msg = inject(MessageService);

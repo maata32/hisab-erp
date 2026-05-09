@@ -128,7 +128,9 @@
       "default_payment": "طريقة الدفع الافتراضية",
       "allow_discounts": "السماح بالخصومات",
       "max_discount": "الخصم الأقصى",
-      "require_customer_credit": "تطلب بيانات العميل للمبيعات الآجلة"
+      "require_customer_credit": "تطلب بيانات العميل للمبيعات الآجلة",
+      "currency_decimals": "خانات عشرية للعملة",
+      "currency_decimals_hint": "0 = أوقية موريتانية (بدون كسر) · 2 = يورو/دولار"
     },
     "invoice": {
       "tax_enabled": "ضريبة القيمة المضافة مفعّلة",

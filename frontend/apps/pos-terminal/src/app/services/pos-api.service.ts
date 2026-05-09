@@ -78,12 +78,14 @@ export interface ResolvedPrice {
   productId: string;
   uomId: string;
   priceTierId: string;
-  amount: number;
+  unitPrice: number;
+  quantity: number;
+  subtotal: number;
+  taxRate: number;
+  taxAmount: number;
+  total: number;
   currency: string;
   taxInclusive: boolean;
-  taxRate: number;
-  unitNet: number;
-  unitGross: number;
 }
 
 export interface PriceTier {
@@ -158,5 +160,19 @@ export class PosApiService {
       .set('quantity', quantity);
     if (priceTierId) params = params.set('priceTierId', priceTierId);
     return this.http.get<ResolvedPrice>('/api/v1/pricing/resolve', { params });
+  }
+
+  bulkResolvePrice(
+    priceTierId: string | null,
+    items: { productId: string; uomId: string }[],
+  ): Observable<ResolvedPrice[]> {
+    return this.http.post<ResolvedPrice[]>('/api/v1/pricing/resolve/bulk', {
+      priceTierId,
+      items,
+    });
+  }
+
+  getSettings(): Observable<Record<string, unknown>> {
+    return this.http.get<Record<string, unknown>>('/api/v1/settings');
   }
 }

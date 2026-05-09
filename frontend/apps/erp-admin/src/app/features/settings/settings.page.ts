@@ -32,6 +32,7 @@ interface PosSettings {
   maxDiscountPercent: number;
   defaultPaymentMethod: string;
   requireCustomerForCredit: boolean;
+  currencyDecimalPlaces: number;
 }
 
 interface InvoiceSettings {
@@ -176,6 +177,15 @@ interface PaymentSettings {
               <p-inputSwitch [(ngModel)]="posSettings.requireCustomerForCredit" />
               <label class="text-sm font-medium text-gray-700">{{ 'settings.pos.require_customer_credit' | translate }}</label>
             </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">{{ 'settings.pos.currency_decimals' | translate }}</label>
+              <p-inputNumber
+                [(ngModel)]="posSettings.currencyDecimalPlaces"
+                [min]="0" [max]="4" [showButtons]="true"
+                styleClass="w-32"
+              />
+              <p class="text-xs text-gray-400 mt-1">{{ 'settings.pos.currency_decimals_hint' | translate }}</p>
+            </div>
             <div class="flex justify-end pt-2">
               <button pButton [label]="'common.save' | translate" icon="pi pi-check"
                 [loading]="saving()" (click)="saveSettings()"></button>
@@ -273,6 +283,7 @@ export class SettingsPage implements OnInit {
     maxDiscountPercent: 30,
     defaultPaymentMethod: 'CASH',
     requireCustomerForCredit: true,
+    currencyDecimalPlaces: 0,
   };
 
   protected invoiceSettings: InvoiceSettings = {

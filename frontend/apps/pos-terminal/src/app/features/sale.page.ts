@@ -17,6 +17,7 @@ import { ReceiptService } from '../services/receipt.service';
 import { PosApiService } from '../services/pos-api.service';
 import { OnlineStatusService } from '../services/online-status.service';
 import { CachedProduct, CartLine, PendingSale } from '../models/pos.models';
+import { PosSettingsService } from '../services/pos-settings.service';
 
 @Component({
   selector: 'pos-sale-page',
@@ -97,7 +98,7 @@ import { CachedProduct, CartLine, PendingSale } from '../models/pos.models';
                       <div class="font-medium text-sm text-gray-800 line-clamp-2 leading-tight">{{ product.name }}</div>
                       <div class="mt-2 flex items-end justify-between">
                         <span class="text-xs text-gray-400">{{ product.sku }}</span>
-                        <span class="text-primary-700 font-bold text-sm">{{ product.price | number: '1.2-2' }}</span>
+                        <span class="text-primary-700 font-bold text-sm">{{ fmtSvc.format(product.price) }}</span>
                       </div>
                     </button>
                   }
@@ -139,7 +140,7 @@ import { CachedProduct, CartLine, PendingSale } from '../models/pos.models';
                         (click)="changeQty(line, 1)"></button>
                     </div>
                     <span class="text-primary-700 font-bold text-sm">
-                      {{ lineTotal(line) | number: '1.2-2' }}
+                      {{ fmtSvc.format(lineTotal(line)) }}
                     </span>
                   </div>
                 </div>
@@ -149,11 +150,11 @@ import { CachedProduct, CartLine, PendingSale } from '../models/pos.models';
             <div class="border-t p-3 bg-gray-50 shrink-0">
               <div class="flex justify-between text-sm text-gray-600 mb-1">
                 <span>{{ 'pos.sale.subtotal' | translate }}</span>
-                <span>{{ cartSubtotal() | number: '1.2-2' }}</span>
+                <span>{{ fmtSvc.format(cartSubtotal()) }}</span>
               </div>
               <div class="flex justify-between font-bold text-base mb-3">
                 <span>{{ 'pos.sale.total' | translate }}</span>
-                <span class="text-primary-700">{{ cartTotal() | number: '1.2-2' }} MRU</span>
+                <span class="text-primary-700">{{ fmtSvc.format(cartTotal()) }} MRU</span>
               </div>
               <button
                 pButton
@@ -181,7 +182,7 @@ import { CachedProduct, CartLine, PendingSale } from '../models/pos.models';
       <div class="space-y-3 pt-2">
         <div class="bg-gray-50 rounded p-3 flex justify-between font-bold text-lg">
           <span>{{ 'pos.sale.total' | translate }}</span>
-          <span class="text-primary-700">{{ cartTotal() | number: '1.2-2' }} MRU</span>
+          <span class="text-primary-700">{{ fmtSvc.format(cartTotal()) }} MRU</span>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
@@ -205,12 +206,12 @@ import { CachedProduct, CartLine, PendingSale } from '../models/pos.models';
           <div class="bg-blue-50 rounded p-3 text-sm">
             <div class="flex justify-between">
               <span>{{ 'pos.sale.payment.paid' | translate }}</span>
-              <span class="font-medium">{{ totalPaid() | number: '1.2-2' }} MRU</span>
+              <span class="font-medium">{{ fmtSvc.format(totalPaid()) }} MRU</span>
             </div>
             @if (changeDue() > 0) {
               <div class="flex justify-between text-green-700 font-bold mt-1">
                 <span>{{ 'pos.sale.payment.change' | translate }}</span>
-                <span>{{ changeDue() | number: '1.2-2' }} MRU</span>
+                <span>{{ fmtSvc.format(changeDue()) }} MRU</span>
               </div>
             }
           </div>
@@ -242,7 +243,7 @@ import { CachedProduct, CartLine, PendingSale } from '../models/pos.models';
         @if (changeDueDisplay() > 0) {
           <div class="bg-green-50 rounded p-3 mt-3">
             <p class="text-sm text-gray-600">{{ 'pos.sale.payment.change' | translate }}</p>
-            <p class="text-2xl font-bold text-green-700">{{ changeDueDisplay() | number: '1.2-2' }} MRU</p>
+            <p class="text-2xl font-bold text-green-700">{{ fmtSvc.format(changeDueDisplay()) }} MRU</p>
           </div>
         }
       </div>
@@ -262,6 +263,7 @@ export class SalePage implements OnInit {
   private readonly receiptSvc = inject(ReceiptService);
   private readonly api = inject(PosApiService);
   protected readonly online = inject(OnlineStatusService);
+  protected readonly fmtSvc = inject(PosSettingsService);
   private readonly msg = inject(MessageService);
   private readonly router = inject(Router);
 
@@ -305,6 +307,7 @@ export class SalePage implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
+    await this.fmtSvc.load();
     if (!this.sessionSvc.isOpen()) return;
     this.loadingProducts.set(true);
     try {

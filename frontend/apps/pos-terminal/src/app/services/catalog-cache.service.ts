@@ -24,24 +24,52 @@ export class CatalogCacheService {
 
   async refreshProducts(): Promise<void> {
     const now = Date.now();
-    const resp = await firstValueFrom(this.api.listAllSellableProducts(0, 500));
-    const rows: CachedProduct[] = resp.content
-      .filter((p) => p.sellable)
-      .map((p) => ({
+    const [resp, tiers] = await Promise.all([
+      firstValueFrom(this.api.listAllSellableProducts(0, 500)),
+      firstValueFrom(this.api.listPriceTiers()),
+    ]);
+
+    const sellable = resp.content.filter((p) => p.sellable);
+    const defaultTier = tiers.find((t) => (t as any).defaultTier) ?? tiers[0] ?? null;
+
+    const priceMap = new Map<string, { amount: number; currency: string; taxInclusive: boolean; taxRate: number }>();
+    if (defaultTier && sellable.length > 0) {
+      try {
+        const prices = await firstValueFrom(
+          this.api.bulkResolvePrice(
+            defaultTier.id,
+            sellable.map((p) => ({ productId: p.id, uomId: p.baseUomId })),
+          ),
+        );
+        for (const rp of prices) {
+          priceMap.set(rp.productId, {
+            amount: Number(rp.unitPrice),
+            currency: rp.currency,
+            taxInclusive: rp.taxInclusive,
+            taxRate: Number(rp.taxRate),
+          });
+        }
+      } catch { /* no prices configured yet */ }
+    }
+
+    const rows: CachedProduct[] = sellable.map((p) => {
+      const rp = priceMap.get(p.id);
+      return {
         id: p.id,
         sku: p.sku,
         barcode: p.barcode,
         name: p.name,
         baseUomId: p.baseUomId,
-        defaultTaxRate: p.defaultTaxRate,
+        defaultTaxRate: rp?.taxRate ?? p.defaultTaxRate,
         sellable: p.sellable,
         imageUrl: p.imageUrl,
-        price: 0,
-        priceTierId: null,
-        currency: 'MRU',
-        taxInclusive: false,
+        price: rp?.amount ?? 0,
+        priceTierId: defaultTier?.id ?? null,
+        currency: rp?.currency ?? 'MRU',
+        taxInclusive: rp?.taxInclusive ?? false,
         cachedAt: now,
-      }));
+      };
+    });
     await posDb.products.clear();
     await posDb.products.bulkPut(rows);
   }

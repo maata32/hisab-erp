@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @RestController
@@ -51,6 +52,22 @@ public class PricingController {
                 req.validFrom(), req.validTo(), req.minQty());
     }
 
+    @PostMapping("/resolve/bulk")
+    @PreAuthorize("hasAuthority('product:read')")
+    public List<ResolvedPrice> resolveBulk(@Valid @RequestBody BulkResolveRequest req) {
+        return req.items().stream()
+                .map((BulkResolveItem item) -> {
+                    try {
+                        return resolver.resolve(item.productId(), item.uomId(),
+                                req.priceTierId(), BigDecimal.ONE, null, null);
+                    } catch (Exception e) {
+                        return (ResolvedPrice) null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
     @GetMapping("/resolve")
     @PreAuthorize("hasAuthority('product:read')")
     public ResolvedPrice resolve(
@@ -62,6 +79,14 @@ public class PricingController {
             @RequestParam(required = false) BigDecimal unitDiscount) {
         return resolver.resolve(productId, uomId, priceTierId, quantity, date, unitDiscount);
     }
+
+    public record BulkResolveRequest(
+            UUID priceTierId,
+            @NotEmpty @Valid List<BulkResolveItem> items) {}
+
+    public record BulkResolveItem(
+            @NotNull UUID productId,
+            @NotNull UUID uomId) {}
 
     public record CreateTierRequest(
             @NotBlank @Size(max = 50) String code,
