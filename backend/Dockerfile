@@ -14,6 +14,11 @@ COPY pricing/pom.xml pricing/pom.xml
 COPY inventory/pom.xml inventory/pom.xml
 COPY notifications/pom.xml notifications/pom.xml
 COPY pos/pom.xml pos/pom.xml
+COPY customer/pom.xml customer/pom.xml
+COPY document/pom.xml document/pom.xml
+COPY sales/pom.xml sales/pom.xml
+COPY delivery/pom.xml delivery/pom.xml
+COPY payment/pom.xml payment/pom.xml
 COPY bootstrap/pom.xml bootstrap/pom.xml
 RUN mvn -B -ntp -pl bootstrap -am dependency:go-offline -DskipTests || true
 COPY shared/src shared/src
@@ -26,6 +31,11 @@ COPY pricing/src pricing/src
 COPY inventory/src inventory/src
 COPY notifications/src notifications/src
 COPY pos/src pos/src
+COPY customer/src customer/src
+COPY document/src document/src
+COPY sales/src sales/src
+COPY delivery/src delivery/src
+COPY payment/src payment/src
 COPY bootstrap/src bootstrap/src
 RUN mvn -B -ntp -pl bootstrap -am package -DskipTests
 RUN cp bootstrap/target/bootstrap-*.jar /workspace/app.jar
