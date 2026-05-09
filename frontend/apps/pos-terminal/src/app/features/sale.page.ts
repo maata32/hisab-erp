@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
@@ -187,19 +188,19 @@ import { PosSettingsService } from '../services/pos-settings.service';
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">{{ 'pos.sale.payment.cash' | translate }}</label>
-            <p-inputNumber [(ngModel)]="payCash" [min]="0" [minFractionDigits]="2" styleClass="w-full" />
+            <p-inputNumber [ngModel]="payCash()" (ngModelChange)="payCash.set($event ?? 0)" [min]="0" [minFractionDigits]="fmtSvc.decimalPlaces()" [maxFractionDigits]="fmtSvc.decimalPlaces()" styleClass="w-full" />
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">{{ 'pos.sale.payment.card' | translate }}</label>
-            <p-inputNumber [(ngModel)]="payCard" [min]="0" [minFractionDigits]="2" styleClass="w-full" />
+            <p-inputNumber [ngModel]="payCard()" (ngModelChange)="payCard.set($event ?? 0)" [min]="0" [minFractionDigits]="fmtSvc.decimalPlaces()" [maxFractionDigits]="fmtSvc.decimalPlaces()" styleClass="w-full" />
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">{{ 'pos.sale.payment.mobile' | translate }}</label>
-            <p-inputNumber [(ngModel)]="payMobile" [min]="0" [minFractionDigits]="2" styleClass="w-full" />
+            <p-inputNumber [ngModel]="payMobile()" (ngModelChange)="payMobile.set($event ?? 0)" [min]="0" [minFractionDigits]="fmtSvc.decimalPlaces()" [maxFractionDigits]="fmtSvc.decimalPlaces()" styleClass="w-full" />
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">{{ 'pos.sale.payment.credit' | translate }}</label>
-            <p-inputNumber [(ngModel)]="payCredit" [min]="0" [minFractionDigits]="2" styleClass="w-full" />
+            <p-inputNumber [ngModel]="payCredit()" (ngModelChange)="payCredit.set($event ?? 0)" [min]="0" [minFractionDigits]="fmtSvc.decimalPlaces()" [maxFractionDigits]="fmtSvc.decimalPlaces()" styleClass="w-full" />
           </div>
         </div>
         @if (totalPaid() > 0) {
@@ -278,10 +279,10 @@ export class SalePage implements OnInit {
   protected showPayment = false;
   protected showReceipt = false;
   protected searchQuery = '';
-  protected payCash = 0;
-  protected payCard = 0;
-  protected payMobile = 0;
-  protected payCredit = 0;
+  protected readonly payCash = signal(0);
+  protected readonly payCard = signal(0);
+  protected readonly payMobile = signal(0);
+  protected readonly payCredit = signal(0);
 
   private lastSaleSynced: any = null;
   private lastSalePending: PendingSale | null = null;
@@ -293,7 +294,7 @@ export class SalePage implements OnInit {
   protected readonly cartTotal = computed(() => this.cartSubtotal());
 
   protected readonly totalPaid = computed(() =>
-    (this.payCash || 0) + (this.payCard || 0) + (this.payMobile || 0) + (this.payCredit || 0)
+    (this.payCash() || 0) + (this.payCard() || 0) + (this.payMobile() || 0) + (this.payCredit() || 0)
   );
 
   protected readonly changeDue = computed(() =>
@@ -387,10 +388,10 @@ export class SalePage implements OnInit {
   clearCart(): void { this.cartLines.set([]); }
 
   openPayment(): void {
-    this.payCash = this.cartTotal();
-    this.payCard = 0;
-    this.payMobile = 0;
-    this.payCredit = 0;
+    this.payCash.set(this.cartTotal());
+    this.payCard.set(0);
+    this.payMobile.set(0);
+    this.payCredit.set(0);
     this.showPayment = true;
   }
 
@@ -409,16 +410,16 @@ export class SalePage implements OnInit {
       unitDiscount: l.unitDiscount > 0 ? l.unitDiscount : null,
     }));
     const payment = {
-      cash: this.payCash > 0 ? this.payCash : null,
-      card: this.payCard > 0 ? this.payCard : null,
-      mobile: this.payMobile > 0 ? this.payMobile : null,
-      credit: this.payCredit > 0 ? this.payCredit : null,
+      cash: this.payCash() > 0 ? this.payCash() : null,
+      card: this.payCard() > 0 ? this.payCard() : null,
+      mobile: this.payMobile() > 0 ? this.payMobile() : null,
+      credit: this.payCredit() > 0 ? this.payCredit() : null,
     };
     const savedChange = this.changeDue();
 
     try {
       if (this.online.isOnline()) {
-        const sale = await this.api.createSale({
+        const sale = await firstValueFrom(this.api.createSale({
           idempotencyKey,
           registerId: session.registerId,
           sessionId: session.id,
@@ -428,7 +429,7 @@ export class SalePage implements OnInit {
           note: null,
           lines,
           payment,
-        }).toPromise() as any;
+        })) as any;
         this.lastSaleSynced = sale;
         this.lastSaleNumber.set(sale?.number ?? null);
       } else {
@@ -463,6 +464,7 @@ export class SalePage implements OnInit {
       this.clearCart();
       this.changeDueDisplay.set(savedChange);
       this.showReceipt = true;
+      void this.sessionSvc.refreshSession();
     }
   }
 

@@ -14,7 +14,7 @@ import { SessionService } from '../services/session.service';
 import { PosApiService } from '../services/pos-api.service';
 import { SyncService } from '../services/sync.service';
 import { PosSettingsService } from '../services/pos-settings.service';
-import { CashRegister, CashSession } from '../models/pos.models';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'pos-session-page',
@@ -71,8 +71,8 @@ import { CashRegister, CashSession } from '../models/pos.models';
               <p-inputNumber
                 [(ngModel)]="openingFloat"
                 [min]="0"
-                [minFractionDigits]="2"
-                [maxFractionDigits]="2"
+                [minFractionDigits]="fmtSvc.decimalPlaces()"
+                [maxFractionDigits]="fmtSvc.decimalPlaces()"
                 styleClass="w-full"
               />
             </div>
@@ -132,6 +132,10 @@ import { CashRegister, CashSession } from '../models/pos.models';
             <p class="text-lg font-bold text-blue-600">{{ fmtSvc.format(sessionSvc.currentSession()?.totalCashIn ?? 0) }}</p>
           </div>
           <div class="bg-white rounded-lg shadow p-3 text-center">
+            <p class="text-xs text-gray-500">{{ 'pos.session.kpi.cash_out' | translate }}</p>
+            <p class="text-lg font-bold text-orange-600">{{ fmtSvc.format(sessionSvc.currentSession()?.totalCashOut ?? 0) }}</p>
+          </div>
+          <div class="bg-white rounded-lg shadow p-3 text-center col-span-2">
             <p class="text-xs text-gray-500">{{ 'pos.session.kpi.expected' | translate }}</p>
             <p class="text-lg font-bold">{{ fmtSvc.format(sessionSvc.currentSession()?.expectedClosing ?? 0) }}</p>
           </div>
@@ -186,8 +190,8 @@ import { CashRegister, CashSession } from '../models/pos.models';
           <p-inputNumber
             [(ngModel)]="movementAmount"
             [min]="0.01"
-            [minFractionDigits]="2"
-            [maxFractionDigits]="2"
+            [minFractionDigits]="fmtSvc.decimalPlaces()"
+            [maxFractionDigits]="fmtSvc.decimalPlaces()"
             styleClass="w-full"
           />
         </div>
@@ -221,8 +225,8 @@ import { CashRegister, CashSession } from '../models/pos.models';
           <p-inputNumber
             [(ngModel)]="countedClosing"
             [min]="0"
-            [minFractionDigits]="2"
-            [maxFractionDigits]="2"
+            [minFractionDigits]="fmtSvc.decimalPlaces()"
+            [maxFractionDigits]="fmtSvc.decimalPlaces()"
             styleClass="w-full"
           />
         </div>
@@ -306,9 +310,9 @@ export class SessionPage implements OnInit {
     try {
       const req = { amount: this.movementAmount, reason: this.movementReason || undefined };
       if (this.movementType() === 'in') {
-        await this.api.cashIn(session.id, req).toPromise();
+        await firstValueFrom(this.api.cashIn(session.id, req));
       } else {
-        await this.api.cashOut(session.id, req).toPromise();
+        await firstValueFrom(this.api.cashOut(session.id, req));
       }
       await this.sessionSvc.refreshSession();
       this.showMovementDialog = false;

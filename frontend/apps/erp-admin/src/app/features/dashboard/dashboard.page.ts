@@ -1,7 +1,9 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TranslateModule } from '@ngx-translate/core';
 import { CardModule } from 'primeng/card';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { AUTH_SERVICE } from '@minierp/shared-auth';
 
 @Component({
@@ -25,7 +27,7 @@ import { AUTH_SERVICE } from '@minierp/shared-auth';
               <span class="text-sm text-gray-500">{{ kpi.label | translate }}</span>
               <i [class]="kpi.icon" class="text-primary-500 text-xl"></i>
             </div>
-            <div class="mt-3 text-3xl font-bold text-gray-800">{{ kpi.value }}</div>
+            <div class="mt-3 text-3xl font-bold text-gray-800">{{ kpi.key === 'sales' ? salesToday() : kpi.value }}</div>
             <div class="mt-1 text-xs text-gray-500">{{ kpi.hint | translate }}</div>
           </div>
         }
@@ -75,17 +77,29 @@ import { AUTH_SERVICE } from '@minierp/shared-auth';
     </div>
   `,
 })
-export class DashboardPage {
+export class DashboardPage implements OnInit {
   private readonly auth = inject(AUTH_SERVICE);
+  private readonly http = inject(HttpClient);
+
+  protected readonly salesToday = signal<string>('—');
 
   protected user() {
     return this.auth.getCurrentUser();
   }
 
+  async ngOnInit(): Promise<void> {
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ salesToday: number }>('/api/v1/pos/stats/today')
+      );
+      this.salesToday.set(String(res.salesToday));
+    } catch { /* not critical — leave as '—' */ }
+  }
+
   protected readonly kpis = [
     { key: 'tenants',  label: 'dashboard.kpi.tenants',     value: '—', hint: 'dashboard.kpi.placeholder', icon: 'pi pi-building' },
     { key: 'users',    label: 'dashboard.kpi.users',       value: '—', hint: 'dashboard.kpi.placeholder', icon: 'pi pi-users' },
-    { key: 'sales',    label: 'dashboard.kpi.sales_today', value: '—', hint: 'dashboard.kpi.sales_hint',  icon: 'pi pi-shopping-cart' },
+    { key: 'sales',    label: 'dashboard.kpi.sales_today', value: null, hint: 'dashboard.kpi.sales_hint',  icon: 'pi pi-shopping-cart' },
     { key: 'audits',   label: 'dashboard.kpi.audit_events',value: '—', hint: 'dashboard.kpi.placeholder', icon: 'pi pi-shield' },
   ];
 

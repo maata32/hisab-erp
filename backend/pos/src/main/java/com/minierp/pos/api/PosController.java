@@ -78,6 +78,16 @@ public class PosController {
         return posService.listSalesBySession(sessionId, pageable);
     }
 
+    // ── Stats ────────────────────────────────────────────────────────────────
+
+    @GetMapping("/stats/today")
+    @PreAuthorize("hasAuthority('pos:operate') or hasAuthority('admin:read')")
+    public SalesTodayResponse salesToday() {
+        return new SalesTodayResponse(posService.salesToday());
+    }
+
+    public record SalesTodayResponse(java.math.BigDecimal salesToday) {}
+
     // ── Cash movements ───────────────────────────────────────────────────────
 
     @PostMapping("/sessions/{id}/cash-in")

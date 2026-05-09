@@ -390,10 +390,20 @@ public class PosService {
                 s.getPaidCredit(), s.getChangeDue(), s.getCompletedAt(), s.getNote(), lines);
     }
 
+    @Transactional(readOnly = true)
+    public BigDecimal salesToday() {
+        Instant startOfDay = LocalDate.now(TZ).atStartOfDay(TZ).toInstant();
+        Instant endOfDay = LocalDate.now(TZ).plusDays(1).atStartOfDay(TZ).toInstant();
+        return sales.sumTotalBetween(startOfDay, endOfDay);
+    }
+
     private CashSessionDto toSessionDto(CashSession s) {
+        BigDecimal expectedClosing = s.getStatus() == CashSessionStatus.OPEN
+                ? s.getOpeningFloat().add(s.getTotalSales()).add(s.getTotalCashIn()).subtract(s.getTotalCashOut())
+                : s.getExpectedClosing();
         return new CashSessionDto(s.getId(), s.getRegisterId(), s.getCashierUserId(),
                 s.getStatus().name(), s.getOpenedAt(), s.getClosedAt(),
-                s.getOpeningFloat(), s.getExpectedClosing(), s.getCountedClosing(),
+                s.getOpeningFloat(), expectedClosing, s.getCountedClosing(),
                 s.getDifference(), s.getTotalSales(), s.getTotalCashIn(),
                 s.getTotalCashOut(), s.getNote());
     }
