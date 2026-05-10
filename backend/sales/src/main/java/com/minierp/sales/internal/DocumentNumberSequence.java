@@ -40,8 +40,8 @@ class DocumentNumberSequence extends AuditableEntity {
         return String.format("%s-%d-%05d", prefix, year, counter);
     }
 
-    static DocumentNumberSequence forType(UUID tenantId, DocumentType type, int year) {
-        String prefix = switch (type) {
+    static String prefixFor(DocumentType type) {
+        return switch (type) {
             case QUOTE -> "DEV";
             case ORDER -> "CMD";
             case INVOICE -> "FAC";
@@ -49,11 +49,14 @@ class DocumentNumberSequence extends AuditableEntity {
             case DELIVERY_NOTE -> "BL";
             case PAYMENT_RECEIPT -> "PAY";
         };
+    }
+
+    static DocumentNumberSequence forType(UUID tenantId, DocumentType type, int year) {
         return DocumentNumberSequence.builder()
                 .tenantId(tenantId)
                 .documentType(type)
                 .year(year)
-                .prefix(prefix)
+                .prefix(prefixFor(type))
                 .counter(0L)
                 .build();
     }

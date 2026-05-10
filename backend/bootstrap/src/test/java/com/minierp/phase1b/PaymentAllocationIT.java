@@ -65,12 +65,25 @@ class PaymentAllocationIT {
 
         TenantContext.set(tenantId);
         em.unwrap(Session.class).enableFilter("tenantFilter").setParameter("tenantId", tenantId);
-        jdbc.queryForObject("SELECT set_config('app.current_tenant', ?, true)", String.class, tenantId.toString());
 
         customerId = UUID.randomUUID();
         uomId = UUID.randomUUID();
         productId = UUID.randomUUID();
+        UUID uomCatId = UUID.randomUUID();
 
+        // All inserts rely on the RLS NULL-bypass (app_current_tenant() IS NULL → TRUE).
+        // phase-1A tables (uom_categories, uoms, products): minierp_app has privileges from default grants.
+        // phase-1B tables (customers): minierp_app privileges granted in migration 0018-grant-phase1b-to-app-role.
+        jdbc.update("INSERT INTO uom_categories (id, tenant_id, code, name, created_at, updated_at, version) VALUES (?,?,?,?,now(),now(),0)",
+                uomCatId, tenantId, "COUNT-PAY", "Count");
+        jdbc.update("INSERT INTO uoms (id, tenant_id, category_id, code, name, ratio_to_base, is_base, decimal_places, created_at, updated_at, version) VALUES (?,?,?,?,?,1,true,0,now(),now(),0)",
+                uomId, tenantId, uomCatId, "PCE-PAY", "Piece");
+        jdbc.update("""
+                INSERT INTO products (id, tenant_id, sku, name, base_uom_id, default_tax_rate,
+                                      tracks_lots, tracks_serial, is_sellable, is_purchasable,
+                                      is_active, created_at, updated_at, version)
+                VALUES (?,?,?,?,?,0.00,false,false,true,true,true,now(),now(),0)
+                """, productId, tenantId, "SKU-PAYTEST", "Payment Test Product", uomId);
         jdbc.update("INSERT INTO customers (id, tenant_id, code, name, active, created_at, updated_at, version) VALUES (?,?,?,?,true,now(),now(),0)",
                 customerId, tenantId, "C-PAYTEST", "Payment Test Customer");
     }
@@ -84,7 +97,7 @@ class PaymentAllocationIT {
 
         // Create payment of 350 (covers inv1=100 + inv2=200 + partial inv3=50)
         PaymentDto.PaymentResponse payment = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                "CUSTOMER_RECEIPT", customerId, new BigDecimal("350.00"), "MRU",
+                "CUSTOMER_PAYMENT", customerId, new BigDecimal("350.00"), "MRU",
                 LocalDate.now(), "CASH", null, null, "Auto-allocate test", null
         ));
 
@@ -109,7 +122,7 @@ class PaymentAllocationIT {
         // Check invoice statuses via InvoiceOperations interface
         assertThat(salesService.findById(inv1)).map(InvoiceSummary::status).hasValue("PAID");
         assertThat(salesService.findById(inv2)).map(InvoiceSummary::status).hasValue("PAID");
-        assertThat(salesService.findById(inv3)).map(InvoiceSummary::status).hasValue("ISSUED");
+        assertThat(salesService.findById(inv3)).map(InvoiceSummary::status).hasValue("PARTIAL");
     }
 
     private UUID createInvoice(BigDecimal total, LocalDate dueDate) {

@@ -18,7 +18,7 @@ interface Quote {
   total: number;
 }
 
-type Severity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast';
+type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast';
 
 @Component({
   selector: 'erp-admin-quote-list',
@@ -73,7 +73,7 @@ export class QuoteListPage implements OnInit {
   ngOnInit() { this.load(); }
 
   protected statusSeverity(status: string): Severity {
-    return ({ DRAFT: 'secondary', SENT: 'info', ACCEPTED: 'success', REJECTED: 'danger', EXPIRED: 'warn' } as Record<string, Severity>)[status] ?? 'secondary';
+    return ({ DRAFT: 'secondary', SENT: 'info', ACCEPTED: 'success', REJECTED: 'danger', EXPIRED: 'warning' } as Record<string, Severity>)[status] ?? 'secondary';
   }
 
   private async load() {

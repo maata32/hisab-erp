@@ -19,7 +19,7 @@ interface Payment {
   reference: string;
 }
 
-type Severity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast';
+type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast';
 
 @Component({
   selector: 'erp-admin-payment-list',

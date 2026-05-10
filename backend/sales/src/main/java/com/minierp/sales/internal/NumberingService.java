@@ -23,8 +23,8 @@ class NumberingService {
         int year = Year.now().getValue();
         var tenantId = TenantContext.require();
 
-        DocumentNumberSequence seq = sequences.lockByTenantTypeYear(tenantId, type, year)
-                .orElseGet(() -> sequences.save(DocumentNumberSequence.forType(tenantId, type, year)));
+        sequences.insertIfAbsent(tenantId, type.name(), year, DocumentNumberSequence.prefixFor(type));
+        DocumentNumberSequence seq = sequences.lockByTenantTypeYear(tenantId, type, year).orElseThrow();
         seq.increment();
         return seq.format();
     }

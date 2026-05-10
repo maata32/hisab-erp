@@ -18,7 +18,7 @@ interface Delivery {
   lines: { quantityOrdered: number; quantityDelivered: number }[];
 }
 
-type Severity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast';
+type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast';
 
 @Component({
   selector: 'erp-admin-delivery-list',
@@ -92,7 +92,7 @@ export class DeliveryListPage implements OnInit {
   }
 
   protected statusSeverity(status: string): Severity {
-    return ({ PENDING: 'secondary', IN_PROGRESS: 'info', PARTIAL: 'warn', DELIVERED: 'success', CANCELLED: 'danger' } as Record<string, Severity>)[status] ?? 'secondary';
+    return ({ PENDING: 'secondary', IN_PROGRESS: 'info', PARTIAL: 'warning', DELIVERED: 'success', CANCELLED: 'danger' } as Record<string, Severity>)[status] ?? 'secondary';
   }
 
   private async load() {

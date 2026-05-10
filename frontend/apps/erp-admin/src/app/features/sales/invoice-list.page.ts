@@ -19,7 +19,7 @@ interface Invoice {
   balance: number;
 }
 
-type Severity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast';
+type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast';
 
 @Component({
   selector: 'erp-admin-invoice-list',
@@ -89,7 +89,7 @@ export class InvoiceListPage implements OnInit {
   }
 
   protected statusSeverity(status: string): Severity {
-    return ({ DRAFT: 'secondary', ISSUED: 'info', PARTIAL: 'warn', PAID: 'success', OVERDUE: 'danger', CANCELLED: 'secondary' } as Record<string, Severity>)[status] ?? 'secondary';
+    return ({ DRAFT: 'secondary', ISSUED: 'info', PARTIAL: 'warning', PAID: 'success', OVERDUE: 'danger', CANCELLED: 'secondary' } as Record<string, Severity>)[status] ?? 'secondary';
   }
 
   private async load() {

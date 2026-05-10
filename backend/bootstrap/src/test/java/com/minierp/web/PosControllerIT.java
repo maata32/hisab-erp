@@ -104,7 +104,7 @@ class PosControllerIT {
 
         token = jwtService.issueAccessToken(new CurrentUser(
                 UUID.randomUUID(), tenantId, "cashier@test.local", "fr",
-                Set.of(), Set.of("pos:cashier", "pos:read")));
+                Set.of(), Set.of("pos:open_session", "pos:close_session", "pos:operate")));
     }
 
     @Test
