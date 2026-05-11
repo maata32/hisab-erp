@@ -34,6 +34,9 @@ class SaleLine extends TenantAwareEntity {
     @Column(name = "product_id", columnDefinition = "uuid", nullable = false)
     private UUID productId;
 
+    @Column(name = "lot_id", columnDefinition = "uuid")
+    private UUID lotId;
+
     /** UoM the line was sold in (may be a packaging UoM, e.g. carton). */
     @Column(name = "uom_id", columnDefinition = "uuid", nullable = false)
     private UUID uomId;

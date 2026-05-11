@@ -25,6 +25,9 @@ class DeliveryLine extends TenantAwareEntity {
     @Column(name = "product_id", nullable = false, columnDefinition = "uuid")
     private UUID productId;
 
+    @Column(name = "lot_id", columnDefinition = "uuid")
+    private UUID lotId;
+
     @Column(name = "uom_id", nullable = false, columnDefinition = "uuid")
     private UUID uomId;
 

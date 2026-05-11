@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0023-rls-phase1c" author="mini-erp">
+        <sql splitStatements="false">
+            DO $$
+            DECLARE
+                t text;
+                tables text[] := ARRAY[
+                    'stock_transfers',
+                    'stock_transfer_lines',
+                    'inventory_counts',
+                    'inventory_count_lines',
+                    'product_lots',
+                    'lot_movements',
+                    'expiry_alert_configs',
+                    'expired_lot_destructions',
+                    'expense_categories',
+                    'expenses',
+                    'income_categories',
+                    'incomes'
+                ];
+            BEGIN
+                FOREACH t IN ARRAY tables LOOP
+                    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+                    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
+
+                    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_select ON %I', t);
+                    EXECUTE format(
+                        'CREATE POLICY tenant_isolation_select ON %I
+                            FOR SELECT
+                            USING (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)',
+                        t);
+
+                    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_modify ON %I', t);
+                    EXECUTE format(
+                        'CREATE POLICY tenant_isolation_modify ON %I
+                            FOR ALL
+                            USING (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)
+                            WITH CHECK (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)',
+                        t);
+                END LOOP;
+            END
+            $$;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0023-grant-phase1c-to-app-role" author="mini-erp" runInTransaction="false">
+        <sql splitStatements="false">
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'minierp_app') THEN
+                    GRANT ALL ON TABLE
+                        stock_transfers, stock_transfer_lines,
+                        inventory_counts, inventory_count_lines,
+                        product_lots, lot_movements, expiry_alert_configs, expired_lot_destructions,
+                        expense_categories, expenses,
+                        income_categories, incomes
+                    TO minierp_app;
+                END IF;
+            END $$;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0023-seed-phase1c-permissions" author="mini-erp">
+        <sql>
+            INSERT INTO permissions (id, code, resource, action, description) VALUES
+              (uuid_generate_v4(), 'inventory:transfer',  'inventory', 'transfer', 'Create and execute stock transfers'),
+              (uuid_generate_v4(), 'inventory:count',     'inventory', 'count',    'Create and validate inventory counts'),
+              (uuid_generate_v4(), 'lot:read',            'lot',       'read',     'View product lots and expiry data'),
+              (uuid_generate_v4(), 'lot:write',           'lot',       'write',    'Create lots, block, destroy expired lots'),
+              (uuid_generate_v4(), 'expense:read',        'expense',   'read',     'View expenses and incomes'),
+              (uuid_generate_v4(), 'expense:write',       'expense',   'write',    'Create and manage expenses and incomes'),
+              (uuid_generate_v4(), 'reporting:read',      'reporting', 'read',     'Access operational dashboards')
+            ON CONFLICT DO NOTHING;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

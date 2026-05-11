@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0021-expense-categories" author="mini-erp">
+        <createTable tableName="expense_categories">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="name" type="varchar(200)"><constraints nullable="false"/></column>
+            <column name="parent_id" type="uuid"/>
+            <column name="color" type="varchar(20)"/>
+            <column name="active" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="expense_categories" indexName="idx_expense_categories_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0021-expenses" author="mini-erp">
+        <createTable tableName="expenses">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="expense_number" type="varchar(60)"><constraints nullable="false"/></column>
+            <column name="category_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="supplier_id" type="uuid"/>
+            <column name="amount" type="numeric(19,2)"><constraints nullable="false"/></column>
+            <column name="expense_date" type="date"><constraints nullable="false"/></column>
+            <column name="description" type="varchar(1000)"/>
+            <column name="payment_method" type="varchar(30)" defaultValue="UNPAID"><constraints nullable="false"/></column>
+            <column name="payment_status" type="varchar(20)" defaultValue="UNPAID"><constraints nullable="false"/></column>
+            <column name="paid_amount" type="numeric(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="balance" type="numeric(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="attachments" type="jsonb"/>
+            <column name="recurring" type="boolean" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="recurrence_rule" type="varchar(500)"/>
+            <column name="next_recurrence_date" type="date"/>
+            <column name="parent_recurrence_id" type="uuid"/>
+            <column name="approval_status" type="varchar(20)" defaultValue="NOT_REQUIRED"><constraints nullable="false"/></column>
+            <column name="approved_by" type="uuid"/>
+            <column name="approved_at" type="timestamptz"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="expenses" columnNames="tenant_id,expense_number"
+                             constraintName="uk_expenses_tenant_number"/>
+        <createIndex tableName="expenses" indexName="idx_expenses_tenant_date">
+            <column name="tenant_id"/>
+            <column name="expense_date"/>
+        </createIndex>
+        <createIndex tableName="expenses" indexName="idx_expenses_category">
+            <column name="category_id"/>
+        </createIndex>
+        <createIndex tableName="expenses" indexName="idx_expenses_next_recurrence">
+            <column name="next_recurrence_date"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0021-income-categories" author="mini-erp">
+        <createTable tableName="income_categories">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="name" type="varchar(200)"><constraints nullable="false"/></column>
+            <column name="parent_id" type="uuid"/>
+            <column name="active" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="income_categories" indexName="idx_income_categories_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0021-incomes" author="mini-erp">
+        <createTable tableName="incomes">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="income_number" type="varchar(60)"><constraints nullable="false"/></column>
+            <column name="category_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="customer_id" type="uuid"/>
+            <column name="amount" type="numeric(19,2)"><constraints nullable="false"/></column>
+            <column name="received_date" type="date"><constraints nullable="false"/></column>
+            <column name="description" type="varchar(1000)"/>
+            <column name="source" type="varchar(500)"/>
+            <column name="payment_method" type="varchar(30)"/>
+            <column name="attachments" type="jsonb"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="incomes" columnNames="tenant_id,income_number"
+                             constraintName="uk_incomes_tenant_number"/>
+        <createIndex tableName="incomes" indexName="idx_incomes_tenant_date">
+            <column name="tenant_id"/>
+            <column name="received_date"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

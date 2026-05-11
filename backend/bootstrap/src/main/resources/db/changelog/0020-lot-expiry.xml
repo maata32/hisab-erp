@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- ProductLot: tracks a batch of products with an expiration date -->
+    <changeSet id="0020-product-lots" author="mini-erp">
+        <createTable tableName="product_lots">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="product_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="product_variant_id" type="uuid"/>
+            <column name="lot_number" type="varchar(100)"><constraints nullable="false"/></column>
+            <column name="production_date" type="date"/>
+            <column name="expiration_date" type="date"><constraints nullable="false"/></column>
+            <column name="initial_quantity" type="numeric(19,6)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="quantity_remaining" type="numeric(19,6)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="uom_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="warehouse_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="purchase_order_id" type="uuid"/>
+            <column name="supplier_id" type="uuid"/>
+            <column name="purchase_unit_cost" type="numeric(19,6)"/>
+            <column name="status" type="varchar(20)" defaultValue="ACTIVE"><constraints nullable="false"/></column>
+            <column name="blocked_reason" type="varchar(500)"/>
+            <column name="notes" type="varchar(1000)"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="product_lots"
+                             columnNames="tenant_id,product_id,lot_number,warehouse_id"
+                             constraintName="uk_product_lots_tenant_product_number_wh"/>
+        <createIndex tableName="product_lots" indexName="idx_product_lots_product">
+            <column name="product_id"/>
+        </createIndex>
+        <createIndex tableName="product_lots" indexName="idx_product_lots_expiration">
+            <column name="expiration_date"/>
+        </createIndex>
+        <createIndex tableName="product_lots" indexName="idx_product_lots_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="product_lots" indexName="idx_product_lots_warehouse">
+            <column name="warehouse_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- LotMovement: append-only journal of lot quantity changes -->
+    <changeSet id="0020-lot-movements" author="mini-erp">
+        <createTable tableName="lot_movements">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="lot_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="type" type="varchar(30)"><constraints nullable="false"/></column>
+            <column name="quantity" type="numeric(19,6)"><constraints nullable="false"/></column>
+            <column name="uom_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="reference_type" type="varchar(30)"/>
+            <column name="reference_id" type="uuid"/>
+            <column name="notes" type="varchar(500)"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="lot_movements" baseColumnNames="lot_id"
+                                 referencedTableName="product_lots" referencedColumnNames="id"
+                                 constraintName="fk_lot_movements_lot"/>
+        <createIndex tableName="lot_movements" indexName="idx_lot_movements_lot">
+            <column name="lot_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- ExpiryAlertConfig: configurable alert thresholds per tenant/category -->
+    <changeSet id="0020-expiry-alert-configs" author="mini-erp">
+        <createTable tableName="expiry_alert_configs">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="product_category_id" type="uuid"/>
+            <column name="days_before_expiry" type="int"><constraints nullable="false"/></column>
+            <column name="severity" type="varchar(20)" defaultValue="WARNING"><constraints nullable="false"/></column>
+            <column name="notify_roles" type="text"/>
+            <column name="enabled" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="expiry_alert_configs" indexName="idx_expiry_alert_configs_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- ExpiredLotDestruction: tracks lots that were destroyed -->
+    <changeSet id="0020-expired-lot-destructions" author="mini-erp">
+        <createTable tableName="expired_lot_destructions">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="lot_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="destruction_date" type="date"><constraints nullable="false"/></column>
+            <column name="destroyed_by" type="uuid"/>
+            <column name="quantity_destroyed" type="numeric(19,6)"><constraints nullable="false"/></column>
+            <column name="method" type="varchar(30)"><constraints nullable="false"/></column>
+            <column name="cost" type="numeric(19,6)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="notes" type="varchar(1000)"/>
+            <column name="attachments" type="jsonb"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="expired_lot_destructions" baseColumnNames="lot_id"
+                                 referencedTableName="product_lots" referencedColumnNames="id"
+                                 constraintName="fk_eld_lot"/>
+        <createIndex tableName="expired_lot_destructions" indexName="idx_eld_lot">
+            <column name="lot_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Seed default alert configs for each tenant (done at runtime, not here) -->
+
+</databaseChangeLog>

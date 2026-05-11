@@ -34,6 +34,11 @@ class Warehouse extends TenantAwareEntity {
     @Column(length = 30)
     private String phone;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20, nullable = false)
+    @Builder.Default
+    private WarehouseType type = WarehouseType.MAIN;
+
     @Column(name = "is_default", nullable = false)
     @Builder.Default
     private boolean defaultWarehouse = false;

@@ -55,16 +55,16 @@ Goal: a sellable product for small boutiques. After this phase, a single-cash-re
 | ✅ | erp-admin UI: Customers, Quotes, Orders, Invoices, Deliveries, Payments pages |
 | ✅ | i18n EN/FR/AR for all Phase 1B strings |
 
-## Phase 1C — Advanced Stock / Expiry / Expenses (~6–8 weeks)
+## Phase 1C — Advanced Stock / Expiry / Expenses ✅ DELIVERED 2026-05-11
 
 | | Item |
 |---|---|
-| ⬜ | Multi-warehouse + StockTransfer + InventoryCount |
-| ⬜ | Lot-expiry module: ProductLot, LotMovement, FEFO selection, ExpiryAlertConfig, ExpiredLotDestruction |
-| ⬜ | Scheduled jobs: scanExpiringLots (06:00), markExpiredLots (06:30) |
-| ⬜ | Expenses module: ExpenseCategory, Expense (with attachments ≤ 5 MB), recurrence (cron-utils) |
-| ⬜ | Reporting V1: aggregate views + ag-Grid dashboards (7 dashboards from §3.10) |
-| ⬜ | Mandatory tests: FEFO across successive sales, UoM conversion stability |
+| ✅ | Multi-warehouse + StockTransfer + InventoryCount |
+| ✅ | Lot-expiry module: ProductLot, LotMovement, FEFO selection, ExpiryAlertConfig, ExpiredLotDestruction |
+| ✅ | Scheduled jobs: scanExpiringLots (06:00), markExpiredLots (06:30) |
+| ✅ | Expenses module: ExpenseCategory, Expense (with MinIO attachments ≤ 5 MB), recurrence (cron-utils) |
+| ✅ | Reporting V1: 6 aggregate SQL views + ReportingController (Direction, Caisse, Stock, Expiry, Payments, Deliveries) |
+| ✅ | Mandatory tests: FEFO across successive sales (2 scenarios), UoM conversion stability (5 scenarios) |
 
 ## Phase 2 — Reporting / Procurement / V2 features (~8–10 weeks)
 

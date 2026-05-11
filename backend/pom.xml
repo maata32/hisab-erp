@@ -34,6 +34,9 @@
         <module>sales</module>
         <module>delivery</module>
         <module>payment</module>
+        <module>lot-expiry</module>
+        <module>expense</module>
+        <module>reporting</module>
         <module>bootstrap</module>
     </modules>
 
@@ -51,6 +54,7 @@
         <openhtmltopdf.version>1.1.18</openhtmltopdf.version>
         <poi.version>5.3.0</poi.version>
         <cron-utils.version>9.2.1</cron-utils.version>
+        <minio.version>8.5.11</minio.version>
         <argon2.version>2.11</argon2.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <lombok.version>1.18.38</lombok.version>
@@ -149,6 +153,21 @@
                 <artifactId>pos</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.minierp</groupId>
+                <artifactId>lot-expiry</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.minierp</groupId>
+                <artifactId>expense</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.minierp</groupId>
+                <artifactId>reporting</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <!-- Third-party -->
             <dependency>
@@ -193,6 +212,11 @@
                 <groupId>com.cronutils</groupId>
                 <artifactId>cron-utils</artifactId>
                 <version>${cron-utils.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.minio</groupId>
+                <artifactId>minio</artifactId>
+                <version>${minio.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.mkammerer</groupId>

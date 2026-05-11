@@ -50,7 +50,7 @@ class CatalogLookupImpl implements CatalogLookup {
                 .toList();
         return new ProductSnapshot(p.getId(), p.getSku(), p.getBarcode(), p.getName(),
                 p.getCategoryId(), p.getBrandId(), p.getBaseUomId(),
-                p.getDefaultTaxRate(), p.isTracksLots(), p.isSellable(), p.isActive(),
-                pkgs);
+                p.getDefaultTaxRate(), p.isTracksLots(), p.isTrackExpiry(), p.getShelfLifeDays(),
+                p.isSellable(), p.isActive(), pkgs);
     }
 }

@@ -14,6 +14,8 @@ public record ProductSnapshot(
         UUID baseUomId,
         BigDecimal defaultTaxRate,
         boolean tracksLots,
+        boolean trackExpiry,
+        Integer shelfLifeDays,
         boolean sellable,
         boolean active,
         List<PackagingSnapshot> packagings) {

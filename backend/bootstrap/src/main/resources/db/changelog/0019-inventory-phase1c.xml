@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- Add warehouse type column -->
+    <changeSet id="0019-warehouse-type" author="mini-erp">
+        <addColumn tableName="warehouses">
+            <column name="type" type="varchar(20)" defaultValue="MAIN">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <!-- Add track_expiry and shelf_life_days to products -->
+    <changeSet id="0019-product-expiry-fields" author="mini-erp">
+        <addColumn tableName="products">
+            <column name="track_expiry" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="shelf_life_days" type="int"/>
+        </addColumn>
+    </changeSet>
+
+    <!-- Add lot_id to stock_movements -->
+    <changeSet id="0019-stock-movements-lot" author="mini-erp">
+        <addColumn tableName="stock_movements">
+            <column name="lot_id" type="uuid"/>
+        </addColumn>
+    </changeSet>
+
+    <!-- Add lot_id to sale_lines (POS) -->
+    <changeSet id="0019-sale-lines-lot" author="mini-erp">
+        <addColumn tableName="sale_lines">
+            <column name="lot_id" type="uuid"/>
+        </addColumn>
+    </changeSet>
+
+    <!-- Add lot_id to delivery_lines -->
+    <changeSet id="0019-delivery-lines-lot" author="mini-erp">
+        <addColumn tableName="delivery_lines">
+            <column name="lot_id" type="uuid"/>
+        </addColumn>
+    </changeSet>
+
+    <!-- StockTransfer header -->
+    <changeSet id="0019-stock-transfers" author="mini-erp">
+        <createTable tableName="stock_transfers">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="transfer_number" type="varchar(60)"><constraints nullable="false"/></column>
+            <column name="from_warehouse_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="to_warehouse_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="status" type="varchar(20)" defaultValue="DRAFT"><constraints nullable="false"/></column>
+            <column name="scheduled_date" type="date"/>
+            <column name="completed_at" type="timestamptz"/>
+            <column name="notes" type="varchar(1000)"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="stock_transfers" columnNames="tenant_id,transfer_number"
+                             constraintName="uk_stock_transfers_tenant_number"/>
+        <createIndex tableName="stock_transfers" indexName="idx_stock_transfers_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+        <createIndex tableName="stock_transfers" indexName="idx_stock_transfers_from_wh">
+            <column name="from_warehouse_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- StockTransfer lines -->
+    <changeSet id="0019-stock-transfer-lines" author="mini-erp">
+        <createTable tableName="stock_transfer_lines">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="transfer_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="product_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="lot_id" type="uuid"/>
+            <column name="uom_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="quantity_requested" type="numeric(19,6)"><constraints nullable="false"/></column>
+            <column name="quantity_transferred" type="numeric(19,6)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="unit_cost" type="numeric(19,6)"/>
+            <column name="notes" type="varchar(500)"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="stock_transfer_lines" baseColumnNames="transfer_id"
+                                 referencedTableName="stock_transfers" referencedColumnNames="id"
+                                 constraintName="fk_stl_transfer"/>
+        <createIndex tableName="stock_transfer_lines" indexName="idx_stl_transfer">
+            <column name="transfer_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- InventoryCount header -->
+    <changeSet id="0019-inventory-counts" author="mini-erp">
+        <createTable tableName="inventory_counts">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="count_number" type="varchar(60)"><constraints nullable="false"/></column>
+            <column name="warehouse_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="status" type="varchar(20)" defaultValue="DRAFT"><constraints nullable="false"/></column>
+            <column name="count_date" type="date"><constraints nullable="false"/></column>
+            <column name="validated_at" type="timestamptz"/>
+            <column name="validated_by" type="uuid"/>
+            <column name="notes" type="varchar(1000)"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="inventory_counts" columnNames="tenant_id,count_number"
+                             constraintName="uk_inventory_counts_tenant_number"/>
+        <createIndex tableName="inventory_counts" indexName="idx_inventory_counts_warehouse">
+            <column name="warehouse_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- InventoryCount lines -->
+    <changeSet id="0019-inventory-count-lines" author="mini-erp">
+        <createTable tableName="inventory_count_lines">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="count_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="product_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="lot_id" type="uuid"/>
+            <column name="uom_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="theoretical_qty" type="numeric(19,6)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="counted_qty" type="numeric(19,6)"/>
+            <column name="discrepancy" type="numeric(19,6)"/>
+            <column name="unit_cost" type="numeric(19,6)"/>
+            <column name="notes" type="varchar(500)"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="inventory_count_lines" baseColumnNames="count_id"
+                                 referencedTableName="inventory_counts" referencedColumnNames="id"
+                                 constraintName="fk_icl_count"/>
+        <createIndex tableName="inventory_count_lines" indexName="idx_icl_count">
+            <column name="count_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

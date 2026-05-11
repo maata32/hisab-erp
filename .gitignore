@@ -54,3 +54,6 @@ logs/
 
 # Angular build cache
 .angular/
+
+# Claude Code local settings
+.claude/

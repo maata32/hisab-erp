@@ -15,6 +15,8 @@ public record ProductDto(
         UUID baseUomId,
         BigDecimal defaultTaxRate,
         boolean tracksLots,
+        boolean trackExpiry,
+        Integer shelfLifeDays,
         boolean tracksSerial,
         boolean sellable,
         boolean purchasable,

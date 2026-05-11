@@ -75,6 +75,18 @@
             <groupId>com.minierp</groupId>
             <artifactId>payment</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>lot-expiry</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>expense</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>reporting</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

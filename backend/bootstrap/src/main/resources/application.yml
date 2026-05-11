@@ -105,6 +105,12 @@ springdoc:
 
 app:
   version: ${APP_VERSION:0.1.0-SNAPSHOT}
+  storage:
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${MINIO_SECRET_KEY:minioadmin}
+    bucket: ${MINIO_BUCKET:minierp-uploads}
+    max-file-size-bytes: 5242880   # 5 MB
   api:
     public-url: ${APP_PUBLIC_URL:http://localhost:8080}
   cors:

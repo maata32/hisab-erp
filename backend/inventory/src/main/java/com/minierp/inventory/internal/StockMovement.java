@@ -51,6 +51,9 @@ class StockMovement extends TenantAwareEntity {
     @Column(name = "unit_cost", precision = 19, scale = 6)
     private BigDecimal unitCost;
 
+    @Column(name = "lot_id", columnDefinition = "uuid")
+    private UUID lotId;
+
     @Column(name = "reference_type", length = 30)
     private String referenceType;
 

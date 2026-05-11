@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- Direction dashboard: daily/monthly/yearly revenue, top products, top customers -->
+    <changeSet id="0022-view-direction" author="mini-erp" runOnChange="false">
+        <createView viewName="v_report_direction" replaceIfExists="true">
+            SELECT
+                s.tenant_id,
+                date_trunc('day',  s.completed_at)::date AS sale_day,
+                date_trunc('month', s.completed_at)::date AS sale_month,
+                EXTRACT(YEAR FROM s.completed_at)::int     AS sale_year,
+                COUNT(*)                                   AS sale_count,
+                SUM(s.total)                               AS revenue,
+                SUM(s.total - COALESCE(sl_cost.cost_total, 0)) AS gross_profit
+            FROM sales s
+            LEFT JOIN (
+                SELECT sl.sale_id,
+                       SUM(sl.quantity * COALESCE(sm.average_cost,0)) AS cost_total
+                FROM sale_lines sl
+                LEFT JOIN stocks sm ON sm.product_id = sl.product_id
+                GROUP BY sl.sale_id
+            ) sl_cost ON sl_cost.sale_id = s.id
+            WHERE s.status = 'COMPLETED'
+            GROUP BY s.tenant_id,
+                     date_trunc('day',  s.completed_at)::date,
+                     date_trunc('month', s.completed_at)::date,
+                     EXTRACT(YEAR FROM s.completed_at)
+        </createView>
+    </changeSet>
+
+    <!-- Caisse dashboard: sales by cashier, payment method breakdown, avg ticket -->
+    <changeSet id="0022-view-caisse" author="mini-erp" runOnChange="false">
+        <createView viewName="v_report_caisse" replaceIfExists="true">
+            SELECT
+                s.tenant_id,
+                s.cashier_user_id,
+                s.register_id,
+                date_trunc('day', s.completed_at)::date AS sale_day,
+                CASE
+                    WHEN s.paid_card > 0 AND s.paid_cash = 0 AND s.paid_mobile = 0 THEN 'CARD'
+                    WHEN s.paid_cash > 0 AND s.paid_card = 0 AND s.paid_mobile = 0 THEN 'CASH'
+                    WHEN s.paid_mobile > 0 AND s.paid_cash = 0 AND s.paid_card = 0 THEN 'MOBILE'
+                    ELSE 'MIXED'
+                END                                      AS payment_method,
+                COUNT(*)                                 AS sale_count,
+                SUM(s.total)                             AS total_revenue,
+                AVG(s.total)                             AS avg_ticket
+            FROM sales s
+            WHERE s.status = 'COMPLETED'
+            GROUP BY s.tenant_id, s.cashier_user_id, s.register_id,
+                     date_trunc('day', s.completed_at)::date,
+                     CASE
+                         WHEN s.paid_card > 0 AND s.paid_cash = 0 AND s.paid_mobile = 0 THEN 'CARD'
+                         WHEN s.paid_cash > 0 AND s.paid_card = 0 AND s.paid_mobile = 0 THEN 'CASH'
+                         WHEN s.paid_mobile > 0 AND s.paid_cash = 0 AND s.paid_card = 0 THEN 'MOBILE'
+                         ELSE 'MIXED'
+                     END
+        </createView>
+    </changeSet>
+
+    <!-- Stock dashboard: stock value, low stock, dormant stock -->
+    <changeSet id="0022-view-stock" author="mini-erp" runOnChange="false">
+        <createView viewName="v_report_stock" replaceIfExists="true">
+            SELECT
+                st.tenant_id,
+                st.warehouse_id,
+                st.product_id,
+                p.name                              AS product_name,
+                p.sku,
+                st.qty_on_hand,
+                st.qty_reserved,
+                (st.qty_on_hand - st.qty_reserved)  AS qty_available,
+                st.average_cost,
+                (st.qty_on_hand * st.average_cost)  AS stock_value,
+                CASE WHEN (st.qty_on_hand - st.qty_reserved) &lt;= 0
+                     THEN true ELSE false END        AS is_low_stock
+            FROM stocks st
+            JOIN products p ON p.id = st.product_id
+        </createView>
+    </changeSet>
+
+    <!-- Expiry dashboard: lots expiring in J-7/15/30 -->
+    <changeSet id="0022-view-expiry" author="mini-erp" runOnChange="false">
+        <createView viewName="v_report_expiry" replaceIfExists="true">
+            SELECT
+                pl.tenant_id,
+                pl.id           AS lot_id,
+                pl.lot_number,
+                pl.product_id,
+                p.name          AS product_name,
+                pl.warehouse_id,
+                pl.expiration_date,
+                (pl.expiration_date - CURRENT_DATE)  AS days_remaining,
+                pl.quantity_remaining,
+                pl.status,
+                CASE
+                    WHEN (pl.expiration_date - CURRENT_DATE) &lt;= 1  THEN 'CRITICAL'
+                    WHEN (pl.expiration_date - CURRENT_DATE) &lt;= 7  THEN 'HIGH'
+                    WHEN (pl.expiration_date - CURRENT_DATE) &lt;= 15 THEN 'MEDIUM'
+                    WHEN (pl.expiration_date - CURRENT_DATE) &lt;= 30 THEN 'LOW'
+                    ELSE 'OK'
+                END             AS risk_level
+            FROM product_lots pl
+            JOIN products p ON p.id = pl.product_id
+            WHERE pl.status = 'ACTIVE'
+        </createView>
+    </changeSet>
+
+    <!-- Payments dashboard: daily receipts by type and method -->
+    <changeSet id="0022-view-payments" author="mini-erp" runOnChange="false">
+        <createView viewName="v_report_payments" replaceIfExists="true">
+            SELECT
+                p.tenant_id,
+                date_trunc('day', p.payment_date::timestamptz)::date AS payment_day,
+                date_trunc('month', p.payment_date::timestamptz)::date AS payment_month,
+                p.type,
+                p.method,
+                COUNT(*)        AS payment_count,
+                SUM(p.amount)   AS total_amount
+            FROM payments p
+            WHERE p.status = 'CONFIRMED'
+            GROUP BY p.tenant_id,
+                     date_trunc('day', p.payment_date::timestamptz)::date,
+                     date_trunc('month', p.payment_date::timestamptz)::date,
+                     p.type, p.method
+        </createView>
+    </changeSet>
+
+    <!-- Deliveries dashboard: pending, late, on-time rate -->
+    <changeSet id="0022-view-deliveries" author="mini-erp" runOnChange="false">
+        <createView viewName="v_report_deliveries" replaceIfExists="true">
+            SELECT
+                d.tenant_id,
+                d.status,
+                COUNT(*)                                         AS delivery_count,
+                SUM(CASE WHEN d.status = 'DELIVERED'
+                              AND d.delivered_at::date &lt;= d.scheduled_date
+                         THEN 1 ELSE 0 END)                     AS on_time_count,
+                SUM(CASE WHEN d.status NOT IN ('DELIVERED','CANCELLED')
+                              AND d.scheduled_date &lt; CURRENT_DATE
+                         THEN 1 ELSE 0 END)                     AS late_count
+            FROM deliveries d
+            GROUP BY d.tenant_id, d.status
+        </createView>
+    </changeSet>
+
+    <!-- Top products view (used by direction dashboard) -->
+    <changeSet id="0022-view-top-products" author="mini-erp" runOnChange="false">
+        <createView viewName="v_report_top_products" replaceIfExists="true">
+            SELECT
+                sl.tenant_id,
+                sl.product_id,
+                p.name          AS product_name,
+                p.sku,
+                date_trunc('month', s.completed_at)::date AS sale_month,
+                SUM(sl.quantity)       AS qty_sold,
+                SUM(sl.total)          AS revenue
+            FROM sale_lines sl
+            JOIN sales s ON s.id = sl.sale_id
+            JOIN products p ON p.id = sl.product_id
+            WHERE s.status = 'COMPLETED'
+            GROUP BY sl.tenant_id, sl.product_id, p.name, p.sku,
+                     date_trunc('month', s.completed_at)::date
+        </createView>
+    </changeSet>
+
+</databaseChangeLog>

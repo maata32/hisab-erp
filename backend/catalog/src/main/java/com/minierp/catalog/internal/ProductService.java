@@ -19,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -77,6 +76,8 @@ public class ProductService {
                 .baseUomId(baseUom.id())
                 .defaultTaxRate(req.defaultTaxRate() == null ? new BigDecimal("0.16") : req.defaultTaxRate())
                 .tracksLots(Boolean.TRUE.equals(req.tracksLots()))
+                .trackExpiry(Boolean.TRUE.equals(req.trackExpiry()))
+                .shelfLifeDays(req.shelfLifeDays())
                 .tracksSerial(Boolean.TRUE.equals(req.tracksSerial()))
                 .sellable(req.sellable() == null || req.sellable())
                 .purchasable(req.purchasable() == null || req.purchasable())
@@ -213,8 +214,8 @@ public class ProductService {
                 .map(this::toImageDto).toList();
         return new ProductDto(p.getId(), p.getSku(), p.getBarcode(), p.getName(),
                 p.getDescription(), p.getCategoryId(), p.getBrandId(), p.getBaseUomId(),
-                p.getDefaultTaxRate(), p.isTracksLots(), p.isTracksSerial(),
-                p.isSellable(), p.isPurchasable(), p.isActive(),
+                p.getDefaultTaxRate(), p.isTracksLots(), p.isTrackExpiry(), p.getShelfLifeDays(),
+                p.isTracksSerial(), p.isSellable(), p.isPurchasable(), p.isActive(),
                 p.getImageUrl(), p.getWeightGrams(), pkgs, variantDtos, imageDtos);
     }
 
@@ -240,6 +241,8 @@ public class ProductService {
             UUID baseUomId,
             BigDecimal defaultTaxRate,
             Boolean tracksLots,
+            Boolean trackExpiry,
+            Integer shelfLifeDays,
             Boolean tracksSerial,
             Boolean sellable,
             Boolean purchasable,

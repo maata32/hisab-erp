@@ -59,6 +59,13 @@ class Product extends TenantAwareEntity {
     @Builder.Default
     private boolean tracksLots = false;
 
+    @Column(name = "track_expiry", nullable = false)
+    @Builder.Default
+    private boolean trackExpiry = false;
+
+    @Column(name = "shelf_life_days")
+    private Integer shelfLifeDays;
+
     @Column(name = "tracks_serial", nullable = false)
     @Builder.Default
     private boolean tracksSerial = false;
