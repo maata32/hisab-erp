@@ -51,4 +51,11 @@ public class LotDto {
             String severity,
             String notifyRoles,
             boolean enabled) {}
+
+    /** CDC §15.4 POST /lots/select-fefo body. */
+    public record SelectFefoRequest(
+            UUID productId,
+            UUID warehouseId,
+            UUID uomId,
+            BigDecimal quantity) {}
 }

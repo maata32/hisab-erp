@@ -30,4 +30,17 @@ interface ProductLotRepository extends JpaRepository<ProductLot, UUID> {
            "AND (:warehouseId IS NULL OR pl.warehouseId = :warehouseId) " +
            "ORDER BY pl.expirationDate ASC")
     Page<ProductLot> findForDashboard(@Param("warehouseId") UUID warehouseId, Pageable pageable);
+
+    @Query("SELECT pl FROM ProductLot pl WHERE pl.expirationDate <= :threshold " +
+           "AND pl.status = 'ACTIVE' " +
+           "AND (:warehouseId IS NULL OR pl.warehouseId = :warehouseId) " +
+           "ORDER BY pl.expirationDate ASC")
+    Page<ProductLot> findExpiringWithin(@Param("threshold") LocalDate threshold,
+                                        @Param("warehouseId") UUID warehouseId,
+                                        Pageable pageable);
+
+    @Query("SELECT pl FROM ProductLot pl WHERE pl.status = 'EXPIRED' " +
+           "AND (:warehouseId IS NULL OR pl.warehouseId = :warehouseId) " +
+           "ORDER BY pl.expirationDate ASC")
+    Page<ProductLot> findExpired(@Param("warehouseId") UUID warehouseId, Pageable pageable);
 }

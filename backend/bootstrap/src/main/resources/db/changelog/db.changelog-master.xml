@@ -28,5 +28,8 @@
     <include file="db/changelog/0021-expense.xml"/>
     <include file="db/changelog/0022-reporting-views.xml"/>
     <include file="db/changelog/0023-rls-phase1c.xml"/>
+    <include file="db/changelog/0024-product-packaging-cdc-fields.xml"/>
+    <include file="db/changelog/0025-customer-cdc-fields.xml"/>
+    <include file="db/changelog/0026-notifications.xml"/>
 
 </databaseChangeLog>

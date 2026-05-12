@@ -20,6 +20,10 @@
             <artifactId>shared</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>document</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.modulith</groupId>
             <artifactId>spring-modulith-events-api</artifactId>
         </dependency>

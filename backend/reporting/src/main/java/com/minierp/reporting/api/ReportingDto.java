@@ -77,4 +77,23 @@ public final class ReportingDto {
             LocalDate saleMonth,
             BigDecimal qtySold,
             BigDecimal revenue) {}
+
+    /** CDC §15.4 GET /reports/expiry-risk — stock value at risk by risk bucket. */
+    public record ExpiryRiskRow(
+            String riskLevel,
+            long lotCount,
+            BigDecimal quantityAtRisk,
+            BigDecimal valueAtRisk) {}
+
+    /** CDC §15.4 GET /reports/aging — customer balance bucketed by overdue age. */
+    public record AgingRow(
+            UUID customerId,
+            String customerCode,
+            String customerName,
+            BigDecimal current,
+            BigDecimal d1to30,
+            BigDecimal d31to60,
+            BigDecimal d61to90,
+            BigDecimal d90plus,
+            BigDecimal totalOutstanding) {}
 }

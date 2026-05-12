@@ -1,5 +1,7 @@
 package com.minierp.expense.internal;
 
+import com.minierp.document.api.DocumentRenderer;
+import com.minierp.document.api.PdfRenderRequest;
 import com.minierp.expense.api.ExpenseDto;
 import com.minierp.shared.error.NotFoundException;
 import com.minierp.shared.security.CurrentUserHolder;
@@ -28,6 +30,7 @@ public class ExpenseService {
     private final IncomeCategoryRepository incomeCategories;
     private final IncomeRepository incomes;
     private final AttachmentStorageService storage;
+    private final DocumentRenderer documentRenderer;
 
     // ── Categories ──────────────────────────────────────────────────────────
 
@@ -123,6 +126,29 @@ public class ExpenseService {
         Expense expense = getEntity(id);
         expense.setApprovalStatus(ApprovalStatus.REJECTED);
         return toExpenseDto(expense);
+    }
+
+    /** CDC §4.1 — expense voucher PDF (justificatif de dépense). */
+    @Transactional(readOnly = true)
+    public byte[] generateReceiptPdf(UUID expenseId) {
+        Expense e = expenses.findById(expenseId)
+                .orElseThrow(() -> NotFoundException.of("entity.expense", expenseId));
+        ExpenseCategory cat = categories.findById(e.getCategoryId()).orElse(null);
+
+        java.util.Map<String, Object> vars = new java.util.HashMap<>();
+        vars.put("expenseNumber", e.getExpenseNumber());
+        vars.put("expenseDate", e.getExpenseDate());
+        vars.put("amount", e.getAmount());
+        vars.put("paidAmount", e.getPaidAmount());
+        vars.put("currency", "MRU");
+        vars.put("category", cat == null ? "—" : cat.getName());
+        vars.put("supplierName", null);
+        vars.put("description", e.getDescription() == null ? "" : e.getDescription());
+        vars.put("paymentMethod", e.getPaymentMethod().name());
+        vars.put("paymentStatus", e.getPaymentStatus().name());
+        vars.put("approvalStatus", e.getApprovalStatus().name());
+        vars.put("approvedAt", e.getApprovedAt());
+        return documentRenderer.renderPdf(PdfRenderRequest.of("expense-receipt", vars));
     }
 
     // ── Incomes ──────────────────────────────────────────────────────────────

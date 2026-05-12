@@ -83,4 +83,16 @@ public class ExpenseController {
     public ExpenseDto.ExpenseResponse reject(@PathVariable UUID id) {
         return service.reject(id);
     }
+
+    /** CDC §4.1 — expense voucher PDF. */
+    @GetMapping("/api/v1/expenses/{id}/receipt.pdf")
+    @PreAuthorize("hasAuthority('expense:read')")
+    public org.springframework.http.ResponseEntity<byte[]> receipt(@PathVariable UUID id) {
+        byte[] pdf = service.generateReceiptPdf(id);
+        return org.springframework.http.ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"expense-" + id + ".pdf\"")
+                .body(pdf);
+    }
 }

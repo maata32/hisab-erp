@@ -60,6 +60,32 @@ public class LotController {
         service.destroyLot(id, req.quantity(), req.method(), req.cost(), req.notes(), userId);
     }
 
+    /** CDC §15.4 — FEFO selection helper. */
+    @PostMapping("/select-fefo")
+    @PreAuthorize("hasAuthority('lot:read')")
+    public List<LotAllocation> selectFefo(@Valid @RequestBody LotDto.SelectFefoRequest req) {
+        return service.selectFEFO(req.productId(), req.warehouseId(), req.quantity());
+    }
+
+    /** CDC §15.4 — lots expiring within N days. */
+    @GetMapping("/expiring")
+    @PreAuthorize("hasAuthority('lot:read')")
+    public PageResponse<LotDto.LotResponse> expiring(
+            @RequestParam(defaultValue = "30") int days,
+            @RequestParam(required = false) UUID warehouseId,
+            @PageableDefault(size = 50) Pageable pageable) {
+        return PageResponse.of(service.listExpiringWithin(days, warehouseId, pageable));
+    }
+
+    /** CDC §15.4 — expired lots awaiting destruction. */
+    @GetMapping("/expired")
+    @PreAuthorize("hasAuthority('lot:read')")
+    public PageResponse<LotDto.LotResponse> expired(
+            @RequestParam(required = false) UUID warehouseId,
+            @PageableDefault(size = 50) Pageable pageable) {
+        return PageResponse.of(service.listExpired(warehouseId, pageable));
+    }
+
     @GetMapping("/alert-configs")
     @PreAuthorize("hasAuthority('lot:read')")
     public List<LotDto.AlertConfigResponse> listAlertConfigs() {
@@ -81,5 +107,17 @@ public class LotController {
             @Valid @RequestBody LotDto.AlertConfigRequest req) {
         return service.saveAlertConfig(id, req.daysBeforeExpiry(),
                 req.severity(), req.notifyRoles(), req.enabled());
+    }
+
+    /** CDC §4.1 — product label PDF (50×30mm) with expiration date. */
+    @GetMapping("/{id}/label.pdf")
+    @PreAuthorize("hasAuthority('lot:read')")
+    public org.springframework.http.ResponseEntity<byte[]> label(@PathVariable UUID id) {
+        byte[] pdf = service.generateLabelPdf(id);
+        return org.springframework.http.ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"lot-label-" + id + ".pdf\"")
+                .body(pdf);
     }
 }

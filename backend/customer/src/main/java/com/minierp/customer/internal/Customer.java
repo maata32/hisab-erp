@@ -52,6 +52,17 @@ class Customer extends TenantAwareEntity {
     @Column(length = 500)
     private String notes;
 
+    /**
+     * CDC §3.7.4 — applied automatically by PriceResolver when this customer's
+     * orders/invoices/POS sales are priced.
+     */
+    @Column(name = "default_price_tier_id", columnDefinition = "uuid")
+    private UUID defaultPriceTierId;
+
+    /** CDC §3.12.2 — JSONB preferences (acceptSms, acceptEmail, preferredLocale, optedOutEvents). */
+    @Column(name = "notification_preferences", columnDefinition = "jsonb")
+    private String notificationPreferences;
+
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;

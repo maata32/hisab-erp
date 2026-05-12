@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Notifications paramétrables (CDC §3.12).
+        Foundation: catalog of events, tenant config (per-event channels+recipients),
+        user preferences, templates per locale, log with retry.
+    -->
+
+    <!-- 1. System-wide event catalog (read-only at runtime) -->
+    <changeSet id="0026-notification-event-definitions" author="mini-erp">
+        <createTable tableName="notification_event_definitions">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="code" type="varchar(60)"><constraints nullable="false" unique="true"/></column>
+            <column name="name" type="varchar(150)"><constraints nullable="false"/></column>
+            <column name="description" type="varchar(500)"/>
+            <column name="category" type="varchar(30)"><constraints nullable="false"/></column>
+            <column name="default_channels" type="varchar(200)"/>      <!-- comma list: SMS,EMAIL,IN_APP -->
+            <column name="default_recipients" type="varchar(200)"/>    <!-- comma list: CUSTOMER,MANAGER... -->
+            <column name="default_enabled" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="severity" type="varchar(20)" defaultValue="INFO">
+                <constraints nullable="false"/>
+            </column>
+            <column name="variables" type="varchar(500)"/>             <!-- comma list of {{var}} placeholders -->
+        </createTable>
+    </changeSet>
+
+    <!-- 2. Per-tenant override (which channels/recipients are activated for that tenant) -->
+    <changeSet id="0026-tenant-notification-configs" author="mini-erp">
+        <createTable tableName="tenant_notification_configs">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="event_code" type="varchar(60)"><constraints nullable="false"/></column>
+            <column name="enabled" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="channels" type="jsonb"/>     <!-- { "SMS": true, "EMAIL": false, "IN_APP": true } -->
+            <column name="recipients" type="jsonb"/>   <!-- { "CUSTOMER": true, "MANAGER": false } -->
+            <column name="custom_roles" type="varchar(500)"/>
+            <column name="custom_users" type="varchar(500)"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="tenant_notification_configs"
+                             columnNames="tenant_id,event_code"
+                             constraintName="uk_tenant_notification_configs"/>
+    </changeSet>
+
+    <!-- 3. Per-user preferences (overrides tenant) -->
+    <changeSet id="0026-user-notification-preferences" author="mini-erp">
+        <createTable tableName="user_notification_preferences">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="user_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="event_code" type="varchar(60)"><constraints nullable="false"/></column>
+            <column name="enabled" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="channels" type="jsonb"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="user_notification_preferences"
+                             columnNames="user_id,event_code"
+                             constraintName="uk_user_notification_preferences"/>
+    </changeSet>
+
+    <!-- 4. Templates per event/channel/locale -->
+    <changeSet id="0026-notification-templates" author="mini-erp">
+        <createTable tableName="notification_templates">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"/>     <!-- null = system default -->
+            <column name="event_code" type="varchar(60)"><constraints nullable="false"/></column>
+            <column name="channel" type="varchar(20)"><constraints nullable="false"/></column>
+            <column name="locale" type="varchar(10)"><constraints nullable="false"/></column>
+            <column name="subject" type="varchar(255)"/>
+            <column name="body" type="text"><constraints nullable="false"/></column>
+            <column name="enabled" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="notification_templates"
+                             columnNames="tenant_id,event_code,channel,locale"
+                             constraintName="uk_notification_templates"/>
+    </changeSet>
+
+    <!-- 5. Notification log with retry tracking -->
+    <changeSet id="0026-notification-logs" author="mini-erp">
+        <createTable tableName="notification_logs">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="event_code" type="varchar(60)"><constraints nullable="false"/></column>
+            <column name="channel" type="varchar(20)"><constraints nullable="false"/></column>
+            <column name="recipient" type="varchar(255)"><constraints nullable="false"/></column>
+            <column name="user_id" type="uuid"/>
+            <column name="customer_id" type="uuid"/>
+            <column name="template_id" type="uuid"/>
+            <column name="locale" type="varchar(10)"/>
+            <column name="payload" type="jsonb"/>
+            <column name="status" type="varchar(20)" defaultValue="QUEUED">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sent_at" type="timestamptz"/>
+            <column name="delivered_at" type="timestamptz"/>
+            <column name="error_message" type="varchar(1000)"/>
+            <column name="provider_name" type="varchar(60)"/>
+            <column name="provider_ref" type="varchar(120)"/>
+            <column name="retry_count" type="int" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="next_retry_at" type="timestamptz"/>
+            <column name="related_entity_type" type="varchar(60)"/>
+            <column name="related_entity_id" type="uuid"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="notification_logs" indexName="idx_notification_logs_tenant_event">
+            <column name="tenant_id"/>
+            <column name="event_code"/>
+        </createIndex>
+        <createIndex tableName="notification_logs" indexName="idx_notification_logs_status">
+            <column name="status"/>
+            <column name="next_retry_at"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Seed the 20 CDC §3.12.1 events -->
+    <changeSet id="0026-seed-notification-events" author="mini-erp">
+        <sql>
+            INSERT INTO notification_event_definitions (id, code, name, description, category, default_channels, default_recipients, default_enabled, severity, variables) VALUES
+              (uuid_generate_v4(), 'SALE_COMPLETED',          'Vente finalisée',         'Vente finalisée à la caisse',          'SALES',     'SMS,IN_APP',    'CUSTOMER',         true,  'INFO',     'saleNumber,amount,customerName'),
+              (uuid_generate_v4(), 'DELIVERY_SCHEDULED',      'Livraison programmée',    'Livraison programmée',                 'DELIVERY',  'SMS,IN_APP',    'CUSTOMER',         true,  'INFO',     'deliveryNumber,scheduledDate,address'),
+              (uuid_generate_v4(), 'DELIVERY_OUT_FOR_DELIVERY','Livraison en cours',     'Le livreur est en route',              'DELIVERY',  'SMS,IN_APP',    'CUSTOMER',         true,  'INFO',     'deliveryNumber'),
+              (uuid_generate_v4(), 'DELIVERY_COMPLETED',      'Livraison effectuée',     'Livraison effectuée et signée',        'DELIVERY',  'SMS,EMAIL,IN_APP','CUSTOMER',       true,  'INFO',     'deliveryNumber,signedBy'),
+              (uuid_generate_v4(), 'INVOICE_ISSUED',          'Facture émise',           'Facture émise',                        'PAYMENT',   'EMAIL,IN_APP',  'CUSTOMER',         true,  'INFO',     'invoiceNumber,total,dueDate'),
+              (uuid_generate_v4(), 'INVOICE_OVERDUE',         'Facture en retard',       'Facture impayée passée en retard',     'PAYMENT',   'SMS,EMAIL,IN_APP','CUSTOMER,MANAGER',true,  'WARNING',  'invoiceNumber,balance,daysOverdue'),
+              (uuid_generate_v4(), 'PAYMENT_RECEIVED',        'Paiement reçu',           'Paiement enregistré',                  'PAYMENT',   'SMS,EMAIL,IN_APP','CUSTOMER',       true,  'INFO',     'paymentNumber,amount,balance'),
+              (uuid_generate_v4(), 'PAYMENT_REMINDER',        'Rappel paiement',         'Rappel manuel envoyé au client',        'PAYMENT',   'SMS,EMAIL',     'CUSTOMER',         true,  'WARNING',  'customerName,balance,oldestDueDate'),
+              (uuid_generate_v4(), 'LOT_EXPIRING_J30',        'Lot expire dans 30 j',    'Alerte préventive à J-30',             'EXPIRY',    'EMAIL,IN_APP',  'STOCK_KEEPER,MANAGER',true,'INFO',  'lotNumber,productName,expirationDate'),
+              (uuid_generate_v4(), 'LOT_EXPIRING_J7',         'Lot expire dans 7 j',     'Alerte critique à J-7',                'EXPIRY',    'EMAIL,IN_APP',  'STOCK_KEEPER,MANAGER',true,'WARNING','lotNumber,productName,expirationDate'),
+              (uuid_generate_v4(), 'LOT_EXPIRED',             'Lot expiré',              'Lot dont la date est dépassée',         'EXPIRY',    'EMAIL,IN_APP',  'STOCK_KEEPER,MANAGER',true,'CRITICAL','lotNumber,productName'),
+              (uuid_generate_v4(), 'STOCK_LOW',               'Stock sous seuil',        'Stock disponible &lt; seuil minimum',  'INVENTORY', 'EMAIL,IN_APP',  'STOCK_KEEPER,MANAGER',true,'WARNING','productName,qtyOnHand,minThreshold'),
+              (uuid_generate_v4(), 'STOCK_OUT',               'Rupture de stock',        'Stock épuisé',                         'INVENTORY', 'EMAIL,IN_APP',  'STOCK_KEEPER,MANAGER',true,'CRITICAL','productName'),
+              (uuid_generate_v4(), 'SESSION_CLOSED_WITH_DIFF','Clôture caisse avec écart','Session caisse fermée avec écart',     'SALES',     'EMAIL,IN_APP',  'MANAGER',          true,  'WARNING',  'sessionId,difference,cashier'),
+              (uuid_generate_v4(), 'EXPENSE_PENDING_APPROVAL','Dépense à approuver',     'Dépense en attente de validation',     'EXPENSE',   'EMAIL,IN_APP',  'MANAGER',          true,  'INFO',     'expenseNumber,amount,description'),
+              (uuid_generate_v4(), 'EXPENSE_APPROVED',        'Dépense approuvée',       'Demande de dépense approuvée',         'EXPENSE',   'IN_APP',        'CUSTOMER',         true,  'INFO',     'expenseNumber'),
+              (uuid_generate_v4(), 'EXPENSE_REJECTED',        'Dépense refusée',         'Demande de dépense rejetée',           'EXPENSE',   'IN_APP',        'CUSTOMER',         true,  'WARNING',  'expenseNumber'),
+              (uuid_generate_v4(), 'ADVANCE_REQUESTED',       'Demande d''avance',       'Demande d''avance employé',            'HR',        'EMAIL,IN_APP',  'MANAGER',          true,  'INFO',     'employeeName,amount'),
+              (uuid_generate_v4(), 'SUBSCRIPTION_TRIAL_ENDING','Fin essai bientôt',      'Période d''essai se terminant',         'SYSTEM',    'EMAIL,IN_APP',  'CUSTOMER',         true,  'WARNING',  'tenantName,trialEndsAt'),
+              (uuid_generate_v4(), 'SUBSCRIPTION_PAYMENT_DUE','Paiement abo dû',         'Paiement abonnement dû',                'SYSTEM',    'EMAIL,IN_APP',  'CUSTOMER',         true,  'WARNING',  'tenantName,planName,amount')
+            ON CONFLICT (code) DO NOTHING;
+        </sql>
+    </changeSet>
+
+    <!-- RLS on tenant-scoped notification tables -->
+    <changeSet id="0026-rls-notifications" author="mini-erp">
+        <sql splitStatements="false">
+            DO $$
+            DECLARE
+                t text;
+                tables text[] := ARRAY[
+                    'tenant_notification_configs',
+                    'user_notification_preferences',
+                    'notification_templates',
+                    'notification_logs'
+                ];
+            BEGIN
+                FOREACH t IN ARRAY tables LOOP
+                    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+                    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
+
+                    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_select ON %I', t);
+                    EXECUTE format(
+                        'CREATE POLICY tenant_isolation_select ON %I
+                            FOR SELECT
+                            USING (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)',
+                        t);
+
+                    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_modify ON %I', t);
+                    EXECUTE format(
+                        'CREATE POLICY tenant_isolation_modify ON %I
+                            FOR ALL
+                            USING (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)
+                            WITH CHECK (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)',
+                        t);
+                END LOOP;
+            END
+            $$;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0026-grant-notifications-to-app-role" author="mini-erp" runInTransaction="false">
+        <sql splitStatements="false">
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'minierp_app') THEN
+                    GRANT ALL ON TABLE
+                        notification_event_definitions,
+                        tenant_notification_configs,
+                        user_notification_preferences,
+                        notification_templates,
+                        notification_logs
+                    TO minierp_app;
+                END IF;
+            END $$;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

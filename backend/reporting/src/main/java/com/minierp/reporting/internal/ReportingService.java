@@ -146,6 +146,82 @@ public class ReportingService {
         ), tenant);
     }
 
+    /** CDC §15.4 — stock value at risk aggregated by risk level (CRITICAL/HIGH/MEDIUM/LOW). */
+    @Transactional(readOnly = true)
+    public List<ReportingDto.ExpiryRiskRow> expiryRisk(UUID warehouseId) {
+        UUID tenant = TenantContext.require();
+        return jdbc.query("""
+                SELECT e.risk_level,
+                       COUNT(*)                                          AS lot_count,
+                       SUM(e.quantity_remaining)                         AS qty_at_risk,
+                       SUM(e.quantity_remaining * COALESCE(s.average_cost, 0)) AS value_at_risk
+                FROM v_report_expiry e
+                LEFT JOIN stocks s
+                       ON s.product_id = e.product_id
+                      AND s.warehouse_id = e.warehouse_id
+                WHERE e.tenant_id = ?
+                  AND (? IS NULL OR e.warehouse_id = ?)
+                GROUP BY e.risk_level
+                ORDER BY CASE e.risk_level
+                            WHEN 'CRITICAL' THEN 1
+                            WHEN 'HIGH'     THEN 2
+                            WHEN 'MEDIUM'   THEN 3
+                            ELSE 4
+                         END
+                """, (rs, i) -> new ReportingDto.ExpiryRiskRow(
+                rs.getString("risk_level"),
+                rs.getLong("lot_count"),
+                rs.getBigDecimal("qty_at_risk"),
+                rs.getBigDecimal("value_at_risk")
+        ), tenant, warehouseId, warehouseId);
+    }
+
+    /** CDC §15.4 — customer aging report (balance bucketed by overdue age in days). */
+    @Transactional(readOnly = true)
+    public List<ReportingDto.AgingRow> aging() {
+        UUID tenant = TenantContext.require();
+        return jdbc.query("""
+                SELECT c.id   AS customer_id,
+                       c.code AS customer_code,
+                       c.name AS customer_name,
+                       COALESCE(SUM(CASE WHEN i.due_date IS NULL OR i.due_date >= CURRENT_DATE
+                                         THEN i.balance ELSE 0 END), 0) AS current_balance,
+                       COALESCE(SUM(CASE WHEN i.due_date < CURRENT_DATE
+                                         AND (CURRENT_DATE - i.due_date) BETWEEN 1 AND 30
+                                         THEN i.balance ELSE 0 END), 0) AS d1to30,
+                       COALESCE(SUM(CASE WHEN i.due_date < CURRENT_DATE
+                                         AND (CURRENT_DATE - i.due_date) BETWEEN 31 AND 60
+                                         THEN i.balance ELSE 0 END), 0) AS d31to60,
+                       COALESCE(SUM(CASE WHEN i.due_date < CURRENT_DATE
+                                         AND (CURRENT_DATE - i.due_date) BETWEEN 61 AND 90
+                                         THEN i.balance ELSE 0 END), 0) AS d61to90,
+                       COALESCE(SUM(CASE WHEN i.due_date < CURRENT_DATE
+                                         AND (CURRENT_DATE - i.due_date) > 90
+                                         THEN i.balance ELSE 0 END), 0) AS d90plus,
+                       COALESCE(SUM(i.balance), 0)                       AS total_outstanding
+                FROM customers c
+                LEFT JOIN invoices i
+                       ON i.customer_id = c.id
+                      AND i.tenant_id = c.tenant_id
+                      AND i.balance > 0
+                      AND i.status NOT IN ('CANCELLED','PAID')
+                WHERE c.tenant_id = ?
+                GROUP BY c.id, c.code, c.name
+                HAVING COALESCE(SUM(i.balance), 0) > 0
+                ORDER BY total_outstanding DESC
+                """, (rs, i) -> new ReportingDto.AgingRow(
+                rs.getObject("customer_id", UUID.class),
+                rs.getString("customer_code"),
+                rs.getString("customer_name"),
+                rs.getBigDecimal("current_balance"),
+                rs.getBigDecimal("d1to30"),
+                rs.getBigDecimal("d31to60"),
+                rs.getBigDecimal("d61to90"),
+                rs.getBigDecimal("d90plus"),
+                rs.getBigDecimal("total_outstanding")
+        ), tenant);
+    }
+
     @Transactional(readOnly = true)
     public List<ReportingDto.TopProductRow> topProducts(LocalDate month, int limit) {
         UUID tenant = TenantContext.require();

@@ -31,5 +31,9 @@
             <groupId>io.minio</groupId>
             <artifactId>minio</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>document</artifactId>
+        </dependency>
     </dependencies>
 </project>

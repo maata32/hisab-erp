@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Bring product_packagings up to the CDC §3.7.2 ProductUom contract.
+        Adds the 3 missing CDC fields: isStockUom, sortOrder, active.
+        Existing defaultSale/defaultPurchase remain (orthogonal: they pick THE default,
+        whereas the CDC isPurchase/isSale flags allow MANY).
+    -->
+    <changeSet id="0024-product-packaging-cdc-fields" author="mini-erp">
+        <addColumn tableName="product_packagings">
+            <column name="is_stock_uom" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sort_order" type="int" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

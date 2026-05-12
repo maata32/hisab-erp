@@ -31,5 +31,9 @@
             <groupId>com.minierp</groupId>
             <artifactId>uom</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>document</artifactId>
+        </dependency>
     </dependencies>
 </project>

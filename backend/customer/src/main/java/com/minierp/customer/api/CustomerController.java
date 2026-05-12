@@ -1,15 +1,22 @@
 package com.minierp.customer.api;
 
 import com.minierp.customer.internal.CustomerService;
+import com.minierp.shared.security.CurrentUserHolder;
 import com.minierp.shared.util.PageResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -73,4 +80,29 @@ public class CustomerController {
                                           @Valid @RequestBody CreateCreditRequest req) {
         return service.createCredit(id, req.amount(), req.source(), req.notes());
     }
+
+    /** CDC §15.4 POST /customers/{id}/credits/{cid}/withdraw — manual withdrawal. */
+    @PostMapping("/{id}/credits/{cid}/withdraw")
+    @PreAuthorize("hasAuthority('customer:write')")
+    public CustomerCreditDto withdrawCredit(@PathVariable UUID id,
+                                            @PathVariable UUID cid,
+                                            @Valid @RequestBody WithdrawCreditRequest req) {
+        return service.withdrawCredit(id, cid, req.amount(), req.paymentId(), req.notes());
+    }
+
+    /** CDC §15.4 GET /customers/{id}/statement.pdf — statement of account. */
+    @GetMapping("/{id}/statement.pdf")
+    @PreAuthorize("hasAuthority('customer:read')")
+    public ResponseEntity<byte[]> statementPdf(@PathVariable UUID id) {
+        byte[] pdf = service.generateStatementPdf(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"statement-" + id + ".pdf\"")
+                .body(pdf);
+    }
+
+    public record WithdrawCreditRequest(
+            @NotNull @Positive BigDecimal amount,
+            UUID paymentId,
+            String notes) {}
 }

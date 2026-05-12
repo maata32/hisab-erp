@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 public record CreateCustomerRequest(
         @NotBlank @Size(max = 50) String code,
@@ -14,5 +15,7 @@ public record CreateCustomerRequest(
         @Size(max = 500) String address,
         BigDecimal creditLimit,
         String currency,
-        @Size(max = 500) String notes
+        @Size(max = 500) String notes,
+        UUID defaultPriceTierId,
+        String notificationPreferences
 ) {}

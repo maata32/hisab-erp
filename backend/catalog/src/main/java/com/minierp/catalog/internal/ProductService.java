@@ -145,10 +145,24 @@ public class ProductService {
                 .barcode(blankToNull(req.barcode()))
                 .defaultSale(Boolean.TRUE.equals(req.defaultSale()))
                 .defaultPurchase(Boolean.TRUE.equals(req.defaultPurchase()))
+                .stockUom(Boolean.TRUE.equals(req.stockUom()))
+                .sortOrder(req.sortOrder() == null ? 0 : req.sortOrder())
+                .active(req.active() == null || req.active())
                 .build();
         packagings.save(pp);
         return new ProductPackagingDto(pp.getId(), pp.getUomId(), pp.getFactor(),
-                pp.getBarcode(), pp.isDefaultSale(), pp.isDefaultPurchase());
+                pp.getBarcode(), pp.isDefaultSale(), pp.isDefaultPurchase(),
+                pp.isStockUom(), pp.getSortOrder(), pp.isActive());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductPackagingDto> listUomsForProduct(UUID productId) {
+        return packagings.findByProductId(productId).stream()
+                .sorted(java.util.Comparator.comparingInt(ProductPackaging::getSortOrder))
+                .map(pp -> new ProductPackagingDto(pp.getId(), pp.getUomId(), pp.getFactor(),
+                        pp.getBarcode(), pp.isDefaultSale(), pp.isDefaultPurchase(),
+                        pp.isStockUom(), pp.getSortOrder(), pp.isActive()))
+                .toList();
     }
 
     @Transactional
@@ -206,7 +220,8 @@ public class ProductService {
     private ProductDto toDto(Product p) {
         var pkgs = packagings.findByProductId(p.getId()).stream()
                 .map(pp -> new ProductPackagingDto(pp.getId(), pp.getUomId(), pp.getFactor(),
-                        pp.getBarcode(), pp.isDefaultSale(), pp.isDefaultPurchase()))
+                        pp.getBarcode(), pp.isDefaultSale(), pp.isDefaultPurchase(),
+                        pp.isStockUom(), pp.getSortOrder(), pp.isActive()))
                 .toList();
         var variantDtos = variants.findByProductIdOrderBySkuAsc(p.getId()).stream()
                 .map(this::toVariantDto).toList();
@@ -268,7 +283,10 @@ public class ProductService {
             BigDecimal factor,
             String barcode,
             Boolean defaultSale,
-            Boolean defaultPurchase) {}
+            Boolean defaultPurchase,
+            Boolean stockUom,
+            Integer sortOrder,
+            Boolean active) {}
 
     public record CreateVariantRequest(
             String sku,

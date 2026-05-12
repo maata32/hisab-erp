@@ -15,6 +15,8 @@ public record CustomerDto(
         BigDecimal creditLimit,
         String currency,
         String notes,
+        UUID defaultPriceTierId,
+        String notificationPreferences,
         boolean active,
         Instant createdAt
 ) {}

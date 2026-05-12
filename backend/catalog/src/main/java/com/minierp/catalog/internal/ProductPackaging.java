@@ -47,4 +47,17 @@ class ProductPackaging extends TenantAwareEntity {
     @Column(name = "is_default_purchase", nullable = false)
     @Builder.Default
     private boolean defaultPurchase = false;
+
+    /** Whether the product can also be counted in stock under this packaging UoM. */
+    @Column(name = "is_stock_uom", nullable = false)
+    @Builder.Default
+    private boolean stockUom = false;
+
+    @Column(name = "sort_order", nullable = false)
+    @Builder.Default
+    private int sortOrder = 0;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean active = true;
 }

@@ -70,4 +70,19 @@ public class ReportingController {
             @RequestParam(defaultValue = "10") int limit) {
         return service.topProducts(month, limit);
     }
+
+    /** CDC §15.4 — value of stock at risk by risk bucket (CRITICAL/HIGH/MEDIUM/LOW). */
+    @GetMapping("/expiry-risk")
+    @PreAuthorize("hasAuthority('reporting:read')")
+    public List<ReportingDto.ExpiryRiskRow> expiryRisk(
+            @RequestParam(required = false) UUID warehouseId) {
+        return service.expiryRisk(warehouseId);
+    }
+
+    /** CDC §15.4 — customer aging report. */
+    @GetMapping("/aging")
+    @PreAuthorize("hasAuthority('reporting:read')")
+    public List<ReportingDto.AgingRow> aging() {
+        return service.aging();
+    }
 }

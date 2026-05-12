@@ -33,7 +33,10 @@ public record ProductDto(
             BigDecimal factor,
             String barcode,
             boolean defaultSale,
-            boolean defaultPurchase) {}
+            boolean defaultPurchase,
+            boolean stockUom,
+            int sortOrder,
+            boolean active) {}
 
     public record ProductVariantDto(
             UUID id,

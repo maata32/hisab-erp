@@ -70,6 +70,22 @@ public class ProductController {
         service.removePackaging(id, packagingId);
     }
 
+    /** CDC §15.4 alias — packagings exposed as UoMs available for the product. */
+    @GetMapping("/{id}/uoms")
+    @PreAuthorize("hasAuthority('product:read')")
+    public java.util.List<ProductDto.ProductPackagingDto> listUoms(@PathVariable UUID id) {
+        return service.listUomsForProduct(id);
+    }
+
+    @PostMapping("/{id}/uoms")
+    @PreAuthorize("hasAuthority('product:update')")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ProductDto.ProductPackagingDto addUom(
+            @PathVariable UUID id,
+            @Valid @RequestBody CreatePackagingRequest req) {
+        return service.addPackaging(id, req);
+    }
+
     @PostMapping("/{id}/variants")
     @PreAuthorize("hasAuthority('product:update')")
     @ResponseStatus(HttpStatus.CREATED)

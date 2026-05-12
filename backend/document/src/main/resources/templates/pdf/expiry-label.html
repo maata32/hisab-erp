@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<title>Étiquette lot</title>
+<style>
+  @page { size: 50mm 30mm; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 9px; color: #000; }
+  .label { width: 50mm; height: 30mm; padding: 2mm; }
+  .product-name { font-size: 10px; font-weight: bold; line-height: 1.1;
+                  max-height: 7mm; overflow: hidden; }
+  .sku { font-size: 7px; color: #555; margin-top: 1mm; }
+  .lot { font-size: 8px; font-weight: bold; margin-top: 1mm; }
+  .expiry { font-size: 11px; font-weight: bold; color: #b91c1c;
+            text-align: center; margin-top: 2mm;
+            border: 1px solid #b91c1c; padding: 1mm; }
+  .qty { font-size: 8px; margin-top: 1mm; text-align: right; }
+  .barcode-row { display: flex; justify-content: space-between; align-items: flex-end; }
+  .small { font-size: 7px; color: #888; }
+</style>
+</head>
+<body>
+<div class="label">
+  <div class="product-name" th:text="${productName}">Produit</div>
+  <div class="sku" th:text="'SKU : ' + ${sku}">SKU : -</div>
+  <div class="lot" th:text="'LOT ' + ${lotNumber}">LOT -</div>
+  <div class="expiry"
+       th:text="'EXP : ' + ${#temporals.format(expirationDate, 'dd/MM/yyyy')}">EXP : -</div>
+  <div class="barcode-row">
+    <div class="small" th:text="'Prod. ' + (${productionDate} != null ? ${#temporals.format(productionDate, 'dd/MM/yyyy')} : '—')"></div>
+    <div class="qty"
+         th:text="${#numbers.formatDecimal(quantity, 1, 0)} + ' u'">0 u</div>
+  </div>
+</div>
+</body>
+</html>

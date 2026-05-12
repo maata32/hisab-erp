@@ -1,6 +1,9 @@
 package com.minierp.lotexpiry.internal;
 
 import com.minierp.catalog.api.CatalogLookup;
+import com.minierp.catalog.api.ProductSnapshot;
+import com.minierp.document.api.DocumentRenderer;
+import com.minierp.document.api.PdfRenderRequest;
 import com.minierp.lotexpiry.api.LotAllocation;
 import com.minierp.lotexpiry.api.LotDto;
 import com.minierp.lotexpiry.api.LotOperations;
@@ -29,6 +32,7 @@ public class LotService implements LotOperations {
     private final ExpiredLotDestructionRepository destructions;
     private final ExpiryAlertConfigRepository alertConfigs;
     private final CatalogLookup catalog;
+    private final DocumentRenderer documentRenderer;
 
     // ─── LotOperations (public API used by other modules) ──────────────────
 
@@ -192,6 +196,19 @@ public class LotService implements LotOperations {
                 .build());
     }
 
+    /** CDC §15.4: GET /lots/expiring?days=30 */
+    @Transactional(readOnly = true)
+    public Page<LotDto.LotResponse> listExpiringWithin(int days, UUID warehouseId, Pageable pageable) {
+        LocalDate threshold = LocalDate.now().plusDays(Math.max(0, days));
+        return lots.findExpiringWithin(threshold, warehouseId, pageable).map(this::toLotDto);
+    }
+
+    /** CDC §15.4: GET /lots/expired */
+    @Transactional(readOnly = true)
+    public Page<LotDto.LotResponse> listExpired(UUID warehouseId, Pageable pageable) {
+        return lots.findExpired(warehouseId, pageable).map(this::toLotDto);
+    }
+
     @Transactional(readOnly = true)
     public List<LotDto.AlertConfigResponse> listAlertConfigs() {
         return alertConfigs.findAll().stream().map(this::toConfigDto).toList();
@@ -216,6 +233,22 @@ public class LotService implements LotOperations {
         cfg.setNotifyRoles(notifyRoles);
         cfg.setEnabled(enabled);
         return toConfigDto(alertConfigs.save(cfg));
+    }
+
+    /** CDC §4.1 — generates a product label PDF (50×30mm) with expiration date. */
+    @Transactional(readOnly = true)
+    public byte[] generateLabelPdf(UUID lotId) {
+        ProductLot lot = lots.findById(lotId)
+                .orElseThrow(() -> NotFoundException.of("entity.lot", lotId));
+        ProductSnapshot product = catalog.findProductById(lot.getProductId()).orElse(null);
+        java.util.Map<String, Object> vars = new java.util.HashMap<>();
+        vars.put("productName", product == null ? "Produit" : product.name());
+        vars.put("sku", product == null ? "" : product.sku());
+        vars.put("lotNumber", lot.getLotNumber());
+        vars.put("productionDate", lot.getProductionDate());
+        vars.put("expirationDate", lot.getExpirationDate());
+        vars.put("quantity", lot.getQuantityRemaining());
+        return documentRenderer.renderPdf(PdfRenderRequest.of("expiry-label", vars));
     }
 
     // ─── DTO mappers ────────────────────────────────────────────────────────

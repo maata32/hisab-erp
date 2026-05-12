@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<title>Justificatif de dépense</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #222; }
+  .page { padding: 30px; max-width: 600px; margin: 0 auto; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start;
+            margin-bottom: 24px; border-bottom: 2px solid #6b21a8; padding-bottom: 16px; }
+  .doc-title h1 { font-size: 22px; font-weight: bold; color: #6b21a8; }
+  .doc-title { text-align: right; }
+  .doc-title .doc-number { font-size: 13px; color: #555; }
+  .doc-title .doc-date { font-size: 11px; color: #888; margin-top: 2px; }
+  .amount-block { background: #faf5ff; border: 2px solid #6b21a8; border-radius: 8px;
+                  padding: 20px; text-align: center; margin: 20px 0; }
+  .amount-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+  .amount-value { font-size: 32px; font-weight: bold; color: #6b21a8; margin-top: 4px; }
+  .details-table { width: 100%; border-collapse: collapse; }
+  .details-table tr { border-bottom: 1px solid #f3f4f6; }
+  .details-table td { padding: 8px 4px; }
+  .details-table td:first-child { color: #888; width: 40%; }
+  .details-table td:last-child { font-weight: 500; }
+  .approval { margin-top: 20px; padding: 10px; background: #f8fafc; border-radius: 6px; }
+  .approval .label { font-size: 9px; color: #888; text-transform: uppercase; }
+  .footer { margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 10px;
+            text-align: center; font-size: 9px; color: #aaa; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div>
+      <h2 style="font-size:14px;color:#6b21a8;">JUSTIFICATIF DE DÉPENSE</h2>
+    </div>
+    <div class="doc-title">
+      <h1>Dépense</h1>
+      <div class="doc-number" th:text="${expenseNumber}">EXP-XXXX-XXXXX</div>
+      <div class="doc-date" th:text="${#temporals.format(expenseDate, 'dd/MM/yyyy')}"></div>
+    </div>
+  </div>
+
+  <div class="amount-block">
+    <div class="amount-label">Montant</div>
+    <div class="amount-value"
+         th:text="${#numbers.formatDecimal(amount, 1, 2)} + ' ' + ${currency}"></div>
+  </div>
+
+  <table class="details-table">
+    <tr>
+      <td>Catégorie</td>
+      <td th:text="${category}">-</td>
+    </tr>
+    <tr th:if="${supplierName}">
+      <td>Fournisseur</td>
+      <td th:text="${supplierName}">-</td>
+    </tr>
+    <tr>
+      <td>Description</td>
+      <td th:text="${description}">-</td>
+    </tr>
+    <tr>
+      <td>Mode de paiement</td>
+      <td th:text="${paymentMethod}">-</td>
+    </tr>
+    <tr>
+      <td>Statut de paiement</td>
+      <td th:text="${paymentStatus}">-</td>
+    </tr>
+    <tr th:if="${paidAmount != null}">
+      <td>Montant payé</td>
+      <td th:text="${#numbers.formatDecimal(paidAmount, 1, 2)} + ' ' + ${currency}"></td>
+    </tr>
+  </table>
+
+  <div class="approval">
+    <div class="label">Statut d'approbation</div>
+    <div th:text="${approvalStatus}">PENDING</div>
+    <div th:if="${approvedAt}" th:text="'Approuvé le ' + ${#temporals.format(approvedAt, 'dd/MM/yyyy HH:mm')}"></div>
+  </div>
+
+  <div class="footer">
+    Document généré automatiquement — Mini-ERP
+  </div>
+</div>
+</body>
+</html>

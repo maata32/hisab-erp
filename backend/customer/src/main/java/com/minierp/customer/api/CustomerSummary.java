@@ -11,5 +11,7 @@ public record CustomerSummary(
         String email,
         String currency,
         BigDecimal creditLimit,
+        UUID defaultPriceTierId,
+        String notificationPreferences,
         boolean active
 ) {}
