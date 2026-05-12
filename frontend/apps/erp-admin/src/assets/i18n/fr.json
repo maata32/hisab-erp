@@ -16,7 +16,10 @@
     "select": "Sélectionner",
     "notes": "Notes",
     "approve": "Approuver",
-    "reject": "Rejeter"
+    "reject": "Rejeter",
+    "edit": "Modifier",
+    "deactivate": "Désactiver",
+    "close": "Fermer"
   },
   "auth": {
     "login": {
@@ -53,7 +56,8 @@
     "reporting": "Reporting",
     "uoms": "Unités de mesure",
     "priceTiers": "Tarifs",
-    "notifConfig": "Notifications"
+    "notifConfig": "Notifications",
+    "expenseCategories": "Catégories de dépenses"
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -88,7 +92,29 @@
       "sales_today": "Ventes du jour",
       "audit_events": "Événements d'audit",
       "placeholder": "Données disponibles après amorçage",
-      "sales_hint": "Ouvrez une session POS pour commencer"
+      "sales_hint": "Ouvrez une session POS pour commencer",
+      "sales_count_and_delta": "{{count}} ventes • {{delta}} % vs hier",
+      "unpaid_invoices": "Factures impayées",
+      "invoice_count": "{{count}} facture(s) en cours",
+      "expenses_month": "Dépenses du mois",
+      "pending_approvals": "{{count}} en attente d'approbation",
+      "lots_expiring": "Lots expirant (J-30)",
+      "lots_expired_count": "{{count}} déjà expirés"
+    },
+    "phase1c": {
+      "title": "Phase 1C — Multi-entrepôts / Lots / Dépenses / Reporting",
+      "multiWarehouse": "Multi-entrepôts : transferts, comptages",
+      "lotExpiry": "Lots & DLC : FEFO, blocage, destruction, étiquettes",
+      "expenses": "Dépenses & revenus : approbation, justificatif PDF",
+      "reporting": "Reporting V1 : direction, caisse, stock, expiry, aging",
+      "notifConfig": "Configuration centralisée des notifications"
+    },
+    "phase2": {
+      "title": "Phase 2 — Achats / RH / Intégrations",
+      "purchases": "Achats : commande fournisseur, réception",
+      "employees": "RH : employés, paies, présences",
+      "integrations": "Intégrations : Chinguitel, banque, mobile money",
+      "advancedReports": "Reporting V2 : P&L, trésorerie, prévisions"
     }
   },
   "organizations": {
@@ -110,7 +136,28 @@
     "coming_soon": {
       "title": "Disponible bientôt",
       "description": "La gestion CRUD des utilisateurs sera ajoutée en Phase 1."
-    }
+    },
+    "subtitle": "Gestion des comptes, rôles et accès",
+    "create": "Nouvel utilisateur",
+    "createTitle": "Créer un utilisateur",
+    "editTitle": "Modifier l'utilisateur",
+    "email": "Email",
+    "fullName": "Nom complet",
+    "phone": "Téléphone",
+    "roles": "Rôles",
+    "lastLogin": "Dernière connexion",
+    "status": "Statut",
+    "locked": "Verrouillé",
+    "language": "Langue",
+    "password": "Mot de passe",
+    "passwordHint": "Minimum 8 caractères. L'utilisateur pourra le changer après connexion.",
+    "active": "Compte actif",
+    "pickRoles": "Choisir un ou plusieurs rôles",
+    "resetPassword": "Réinitialiser le mot de passe",
+    "unlock": "Déverrouiller",
+    "empty": "Aucun utilisateur",
+    "tempPasswordTitle": "Mot de passe temporaire",
+    "tempPasswordHint": "Communiquez ce mot de passe à l'utilisateur par un canal sécurisé. Il pourra le changer après connexion."
   },
   "audit": {
     "title": "Journal d'audit",
@@ -184,7 +231,13 @@
       "INDIVIDUAL": "Particulier",
       "COMPANY": "Entreprise",
       "GOVERNMENT": "Gouvernement"
-    }
+    },
+    "create": "Nouveau client",
+    "createTitle": "Créer un client",
+    "editTitle": "Modifier le client",
+    "statement": "Relevé de compte (PDF)",
+    "address": "Adresse",
+    "currency": "Devise"
   },
   "sales": {
     "number": "Numéro",
@@ -245,14 +298,14 @@
   },
   "payments": {
     "title": "Paiements",
-    "subtitle": "Encaissements et allocations de paiement",
-    "party": "Client",
+    "subtitle": "Encaissements clients et décaissements fournisseurs",
+    "party": "Tiers",
     "date": "Date",
     "amount": "Montant",
     "method": "Mode",
     "reference": "Référence",
     "receipt": "Reçu",
-    "empty": "Aucun paiement trouvé",
+    "empty": "Aucun paiement enregistré",
     "statuses": {
       "DRAFT": "Brouillon",
       "CONFIRMED": "Confirmé",
@@ -261,12 +314,19 @@
     "methods": {
       "CASH": "Espèces",
       "CHECK": "Chèque",
-      "BANK_TRANSFER": "Virement bancaire",
+      "BANK_TRANSFER": "Virement",
       "MOBILE_MONEY": "Mobile Money",
-      "CARD": "Carte bancaire",
+      "CARD": "Carte",
       "CREDIT_USAGE": "Crédit",
       "COMPENSATION": "Compensation"
-    }
+    },
+    "create": "Nouveau paiement",
+    "number": "N° paiement",
+    "status": "Statut",
+    "filterParty": "Filtrer par tiers",
+    "allParties": "Tous les tiers",
+    "kind": "Type",
+    "confirm": "Confirmer"
   },
   "errors": {
     "forbidden": "Vous n'avez pas la permission d'accéder à cette page.",
@@ -497,5 +557,19 @@
     "channels": "Canaux",
     "recipients": "Destinataires",
     "advanced": "Configuration avancée"
+  },
+  "expenseCategories": {
+    "title": "Catégories de dépenses",
+    "subtitle": "Organiser les dépenses par nature (loyer, salaires, fournitures...)",
+    "create": "Nouvelle catégorie",
+    "createTitle": "Créer une catégorie",
+    "editTitle": "Modifier la catégorie",
+    "name": "Nom",
+    "parent": "Catégorie parente",
+    "noParent": "(racine)",
+    "color": "Couleur",
+    "status": "Statut",
+    "showInactive": "Inclure inactives",
+    "empty": "Aucune catégorie"
   }
 }

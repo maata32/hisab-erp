@@ -39,10 +39,33 @@ public class ExpenseService {
         return categories.findByActiveTrue().stream().map(this::toCategoryDto).toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<ExpenseDto.CategoryResponse> listAllCategories() {
+        return categories.findAll().stream().map(this::toCategoryDto).toList();
+    }
+
     @Transactional
     public ExpenseDto.CategoryResponse createCategory(String name, UUID parentId, String color) {
         return toCategoryDto(categories.save(ExpenseCategory.builder()
                 .name(name).parentId(parentId).color(color).build()));
+    }
+
+    @Transactional
+    public ExpenseDto.CategoryResponse updateCategory(UUID id, ExpenseDto.UpdateCategoryRequest req) {
+        ExpenseCategory cat = categories.findById(id)
+                .orElseThrow(() -> NotFoundException.of("entity.expense_category", id));
+        cat.setName(req.name());
+        cat.setParentId(req.parentId());
+        cat.setColor(req.color());
+        if (req.active() != null) cat.setActive(req.active());
+        return toCategoryDto(cat);
+    }
+
+    @Transactional
+    public void deactivateCategory(UUID id) {
+        ExpenseCategory cat = categories.findById(id)
+                .orElseThrow(() -> NotFoundException.of("entity.expense_category", id));
+        cat.setActive(false);
     }
 
     @Transactional(readOnly = true)

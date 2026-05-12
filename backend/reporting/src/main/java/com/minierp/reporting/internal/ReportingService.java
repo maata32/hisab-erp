@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -241,4 +242,57 @@ public class ReportingService {
                 rs.getBigDecimal("revenue")
         ), tenant, month, month, limit);
     }
+
+    /** Snapshot of dashboard KPIs in a single round trip. */
+    @Transactional(readOnly = true)
+    public ReportingDto.DashboardKpis dashboardKpis() {
+        UUID tenant = TenantContext.require();
+        LocalDate today = LocalDate.now();
+        LocalDate yesterday = today.minusDays(1);
+        LocalDate monthStart = today.withDayOfMonth(1);
+
+        BigDecimal salesToday = nz(jdbc.queryForObject(
+                "SELECT COALESCE(SUM(total),0) FROM sales WHERE tenant_id=? AND status='COMPLETED' " +
+                "AND completed_at::date = ?", BigDecimal.class, tenant, today));
+        long salesCountToday = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM sales WHERE tenant_id=? AND status='COMPLETED' " +
+                "AND completed_at::date = ?", Long.class, tenant, today));
+        BigDecimal salesYesterday = nz(jdbc.queryForObject(
+                "SELECT COALESCE(SUM(total),0) FROM sales WHERE tenant_id=? AND status='COMPLETED' " +
+                "AND completed_at::date = ?", BigDecimal.class, tenant, yesterday));
+        BigDecimal expensesMonth = nz(jdbc.queryForObject(
+                "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE tenant_id=? AND expense_date >= ?",
+                BigDecimal.class, tenant, monthStart));
+        long pendingApprovals = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM expenses WHERE tenant_id=? AND approval_status='PENDING'",
+                Long.class, tenant));
+        long expiring30 = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM product_lots WHERE tenant_id=? AND status='ACTIVE' " +
+                "AND expiration_date BETWEEN ? AND ?",
+                Long.class, tenant, today, today.plusDays(30)));
+        long expired = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM product_lots WHERE tenant_id=? " +
+                "AND (status='EXPIRED' OR (status='ACTIVE' AND expiration_date < ?))",
+                Long.class, tenant, today));
+        long activeUsers = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM users WHERE tenant_id=? AND is_active=true",
+                Long.class, tenant));
+        long unpaidInvoicesCount = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM invoices WHERE tenant_id=? AND balance>0 AND status NOT IN ('CANCELLED','PAID')",
+                Long.class, tenant));
+        BigDecimal unpaidInvoicesAmount = nz(jdbc.queryForObject(
+                "SELECT COALESCE(SUM(balance),0) FROM invoices WHERE tenant_id=? AND balance>0 " +
+                "AND status NOT IN ('CANCELLED','PAID')",
+                BigDecimal.class, tenant));
+
+        return new ReportingDto.DashboardKpis(
+                salesToday, salesCountToday, salesYesterday,
+                expensesMonth, pendingApprovals,
+                expiring30, expired,
+                activeUsers,
+                unpaidInvoicesCount, unpaidInvoicesAmount);
+    }
+
+    private static BigDecimal nz(BigDecimal v) { return v == null ? BigDecimal.ZERO : v; }
+    private static long nz(Long v) { return v == null ? 0L : v; }
 }

@@ -16,7 +16,10 @@
     "select": "Select",
     "notes": "Notes",
     "approve": "Approve",
-    "reject": "Reject"
+    "reject": "Reject",
+    "edit": "Edit",
+    "deactivate": "Deactivate",
+    "close": "Close"
   },
   "auth": {
     "login": {
@@ -53,7 +56,8 @@
     "reporting": "Reporting",
     "uoms": "Units of measure",
     "priceTiers": "Price tiers",
-    "notifConfig": "Notifications"
+    "notifConfig": "Notifications",
+    "expenseCategories": "Expense categories"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -85,10 +89,32 @@
     "kpi": {
       "tenants": "Organizations",
       "users": "Users",
-      "sales_today": "Today's sales",
+      "sales_today": "Sales today",
       "audit_events": "Audit events",
       "placeholder": "Data available after seeding",
-      "sales_hint": "Open a POS session to start selling"
+      "sales_hint": "Open a POS session to start selling",
+      "sales_count_and_delta": "{{count}} sales • {{delta}} % vs yesterday",
+      "unpaid_invoices": "Outstanding invoices",
+      "invoice_count": "{{count}} open invoice(s)",
+      "expenses_month": "Expenses this month",
+      "pending_approvals": "{{count}} pending approval",
+      "lots_expiring": "Lots expiring (D-30)",
+      "lots_expired_count": "{{count}} already expired"
+    },
+    "phase1c": {
+      "title": "Phase 1C — Multi-warehouse / Lots / Expenses / Reporting",
+      "multiWarehouse": "Multi-warehouse: transfers, inventory counts",
+      "lotExpiry": "Lots & expiry: FEFO, block, destroy, labels",
+      "expenses": "Expenses & incomes: approvals, voucher PDF",
+      "reporting": "Reporting V1: direction, cashier, stock, expiry, aging",
+      "notifConfig": "Centralized notifications configuration"
+    },
+    "phase2": {
+      "title": "Phase 2 — Purchasing / HR / Integrations",
+      "purchases": "Purchasing: PO, receipt",
+      "employees": "HR: employees, payroll, attendance",
+      "integrations": "Integrations: Chinguitel, bank, mobile money",
+      "advancedReports": "Reporting V2: P&L, cashflow, forecasts"
     }
   },
   "organizations": {
@@ -110,7 +136,28 @@
     "coming_soon": {
       "title": "Coming soon",
       "description": "Full user CRUD will be added in Phase 1."
-    }
+    },
+    "subtitle": "Account, role and access management",
+    "create": "New user",
+    "createTitle": "Create user",
+    "editTitle": "Edit user",
+    "email": "Email",
+    "fullName": "Full name",
+    "phone": "Phone",
+    "roles": "Roles",
+    "lastLogin": "Last login",
+    "status": "Status",
+    "locked": "Locked",
+    "language": "Language",
+    "password": "Password",
+    "passwordHint": "Min 8 characters. The user can change it after login.",
+    "active": "Account active",
+    "pickRoles": "Pick one or more roles",
+    "resetPassword": "Reset password",
+    "unlock": "Unlock",
+    "empty": "No users",
+    "tempPasswordTitle": "Temporary password",
+    "tempPasswordHint": "Share this password with the user through a secure channel. They can change it after login."
   },
   "audit": {
     "title": "Audit log",
@@ -184,7 +231,13 @@
       "INDIVIDUAL": "Individual",
       "COMPANY": "Company",
       "GOVERNMENT": "Government"
-    }
+    },
+    "create": "New customer",
+    "createTitle": "Create customer",
+    "editTitle": "Edit customer",
+    "statement": "Account statement (PDF)",
+    "address": "Address",
+    "currency": "Currency"
   },
   "sales": {
     "number": "Number",
@@ -245,14 +298,14 @@
   },
   "payments": {
     "title": "Payments",
-    "subtitle": "Customer receipts and payment allocations",
-    "party": "Customer",
+    "subtitle": "Customer receipts and supplier disbursements",
+    "party": "Party",
     "date": "Date",
     "amount": "Amount",
     "method": "Method",
     "reference": "Reference",
     "receipt": "Receipt",
-    "empty": "No payments found",
+    "empty": "No payments yet",
     "statuses": {
       "DRAFT": "Draft",
       "CONFIRMED": "Confirmed",
@@ -262,11 +315,18 @@
       "CASH": "Cash",
       "CHECK": "Check",
       "BANK_TRANSFER": "Bank transfer",
-      "MOBILE_MONEY": "Mobile Money",
+      "MOBILE_MONEY": "Mobile money",
       "CARD": "Card",
       "CREDIT_USAGE": "Credit",
       "COMPENSATION": "Compensation"
-    }
+    },
+    "create": "New payment",
+    "number": "Number",
+    "status": "Status",
+    "filterParty": "Filter by party",
+    "allParties": "All parties",
+    "kind": "Type",
+    "confirm": "Confirm"
   },
   "errors": {
     "forbidden": "You do not have permission to access this page.",
@@ -497,5 +557,19 @@
     "channels": "Channels",
     "recipients": "Recipients",
     "advanced": "Advanced"
+  },
+  "expenseCategories": {
+    "title": "Expense categories",
+    "subtitle": "Organize expenses by nature (rent, salaries, supplies...)",
+    "create": "New category",
+    "createTitle": "Create category",
+    "editTitle": "Edit category",
+    "name": "Name",
+    "parent": "Parent category",
+    "noParent": "(root)",
+    "color": "Color",
+    "status": "Status",
+    "showInactive": "Include inactive",
+    "empty": "No categories"
   }
 }

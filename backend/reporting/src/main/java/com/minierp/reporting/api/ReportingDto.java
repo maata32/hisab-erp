@@ -96,4 +96,17 @@ public final class ReportingDto {
             BigDecimal d61to90,
             BigDecimal d90plus,
             BigDecimal totalOutstanding) {}
+
+    /** GET /reports/dashboard — single-call snapshot of live KPIs used by the home page. */
+    public record DashboardKpis(
+            BigDecimal salesToday,
+            long salesCountToday,
+            BigDecimal salesYesterday,
+            BigDecimal expensesMonth,
+            long pendingExpenseApprovals,
+            long expiringLots30,
+            long expiredLots,
+            long activeUsers,
+            long unpaidInvoicesCount,
+            BigDecimal unpaidInvoicesAmount) {}
 }

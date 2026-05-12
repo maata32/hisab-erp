@@ -23,6 +23,12 @@ public final class ExpenseDto {
             UUID parentId,
             String color) {}
 
+    public record UpdateCategoryRequest(
+            @NotBlank String name,
+            UUID parentId,
+            String color,
+            Boolean active) {}
+
     // ── Income Category ───────────────────────────────────────────────────────
 
     public record IncomeCategoryResponse(UUID id, String name, UUID parentId, boolean active) {}

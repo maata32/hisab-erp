@@ -28,8 +28,9 @@ public class ExpenseController {
 
     @GetMapping("/api/v1/expense-categories")
     @PreAuthorize("hasAuthority('expense:read')")
-    public List<ExpenseDto.CategoryResponse> listCategories() {
-        return service.listCategories();
+    public List<ExpenseDto.CategoryResponse> listCategories(
+            @RequestParam(name = "includeInactive", defaultValue = "false") boolean includeInactive) {
+        return includeInactive ? service.listAllCategories() : service.listCategories();
     }
 
     @PostMapping("/api/v1/expense-categories")
@@ -37,6 +38,20 @@ public class ExpenseController {
     @PreAuthorize("hasAuthority('expense:write')")
     public ExpenseDto.CategoryResponse createCategory(@Valid @RequestBody ExpenseDto.CreateCategoryRequest req) {
         return service.createCategory(req.name(), req.parentId(), req.color());
+    }
+
+    @PutMapping("/api/v1/expense-categories/{id}")
+    @PreAuthorize("hasAuthority('expense:write')")
+    public ExpenseDto.CategoryResponse updateCategory(@PathVariable UUID id,
+                                                     @Valid @RequestBody ExpenseDto.UpdateCategoryRequest req) {
+        return service.updateCategory(id, req);
+    }
+
+    @DeleteMapping("/api/v1/expense-categories/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('expense:write')")
+    public void deactivateCategory(@PathVariable UUID id) {
+        service.deactivateCategory(id);
     }
 
     // ── Expenses ─────────────────────────────────────────────────────────────

@@ -85,4 +85,11 @@ public class ReportingController {
     public List<ReportingDto.AgingRow> aging() {
         return service.aging();
     }
+
+    /** Single-call snapshot used by the home page. */
+    @GetMapping("/dashboard")
+    @PreAuthorize("isAuthenticated()")
+    public ReportingDto.DashboardKpis dashboard() {
+        return service.dashboardKpis();
+    }
 }

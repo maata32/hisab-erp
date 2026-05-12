@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0027-seed-missing-permissions" author="mini-erp">
+        <sql>
+            INSERT INTO permissions (id, code, resource, action, description) VALUES
+              (uuid_generate_v4(), 'customer:write', 'customer', 'write', 'Create, update or deactivate customers'),
+              (uuid_generate_v4(), 'payment:write',  'payment',  'write', 'Create, confirm or cancel payments'),
+              (uuid_generate_v4(), 'uom:read',       'uom',      'read',  'Read units of measure'),
+              (uuid_generate_v4(), 'uom:create',     'uom',      'create','Create or update units of measure')
+            ON CONFLICT (code) DO NOTHING;
+        </sql>
+    </changeSet>
+
+    <!--
+        Backfill role -> permission grants for all existing tenant roles, so the
+        new permissions and any phase 1C permissions (seeded in 0023 but never
+        attached to tenant roles) become effective without recreating tenants.
+        The mapping mirrors TenantRolesBootstrapper after this changeset.
+    -->
+    <changeSet id="0027-backfill-role-permissions" author="mini-erp">
+        <sql splitStatements="false">
+            DO $$
+            DECLARE
+                grants jsonb := '[
+                  {"role": "TENANT_ADMIN",    "perms": ["customer:write","payment:write","uom:read","uom:create","lot:read","lot:write","inventory:transfer","inventory:count","reporting:read","expense:write"]},
+                  {"role": "MANAGER",         "perms": ["customer:write","payment:write","uom:read","uom:create","lot:read","lot:write","inventory:transfer","inventory:count","reporting:read","expense:write"]},
+                  {"role": "ACCOUNTANT",      "perms": ["reporting:read"]},
+                  {"role": "PAYMENT_OFFICER", "perms": ["customer:write","payment:write","reporting:read"]},
+                  {"role": "CASHIER",         "perms": ["customer:write","payment:write","uom:read","lot:read"]},
+                  {"role": "STOCK_KEEPER",    "perms": ["uom:read","lot:read","lot:write","inventory:transfer","inventory:count"]},
+                  {"role": "VIEWER",          "perms": ["uom:read","lot:read","reporting:read"]}
+                ]'::jsonb;
+                entry jsonb;
+                rcode text;
+                pcodes text[];
+            BEGIN
+                FOR entry IN SELECT * FROM jsonb_array_elements(grants) LOOP
+                    rcode := entry->>'role';
+                    SELECT ARRAY(SELECT jsonb_array_elements_text(entry->'perms')) INTO pcodes;
+
+                    INSERT INTO role_permission (role_id, permission_id)
+                    SELECT r.id, p.id
+                    FROM roles r
+                    JOIN permissions p ON p.code = ANY(pcodes)
+                    WHERE r.code = rcode
+                    ON CONFLICT DO NOTHING;
+                END LOOP;
+            END $$;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

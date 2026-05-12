@@ -31,5 +31,6 @@
     <include file="db/changelog/0024-product-packaging-cdc-fields.xml"/>
     <include file="db/changelog/0025-customer-cdc-fields.xml"/>
     <include file="db/changelog/0026-notifications.xml"/>
+    <include file="db/changelog/0027-permissions-alignment.xml"/>
 
 </databaseChangeLog>
