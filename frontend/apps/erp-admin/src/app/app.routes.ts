@@ -64,6 +64,61 @@ export const appRoutes: Routes = [
         loadComponent: () =>
           import('./features/payments/payment-list.page').then((m) => m.PaymentListPage),
       },
+      {
+        path: 'products',
+        loadComponent: () =>
+          import('./features/products/product-list.page').then((m) => m.ProductListPage),
+      },
+      {
+        path: 'warehouses',
+        loadComponent: () =>
+          import('./features/inventory/warehouse-list.page').then((m) => m.WarehouseListPage),
+      },
+      {
+        path: 'stock',
+        loadComponent: () =>
+          import('./features/inventory/stock-list.page').then((m) => m.StockListPage),
+      },
+      {
+        path: 'stock-transfers',
+        loadComponent: () =>
+          import('./features/inventory/stock-transfer-list.page').then((m) => m.StockTransferListPage),
+      },
+      {
+        path: 'inventory-counts',
+        loadComponent: () =>
+          import('./features/inventory/inventory-count-list.page').then((m) => m.InventoryCountListPage),
+      },
+      {
+        path: 'lots',
+        loadComponent: () =>
+          import('./features/lots/lot-list.page').then((m) => m.LotListPage),
+      },
+      {
+        path: 'expenses',
+        loadComponent: () =>
+          import('./features/expenses/expense-list.page').then((m) => m.ExpenseListPage),
+      },
+      {
+        path: 'reporting',
+        loadComponent: () =>
+          import('./features/reporting/reporting.page').then((m) => m.ReportingPage),
+      },
+      {
+        path: 'uoms',
+        loadComponent: () =>
+          import('./features/uoms/uom-list.page').then((m) => m.UomListPage),
+      },
+      {
+        path: 'price-tiers',
+        loadComponent: () =>
+          import('./features/pricing/price-tier-list.page').then((m) => m.PriceTierListPage),
+      },
+      {
+        path: 'notifications-config',
+        loadComponent: () =>
+          import('./features/notifications/notifications-config.page').then((m) => m.NotificationsConfigPage),
+      },
     ],
   },
   {
