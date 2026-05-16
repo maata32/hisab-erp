@@ -22,7 +22,7 @@ interface ProductRepository extends JpaRepository<Product, UUID> {
 
     @Query("""
             SELECT p FROM Product p
-             WHERE p.active = true
+             WHERE (:includeInactive = TRUE OR p.active = true)
                AND (:q IS NULL
                     OR LOWER(p.name) LIKE LOWER(CONCAT('%', :q, '%'))
                     OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :q, '%'))
@@ -33,6 +33,7 @@ interface ProductRepository extends JpaRepository<Product, UUID> {
     Page<Product> search(@Param("q") String q,
                          @Param("categoryId") UUID categoryId,
                          @Param("brandId") UUID brandId,
+                         @Param("includeInactive") boolean includeInactive,
                          Pageable pageable);
 
     List<Product> findAllByIdIn(List<UUID> ids);

@@ -19,7 +19,9 @@
     "reject": "رفض",
     "edit": "تعديل",
     "deactivate": "تعطيل",
-    "close": "إغلاق"
+    "activate": "تفعيل",
+    "close": "إغلاق",
+    "clear": "مسح"
   },
   "auth": {
     "login": {
@@ -57,7 +59,8 @@
     "uoms": "وحدات القياس",
     "priceTiers": "مستويات الأسعار",
     "notifConfig": "الإشعارات",
-    "expenseCategories": "فئات المصاريف"
+    "expenseCategories": "فئات المصاريف",
+    "treasury": "الخزينة"
   },
   "dashboard": {
     "title": "لوحة القيادة",
@@ -336,6 +339,8 @@
     "title": "المنتجات",
     "subtitle": "كتالوج المنتجات",
     "create": "منتج جديد",
+    "editTitle": "تعديل المنتج",
+    "createTitle": "منتج جديد",
     "empty": "لا توجد منتجات",
     "sku": "SKU",
     "name": "الاسم",
@@ -348,7 +353,14 @@
     "trackExpiry": "متابعة الصلاحية",
     "tracksExpiry": "دفعات",
     "sellable": "قابل للبيع",
-    "purchasable": "قابل للشراء"
+    "purchasable": "قابل للشراء",
+    "price": "سعر البيع",
+    "priceHint": "التسعيرة {{tier}}",
+    "images": "الصور",
+    "viewImages": "عرض الصور",
+    "imagesAfterSave": "احفظ المنتج أولاً لإضافة الصور.",
+    "imagesQuotaReached": "تم الوصول إلى الحد ({{max}}). قم بترقية اشتراكك لإضافة المزيد من الصور.",
+    "showInactive": "إظهار غير النشطين"
   },
   "warehouses": {
     "title": "المستودعات",
@@ -571,5 +583,62 @@
     "status": "الحالة",
     "showInactive": "تضمين غير النشطة",
     "empty": "لا توجد فئات"
+  },
+  "treasury": {
+    "title": "الخزينة",
+    "subtitle": "الخزينة المركزية والحسابات المصرفية — حركات مزدوجة",
+    "vault": "الخزينة المركزية",
+    "banks": "الحسابات المصرفية",
+    "noBanks": "لا يوجد حساب مصرفي مسجل.",
+    "newBank": "حساب جديد",
+    "editBank": "تعديل الحساب",
+    "deposit": "إيداع → بنك",
+    "withdraw": "سحب ← بنك",
+    "depositHint": "المبلغ يخرج من الخزينة ويدخل إلى الحساب المصرفي المختار.",
+    "withdrawHint": "المبلغ يخرج من الحساب المصرفي المختار ويدخل إلى الخزينة.",
+    "adjust": "تسوية",
+    "adjustHeader": "تسوية يدوية",
+    "adjustHint": "أدخل مبلغًا موجبًا أو سالبًا لمطابقة الرصيد بعد جرد مادي. سالب للنقص، موجب للزيادة.",
+    "adjustAmount": "المبلغ",
+    "signedHint": "+ دخول / − خروج",
+    "from": "من",
+    "to": "إلى",
+    "amount": "المبلغ",
+    "reference": "المرجع",
+    "note": "ملاحظة",
+    "date": "التاريخ",
+    "type": "النوع",
+    "vaultHistory": "سجل الخزينة",
+    "bankHistory": "سجل البنك",
+    "selectBank": "اختر حسابًا",
+    "empty": "لا توجد حركات",
+    "pendingSessions": "جلسات الصندوق بانتظار التأكيد",
+    "pendingHint": "الكاشير أغلق الجلسة — أكد الاستلام الفعلي لإضافة المبلغ إلى الخزينة.",
+    "onlyWithDiscrepancy": "مع فرق فقط",
+    "validate": "تأكيد",
+    "register": "الصندوق",
+    "closedAt": "مغلقة في",
+    "expected": "المتوقع",
+    "counted": "المحسوب",
+    "discrepancy": "الفرق",
+    "bankAccount": {
+      "label": "الحساب المصرفي",
+      "name": "الاسم",
+      "bank": "البنك",
+      "number": "رقم الحساب",
+      "opening": "الرصيد الافتتاحي"
+    },
+    "vaultType": {
+      "TO_POS_SESSION": "إلى الصندوق",
+      "FROM_POS_SESSION": "من الصندوق",
+      "TO_BANK": "إيداع بنك",
+      "FROM_BANK": "سحب بنك",
+      "ADJUSTMENT": "تسوية"
+    },
+    "bankType": {
+      "DEPOSIT_FROM_VAULT": "إيداع من الخزينة",
+      "WITHDRAWAL_TO_VAULT": "سحب إلى الخزينة",
+      "ADJUSTMENT": "تسوية"
+    }
   }
 }

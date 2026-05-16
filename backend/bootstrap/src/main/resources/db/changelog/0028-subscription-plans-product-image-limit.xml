@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0028-add-max-product-images" author="mini-erp">
+        <addColumn tableName="subscription_plans">
+            <column name="max_product_images" type="int" remarks="NULL = unlimited"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="0028-seed-default-max-product-images" author="mini-erp">
+        <sql>
+            UPDATE subscription_plans SET max_product_images = 5  WHERE code = 'STARTER';
+            UPDATE subscription_plans SET max_product_images = 8  WHERE code = 'PRO';
+            UPDATE subscription_plans SET max_product_images = 15 WHERE code = 'BUSINESS';
+            -- ENTERPRISE: leave NULL = unlimited
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

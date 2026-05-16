@@ -19,7 +19,10 @@
     "reject": "Rejeter",
     "edit": "Modifier",
     "deactivate": "Désactiver",
-    "close": "Fermer"
+    "activate": "Activer",
+    "close": "Fermer",
+    "confirm": "Confirmer",
+    "clear": "Effacer"
   },
   "auth": {
     "login": {
@@ -57,7 +60,8 @@
     "uoms": "Unités de mesure",
     "priceTiers": "Tarifs",
     "notifConfig": "Notifications",
-    "expenseCategories": "Catégories de dépenses"
+    "expenseCategories": "Catégories de dépenses",
+    "treasury": "Trésorerie"
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -336,6 +340,8 @@
     "title": "Produits",
     "subtitle": "Catalogue produits",
     "create": "Nouveau produit",
+    "editTitle": "Modifier le produit",
+    "createTitle": "Nouveau produit",
     "empty": "Aucun produit",
     "sku": "SKU",
     "name": "Nom",
@@ -348,7 +354,14 @@
     "trackExpiry": "Suivi expiration",
     "tracksExpiry": "Lots",
     "sellable": "Vendable",
-    "purchasable": "Achetable"
+    "purchasable": "Achetable",
+    "price": "Prix de vente",
+    "priceHint": "Grille {{tier}}",
+    "images": "Images",
+    "viewImages": "Voir les images",
+    "imagesAfterSave": "Enregistrez d'abord le produit pour pouvoir ajouter des images.",
+    "imagesQuotaReached": "Limite atteinte ({{max}}). Mettez à niveau votre abonnement pour ajouter plus d'images.",
+    "showInactive": "Afficher les inactifs"
   },
   "warehouses": {
     "title": "Entrepôts",
@@ -571,5 +584,62 @@
     "status": "Statut",
     "showInactive": "Inclure inactives",
     "empty": "Aucune catégorie"
+  },
+  "treasury": {
+    "title": "Trésorerie",
+    "subtitle": "Coffre central et comptes bancaires — mouvements appairés",
+    "vault": "Coffre central",
+    "banks": "Comptes bancaires",
+    "noBanks": "Aucun compte bancaire configuré.",
+    "newBank": "Nouveau compte",
+    "editBank": "Modifier le compte",
+    "deposit": "Dépôt → banque",
+    "withdraw": "Retrait ← banque",
+    "depositHint": "Le montant sort du coffre et entre sur le compte bancaire choisi.",
+    "withdrawHint": "Le montant sort du compte bancaire choisi et entre dans le coffre.",
+    "adjust": "Ajustement",
+    "adjustHeader": "Ajustement manuel",
+    "adjustHint": "Saisir un montant signé pour réconcilier le solde après un inventaire physique. Utiliser un négatif pour un manque, un positif pour un surplus.",
+    "adjustAmount": "Montant",
+    "signedHint": "+ entrée / − sortie",
+    "from": "Du",
+    "to": "Au",
+    "amount": "Montant",
+    "reference": "Référence",
+    "note": "Note",
+    "date": "Date",
+    "type": "Type",
+    "vaultHistory": "Historique coffre",
+    "bankHistory": "Historique banque",
+    "selectBank": "Choisir un compte",
+    "empty": "Aucun mouvement",
+    "pendingSessions": "Sessions caisse à valider",
+    "pendingHint": "Le caissier a clôturé la session — confirme la réception physique pour créditer le coffre.",
+    "onlyWithDiscrepancy": "Avec écart uniquement",
+    "validate": "Valider",
+    "register": "Caisse",
+    "closedAt": "Fermée le",
+    "expected": "Attendu",
+    "counted": "Compté",
+    "discrepancy": "Écart",
+    "bankAccount": {
+      "label": "Compte bancaire",
+      "name": "Nom",
+      "bank": "Banque",
+      "number": "Numéro de compte",
+      "opening": "Solde d'ouverture"
+    },
+    "vaultType": {
+      "TO_POS_SESSION": "Vers caisse",
+      "FROM_POS_SESSION": "Retour caisse",
+      "TO_BANK": "Dépôt banque",
+      "FROM_BANK": "Retrait banque",
+      "ADJUSTMENT": "Ajustement"
+    },
+    "bankType": {
+      "DEPOSIT_FROM_VAULT": "Dépôt du coffre",
+      "WITHDRAWAL_TO_VAULT": "Retrait vers coffre",
+      "ADJUSTMENT": "Ajustement"
+    }
   }
 }

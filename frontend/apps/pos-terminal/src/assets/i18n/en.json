@@ -1,5 +1,5 @@
 {
-  "common": { "loading": "Loading…", "logout": "Logout", "save": "Save", "cancel": "Cancel" },
+  "common": { "loading": "Loading…", "logout": "Logout", "save": "Save", "cancel": "Cancel", "close": "Close", "refresh": "Refresh" },
   "auth": {
     "tenantCode": "Organization code",
     "email": "Email",
@@ -9,7 +9,43 @@
   },
   "pos": {
     "offline_banner": "Offline mode — sales will sync when connectivity returns.",
-    "tab": { "sale": "Sale", "session": "Session" },
+    "tab": { "sale": "Sale", "history": "History", "sessionHistory": "Sessions", "session": "Session" },
+    "sessionHistory": {
+      "title": "Session history",
+      "subtitle": "Sessions awaiting deposit and validated sessions"
+    },
+    "forbidden": {
+      "title": "Access denied",
+      "description": "You don't have the required permissions for this action.",
+      "back_to_sale": "Back to sale"
+    },
+    "history": {
+      "title": "Sales history",
+      "subtitle": "Tickets from the current register",
+      "number": "Number",
+      "time": "Time",
+      "session": "Session",
+      "lines": "Items",
+      "status": "Status",
+      "total": "Total",
+      "reprint": "Reprint",
+      "void": "Void",
+      "refund": "Refund",
+      "empty": "No sales for this date",
+      "filterSession": "Filter by session",
+      "requires_session": "Open a cash session to view history.",
+      "requires_register": "Select a register to view history.",
+      "is_refund": "Refund document",
+      "status_completed": "Completed",
+      "status_cancelled": "Cancelled",
+      "status_refunded": "Refund",
+      "void_confirm": "Void sale {{number}}? Stock will be returned and the cash drawer adjusted.",
+      "void_confirm_btn": "Confirm void",
+      "refund_intro": "Partial or full refund of sale {{number}}. Tick lines and adjust the quantity to return.",
+      "refund_total": "Refund amount",
+      "refund_confirm_btn": "Confirm refund",
+      "reason": "Reason (optional)"
+    },
     "sale": {
       "no_session": {
         "title": "No active session",
@@ -18,6 +54,8 @@
       "go_to_session": "Open session",
       "search_placeholder": "Search product or scan barcode…",
       "no_products": "No products found",
+      "view_images": "View images",
+      "stock": "Stock",
       "cart": "Cart",
       "cart_empty": "Cart is empty",
       "subtotal": "Subtotal",
@@ -44,7 +82,8 @@
     "session": {
       "open": {
         "title": "Open cash session",
-        "submit": "Open session"
+        "submit": "Open session",
+        "startZeroHint": "The session starts at 0. You may lend personal change informally — actual cash is recorded only at closing, and validated by the vault manager."
       },
       "no_registers": "No registers found. Ask your admin to create one.",
       "register": "Cash register",
@@ -71,7 +110,25 @@
         "confirm": "Confirm close"
       },
       "counted_closing": "Counted closing amount",
-      "close_note": "Note (optional)"
+      "close_note": "Note (optional)",
+      "sales_title": "Current session sales",
+      "no_sales_yet": "No sales in this session yet",
+      "pending": {
+        "title": "My sessions awaiting deposit",
+        "totalToDeposit": "Total to deposit",
+        "empty": "No session awaiting deposit"
+      },
+      "validated": {
+        "title": "My deposited sessions",
+        "totalDeposited": "Total deposited",
+        "empty": "No deposited session for this date"
+      },
+      "history": {
+        "closedAt": "Closed at",
+        "validatedAt": "Deposited at",
+        "counted": "Counted",
+        "difference": "Difference"
+      }
     }
   }
 }

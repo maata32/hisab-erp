@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0030-cashier-pos-cancel-sale" author="mini-erp">
+        <sql>
+            INSERT INTO role_permission (role_id, permission_id)
+            SELECT r.id, p.id
+              FROM roles r
+              JOIN permissions p ON p.code = 'pos:cancel_sale'
+             WHERE r.code = 'CASHIER'
+               AND NOT EXISTS (
+                   SELECT 1 FROM role_permission rp
+                    WHERE rp.role_id = r.id AND rp.permission_id = p.id);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

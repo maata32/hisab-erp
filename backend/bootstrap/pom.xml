@@ -85,6 +85,10 @@
         </dependency>
         <dependency>
             <groupId>com.minierp</groupId>
+            <artifactId>treasury</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
             <artifactId>reporting</artifactId>
         </dependency>
 

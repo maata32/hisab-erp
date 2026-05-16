@@ -46,6 +46,7 @@ class TenantRolesBootstrapper {
                     "credit:grant", "credit:withdraw",
                     "delivery:read", "delivery:plan", "delivery:execute",
                     "expense:read", "expense:create", "expense:approve", "expense:write",
+                    "treasury:read", "treasury:manage",
                     "employee:read", "employee:manage", "salary:manage",
                     "report:view", "report:export", "reporting:read")),
             Map.entry("MANAGER", List.of(
@@ -63,6 +64,7 @@ class TenantRolesBootstrapper {
                     "credit:grant",
                     "delivery:read", "delivery:plan",
                     "expense:read", "expense:create", "expense:approve", "expense:write",
+                    "treasury:read", "treasury:manage",
                     "report:view", "report:export", "reporting:read",
                     "audit:read")),
             Map.entry("ACCOUNTANT", List.of(
@@ -83,7 +85,7 @@ class TenantRolesBootstrapper {
                     "uom:read",
                     "stock:read",
                     "lot:read",
-                    "pos:operate", "pos:open_session", "pos:close_session",
+                    "pos:operate", "pos:open_session", "pos:close_session", "pos:cancel_sale",
                     "sale:read", "sale:create",
                     "customer:read", "customer:create", "customer:write",
                     "payment:read", "payment:create", "payment:write")),

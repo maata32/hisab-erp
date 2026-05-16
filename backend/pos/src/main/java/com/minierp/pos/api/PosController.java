@@ -15,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -49,6 +50,34 @@ public class PosController {
         return posService.getSession(id);
     }
 
+    @GetMapping("/sessions/pending-validation")
+    @PreAuthorize("hasAuthority('treasury:read')")
+    public List<CashSessionDto> listPendingValidation() {
+        return posService.listPendingValidations();
+    }
+
+    @PostMapping("/sessions/{id}/validate")
+    @PreAuthorize("hasAuthority('treasury:manage')")
+    public CashSessionDto validateSession(@PathVariable UUID id) {
+        return posService.validateSession(id, currentUserId());
+    }
+
+    /** Cashier-scoped: sessions of the current user awaiting vault validation. */
+    @GetMapping("/my-sessions/pending")
+    @PreAuthorize("hasAuthority('pos:operate')")
+    public List<CashSessionDto> listMyPendingSessions() {
+        return posService.listMyPendingSessions(currentUserId());
+    }
+
+    /** Cashier-scoped: sessions of the current user validated on a given day. */
+    @GetMapping("/my-sessions/validated")
+    @PreAuthorize("hasAuthority('pos:operate')")
+    public List<CashSessionDto> listMyValidatedSessions(
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate date) {
+        return posService.listMyValidatedSessions(currentUserId(), date);
+    }
+
     // ── Sales ────────────────────────────────────────────────────────────────
 
     @PostMapping("/sales")
@@ -78,6 +107,24 @@ public class PosController {
         return posService.listSalesBySession(sessionId, pageable);
     }
 
+    @GetMapping("/registers/{registerId}/sales")
+    @PreAuthorize("hasAuthority('pos:operate')")
+    public PageResponse<SaleDto> listSalesByRegister(
+            @PathVariable UUID registerId,
+            @RequestParam Instant from,
+            @RequestParam Instant to,
+            Pageable pageable) {
+        return posService.listSalesByRegister(registerId, from, to, pageable);
+    }
+
+    @PostMapping("/sales/{id}/void")
+    @PreAuthorize("hasAuthority('pos:cancel_sale')")
+    public SaleDto voidSale(
+            @PathVariable UUID id,
+            @RequestBody(required = false) VoidRequest req) {
+        return posService.voidSale(id, req == null ? null : req.reason(), currentUserId());
+    }
+
     // ── Stats ────────────────────────────────────────────────────────────────
 
     @GetMapping("/stats/today")
@@ -87,26 +134,6 @@ public class PosController {
     }
 
     public record SalesTodayResponse(java.math.BigDecimal salesToday) {}
-
-    // ── Cash movements ───────────────────────────────────────────────────────
-
-    @PostMapping("/sessions/{id}/cash-in")
-    @PreAuthorize("hasAuthority('pos:operate')")
-    @ResponseStatus(HttpStatus.CREATED)
-    public CashMovementDto cashIn(
-            @PathVariable UUID id,
-            @Valid @RequestBody CashMovementRequest req) {
-        return posService.cashIn(id, req.amount(), req.reason(), currentUserId());
-    }
-
-    @PostMapping("/sessions/{id}/cash-out")
-    @PreAuthorize("hasAuthority('pos:operate')")
-    @ResponseStatus(HttpStatus.CREATED)
-    public CashMovementDto cashOut(
-            @PathVariable UUID id,
-            @Valid @RequestBody CashMovementRequest req) {
-        return posService.cashOut(id, req.amount(), req.reason(), currentUserId());
-    }
 
     // ── Request records ───────────────────────────────────────────────────────
 
@@ -118,13 +145,11 @@ public class PosController {
             @DecimalMin("0.00") BigDecimal countedClosing,
             String note) {}
 
-    public record CashMovementRequest(
-            @NotNull @DecimalMin("0.01") BigDecimal amount,
-            String reason) {}
-
     public record SyncRequest(
             String deviceId,
             @NotEmpty @Valid List<CreateSaleRequest> sales) {}
+
+    public record VoidRequest(String reason) {}
 
     private UUID currentUserId() {
         return CurrentUserHolder.tryGet().map(u -> u.userId()).orElse(null);

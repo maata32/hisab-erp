@@ -20,6 +20,18 @@ export const appRoutes: Routes = [
         path: 'session',
         loadComponent: () => import('./features/session.page').then((m) => m.SessionPage),
       },
+      {
+        path: 'history',
+        loadComponent: () => import('./features/history.page').then((m) => m.HistoryPage),
+      },
+      {
+        path: 'session-history',
+        loadComponent: () => import('./features/session-history.page').then((m) => m.SessionHistoryPage),
+      },
+      {
+        path: 'forbidden',
+        loadComponent: () => import('./features/forbidden.page').then((m) => m.ForbiddenPage),
+      },
     ],
   },
   { path: 'auth/login', redirectTo: 'login' },

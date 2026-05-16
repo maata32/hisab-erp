@@ -22,3 +22,29 @@ html, body { height: 100%; margin: 0; }
   outline: 2px solid #2563eb;
   outline-offset: 2px;
 }
+
+/* Tailwind preflight resets border-width to 0 on `*`; re-assert PrimeNG form-control borders.
+   Without this, input/dropdown/checkbox borders disappear in some pages until focused. */
+.p-inputtext,
+.p-inputnumber-input,
+.p-dropdown,
+.p-multiselect,
+.p-password-input,
+.p-calendar .p-inputtext,
+.p-autocomplete-input {
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+}
+.p-checkbox .p-checkbox-box,
+.p-radiobutton .p-radiobutton-box {
+  border: 2px solid #d1d5db;
+  background-color: #ffffff;
+}
+.p-checkbox .p-checkbox-box.p-highlight,
+.p-radiobutton .p-radiobutton-box.p-highlight {
+  border-color: #2563eb;
+  background-color: #2563eb;
+}
+.p-inputswitch .p-inputswitch-slider {
+  border: 1px solid #d1d5db;
+}

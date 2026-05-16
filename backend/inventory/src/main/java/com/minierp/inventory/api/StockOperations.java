@@ -37,6 +37,8 @@ public interface StockOperations {
 
     StockDto getStock(UUID warehouseId, UUID productId);
 
+    java.util.List<StockDto> listByWarehouse(UUID warehouseId);
+
     /**
      * Outflow that permits the stock to go negative — used by the POS module for offline-synced
      * sales where the spec mandates acceptance even when on-hand is zero. Logs a warning when

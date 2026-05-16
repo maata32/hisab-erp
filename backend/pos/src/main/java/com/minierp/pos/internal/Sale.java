@@ -110,4 +110,13 @@ class Sale extends TenantAwareEntity {
 
     @Column(length = 1000)
     private String note;
+
+    @Column(name = "voided_at")
+    private Instant voidedAt;
+
+    @Column(name = "voided_by", columnDefinition = "uuid")
+    private UUID voidedBy;
+
+    @Column(name = "void_reason", length = 500)
+    private String voidReason;
 }

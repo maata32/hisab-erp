@@ -140,6 +140,7 @@ export class MainLayoutComponent {
     { label: 'nav.lots', icon: 'pi pi-tag', path: '/lots', permission: 'lot:read' },
     { label: 'nav.expenses', icon: 'pi pi-wallet', path: '/expenses', permission: 'expense:read' },
     { label: 'nav.expenseCategories', icon: 'pi pi-tags', path: '/expense-categories', permission: 'expense:read' },
+    { label: 'nav.treasury', icon: 'pi pi-money-bill', path: '/treasury', permission: 'treasury:read' },
     { label: 'nav.reporting', icon: 'pi pi-chart-bar', path: '/reporting', permission: 'report:view' },
     { label: 'nav.uoms', icon: 'pi pi-sliders-h', path: '/uoms', permission: 'uom:read' },
     { label: 'nav.priceTiers', icon: 'pi pi-percentage', path: '/price-tiers', permission: 'price:update' },

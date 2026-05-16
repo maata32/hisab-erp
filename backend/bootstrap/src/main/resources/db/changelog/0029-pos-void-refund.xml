@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0029-sales-void-refund-columns" author="mini-erp">
+        <addColumn tableName="sales">
+            <column name="original_sale_id" type="uuid"
+                    remarks="When set, this row is a refund document linked to the original sale."/>
+            <column name="voided_at" type="timestamptz"/>
+            <column name="voided_by" type="uuid"/>
+            <column name="void_reason" type="varchar(500)"/>
+        </addColumn>
+        <createIndex tableName="sales" indexName="idx_sales_original">
+            <column name="original_sale_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

@@ -18,4 +18,6 @@ public record CashSessionDto(
         BigDecimal totalSales,
         BigDecimal totalCashIn,
         BigDecimal totalCashOut,
-        String note) {}
+        String note,
+        Instant validatedAt,
+        UUID validatedBy) {}

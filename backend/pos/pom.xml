@@ -44,6 +44,10 @@
             <artifactId>tenant</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>treasury</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.modulith</groupId>
             <artifactId>spring-modulith-events-api</artifactId>
         </dependency>

@@ -142,6 +142,16 @@ class StockOperationsImpl implements StockOperations {
                 s.getQtyOnHand().subtract(s.getQtyReserved()), s.getAverageCost());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.List<StockDto> listByWarehouse(UUID warehouseId) {
+        return stocks.findByWarehouseId(warehouseId).stream()
+                .map(s -> new StockDto(s.getId(), s.getWarehouseId(), s.getProductId(),
+                        s.getQtyOnHand(), s.getQtyReserved(),
+                        s.getQtyOnHand().subtract(s.getQtyReserved()), s.getAverageCost()))
+                .toList();
+    }
+
     private Stock lockOrCreate(UUID warehouseId, UUID productId) {
         return stocks.lockByWarehouseAndProduct(warehouseId, productId)
                 .orElseGet(() -> stocks.save(Stock.builder()

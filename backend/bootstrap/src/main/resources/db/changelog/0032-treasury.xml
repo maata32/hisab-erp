@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0032-vaults" author="mini-erp">
+        <createTable tableName="vaults">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="name" type="varchar(200)" defaultValue="Coffre central"><constraints nullable="false"/></column>
+            <column name="currency" type="varchar(3)" defaultValue="MRU"><constraints nullable="false"/></column>
+            <column name="balance" type="numeric(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="vaults" columnNames="tenant_id" constraintName="uk_vaults_tenant"/>
+    </changeSet>
+
+    <changeSet id="0032-vault-movements" author="mini-erp">
+        <createTable tableName="vault_movements">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="vault_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="type" type="varchar(30)"><constraints nullable="false"/></column>
+            <column name="amount" type="numeric(19,2)"><constraints nullable="false"/></column>
+            <column name="reference_type" type="varchar(40)"/>
+            <column name="reference_id" type="uuid"/>
+            <column name="occurred_at" type="timestamptz"><constraints nullable="false"/></column>
+            <column name="user_id" type="uuid"/>
+            <column name="note" type="varchar(1000)"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="vault_movements" indexName="idx_vault_movements_vault">
+            <column name="vault_id"/>
+        </createIndex>
+        <createIndex tableName="vault_movements" indexName="idx_vault_movements_occurred">
+            <column name="occurred_at"/>
+        </createIndex>
+        <createIndex tableName="vault_movements" indexName="idx_vault_movements_ref">
+            <column name="reference_type"/>
+            <column name="reference_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0032-bank-accounts" author="mini-erp">
+        <createTable tableName="bank_accounts">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="name" type="varchar(200)"><constraints nullable="false"/></column>
+            <column name="bank_name" type="varchar(200)"/>
+            <column name="account_number" type="varchar(100)"/>
+            <column name="currency" type="varchar(3)" defaultValue="MRU"><constraints nullable="false"/></column>
+            <column name="balance" type="numeric(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="active" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="bank_accounts" indexName="idx_bank_accounts_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0032-bank-transactions" author="mini-erp">
+        <createTable tableName="bank_transactions">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="bank_account_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="type" type="varchar(30)"><constraints nullable="false"/></column>
+            <column name="amount" type="numeric(19,2)"><constraints nullable="false"/></column>
+            <column name="vault_movement_id" type="uuid"/>
+            <column name="reference" type="varchar(200)"/>
+            <column name="occurred_at" type="timestamptz"><constraints nullable="false"/></column>
+            <column name="user_id" type="uuid"/>
+            <column name="note" type="varchar(1000)"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="bank_transactions" indexName="idx_bank_txn_account">
+            <column name="bank_account_id"/>
+        </createIndex>
+        <createIndex tableName="bank_transactions" indexName="idx_bank_txn_occurred">
+            <column name="occurred_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0032-treasury-rls" author="mini-erp">
+        <sql splitStatements="false">
+            DO $$
+            DECLARE
+                t text;
+                tables text[] := ARRAY['vaults', 'vault_movements', 'bank_accounts', 'bank_transactions'];
+            BEGIN
+                FOREACH t IN ARRAY tables LOOP
+                    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+                    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
+
+                    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_select ON %I', t);
+                    EXECUTE format(
+                        'CREATE POLICY tenant_isolation_select ON %I
+                            FOR SELECT
+                            USING (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)',
+                        t);
+
+                    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_modify ON %I', t);
+                    EXECUTE format(
+                        'CREATE POLICY tenant_isolation_modify ON %I
+                            FOR ALL
+                            USING (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)
+                            WITH CHECK (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)',
+                        t);
+                END LOOP;
+            END
+            $$;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0032-grant-treasury-to-app-role" author="mini-erp" runInTransaction="false">
+        <sql splitStatements="false">
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'minierp_app') THEN
+                    GRANT ALL ON TABLE
+                        vaults, vault_movements, bank_accounts, bank_transactions
+                    TO minierp_app;
+                END IF;
+            END $$;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0032-seed-treasury-permissions" author="mini-erp">
+        <sql>
+            INSERT INTO permissions (id, code, resource, action, description) VALUES
+              (uuid_generate_v4(), 'treasury:read',   'treasury', 'read',   'View vault and bank accounts'),
+              (uuid_generate_v4(), 'treasury:manage', 'treasury', 'manage', 'Manage bank accounts and vault/bank transfers')
+            ON CONFLICT DO NOTHING;
+        </sql>
+    </changeSet>
+
+    <!--
+        Grant treasury permissions to existing roles for already-bootstrapped tenants.
+        New tenants get them via TenantRolesBootstrapper.
+    -->
+    <changeSet id="0032-grant-treasury-to-existing-roles" author="mini-erp">
+        <sql>
+            INSERT INTO role_permission (role_id, permission_id)
+            SELECT r.id, p.id
+            FROM roles r
+            JOIN permissions p ON p.code IN ('treasury:read', 'treasury:manage')
+            WHERE r.code IN ('TENANT_ADMIN', 'MANAGER')
+            ON CONFLICT DO NOTHING;
+        </sql>
+    </changeSet>
+
+    <!-- Seed: create the single vault per existing tenant with balance=0. -->
+    <changeSet id="0032-seed-vault-per-tenant" author="mini-erp">
+        <sql>
+            INSERT INTO vaults (id, tenant_id, name, currency, balance)
+            SELECT uuid_generate_v4(), o.id, 'Coffre central', 'MRU', 0
+            FROM organizations o
+            WHERE NOT EXISTS (SELECT 1 FROM vaults v WHERE v.tenant_id = o.id);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

@@ -32,5 +32,12 @@
     <include file="db/changelog/0025-customer-cdc-fields.xml"/>
     <include file="db/changelog/0026-notifications.xml"/>
     <include file="db/changelog/0027-permissions-alignment.xml"/>
+    <include file="db/changelog/0028-subscription-plans-product-image-limit.xml"/>
+    <include file="db/changelog/0029-pos-void-refund.xml"/>
+    <include file="db/changelog/0030-cashier-cancel-sale-perm.xml"/>
+    <include file="db/changelog/0031-cash-movements-type-width.xml"/>
+    <include file="db/changelog/0032-treasury.xml"/>
+    <include file="db/changelog/0033-pos-cleanup-deprecated-flows.xml"/>
+    <include file="db/changelog/0034-session-validation.xml"/>
 
 </databaseChangeLog>

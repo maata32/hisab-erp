@@ -1,5 +1,5 @@
 {
-  "common": { "loading": "Chargement…", "logout": "Déconnexion", "save": "Enregistrer", "cancel": "Annuler" },
+  "common": { "loading": "Chargement…", "logout": "Déconnexion", "save": "Enregistrer", "cancel": "Annuler", "close": "Fermer", "refresh": "Rafraîchir" },
   "auth": {
     "tenantCode": "Code organisation",
     "email": "Email",
@@ -9,7 +9,37 @@
   },
   "pos": {
     "offline_banner": "Mode hors-ligne — les ventes seront synchronisées dès le retour de la connexion.",
-    "tab": { "sale": "Vente", "session": "Session" },
+    "tab": { "sale": "Vente", "history": "Historique", "sessionHistory": "Sessions", "session": "Session" },
+    "sessionHistory": {
+      "title": "Historique des sessions",
+      "subtitle": "Sessions en attente de versement et sessions versées"
+    },
+    "forbidden": {
+      "title": "Accès refusé",
+      "description": "Vous n'avez pas les permissions nécessaires pour cette action.",
+      "back_to_sale": "Retour à la vente"
+    },
+    "history": {
+      "title": "Historique des ventes",
+      "subtitle": "Tickets de la caisse courante",
+      "number": "Numéro",
+      "time": "Heure",
+      "session": "Session",
+      "lines": "Articles",
+      "status": "Statut",
+      "total": "Total",
+      "reprint": "Réimprimer",
+      "void": "Annuler",
+      "empty": "Aucune vente pour cette date",
+      "filterSession": "Filtrer par session",
+      "requires_session": "Ouvrez une session de caisse pour consulter l'historique.",
+      "requires_register": "Sélectionnez une caisse pour afficher l'historique.",
+      "status_completed": "Validée",
+      "status_cancelled": "Annulée",
+      "void_confirm": "Annuler la vente {{number}} ? Le stock sera réintégré et la caisse ajustée.",
+      "void_confirm_btn": "Confirmer l'annulation",
+      "reason": "Motif (optionnel)"
+    },
     "sale": {
       "no_session": {
         "title": "Aucune session active",
@@ -18,6 +48,8 @@
       "go_to_session": "Ouvrir une session",
       "search_placeholder": "Rechercher un article ou scanner un code-barres…",
       "no_products": "Aucun article trouvé",
+      "view_images": "Voir les images",
+      "stock": "Stock",
       "cart": "Panier",
       "cart_empty": "Le panier est vide",
       "subtotal": "Sous-total",
@@ -44,7 +76,8 @@
     "session": {
       "open": {
         "title": "Ouvrir une session de caisse",
-        "submit": "Ouvrir la session"
+        "submit": "Ouvrir la session",
+        "startZeroHint": "La session démarre à 0. Tu pourras éventuellement prêter de la monnaie en privé — l'argent réel ne sera enregistré qu'à la fermeture, puis validé par le gérant du coffre."
       },
       "no_registers": "Aucune caisse trouvée. Demandez à votre administrateur d'en créer une.",
       "register": "Caisse",
@@ -60,10 +93,6 @@
         "cash_out": "Sorties",
         "expected": "Fermeture attendue"
       },
-      "cash_in": "Entrée de caisse",
-      "cash_out": "Sortie de caisse",
-      "amount": "Montant",
-      "reason": "Motif",
       "close": {
         "button": "Clôturer la session",
         "title": "Clôturer la session",
@@ -71,7 +100,25 @@
         "confirm": "Confirmer la clôture"
       },
       "counted_closing": "Montant compté à la fermeture",
-      "close_note": "Note (facultative)"
+      "close_note": "Note (facultative)",
+      "sales_title": "Ventes de la session courante",
+      "no_sales_yet": "Aucune vente pour cette session",
+      "pending": {
+        "title": "Mes sessions à verser",
+        "totalToDeposit": "Total à verser",
+        "empty": "Aucune session en attente de versement"
+      },
+      "validated": {
+        "title": "Mes sessions versées",
+        "totalDeposited": "Total versé",
+        "empty": "Aucune session versée pour cette date"
+      },
+      "history": {
+        "closedAt": "Fermée le",
+        "validatedAt": "Versée le",
+        "counted": "Compté",
+        "difference": "Écart"
+      }
     }
   }
 }

@@ -1,7 +1,9 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
+import { SwUpdate } from '@angular/service-worker';
+import { filter } from 'rxjs';
 import { AUTH_SERVICE } from '@minierp/shared-auth';
 import { LocaleSwitcherComponent } from '@minierp/shared-ui';
 
@@ -24,11 +26,21 @@ import { LocaleSwitcherComponent } from '@minierp/shared-ui';
         </div>
       </header>
       <main class="flex-1 bg-gray-100 p-4"><router-outlet /></main>
-      <nav class="bg-white border-t grid grid-cols-2">
+      <nav class="bg-white border-t grid grid-cols-4">
         <a routerLink="/sale" routerLinkActive="text-primary-700 bg-primary-50"
            class="flex flex-col items-center py-3 min-h-touch text-gray-700">
           <i class="pi pi-shopping-cart text-xl"></i>
           <span class="text-xs mt-1">{{ 'pos.tab.sale' | translate }}</span>
+        </a>
+        <a routerLink="/history" routerLinkActive="text-primary-700 bg-primary-50"
+           class="flex flex-col items-center py-3 min-h-touch text-gray-700">
+          <i class="pi pi-history text-xl"></i>
+          <span class="text-xs mt-1">{{ 'pos.tab.history' | translate }}</span>
+        </a>
+        <a routerLink="/session-history" routerLinkActive="text-primary-700 bg-primary-50"
+           class="flex flex-col items-center py-3 min-h-touch text-gray-700">
+          <i class="pi pi-folder-open text-xl"></i>
+          <span class="text-xs mt-1">{{ 'pos.tab.sessionHistory' | translate }}</span>
         </a>
         <a routerLink="/session" routerLinkActive="text-primary-700 bg-primary-50"
            class="flex flex-col items-center py-3 min-h-touch text-gray-700">
@@ -39,11 +51,26 @@ import { LocaleSwitcherComponent } from '@minierp/shared-ui';
     </div>
   `,
 })
-export class PosShellComponent {
+export class PosShellComponent implements OnInit {
   private readonly auth = inject(AUTH_SERVICE);
   private readonly router = inject(Router);
+  private readonly swUpdate = inject(SwUpdate);
 
   protected user() { return this.auth.getCurrentUser(); }
+
+  ngOnInit(): void {
+    if (this.swUpdate.isEnabled) {
+      this.swUpdate.versionUpdates
+        .pipe(filter((e) => e.type === 'VERSION_READY'))
+        .subscribe(() => {
+          // New bundle available — reload so the user picks up new routes/features.
+          document.location.reload();
+        });
+      // Poll for updates every 60 seconds so users on a long-open POS pick up the new version.
+      void this.swUpdate.checkForUpdate();
+      setInterval(() => void this.swUpdate.checkForUpdate(), 60_000);
+    }
+  }
 
   logout(): void {
     this.auth.logout();

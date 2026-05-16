@@ -14,11 +14,6 @@ export interface CloseSessionRequest {
   note?: string;
 }
 
-export interface CashMovementRequest {
-  amount: number;
-  reason?: string;
-}
-
 export interface CreateSaleRequest {
   idempotencyKey: string;
   registerId: string;
@@ -63,6 +58,13 @@ export interface SyncSalesResponse {
   results: SyncResult[];
 }
 
+export interface ProductImageItem {
+  id: string;
+  url: string;
+  position: number;
+  altText: string | null;
+}
+
 export interface ProductPageItem {
   id: string;
   sku: string;
@@ -72,6 +74,7 @@ export interface ProductPageItem {
   defaultTaxRate: number;
   sellable: boolean;
   imageUrl: string | null;
+  images: ProductImageItem[];
 }
 
 export interface ResolvedPrice {
@@ -95,6 +98,16 @@ export interface PriceTier {
   isDefault: boolean;
 }
 
+export interface StockSnapshotItem {
+  id: string;
+  warehouseId: string;
+  productId: string;
+  qtyOnHand: number;
+  qtyReserved: number;
+  qtyAvailable: number;
+  averageCost: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PosApiService {
   private readonly http = inject(HttpClient);
@@ -115,16 +128,56 @@ export class PosApiService {
     return this.http.get<CashSession>(`/api/v1/pos/sessions/${id}`);
   }
 
-  cashIn(sessionId: string, req: CashMovementRequest): Observable<unknown> {
-    return this.http.post(`/api/v1/pos/sessions/${sessionId}/cash-in`, req);
+  /** Closed sessions belonging to the current cashier, awaiting vault validation. */
+  listMyPendingSessions(): Observable<CashSession[]> {
+    return this.http.get<CashSession[]>('/api/v1/pos/my-sessions/pending');
   }
 
-  cashOut(sessionId: string, req: CashMovementRequest): Observable<unknown> {
-    return this.http.post(`/api/v1/pos/sessions/${sessionId}/cash-out`, req);
+  /** Validated sessions belonging to the current cashier on a given ISO date (YYYY-MM-DD). */
+  listMyValidatedSessions(date: string): Observable<CashSession[]> {
+    return this.http.get<CashSession[]>(`/api/v1/pos/my-sessions/validated?date=${date}`);
   }
 
   createSale(req: CreateSaleRequest): Observable<SyncedSale> {
     return this.http.post<SyncedSale>('/api/v1/pos/sales', req);
+  }
+
+  getSale(saleId: string): Observable<SyncedSale> {
+    return this.http.get<SyncedSale>(`/api/v1/pos/sales/${saleId}`);
+  }
+
+  voidSale(saleId: string, reason: string | null): Observable<SyncedSale> {
+    return this.http.post<SyncedSale>(`/api/v1/pos/sales/${saleId}/void`, { reason });
+  }
+
+  listSalesByRegister(
+    registerId: string,
+    from: string,
+    to: string,
+    page = 0,
+    size = 50,
+  ): Observable<PageResponse<SyncedSale>> {
+    const params = new HttpParams()
+      .set('from', from)
+      .set('to', to)
+      .set('page', page)
+      .set('size', size)
+      .set('sort', 'completedAt,desc');
+    return this.http.get<PageResponse<SyncedSale>>(
+      `/api/v1/pos/registers/${registerId}/sales`,
+      { params },
+    );
+  }
+
+  listSalesBySession(sessionId: string, page = 0, size = 200): Observable<PageResponse<SyncedSale>> {
+    const params = new HttpParams()
+      .set('page', page)
+      .set('size', size)
+      .set('sort', 'completedAt,desc');
+    return this.http.get<PageResponse<SyncedSale>>(
+      `/api/v1/pos/sessions/${sessionId}/sales`,
+      { params },
+    );
   }
 
   syncSales(req: SyncRequest): Observable<SyncSalesResponse> {
@@ -174,5 +227,9 @@ export class PosApiService {
 
   getSettings(): Observable<Record<string, unknown>> {
     return this.http.get<Record<string, unknown>>('/api/v1/settings');
+  }
+
+  listStocksByWarehouse(warehouseId: string): Observable<StockSnapshotItem[]> {
+    return this.http.get<StockSnapshotItem[]>(`/api/v1/inventory/stocks/by-warehouse/${warehouseId}`);
   }
 }

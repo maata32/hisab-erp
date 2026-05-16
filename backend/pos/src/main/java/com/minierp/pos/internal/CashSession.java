@@ -74,4 +74,11 @@ class CashSession extends TenantAwareEntity {
 
     @Column(length = 500)
     private String note;
+
+    /** Set when a vault manager validates the cashier's deposit. */
+    @Column(name = "validated_at")
+    private Instant validatedAt;
+
+    @Column(name = "validated_by", columnDefinition = "uuid")
+    private UUID validatedBy;
 }

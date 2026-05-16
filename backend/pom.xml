@@ -36,6 +36,7 @@
         <module>payment</module>
         <module>lot-expiry</module>
         <module>expense</module>
+        <module>treasury</module>
         <module>reporting</module>
         <module>bootstrap</module>
     </modules>
@@ -161,6 +162,11 @@
             <dependency>
                 <groupId>com.minierp</groupId>
                 <artifactId>expense</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.minierp</groupId>
+                <artifactId>treasury</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

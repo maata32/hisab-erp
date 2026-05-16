@@ -27,6 +27,8 @@ public record SaleDto(
         BigDecimal changeDue,
         Instant completedAt,
         String note,
+        Instant voidedAt,
+        String voidReason,
         List<SaleLineDto> lines) {
 
     public record SaleLineDto(

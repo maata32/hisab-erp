@@ -1,6 +1,7 @@
 package com.minierp.expense.internal;
 
 import com.minierp.shared.error.BusinessException;
+import com.minierp.shared.storage.StorageProperties;
 import io.minio.BucketExistsArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
@@ -56,7 +57,7 @@ class AttachmentStorageService {
             throw new BusinessException("error.attachment.upload_failed", Map.of("cause", e.getMessage()));
         }
 
-        return props.endpoint() + "/" + props.bucket() + "/" + objectName;
+        return props.resolvedPublicEndpoint() + "/" + props.bucket() + "/" + objectName;
     }
 
     private static String sanitize(String name) {

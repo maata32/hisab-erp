@@ -8,7 +8,10 @@ import com.minierp.catalog.events.ProductCreatedEvent;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.ConflictException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.tenant.TenantContext;
 import com.minierp.shared.util.PageResponse;
+import com.minierp.tenant.api.PlanLimits;
+import com.minierp.tenant.api.TenantLookup;
 import com.minierp.uom.api.UomDto;
 import com.minierp.uom.api.UomLookup;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +19,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -35,10 +39,14 @@ public class ProductService {
     private final ProductCategoryRepository categories;
     private final UomLookup uomLookup;
     private final ApplicationEventPublisher events;
+    private final ProductImageStorageService imageStorage;
+    private final TenantLookup tenantLookup;
 
     @Transactional(readOnly = true)
-    public PageResponse<ProductDto> search(String q, UUID categoryId, UUID brandId, Pageable pageable) {
-        return PageResponse.of(products.search(q, categoryId, brandId, pageable).map(this::toDto));
+    public PageResponse<ProductDto> search(String q, UUID categoryId, UUID brandId,
+                                            boolean includeInactive, Pageable pageable) {
+        return PageResponse.of(products.search(q, categoryId, brandId, includeInactive, pageable)
+                .map(this::toDto));
     }
 
     @Transactional(readOnly = true)
@@ -110,7 +118,14 @@ public class ProductService {
         if (req.categoryId() != null) p.setCategoryId(req.categoryId());
         if (req.brandId() != null) p.setBrandId(req.brandId());
         if (req.barcode() != null) p.setBarcode(blankToNull(req.barcode()));
+        if (req.baseUomId() != null) {
+            uomLookup.findById(req.baseUomId())
+                    .orElseThrow(() -> NotFoundException.of("entity.uom", req.baseUomId()));
+            p.setBaseUomId(req.baseUomId());
+        }
         if (req.defaultTaxRate() != null) p.setDefaultTaxRate(req.defaultTaxRate());
+        if (req.trackExpiry() != null) p.setTrackExpiry(req.trackExpiry());
+        if (req.shelfLifeDays() != null) p.setShelfLifeDays(req.shelfLifeDays());
         if (req.sellable() != null) p.setSellable(req.sellable());
         if (req.purchasable() != null) p.setPurchasable(req.purchasable());
         if (req.active() != null) p.setActive(req.active());
@@ -210,6 +225,32 @@ public class ProductService {
     }
 
     @Transactional
+    public ProductImageDto uploadImage(UUID productId, MultipartFile file, Integer position, String altText) {
+        products.findById(productId).orElseThrow(() -> NotFoundException.of("entity.product", productId));
+        enforceImageQuota(productId);
+        String url = imageStorage.upload(file);
+        ProductImage img = ProductImage.builder()
+                .productId(productId)
+                .url(url)
+                .position(position == null ? 0 : position)
+                .altText(altText)
+                .build();
+        images.save(img);
+        return toImageDto(img);
+    }
+
+    private void enforceImageQuota(UUID productId) {
+        PlanLimits limits = tenantLookup.findLimitsForTenant(TenantContext.require());
+        Integer max = limits.maxProductImages();
+        if (max == null) return; // unlimited
+        long current = images.countByProductId(productId);
+        if (current >= max) {
+            throw new BusinessException("error.product_image.quota_exceeded",
+                    Map.of("max", max, "current", current));
+        }
+    }
+
+    @Transactional
     public void removeImage(UUID productId, UUID imageId) {
         ProductImage img = images.findById(imageId)
                 .orElseThrow(() -> NotFoundException.of("entity.product_image", imageId));
@@ -271,7 +312,10 @@ public class ProductService {
             String barcode,
             UUID categoryId,
             UUID brandId,
+            UUID baseUomId,
             BigDecimal defaultTaxRate,
+            Boolean trackExpiry,
+            Integer shelfLifeDays,
             Boolean sellable,
             Boolean purchasable,
             Boolean active,

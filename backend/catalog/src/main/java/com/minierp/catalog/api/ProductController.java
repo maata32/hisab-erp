@@ -12,8 +12,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 
@@ -31,8 +33,9 @@ public class ProductController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) UUID categoryId,
             @RequestParam(required = false) UUID brandId,
+            @RequestParam(defaultValue = "false") boolean includeInactive,
             Pageable pageable) {
-        return service.search(q, categoryId, brandId, pageable);
+        return service.search(q, categoryId, brandId, includeInactive, pageable);
     }
 
     @GetMapping("/{id}")
@@ -109,6 +112,17 @@ public class ProductController {
             @PathVariable UUID id,
             @Valid @RequestBody CreateImageRequest req) {
         return service.addImage(id, req);
+    }
+
+    @PostMapping(value = "/{id}/images/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('product:update')")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ProductDto.ProductImageDto uploadImage(
+            @PathVariable UUID id,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "position", required = false) Integer position,
+            @RequestParam(value = "altText", required = false) String altText) {
+        return service.uploadImage(id, file, position, altText);
     }
 
     @DeleteMapping("/{id}/images/{imageId}")

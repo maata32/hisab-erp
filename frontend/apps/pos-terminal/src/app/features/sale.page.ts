@@ -8,6 +8,7 @@ import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { ToastModule } from 'primeng/toast';
+import { OverlayPanelModule, OverlayPanel } from 'primeng/overlaypanel';
 import { MessageService } from 'primeng/api';
 import { Router } from '@angular/router';
 
@@ -17,7 +18,7 @@ import { SyncService } from '../services/sync.service';
 import { ReceiptService } from '../services/receipt.service';
 import { PosApiService } from '../services/pos-api.service';
 import { OnlineStatusService } from '../services/online-status.service';
-import { CachedProduct, CartLine, PendingSale } from '../models/pos.models';
+import { CachedProduct, CachedProductImage, CartLine, PendingSale } from '../models/pos.models';
 import { PosSettingsService } from '../services/pos-settings.service';
 
 @Component({
@@ -32,6 +33,7 @@ import { PosSettingsService } from '../services/pos-settings.service';
     InputNumberModule,
     InputTextModule,
     ToastModule,
+    OverlayPanelModule,
   ],
   providers: [MessageService],
   template: `
@@ -94,11 +96,36 @@ import { PosSettingsService } from '../services/pos-settings.service';
                     <button
                       type="button"
                       (click)="addToCart(product)"
-                      class="bg-white rounded-lg shadow p-3 text-left hover:bg-primary-50 border border-gray-200 hover:border-primary-400 transition-colors min-h-[80px] flex flex-col justify-between"
+                      class="relative bg-white rounded-lg shadow p-3 text-left hover:bg-primary-50 border border-gray-200 hover:border-primary-400 transition-colors min-h-[80px] flex flex-col justify-between"
                     >
-                      <div class="font-medium text-sm text-gray-800 line-clamp-2 leading-tight">{{ product.name }}</div>
+                      @if (product.images?.length) {
+                        <span
+                          role="button"
+                          tabindex="0"
+                          class="absolute top-1.5 right-1.5 inline-flex items-center justify-center w-7 h-7 rounded
+                                 bg-white/90 text-gray-600 hover:bg-primary-100 hover:text-primary-700 shadow-sm"
+                          [attr.aria-label]="'pos.sale.view_images' | translate"
+                          [title]="'pos.sale.view_images' | translate"
+                          (click)="showImages($event, product, imagesOp)"
+                        >
+                          <i class="pi pi-images text-sm"></i>
+                          <span class="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-1 rounded-full
+                                       bg-primary-500 text-white text-[9px] font-semibold
+                                       flex items-center justify-center">
+                            {{ product.images.length }}
+                          </span>
+                        </span>
+                      }
+                      <div class="font-medium text-sm text-gray-800 line-clamp-2 leading-tight pr-8">{{ product.name }}</div>
                       <div class="mt-2 flex items-end justify-between">
-                        <span class="text-xs text-gray-400">{{ product.sku }}</span>
+                        <span class="text-xs text-gray-400">
+                          {{ product.sku }}
+                          <span class="ml-1"
+                                [class.text-red-600]="stockOf(product.id) <= 0"
+                                [class.font-semibold]="stockOf(product.id) <= 0">
+                            · {{ 'pos.sale.stock' | translate }} {{ stockOf(product.id) }}
+                          </span>
+                        </span>
                         <span class="text-primary-700 font-bold text-sm">{{ fmtSvc.format(product.price) }}</span>
                       </div>
                     </button>
@@ -107,6 +134,17 @@ import { PosSettingsService } from '../services/pos-settings.service';
               </div>
             }
           </div>
+
+          <p-overlayPanel #imagesOp [showCloseIcon]="false" [dismissable]="true" styleClass="!p-2">
+            <div class="grid grid-cols-3 gap-2 max-w-[280px]">
+              @for (img of popoverImages(); track img.id) {
+                <a [href]="img.url" target="_blank" rel="noopener" class="block">
+                  <img [src]="img.url" alt=""
+                       class="w-20 h-20 object-cover rounded border border-gray-200 hover:border-primary-400" />
+                </a>
+              }
+            </div>
+          </p-overlayPanel>
 
           <!-- Cart panel -->
           <div class="w-64 lg:w-80 flex flex-col bg-white shrink-0">
@@ -233,7 +271,9 @@ import { PosSettingsService } from '../services/pos-settings.service';
       [(visible)]="showReceipt"
       [modal]="true"
       [style]="{ width: '22rem' }"
-      [closable]="false"
+      [closable]="true"
+      [dismissableMask]="true"
+      (onHide)="onReceiptHide()"
     >
       <div class="text-center py-4">
         <i class="pi pi-check-circle text-5xl text-green-500 mb-3 block"></i>
@@ -249,10 +289,14 @@ import { PosSettingsService } from '../services/pos-settings.service';
         }
       </div>
       <ng-template pTemplate="footer">
-        <button pButton [label]="'pos.sale.receipt.print' | translate" icon="pi pi-print"
-          severity="secondary" outlined (click)="printReceipt()"></button>
-        <button pButton [label]="'pos.sale.receipt.new_sale' | translate" icon="pi pi-shopping-cart"
-          (click)="newSale()"></button>
+        <div class="flex flex-col gap-2">
+          <button pButton [label]="'pos.sale.receipt.new_sale' | translate" icon="pi pi-shopping-cart"
+            class="w-full" (click)="newSale()"></button>
+          <button pButton [label]="'pos.sale.receipt.print' | translate" icon="pi pi-print"
+            severity="secondary" outlined class="w-full" (click)="printReceipt()"></button>
+          <button pButton [label]="'common.close' | translate" icon="pi pi-times"
+            severity="secondary" text class="w-full" (click)="closeReceipt()"></button>
+        </div>
       </ng-template>
     </p-dialog>
   `,
@@ -275,6 +319,8 @@ export class SalePage implements OnInit {
   protected readonly cartLines = signal<CartLine[]>([]);
   protected readonly lastSaleNumber = signal<string | null>(null);
   protected readonly changeDueDisplay = signal(0);
+  protected readonly popoverImages = signal<CachedProductImage[]>([]);
+  protected readonly stockByProduct = signal<Record<string, number>>({});
 
   protected showPayment = false;
   protected showReceipt = false;
@@ -319,6 +365,29 @@ export class SalePage implements OnInit {
     } finally {
       this.loadingProducts.set(false);
     }
+    await this.refreshStocks();
+  }
+
+  stockOf(productId: string): number {
+    return this.stockByProduct()[productId] ?? 0;
+  }
+
+  private async refreshStocks(): Promise<void> {
+    const warehouseId = this.sessionSvc.currentRegister()?.warehouseId;
+    if (!warehouseId) return;
+    const cacheKey = `minierp.pos.stocks.${warehouseId}`;
+    try {
+      const items = await firstValueFrom(this.api.listStocksByWarehouse(warehouseId));
+      const map: Record<string, number> = {};
+      for (const it of items) map[it.productId] = Number(it.qtyAvailable);
+      this.stockByProduct.set(map);
+      try { localStorage.setItem(cacheKey, JSON.stringify(map)); } catch { /* quota */ }
+    } catch {
+      const raw = localStorage.getItem(cacheKey);
+      if (raw) {
+        try { this.stockByProduct.set(JSON.parse(raw)); } catch { /* corrupt */ }
+      }
+    }
   }
 
   onSearch(q: string): void {
@@ -337,6 +406,12 @@ export class SalePage implements OnInit {
   clearSearch(): void {
     this.searchQuery = '';
     this.filteredProducts.set(this.allProducts());
+  }
+
+  showImages(event: Event, product: CachedProduct, op: OverlayPanel): void {
+    event.stopPropagation();
+    this.popoverImages.set(product.images ?? []);
+    op.toggle(event);
   }
 
   addToCart(product: CachedProduct): void {
@@ -482,6 +557,18 @@ export class SalePage implements OnInit {
 
   newSale(): void {
     this.showReceipt = false;
+    this.lastSaleSynced = null;
+    this.lastSalePending = null;
+    this.lastSaleNumber.set(null);
+    this.changeDueDisplay.set(0);
+  }
+
+  closeReceipt(): void {
+    this.showReceipt = false;
+  }
+
+  onReceiptHide(): void {
+    // p-dialog (X / mask) closed: drop the last-sale handles so the next sale starts clean.
     this.lastSaleSynced = null;
     this.lastSalePending = null;
     this.lastSaleNumber.set(null);

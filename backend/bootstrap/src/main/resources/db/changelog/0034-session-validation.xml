@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        POS sessions now require manual validation by a vault manager before the
+        counted cash is credited to the central vault. Cashier closes the session
+        (status=CLOSED) — gérant validates later (status=VALIDATED).
+    -->
+    <changeSet id="0034-cash-sessions-validation-columns" author="mini-erp">
+        <addColumn tableName="cash_sessions">
+            <column name="validated_at" type="timestamptz"/>
+            <column name="validated_by" type="uuid"/>
+        </addColumn>
+        <createIndex tableName="cash_sessions" indexName="idx_cash_sessions_pending_validation">
+            <column name="status"/>
+            <column name="closed_at"/>
+        </createIndex>
+    </changeSet>
+
+    <!--
+        Existing CLOSED sessions had their counted cash auto-deposited via the
+        previous closeSession flow. Mark them VALIDATED retroactively so they
+        don't show up as "to validate".
+    -->
+    <changeSet id="0034-mark-existing-closed-as-validated" author="mini-erp">
+        <sql>
+            UPDATE cash_sessions
+            SET validated_at = COALESCE(closed_at, NOW()),
+                status = 'VALIDATED'
+            WHERE status = 'CLOSED';
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

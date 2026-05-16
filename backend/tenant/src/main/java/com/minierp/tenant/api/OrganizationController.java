@@ -22,6 +22,7 @@ import java.util.UUID;
 public class OrganizationController {
 
     private final OrganizationService service;
+    private final TenantLookup tenantLookup;
 
     @GetMapping
     @PreAuthorize("hasRole('SUPER_ADMIN')")
@@ -73,6 +74,12 @@ public class OrganizationController {
     @Operation(summary = "Return the calling user's own organization")
     public OrganizationDto me() {
         return service.get(CurrentUserHolder.require().tenantId());
+    }
+
+    @GetMapping("/me/limits")
+    @Operation(summary = "Return the calling tenant's subscription plan limits")
+    public PlanLimits meLimits() {
+        return tenantLookup.findLimitsForTenant(CurrentUserHolder.require().tenantId());
     }
 
     public record UpdateOrganizationRequest(

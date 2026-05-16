@@ -1,3 +1,8 @@
+export interface CachedProductImage {
+  id: string;
+  url: string;
+}
+
 export interface CachedProduct {
   id: string;
   sku: string;
@@ -7,6 +12,7 @@ export interface CachedProduct {
   defaultTaxRate: number;
   sellable: boolean;
   imageUrl: string | null;
+  images: CachedProductImage[];
   price: number;
   priceTierId: string | null;
   currency: string;
@@ -35,9 +41,11 @@ export interface CashSession {
   id: string;
   registerId: string;
   cashierUserId: string;
-  status: 'OPEN' | 'CLOSED';
+  status: 'OPEN' | 'CLOSED' | 'VALIDATED';
   openedAt: string;
   closedAt: string | null;
+  validatedAt?: string | null;
+  validatedBy?: string | null;
   openingFloat: number;
   expectedClosing: number;
   countedClosing: number | null;
@@ -112,6 +120,9 @@ export interface SyncedSale {
   changeDue: number;
   completedAt: string;
   note: string | null;
+  originalSaleId?: string | null;
+  voidedAt?: string | null;
+  voidReason?: string | null;
   lines: SyncedSaleLine[];
 }
 

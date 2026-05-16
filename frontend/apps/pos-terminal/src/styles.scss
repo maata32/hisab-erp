@@ -9,3 +9,50 @@ html, body { height: 100%; margin: 0; overscroll-behavior: none; }
 .btn-touch { min-width: 44px; min-height: 44px; }
 
 :focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+
+/* Tailwind preflight resets border-width to 0 on `*`; re-assert PrimeNG form-control borders. */
+.p-inputtext,
+.p-inputnumber-input,
+.p-dropdown,
+.p-multiselect,
+.p-password-input,
+.p-calendar .p-inputtext,
+.p-autocomplete-input {
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+}
+.p-checkbox .p-checkbox-box,
+.p-radiobutton .p-radiobutton-box {
+  border: 2px solid #d1d5db;
+  background-color: #ffffff;
+}
+.p-checkbox .p-checkbox-box.p-highlight,
+.p-radiobutton .p-radiobutton-box.p-highlight {
+  border-color: #2563eb;
+  background-color: #2563eb;
+}
+
+/* Keep icon and label tight together — override PrimeNG's flex-grow on label
+   which otherwise pushes the icon to the far edge on wide buttons. */
+.p-button { justify-content: center; }
+.p-button .p-button-label { flex: 0 0 auto; }
+.p-button .p-button-icon-left { margin-right: 0.4rem; }
+.p-button .p-button-icon-right { margin-left: 0.4rem; }
+[dir='rtl'] .p-button .p-button-icon-left { margin-right: 0; margin-left: 0.4rem; }
+[dir='rtl'] .p-button .p-button-icon-right { margin-left: 0; margin-right: 0.4rem; }
+
+/* Space adjacent buttons in dialog footers so they don't touch each other.
+   Targets only sibling buttons so column-layout footers (button-in-div) aren't affected. */
+.p-dialog .p-dialog-footer > button + button { margin-left: 0.5rem; }
+[dir='rtl'] .p-dialog .p-dialog-footer > button + button { margin-left: 0; margin-right: 0.5rem; }
+
+/* History filters — unify visual height and input styling across dropdown + calendar. */
+.history-filter.p-dropdown,
+.history-filter.p-calendar .p-inputtext { height: 2.5rem; }
+.history-filter.p-calendar { display: inline-flex; }
+.history-filter.p-calendar .p-inputtext { width: 100%; }
+
+/* Extra right padding on the session filter so the clear-x and chevron don't
+   crowd the label "Session HH:mm – HH:mm". */
+.session-filter.p-dropdown .p-dropdown-label { padding-right: 1.5rem; }
+[dir='rtl'] .session-filter.p-dropdown .p-dropdown-label { padding-right: 0.75rem; padding-left: 1.5rem; }

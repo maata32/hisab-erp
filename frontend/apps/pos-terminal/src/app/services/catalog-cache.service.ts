@@ -13,7 +13,10 @@ export class CatalogCacheService {
   async refreshIfStale(): Promise<void> {
     const oldest = await posDb.products.orderBy('cachedAt').first();
     const now = Date.now();
-    if (!oldest || now - oldest.cachedAt > CACHE_TTL_MS) {
+    const stale = !oldest || now - oldest.cachedAt > CACHE_TTL_MS;
+    // Legacy records cached before the images field was introduced lack it — force refresh.
+    const schemaOutdated = !!oldest && !Array.isArray((oldest as any).images);
+    if (stale || schemaOutdated) {
       await this.refresh();
     }
   }
@@ -63,6 +66,7 @@ export class CatalogCacheService {
         defaultTaxRate: rp?.taxRate ?? p.defaultTaxRate,
         sellable: p.sellable,
         imageUrl: p.imageUrl,
+        images: (p.images ?? []).map((img) => ({ id: img.id, url: img.url })),
         price: rp?.amount ?? 0,
         priceTierId: defaultTier?.id ?? null,
         currency: rp?.currency ?? 'MRU',

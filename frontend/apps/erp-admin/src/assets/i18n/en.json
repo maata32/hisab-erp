@@ -19,7 +19,9 @@
     "reject": "Reject",
     "edit": "Edit",
     "deactivate": "Deactivate",
-    "close": "Close"
+    "activate": "Activate",
+    "close": "Close",
+    "clear": "Clear"
   },
   "auth": {
     "login": {
@@ -57,7 +59,8 @@
     "uoms": "Units of measure",
     "priceTiers": "Price tiers",
     "notifConfig": "Notifications",
-    "expenseCategories": "Expense categories"
+    "expenseCategories": "Expense categories",
+    "treasury": "Treasury"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -336,6 +339,8 @@
     "title": "Products",
     "subtitle": "Product catalog",
     "create": "New product",
+    "editTitle": "Edit product",
+    "createTitle": "New product",
     "empty": "No products",
     "sku": "SKU",
     "name": "Name",
@@ -348,7 +353,14 @@
     "trackExpiry": "Track expiry",
     "tracksExpiry": "Lots",
     "sellable": "Sellable",
-    "purchasable": "Purchasable"
+    "purchasable": "Purchasable",
+    "price": "Selling price",
+    "priceHint": "Tier {{tier}}",
+    "images": "Images",
+    "viewImages": "View images",
+    "imagesAfterSave": "Save the product first to attach images.",
+    "imagesQuotaReached": "Limit reached ({{max}}). Upgrade your subscription to add more images.",
+    "showInactive": "Show inactive"
   },
   "warehouses": {
     "title": "Warehouses",
@@ -571,5 +583,62 @@
     "status": "Status",
     "showInactive": "Include inactive",
     "empty": "No categories"
+  },
+  "treasury": {
+    "title": "Treasury",
+    "subtitle": "Central vault and bank accounts — paired movements",
+    "vault": "Central vault",
+    "banks": "Bank accounts",
+    "noBanks": "No bank account configured.",
+    "newBank": "New account",
+    "editBank": "Edit account",
+    "deposit": "Deposit → bank",
+    "withdraw": "Withdraw ← bank",
+    "depositHint": "Amount leaves the vault and goes into the selected bank account.",
+    "withdrawHint": "Amount leaves the selected bank account and goes into the vault.",
+    "adjust": "Adjustment",
+    "adjustHeader": "Manual adjustment",
+    "adjustHint": "Enter a signed amount to reconcile balance after a physical inventory. Negative for shortage, positive for surplus.",
+    "adjustAmount": "Amount",
+    "signedHint": "+ inflow / − outflow",
+    "from": "From",
+    "to": "To",
+    "amount": "Amount",
+    "reference": "Reference",
+    "note": "Note",
+    "date": "Date",
+    "type": "Type",
+    "vaultHistory": "Vault history",
+    "bankHistory": "Bank history",
+    "selectBank": "Select an account",
+    "empty": "No movements",
+    "pendingSessions": "POS sessions awaiting validation",
+    "pendingHint": "The cashier has closed the session — confirm physical receipt to credit the vault.",
+    "onlyWithDiscrepancy": "With discrepancy only",
+    "validate": "Validate",
+    "register": "Register",
+    "closedAt": "Closed at",
+    "expected": "Expected",
+    "counted": "Counted",
+    "discrepancy": "Discrepancy",
+    "bankAccount": {
+      "label": "Bank account",
+      "name": "Name",
+      "bank": "Bank",
+      "number": "Account number",
+      "opening": "Opening balance"
+    },
+    "vaultType": {
+      "TO_POS_SESSION": "To POS",
+      "FROM_POS_SESSION": "From POS",
+      "TO_BANK": "Bank deposit",
+      "FROM_BANK": "Bank withdrawal",
+      "ADJUSTMENT": "Adjustment"
+    },
+    "bankType": {
+      "DEPOSIT_FROM_VAULT": "Deposit from vault",
+      "WITHDRAWAL_TO_VAULT": "Withdrawal to vault",
+      "ADJUSTMENT": "Adjustment"
+    }
   }
 }

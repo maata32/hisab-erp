@@ -4,7 +4,6 @@ import com.minierp.catalog.api.CatalogLookup;
 import com.minierp.catalog.api.ProductSnapshot;
 import com.minierp.inventory.api.StockMovementType;
 import com.minierp.inventory.api.StockOperations;
-import com.minierp.pos.api.CashMovementDto;
 import com.minierp.pos.api.CashRegisterDto;
 import com.minierp.pos.api.CashSessionDto;
 import com.minierp.pos.api.CreateSaleRequest;
@@ -17,6 +16,7 @@ import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.ConflictException;
 import com.minierp.shared.error.NotFoundException;
 import com.minierp.shared.util.PageResponse;
+import com.minierp.treasury.api.TreasuryOperations;
 import com.minierp.uom.api.UomLookup;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +53,7 @@ public class PosService {
     private final UomLookup uomLookup;
     private final PriceResolver priceResolver;
     private final StockOperations stockOps;
+    private final TreasuryOperations treasury;
 
     // ── Registers ───────────────────────────────────────────────────────────
 
@@ -80,6 +81,11 @@ public class PosService {
 
     // ── Sessions ─────────────────────────────────────────────────────────────
 
+    /**
+     * Cashier opens a session. The opening float is always 0 per the simplified model:
+     * the cashier may informally lend personal change, but no money is transferred from
+     * the vault until validation.
+     */
     @Transactional
     public CashSessionDto openSession(UUID registerId, BigDecimal openingFloat, UUID userId) {
         CashRegister register = registers.findById(registerId)
@@ -90,19 +96,19 @@ public class PosService {
         if (sessions.findOpen(registerId).isPresent()) {
             throw new ConflictException("error.pos.session_already_open", Map.of("registerId", registerId));
         }
-        BigDecimal safeFloat = openingFloat == null ? BigDecimal.ZERO : openingFloat;
+        // Always 0 — sessions start empty; vault is touched only at validation.
         CashSession session = CashSession.builder()
                 .registerId(registerId)
                 .cashierUserId(userId)
                 .openedAt(Instant.now())
-                .openingFloat(safeFloat)
+                .openingFloat(BigDecimal.ZERO)
                 .build();
         sessions.save(session);
 
         CashMovement movement = CashMovement.builder()
                 .sessionId(session.getId())
                 .type(CashMovementType.OPENING_FLOAT)
-                .amount(safeFloat)
+                .amount(BigDecimal.ZERO)
                 .reason("Opening float")
                 .userId(userId)
                 .build();
@@ -111,6 +117,11 @@ public class PosService {
         return toSessionDto(session);
     }
 
+    /**
+     * Cashier closes a session. Records the counted cash + discrepancy and marks the
+     * session as CLOSED. The vault is NOT credited here — a vault manager must
+     * validate the deposit separately via {@link #validateSession}.
+     */
     @Transactional
     public CashSessionDto closeSession(UUID sessionId, BigDecimal countedClosing, String note, UUID userId) {
         CashSession session = sessions.lockById(sessionId)
@@ -118,14 +129,13 @@ public class PosService {
         if (session.getStatus() != CashSessionStatus.OPEN) {
             throw new BusinessException("error.pos.session_not_open", Map.of("sessionId", sessionId));
         }
+        // Expected cash = opening float (always 0) + net cash from sales.
         BigDecimal expected = session.getOpeningFloat()
-                .add(session.getTotalSales())
                 .add(session.getTotalCashIn())
                 .subtract(session.getTotalCashOut());
         BigDecimal counted = countedClosing == null ? expected : countedClosing;
         BigDecimal difference = counted.subtract(expected);
 
-        session.setStatus(CashSessionStatus.CLOSED);
         session.setClosedAt(Instant.now());
         session.setExpectedClosing(expected);
         session.setCountedClosing(counted);
@@ -142,7 +152,61 @@ public class PosService {
                     .build();
             cashMovements.save(reconciliation);
         }
+
+        // Zero-cash sessions (no sales) need no vault validation — auto-validate.
+        if (expected.signum() == 0 && counted.signum() == 0) {
+            session.setStatus(CashSessionStatus.VALIDATED);
+            session.setValidatedAt(Instant.now());
+            session.setValidatedBy(userId);
+        } else {
+            session.setStatus(CashSessionStatus.CLOSED);
+        }
+
         return toSessionDto(session);
+    }
+
+    /**
+     * Vault manager confirms physical receipt of the cashier's deposit. Credits the
+     * vault with {@code countedClosing} and marks the session as VALIDATED. Idempotent
+     * per session (the check on status prevents double-validation).
+     */
+    @Transactional
+    public CashSessionDto validateSession(UUID sessionId, UUID userId) {
+        CashSession session = sessions.lockById(sessionId)
+                .orElseThrow(() -> NotFoundException.of("entity.cash_session", sessionId));
+        if (session.getStatus() != CashSessionStatus.CLOSED) {
+            throw new BusinessException("error.pos.session_not_validatable",
+                    Map.of("sessionId", sessionId, "status", session.getStatus().name()));
+        }
+        BigDecimal counted = session.getCountedClosing() == null ? BigDecimal.ZERO : session.getCountedClosing();
+        treasury.depositFromPosSession(sessionId, counted, userId);
+        session.setStatus(CashSessionStatus.VALIDATED);
+        session.setValidatedAt(Instant.now());
+        session.setValidatedBy(userId);
+        return toSessionDto(session);
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<CashSessionDto> listPendingValidations() {
+        return sessions.findPendingValidation().stream()
+                .map(this::toSessionDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<CashSessionDto> listMyPendingSessions(UUID cashierId) {
+        return sessions.findPendingByCashier(cashierId).stream()
+                .map(this::toSessionDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<CashSessionDto> listMyValidatedSessions(UUID cashierId, java.time.LocalDate date) {
+        java.time.Instant from = date.atStartOfDay(TZ).toInstant();
+        java.time.Instant to = date.plusDays(1).atStartOfDay(TZ).toInstant();
+        return sessions.findValidatedByCashierBetween(cashierId, from, to).stream()
+                .map(this::toSessionDto)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -267,9 +331,11 @@ public class PosService {
             saleLines.save(line);
         }
 
-        // Update session running totals
+        // Update session running totals.
+        // totalCashIn tracks NET cash kept in till (tendered minus change given back),
+        // since only that amount physically remains in the drawer.
         session.setTotalSales(session.getTotalSales().add(total));
-        session.setTotalCashIn(session.getTotalCashIn().add(paidCash));
+        session.setTotalCashIn(session.getTotalCashIn().add(paidCash.subtract(changeDue)));
 
         // Decrement stock per line — permit negative per spec §3.1.3
         for (SaleLine line : builtLines) {
@@ -311,46 +377,51 @@ public class PosService {
                 sales.findBySessionIdOrderByCompletedAtDesc(sessionId, pageable).map(this::toDto));
     }
 
-    // ── Cash movements ───────────────────────────────────────────────────────
-
-    @Transactional
-    public CashMovementDto cashIn(UUID sessionId, BigDecimal amount, String reason, UUID userId) {
-        CashSession session = sessions.lockById(sessionId)
-                .orElseThrow(() -> NotFoundException.of("entity.cash_session", sessionId));
-        requireOpenSession(session);
-        if (amount == null || amount.signum() <= 0) {
-            throw new BusinessException("error.pos.invalid_amount", Map.of("amount", amount));
-        }
-        CashMovement m = CashMovement.builder()
-                .sessionId(sessionId)
-                .type(CashMovementType.PAY_IN)
-                .amount(amount)
-                .reason(reason)
-                .userId(userId)
-                .build();
-        cashMovements.save(m);
-        session.setTotalCashIn(session.getTotalCashIn().add(amount));
-        return toCashMovementDto(m);
+    @Transactional(readOnly = true)
+    public PageResponse<SaleDto> listSalesByRegister(UUID registerId, Instant from, Instant to, Pageable pageable) {
+        return PageResponse.of(
+                sales.findByRegisterIdAndCompletedAtBetween(registerId, from, to, pageable).map(this::toDto));
     }
 
+    // ── Void / Refund ────────────────────────────────────────────────────────
+
+    /** Cancel a sale that was just made on the SAME open session — reverses stock and totals. */
     @Transactional
-    public CashMovementDto cashOut(UUID sessionId, BigDecimal amount, String reason, UUID userId) {
-        CashSession session = sessions.lockById(sessionId)
-                .orElseThrow(() -> NotFoundException.of("entity.cash_session", sessionId));
-        requireOpenSession(session);
-        if (amount == null || amount.signum() <= 0) {
-            throw new BusinessException("error.pos.invalid_amount", Map.of("amount", amount));
+    public SaleDto voidSale(UUID saleId, String reason, UUID userId) {
+        Sale sale = sales.findById(saleId)
+                .orElseThrow(() -> NotFoundException.of("entity.sale", saleId));
+        if (sale.getStatus() != SaleStatus.COMPLETED) {
+            throw new BusinessException("error.pos.sale.not_voidable",
+                    Map.of("status", sale.getStatus().name()));
         }
-        CashMovement m = CashMovement.builder()
-                .sessionId(sessionId)
-                .type(CashMovementType.PAY_OUT)
-                .amount(amount.negate())
-                .reason(reason)
-                .userId(userId)
-                .build();
-        cashMovements.save(m);
-        session.setTotalCashOut(session.getTotalCashOut().add(amount));
-        return toCashMovementDto(m);
+        CashSession session = sessions.lockById(sale.getSessionId())
+                .orElseThrow(() -> NotFoundException.of("entity.cash_session", sale.getSessionId()));
+        if (session.getStatus() != CashSessionStatus.OPEN) {
+            throw new BusinessException("error.pos.sale.session_closed", Map.of());
+        }
+
+        // Reverse stock at the current CMP (kind = SALE_RETURN — does not move CMP).
+        List<SaleLine> lines = saleLines.findBySaleIdOrderByLineNumberAsc(saleId);
+        for (SaleLine line : lines) {
+            BigDecimal cmp = stockOps.getStock(sale.getWarehouseId(), line.getProductId())
+                    .averageCost();
+            stockOps.adjust(sale.getWarehouseId(), line.getProductId(),
+                    line.getBaseQuantity(),
+                    cmp == null ? BigDecimal.ZERO : cmp,
+                    StockMovementType.SALE_RETURN,
+                    "VOID " + sale.getNumber(), userId);
+        }
+
+        // Reverse session totals (subtract sale total + the NET cash that was kept).
+        BigDecimal voidNetCash = safe(sale.getPaidCash()).subtract(safe(sale.getChangeDue()));
+        session.setTotalSales(safe(session.getTotalSales()).subtract(sale.getTotal()));
+        session.setTotalCashIn(safe(session.getTotalCashIn()).subtract(voidNetCash));
+
+        sale.setStatus(SaleStatus.CANCELLED);
+        sale.setVoidedAt(Instant.now());
+        sale.setVoidedBy(userId);
+        sale.setVoidReason(reason);
+        return toDto(sale);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -387,7 +458,8 @@ public class PosService {
                 s.getCashierUserId(), s.getCustomerId(), s.getStatus().name(),
                 s.getCurrency(), s.getSubtotal(), s.getTaxAmount(), s.getDiscountAmount(),
                 s.getTotal(), s.getPaidCash(), s.getPaidCard(), s.getPaidMobile(),
-                s.getPaidCredit(), s.getChangeDue(), s.getCompletedAt(), s.getNote(), lines);
+                s.getPaidCredit(), s.getChangeDue(), s.getCompletedAt(), s.getNote(),
+                s.getVoidedAt(), s.getVoidReason(), lines);
     }
 
     @Transactional(readOnly = true)
@@ -398,24 +470,21 @@ public class PosService {
     }
 
     private CashSessionDto toSessionDto(CashSession s) {
+        // Same formula as closeSession: only cash flows affect the till.
         BigDecimal expectedClosing = s.getStatus() == CashSessionStatus.OPEN
-                ? s.getOpeningFloat().add(s.getTotalSales()).add(s.getTotalCashIn()).subtract(s.getTotalCashOut())
+                ? s.getOpeningFloat().add(s.getTotalCashIn()).subtract(s.getTotalCashOut())
                 : s.getExpectedClosing();
         return new CashSessionDto(s.getId(), s.getRegisterId(), s.getCashierUserId(),
                 s.getStatus().name(), s.getOpenedAt(), s.getClosedAt(),
                 s.getOpeningFloat(), expectedClosing, s.getCountedClosing(),
                 s.getDifference(), s.getTotalSales(), s.getTotalCashIn(),
-                s.getTotalCashOut(), s.getNote());
+                s.getTotalCashOut(), s.getNote(),
+                s.getValidatedAt(), s.getValidatedBy());
     }
 
     private CashRegisterDto toRegisterDto(CashRegister r) {
         return new CashRegisterDto(r.getId(), r.getCode(), r.getName(),
                 r.getWarehouseId(), r.getDefaultPriceTierId(), r.getReceiptWidthMm(), r.isActive());
-    }
-
-    private CashMovementDto toCashMovementDto(CashMovement m) {
-        return new CashMovementDto(m.getId(), m.getSessionId(), m.getType().name(),
-                m.getAmount(), m.getReason(), m.getOccurredAt());
     }
 
     // ── Request records ────────────────────────────────────────────────────────

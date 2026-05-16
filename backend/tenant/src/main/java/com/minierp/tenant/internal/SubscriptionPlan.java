@@ -47,6 +47,9 @@ class SubscriptionPlan extends AuditableEntity {
     @Column(name = "max_products")
     private Integer maxProducts;
 
+    @Column(name = "max_product_images")
+    private Integer maxProductImages;
+
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private boolean active = true;

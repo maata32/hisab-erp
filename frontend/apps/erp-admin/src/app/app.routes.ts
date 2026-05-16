@@ -105,6 +105,11 @@ export const appRoutes: Routes = [
           import('./features/expenses/expense-category-list.page').then((m) => m.ExpenseCategoryListPage),
       },
       {
+        path: 'treasury',
+        loadComponent: () =>
+          import('./features/treasury/treasury.page').then((m) => m.TreasuryPage),
+      },
+      {
         path: 'reporting',
         loadComponent: () =>
           import('./features/reporting/reporting.page').then((m) => m.ReportingPage),

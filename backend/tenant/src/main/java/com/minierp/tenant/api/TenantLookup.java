@@ -10,4 +10,7 @@ import java.util.UUID;
 public interface TenantLookup {
     Optional<TenantSnapshot> findByCode(String code);
     Optional<TenantSnapshot> findById(UUID id);
+
+    /** Returns the subscription plan limits for the tenant, or sensible defaults when no subscription exists. */
+    PlanLimits findLimitsForTenant(UUID tenantId);
 }

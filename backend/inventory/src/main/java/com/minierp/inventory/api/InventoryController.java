@@ -47,6 +47,12 @@ public class InventoryController {
         return stockOps.getStock(warehouseId, productId);
     }
 
+    @GetMapping("/stocks/by-warehouse/{warehouseId}")
+    @PreAuthorize("hasAuthority('stock:read')")
+    public List<StockDto> listStocksByWarehouse(@PathVariable UUID warehouseId) {
+        return stockOps.listByWarehouse(warehouseId);
+    }
+
     @PostMapping("/stocks/receive")
     @PreAuthorize("hasAuthority('stock:adjust')")
     @ResponseStatus(HttpStatus.CREATED)
