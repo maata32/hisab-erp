@@ -1,7 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { ConfirmationService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -10,8 +11,17 @@ import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
+import { CheckboxModule } from 'primeng/checkbox';
 import { TooltipModule } from 'primeng/tooltip';
 import { firstValueFrom } from 'rxjs';
+
+interface PaymentAllocation {
+  id: string;
+  targetType: string;
+  targetId: string;
+  allocatedAmount: number;
+  notes: string | null;
+}
 
 interface Payment {
   id: string;
@@ -26,9 +36,29 @@ interface Payment {
   reference: string | null;
   status: string;
   notes: string | null;
+  allocations: PaymentAllocation[];
 }
 
 interface CustomerLite { id: string; code: string; name: string; }
+
+interface OpenInvoice {
+  id: string;
+  number: string;
+  issueDate: string;
+  dueDate: string;
+  total: number;
+  balance: number;
+  currency: string;
+  status: string;
+}
+
+interface AllocationForm {
+  invoiceId: string;
+  number: string;
+  dueDate: string;
+  balance: number;
+  allocated: number;
+}
 
 type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast';
 
@@ -37,7 +67,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
   standalone: true,
   imports: [
     CommonModule, FormsModule, TranslateModule, TableModule, TagModule, ButtonModule,
-    DialogModule, DropdownModule, InputTextModule, InputNumberModule, TooltipModule,
+    DialogModule, DropdownModule, InputTextModule, InputNumberModule, CheckboxModule, TooltipModule,
   ],
   template: `
     <div class="space-y-4">
@@ -89,6 +119,11 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                        [severity]="statusSeverity(p.status)" />
               </td>
               <td class="whitespace-nowrap">
+                @if (remaining(p) > 0 && p.status !== 'CANCELLED') {
+                  <button pButton icon="pi pi-sitemap" class="p-button-sm p-button-text"
+                          [pTooltip]="('payments.allocateTooltip' | translate) + ' ' + (remaining(p) | number:'1.2-2') + ' ' + p.currency"
+                          (click)="openAllocate(p)"></button>
+                }
                 @if (p.status === 'DRAFT') {
                   <button pButton icon="pi pi-check" class="p-button-sm p-button-text p-button-success"
                           [pTooltip]="'payments.confirm' | translate"
@@ -99,10 +134,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                           [pTooltip]="'common.cancel' | translate"
                           (click)="cancelPayment(p)"></button>
                 }
-                <a [href]="'/api/v1/payments/' + p.id + '/receipt.pdf'" target="_blank"
-                   class="p-button p-button-sm p-button-text" [title]="'payments.receipt' | translate">
-                  <i class="pi pi-file-pdf"></i>
-                </a>
+                <button pButton icon="pi pi-file-pdf" class="p-button-sm p-button-text"
+                        [pTooltip]="'payments.receipt' | translate"
+                        (click)="printPdf('/api/v1/payments/' + p.id + '/receipt.pdf')"></button>
               </td>
             </tr>
           </ng-template>
@@ -114,14 +148,15 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
         </p-table>
       </div>
 
-      <p-dialog [(visible)]="dialogOpen" [modal]="true" [style]="{ width: '500px' }"
+      <p-dialog [(visible)]="dialogOpen" [modal]="true" [style]="{ width: '780px' }"
                 [header]="'payments.create' | translate" [closable]="!saving()">
         <div class="space-y-3">
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'payments.kind' | translate }} *</label>
               <p-dropdown [(ngModel)]="form.type" [options]="typeOptions"
-                          optionLabel="label" optionValue="value" styleClass="w-full" />
+                          optionLabel="label" optionValue="value" styleClass="w-full"
+                          (onChange)="onTypeChange()" />
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'payments.method' | translate }} *</label>
@@ -133,6 +168,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             <label class="block text-sm font-medium mb-1">{{ 'payments.party' | translate }} *</label>
             <p-dropdown [(ngModel)]="form.partyId" [options]="customers()"
                         optionLabel="name" optionValue="id" [filter]="true" filterBy="name,code"
+                        (onChange)="onPartyChange()"
                         styleClass="w-full" />
           </div>
           <div class="grid grid-cols-2 gap-3">
@@ -143,6 +179,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'payments.amount' | translate }} *</label>
               <p-inputNumber [(ngModel)]="form.amount" mode="decimal" [maxFractionDigits]="2"
+                             (onInput)="onAmountChange()"
                              styleClass="w-full" />
             </div>
           </div>
@@ -154,12 +191,147 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             <label class="block text-sm font-medium mb-1">{{ 'common.notes' | translate }}</label>
             <input pInputText [(ngModel)]="form.notes" class="w-full" />
           </div>
+
+          @if (form.type === 'CUSTOMER_PAYMENT' && form.partyId) {
+            <div class="border rounded">
+              <div class="flex items-center justify-between p-2 bg-gray-50 border-b">
+                <span class="font-medium text-sm">{{ 'payments.allocations' | translate }}</span>
+                <button pButton icon="pi pi-bolt" [label]="'payments.autoAllocate' | translate"
+                        class="p-button-sm p-button-text"
+                        [disabled]="!form.amount || openInvoices().length === 0"
+                        (click)="autoAllocate()"></button>
+              </div>
+              @if (openInvoices().length === 0) {
+                <div class="p-4 text-center text-gray-400 text-sm">
+                  {{ 'payments.noOpenInvoices' | translate }}
+                </div>
+              } @else {
+                <table class="w-full text-sm">
+                  <thead class="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th class="text-left p-2">{{ 'sales.number' | translate }}</th>
+                      <th class="text-left p-2 w-32">{{ 'invoices.dueDate' | translate }}</th>
+                      <th class="text-right p-2 w-32">{{ 'invoices.balance' | translate }}</th>
+                      <th class="text-right p-2 w-32">{{ 'payments.allocated' | translate }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (a of form.allocations; track a.invoiceId) {
+                      <tr class="border-t">
+                        <td class="p-2 font-mono text-xs">{{ a.number }}</td>
+                        <td class="p-2 text-gray-600">{{ a.dueDate | date:'mediumDate' }}</td>
+                        <td class="p-2 text-right text-gray-700">{{ a.balance | number:'1.2-2' }}</td>
+                        <td class="p-1">
+                          <p-inputNumber [(ngModel)]="a.allocated" [min]="0" [max]="a.balance"
+                                         [minFractionDigits]="0" [maxFractionDigits]="2"
+                                         inputStyleClass="w-full text-right" styleClass="w-full" />
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                  <tfoot class="bg-gray-50 border-t">
+                    <tr>
+                      <td colspan="3" class="p-2 text-right font-medium">{{ 'payments.totalAllocated' | translate }}</td>
+                      <td class="p-2 text-right font-bold"
+                          [class.text-red-600]="!allocationValid()"
+                          [class.text-green-600]="allocationValid() && totalAllocated() > 0">
+                        {{ totalAllocated() | number:'1.2-2' }} / {{ form.amount | number:'1.2-2' }}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              }
+            </div>
+          }
         </div>
         <ng-template pTemplate="footer">
           <button pButton [label]="'common.cancel' | translate" class="p-button-text"
                   (click)="dialogOpen = false" [disabled]="saving()"></button>
           <button pButton [label]="'common.save' | translate" icon="pi pi-check"
-                  (click)="save()" [loading]="saving()"></button>
+                  (click)="save()" [loading]="saving()" [disabled]="!canSave()"></button>
+        </ng-template>
+      </p-dialog>
+
+      <!-- Post-hoc allocation dialog -->
+      <p-dialog [(visible)]="allocateOpen" [modal]="true" [style]="{ width: '780px' }"
+                [header]="('payments.allocateTitle' | translate) + ' — ' + (allocatePayment()?.number ?? '')"
+                [closable]="!savingAllocate()">
+        <div class="space-y-3">
+          <div class="grid grid-cols-3 gap-3 bg-gray-50 p-3 rounded border">
+            <div>
+              <div class="text-xs text-gray-500">{{ 'payments.amount' | translate }}</div>
+              <div class="font-bold">{{ allocatePayment()?.amount | number:'1.2-2' }} {{ allocatePayment()?.currency }}</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500">{{ 'payments.alreadyAllocated' | translate }}</div>
+              <div class="font-bold text-gray-700">{{ alreadyAllocated() | number:'1.2-2' }}</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500">{{ 'payments.remaining' | translate }}</div>
+              <div class="font-bold text-blue-600">{{ remainingToAllocate() | number:'1.2-2' }}</div>
+            </div>
+          </div>
+
+          <div class="border rounded">
+            <div class="flex items-center justify-between p-2 bg-gray-50 border-b">
+              <span class="font-medium text-sm">{{ 'payments.allocations' | translate }}</span>
+              <button pButton icon="pi pi-bolt" [label]="'payments.autoAllocate' | translate"
+                      class="p-button-sm p-button-text"
+                      [disabled]="allocateInvoices().length === 0 || remainingToAllocate() <= 0"
+                      (click)="autoAllocateExisting()"></button>
+            </div>
+            @if (allocateInvoices().length === 0) {
+              <div class="p-4 text-center text-gray-400 text-sm">
+                {{ 'payments.noOpenInvoices' | translate }}
+              </div>
+            } @else {
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th class="text-left p-2">{{ 'sales.number' | translate }}</th>
+                    <th class="text-left p-2 w-32">{{ 'invoices.dueDate' | translate }}</th>
+                    <th class="text-right p-2 w-32">{{ 'invoices.balance' | translate }}</th>
+                    <th class="text-right p-2 w-32">{{ 'payments.allocated' | translate }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (a of allocateForm.allocations; track a.invoiceId) {
+                    <tr class="border-t">
+                      <td class="p-2 font-mono text-xs">{{ a.number }}</td>
+                      <td class="p-2 text-gray-600">{{ a.dueDate | date:'mediumDate' }}</td>
+                      <td class="p-2 text-right text-gray-700">{{ a.balance | number:'1.2-2' }}</td>
+                      <td class="p-1">
+                        <p-inputNumber [(ngModel)]="a.allocated" [min]="0" [max]="a.balance"
+                                       [minFractionDigits]="0" [maxFractionDigits]="2"
+                                       inputStyleClass="w-full text-right" styleClass="w-full" />
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+                <tfoot class="bg-gray-50 border-t">
+                  <tr>
+                    <td colspan="3" class="p-2 text-right font-medium">{{ 'payments.totalAllocated' | translate }}</td>
+                    <td class="p-2 text-right font-bold"
+                        [class.text-red-600]="allocateOver()"
+                        [class.text-green-600]="!allocateOver() && allocateTotal() > 0">
+                      {{ allocateTotal() | number:'1.2-2' }} / {{ remainingToAllocate() | number:'1.2-2' }}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            }
+          </div>
+
+          <div class="text-xs text-gray-500 italic">
+            {{ 'payments.surplusInfo' | translate }}
+          </div>
+        </div>
+        <ng-template pTemplate="footer">
+          <button pButton [label]="'common.cancel' | translate" class="p-button-text"
+                  (click)="allocateOpen = false" [disabled]="savingAllocate()"></button>
+          <button pButton [label]="'common.save' | translate" icon="pi pi-check"
+                  (click)="saveAllocate()" [loading]="savingAllocate()"
+                  [disabled]="!canSaveAllocate()"></button>
         </ng-template>
       </p-dialog>
     </div>
@@ -167,17 +339,30 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
 })
 export class PaymentListPage implements OnInit {
   private http = inject(HttpClient);
+  private i18n = inject(TranslateService);
+  private confirmation = inject(ConfirmationService);
 
   protected payments = signal<Payment[]>([]);
   protected customers = signal<CustomerLite[]>([]);
+  protected openInvoices = signal<OpenInvoice[]>([]);
   protected loading = signal(true);
   protected saving = signal(false);
   protected dialogOpen = false;
   protected filterPartyId: string | null = null;
 
+  // Post-hoc allocation dialog state
+  protected allocateOpen = false;
+  protected savingAllocate = signal(false);
+  protected allocatePayment = signal<Payment | null>(null);
+  protected allocateInvoices = signal<OpenInvoice[]>([]);
+  protected allocateForm: {
+    allocations: AllocationForm[];
+  } = { allocations: [] };
+
   protected readonly typeOptions = [
-    { value: 'CUSTOMER', label: 'Encaissement client' },
-    { value: 'SUPPLIER', label: 'Décaissement fournisseur' },
+    { value: 'CUSTOMER_PAYMENT', label: 'Encaissement client' },
+    { value: 'CUSTOMER_REFUND', label: 'Remboursement client' },
+    { value: 'CUSTOMER_DEPOSIT', label: 'Acompte client' },
   ];
 
   protected readonly methodOptions = [
@@ -204,13 +389,117 @@ export class PaymentListPage implements OnInit {
   protected openCreate() {
     this.form = this.emptyForm();
     this.form.paymentDate = new Date().toISOString().slice(0, 10);
+    this.openInvoices.set([]);
     this.dialogOpen = true;
   }
 
+  protected onTypeChange() {
+    // Allocations only apply to incoming customer payments (CUSTOMER_PAYMENT).
+    this.form.allocations = [];
+    this.openInvoices.set([]);
+    if (this.form.type === 'CUSTOMER_PAYMENT' && this.form.partyId) {
+      this.onPartyChange();
+    }
+  }
+
+  protected async onPartyChange() {
+    this.form.allocations = [];
+    this.openInvoices.set([]);
+    if (this.form.type !== 'CUSTOMER_PAYMENT' || !this.form.partyId) return;
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ content: OpenInvoice[] }>(
+          `/api/v1/invoices?customerId=${this.form.partyId}&size=200`
+        )
+      );
+      const open = (res.content ?? [])
+        .filter(i => Number(i.balance) > 0 && i.status !== 'CANCELLED')
+        .sort((a, b) => (a.dueDate ?? a.issueDate).localeCompare(b.dueDate ?? b.issueDate));
+      this.openInvoices.set(open);
+      this.form.allocations = open.map(i => ({
+        invoiceId: i.id,
+        number: i.number,
+        dueDate: i.dueDate,
+        balance: Number(i.balance),
+        allocated: 0,
+      }));
+      // If an amount is already entered, auto-allocate FIFO so the user sees
+      // the distribution immediately instead of an all-zero table.
+      if ((this.form.amount || 0) > 0 && open.length > 0) this.autoAllocate();
+    } catch {
+      this.openInvoices.set([]);
+    }
+  }
+
+  protected onAmountChange() {
+    // Auto-allocate FIFO only if the user hasn't manually touched any line yet
+    // (every `allocated` is still 0). Once they edit a row we leave their
+    // distribution alone — they can re-trigger via the "Auto-allouer" button.
+    if (this.form.type !== 'CUSTOMER_PAYMENT' || this.form.allocations.length === 0) return;
+    const untouched = this.form.allocations.every(a => (a.allocated || 0) === 0);
+    if (untouched) this.autoAllocate();
+  }
+
+  protected autoAllocate() {
+    let remaining = this.form.amount || 0;
+    for (const a of this.form.allocations) {
+      const take = Math.min(remaining, a.balance);
+      a.allocated = +take.toFixed(2);
+      remaining = +(remaining - take).toFixed(2);
+      if (remaining <= 0) {
+        // zero out the rest
+        for (const b of this.form.allocations) {
+          if (b !== a && remaining <= 0 && this.form.allocations.indexOf(b) > this.form.allocations.indexOf(a)) {
+            b.allocated = 0;
+          }
+        }
+        return;
+      }
+    }
+  }
+
+  protected totalAllocated(): number {
+    return +this.form.allocations.reduce((s, a) => s + (a.allocated || 0), 0).toFixed(2);
+  }
+
+  protected allocationValid(): boolean {
+    if (this.form.type !== 'CUSTOMER_PAYMENT') return true;
+    if (this.openInvoices().length === 0) return true; // no open invoices = unallocated payment is fine
+    const sum = this.totalAllocated();
+    return sum === 0 || sum === +Number(this.form.amount || 0).toFixed(2);
+  }
+
+  protected canSave(): boolean {
+    return !!this.form.partyId
+        && !!this.form.amount && this.form.amount > 0
+        && this.allocationValid();
+  }
+
   protected async save() {
-    if (!this.form.partyId || !this.form.amount) return;
+    if (!this.canSave()) return;
     this.saving.set(true);
     try {
+      const allocations: Array<{ targetType: string; targetId: string; allocatedAmount: number }> =
+        this.form.allocations
+          .filter(a => (a.allocated || 0) > 0)
+          .map(a => ({
+            targetType: 'SALE_INVOICE',
+            targetId: a.invoiceId,
+            allocatedAmount: a.allocated,
+          }));
+      // Any unspent portion is parked on the customer's running balance as
+      // an advance/credit, consistent with the post-hoc allocate flow.
+      if (this.form.type === 'CUSTOMER_PAYMENT' && this.form.partyId) {
+        const allocatedSum = allocations.reduce((s, a) => s + a.allocatedAmount, 0);
+        const surplus = +((this.form.amount || 0) - allocatedSum).toFixed(2);
+        if (surplus > 0) {
+          allocations.push({
+            targetType: 'CUSTOMER_BALANCE',
+            targetId: this.form.partyId,
+            allocatedAmount: surplus,
+          });
+        }
+      }
       await firstValueFrom(this.http.post('/api/v1/payments', {
         type: this.form.type,
         partyId: this.form.partyId,
@@ -221,7 +510,7 @@ export class PaymentListPage implements OnInit {
         reference: this.form.reference || null,
         bankAccount: null,
         notes: this.form.notes || null,
-        allocations: [],
+        allocations,
       }));
       this.dialogOpen = false;
       this.load();
@@ -235,10 +524,137 @@ export class PaymentListPage implements OnInit {
     this.load();
   }
 
-  protected async cancelPayment(p: Payment) {
-    if (!confirm(`Annuler le paiement ${p.number} ?`)) return;
-    await firstValueFrom(this.http.post(`/api/v1/payments/${p.id}/cancel`, {}));
-    this.load();
+  // ── Post-hoc allocation ───────────────────────────────────────────────────
+
+  protected remaining(p: Payment): number {
+    const allocated = (p.allocations ?? []).reduce((s, a) => s + Number(a.allocatedAmount || 0), 0);
+    return +(Number(p.amount) - allocated).toFixed(2);
+  }
+
+  protected alreadyAllocated(): number {
+    const p = this.allocatePayment();
+    if (!p) return 0;
+    return +(Number(p.amount) - this.remaining(p)).toFixed(2);
+  }
+
+  protected remainingToAllocate(): number {
+    const p = this.allocatePayment();
+    return p ? this.remaining(p) : 0;
+  }
+
+  protected allocateTotal(): number {
+    return +this.allocateForm.allocations.reduce((s, a) => s + (a.allocated || 0), 0).toFixed(2);
+  }
+
+  protected allocateOver(): boolean {
+    return this.allocateTotal() > this.remainingToAllocate();
+  }
+
+  protected canSaveAllocate(): boolean {
+    // Always valid unless over-allocated — any unspent remainder will be parked
+    // on the customer credit balance.
+    return !this.allocateOver() && this.remainingToAllocate() > 0;
+  }
+
+  protected async openAllocate(p: Payment) {
+    this.allocatePayment.set(p);
+    this.allocateForm = { allocations: [] };
+    this.allocateInvoices.set([]);
+    this.allocateOpen = true;
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ content: OpenInvoice[] }>(
+          `/api/v1/invoices?customerId=${p.partyId}&size=200`
+        )
+      );
+      const open = (res.content ?? [])
+        .filter(i => Number(i.balance) > 0 && i.status !== 'CANCELLED')
+        .sort((a, b) => (a.dueDate ?? a.issueDate).localeCompare(b.dueDate ?? b.issueDate));
+      this.allocateInvoices.set(open);
+      this.allocateForm.allocations = open.map(i => ({
+        invoiceId: i.id,
+        number: i.number,
+        dueDate: i.dueDate,
+        balance: Number(i.balance),
+        allocated: 0,
+      }));
+      // Pre-fill FIFO with the remaining-to-allocate amount.
+      if (this.remainingToAllocate() > 0 && open.length > 0) this.autoAllocateExisting();
+    } catch {
+      this.allocateInvoices.set([]);
+    }
+  }
+
+  protected autoAllocateExisting() {
+    let remaining = this.remainingToAllocate();
+    for (const a of this.allocateForm.allocations) {
+      const take = Math.min(remaining, a.balance);
+      a.allocated = +take.toFixed(2);
+      remaining = +(remaining - take).toFixed(2);
+      if (remaining <= 0) {
+        // zero out subsequent rows
+        const idx = this.allocateForm.allocations.indexOf(a);
+        for (let i = idx + 1; i < this.allocateForm.allocations.length; i++) {
+          this.allocateForm.allocations[i].allocated = 0;
+        }
+        return;
+      }
+    }
+  }
+
+  protected async saveAllocate() {
+    if (!this.canSaveAllocate()) return;
+    const p = this.allocatePayment();
+    if (!p) return;
+    this.savingAllocate.set(true);
+    try {
+      const allocations = this.allocateForm.allocations
+        .filter(a => (a.allocated || 0) > 0)
+        .map(a => ({
+          targetType: 'SALE_INVOICE',
+          targetId: a.invoiceId,
+          allocatedAmount: a.allocated,
+        }));
+      // Any unspent portion is always parked on the customer's running balance
+      // (advance/credit). User can later use it to pay future invoices.
+      const surplus = +(this.remainingToAllocate() - this.allocateTotal()).toFixed(2);
+      if (surplus > 0) {
+        allocations.push({
+          targetType: 'CUSTOMER_BALANCE',
+          targetId: p.partyId,
+          allocatedAmount: surplus,
+        });
+      }
+      await firstValueFrom(this.http.post(`/api/v1/payments/${p.id}/allocate`, { allocations }));
+      this.allocateOpen = false;
+      this.load();
+    } finally {
+      this.savingAllocate.set(false);
+    }
+  }
+
+  protected async printPdf(url: string) {
+    try {
+      const blob = await firstValueFrom(this.http.get(url, { responseType: 'blob' }));
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+    } catch (e) {
+      console.error('PDF fetch failed', e);
+    }
+  }
+
+  protected cancelPayment(p: Payment) {
+    this.confirmation.confirm({
+      message: `Annuler le paiement ${p.number} ?`,
+      header: this.i18n.instant('common.confirmation'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-sm p-button-danger',
+      accept: async () => {
+        await firstValueFrom(this.http.post(`/api/v1/payments/${p.id}/cancel`, {}));
+        this.load();
+      },
+    });
   }
 
   protected async load() {
@@ -269,13 +685,14 @@ export class PaymentListPage implements OnInit {
 
   private emptyForm() {
     return {
-      type: 'CUSTOMER',
+      type: 'CUSTOMER_PAYMENT',
       partyId: null as string | null,
       amount: 0,
       paymentDate: '',
       method: 'CASH',
       reference: '',
       notes: '',
+      allocations: [] as AllocationForm[],
     };
   }
 }

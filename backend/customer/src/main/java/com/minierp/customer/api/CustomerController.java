@@ -9,10 +9,7 @@ import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,6 +30,14 @@ public class CustomerController {
     public CustomerDto create(@Valid @RequestBody CreateCustomerRequest req) {
         return service.create(req);
     }
+
+    @GetMapping("/next-code")
+    @PreAuthorize("hasAuthority('customer:write')")
+    public NextCodeResponse nextCode(@RequestParam(required = false) String type) {
+        return new NextCodeResponse(service.suggestCode(type));
+    }
+
+    public record NextCodeResponse(String code) {}
 
     @GetMapping
     @PreAuthorize("hasAuthority('customer:read')")
@@ -88,17 +93,6 @@ public class CustomerController {
                                             @PathVariable UUID cid,
                                             @Valid @RequestBody WithdrawCreditRequest req) {
         return service.withdrawCredit(id, cid, req.amount(), req.paymentId(), req.notes());
-    }
-
-    /** CDC §15.4 GET /customers/{id}/statement.pdf — statement of account. */
-    @GetMapping("/{id}/statement.pdf")
-    @PreAuthorize("hasAuthority('customer:read')")
-    public ResponseEntity<byte[]> statementPdf(@PathVariable UUID id) {
-        byte[] pdf = service.generateStatementPdf(id);
-        return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_PDF)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"statement-" + id + ".pdf\"")
-                .body(pdf);
     }
 
     public record WithdrawCreditRequest(

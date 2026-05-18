@@ -43,6 +43,12 @@ public class InvoiceController {
         return service.getInvoice(id);
     }
 
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAuthority('sales:write')")
+    public SalesDto.InvoiceDto cancel(@PathVariable UUID id) {
+        return service.cancelInvoice(id);
+    }
+
     @GetMapping("/{id}/pdf")
     @PreAuthorize("hasAuthority('sales:read')")
     public ResponseEntity<byte[]> pdf(@PathVariable UUID id) {

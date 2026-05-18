@@ -9,6 +9,10 @@ import com.minierp.document.api.PdfRenderRequest;
 import com.minierp.sales.api.InvoiceOperations;
 import com.minierp.sales.api.InvoiceSummary;
 import com.minierp.sales.api.SalesDto;
+import com.minierp.sales.api.SalesStatementLookup;
+import com.minierp.sales.api.StatementCreditNoteEntry;
+import com.minierp.sales.api.StatementInvoiceEntry;
+import com.minierp.sales.api.StatementInvoiceLine;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
 import com.minierp.shared.util.PageResponse;
@@ -31,7 +35,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class SalesService implements InvoiceOperations {
+public class SalesService implements InvoiceOperations, SalesStatementLookup {
 
     private final QuoteRepository quotes;
     private final QuoteLineRepository quoteLines;
@@ -45,6 +49,42 @@ public class SalesService implements InvoiceOperations {
     private final CustomerLookup customerLookup;
     private final CustomerBalanceOperations balanceOps;
     private final DocumentRenderer renderer;
+
+    // ── SalesStatementLookup (used by the customer-statement aggregator) ────
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StatementInvoiceEntry> findInvoicesForStatement(
+            UUID customerId, LocalDate from, LocalDate to, boolean detailed) {
+        return invoices.findForStatement(customerId, from, to).stream()
+                .map(inv -> new StatementInvoiceEntry(
+                        inv.getId(), inv.getNumber(),
+                        inv.getIssueDate(), inv.getDueDate(),
+                        inv.getTotal(), inv.getPaidAmount(), inv.getBalance(),
+                        inv.getStatus().name(),
+                        detailed ? toStatementLines(inv.getId()) : null))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StatementCreditNoteEntry> findCreditNotesForStatement(
+            UUID customerId, LocalDate from, LocalDate to) {
+        return creditNotes.findForStatement(customerId, from, to).stream()
+                .map(cn -> new StatementCreditNoteEntry(
+                        cn.getId(), cn.getNumber(), cn.getIssueDate(),
+                        cn.getAmount(), cn.getReason(), cn.getStatus().name()))
+                .toList();
+    }
+
+    private List<StatementInvoiceLine> toStatementLines(UUID invoiceId) {
+        return invoiceLines.findByInvoiceIdOrderByLineNumberAsc(invoiceId).stream()
+                .map(l -> new StatementInvoiceLine(
+                        l.getSnapshotName(), l.getSnapshotSku(),
+                        l.getQuantity(), l.getUnitPrice(),
+                        l.getDiscountPercent(), l.getLineTotal()))
+                .toList();
+    }
 
     // ── InvoiceOperations (used by payment module) ───────────────────────────
 
@@ -315,6 +355,28 @@ public class SalesService implements InvoiceOperations {
         }));
     }
 
+    /**
+     * Cancel an unpaid invoice. Reverses the invoiced amount on the customer balance
+     * so the customer is no longer expected to pay it. Refuses to cancel anything
+     * already paid (PARTIAL/PAID) — those must go through a credit note instead.
+     */
+    @Transactional
+    public SalesDto.InvoiceDto cancelInvoice(UUID id) {
+        Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));
+        if (inv.getStatus() == InvoiceStatus.CANCELLED) {
+            String name = customerLookup.findById(inv.getCustomerId()).map(CustomerSummary::name).orElse("");
+            return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id), name);
+        }
+        if (inv.getStatus() == InvoiceStatus.PAID || inv.getStatus() == InvoiceStatus.PARTIAL) {
+            throw new BusinessException("error.sales.invoice_already_paid",
+                    Map.of("status", inv.getStatus().name()));
+        }
+        balanceOps.addToInvoiced(inv.getCustomerId(), inv.getTotal().negate());
+        inv.setStatus(InvoiceStatus.CANCELLED);
+        String name = customerLookup.findById(inv.getCustomerId()).map(CustomerSummary::name).orElse("");
+        return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id), name);
+    }
+
     // ── Credit notes ─────────────────────────────────────────────────────────
 
     @Transactional
@@ -362,6 +424,15 @@ public class SalesService implements InvoiceOperations {
         List<QuoteLine> lines = quoteLines.findByQuoteIdOrderByLineNumberAsc(id);
         Map<String, Object> vars = buildQuoteVars(q, lines, customer);
         return renderer.renderPdf(PdfRenderRequest.of("quote", vars));
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] generateOrderPdf(UUID id) {
+        Order o = orders.findById(id).orElseThrow(() -> NotFoundException.of("entity.order", id));
+        CustomerSummary customer = customerLookup.findById(o.getCustomerId()).orElse(null);
+        List<OrderLine> lines = orderLines.findByOrderIdOrderByLineNumberAsc(id);
+        Map<String, Object> vars = buildOrderVars(o, lines, customer);
+        return renderer.renderPdf(PdfRenderRequest.of("order", vars));
     }
 
     // ── Overdue job ──────────────────────────────────────────────────────────
@@ -550,6 +621,28 @@ public class SalesService implements InvoiceOperations {
                 "orgAddress", "",
                 "orgPhone", "",
                 "orgEmail", "",
+                "logoUrl", ""
+        );
+    }
+
+    private Map<String, Object> buildOrderVars(Order o, List<OrderLine> lines, CustomerSummary customer) {
+        record LineModel(String productName, String sku, BigDecimal quantity, BigDecimal unitPrice,
+                         BigDecimal discountPercent, BigDecimal taxRate, BigDecimal lineTotal) {}
+        record OrderModel(String number, LocalDate orderDate, String statusLabel,
+                          BigDecimal subtotal, BigDecimal discountAmount, BigDecimal taxAmount,
+                          BigDecimal total, String currency, String notes, List<LineModel> lines) {}
+        record CustomerModel(String name, String phone) {}
+        var lm = lines.stream().map(l -> new LineModel(l.getSnapshotName(), l.getSnapshotSku(),
+                l.getQuantity(), l.getUnitPrice(), l.getDiscountPercent(), l.getTaxRate(), l.getLineTotal())).toList();
+        return Map.of(
+                "order", new OrderModel(o.getNumber(), o.getOrderDate(), o.getStatus().name(),
+                        o.getSubtotal(), o.getDiscountAmount(), o.getTaxAmount(), o.getTotal(),
+                        o.getCurrency(), o.getNotes(), lm),
+                "customer", new CustomerModel(customer != null ? customer.name() : "",
+                        customer != null ? customer.phone() : ""),
+                "orgName", "Mini-ERP",
+                "orgAddress", "",
+                "orgPhone", "",
                 "logoUrl", ""
         );
     }

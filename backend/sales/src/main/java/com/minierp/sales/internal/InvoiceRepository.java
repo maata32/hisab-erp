@@ -25,4 +25,10 @@ interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
 
     @Query("SELECT i FROM Invoice i WHERE i.customerId = :customerId AND i.status NOT IN ('PAID','CANCELLED') ORDER BY i.dueDate ASC")
     List<Invoice> findUnpaidByCustomerOrderByDueDate(UUID customerId);
+
+    @Query("SELECT i FROM Invoice i WHERE i.customerId = :customerId " +
+           "AND i.status <> 'CANCELLED' " +
+           "AND i.issueDate >= :from AND i.issueDate <= :to " +
+           "ORDER BY i.issueDate ASC, i.createdAt ASC")
+    List<Invoice> findForStatement(UUID customerId, LocalDate from, LocalDate to);
 }

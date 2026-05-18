@@ -1,7 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { ConfirmationService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -144,6 +145,8 @@ interface CategoryForm {
 })
 export class ExpenseCategoryListPage implements OnInit {
   private http = inject(HttpClient);
+  private i18n = inject(TranslateService);
+  private confirmation = inject(ConfirmationService);
 
   protected categories = signal<ExpenseCategory[]>([]);
   protected loading = signal(true);
@@ -207,10 +210,17 @@ export class ExpenseCategoryListPage implements OnInit {
     }
   }
 
-  protected async deactivate(c: ExpenseCategory) {
-    if (!confirm(`Désactiver la catégorie « ${c.name} » ?`)) return;
-    await firstValueFrom(this.http.delete(`/api/v1/expense-categories/${c.id}`));
-    this.load();
+  protected deactivate(c: ExpenseCategory) {
+    this.confirmation.confirm({
+      message: `Désactiver la catégorie « ${c.name} » ?`,
+      header: this.i18n.instant('common.confirmation'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-sm p-button-danger',
+      accept: async () => {
+        await firstValueFrom(this.http.delete(`/api/v1/expense-categories/${c.id}`));
+        this.load();
+      },
+    });
   }
 
   protected async load() {

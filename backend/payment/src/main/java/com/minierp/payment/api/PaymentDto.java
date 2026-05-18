@@ -62,4 +62,8 @@ public class PaymentDto {
             @NotNull UUID paymentId,
             String strategy
     ) {}
+
+    public record AllocateRequest(
+            List<AllocationRequest> allocations
+    ) {}
 }

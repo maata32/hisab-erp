@@ -6,6 +6,8 @@ import com.minierp.customer.api.CustomerSummary;
 import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
 import com.minierp.payment.api.PaymentDto;
+import com.minierp.payment.api.PaymentLookup;
+import com.minierp.payment.api.StatementPaymentEntry;
 import com.minierp.sales.api.InvoiceOperations;
 import com.minierp.sales.api.InvoiceSummary;
 import com.minierp.sales.api.NumberingOperations;
@@ -30,7 +32,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class PaymentService {
+public class PaymentService implements PaymentLookup {
 
     private final PaymentRepository payments;
     private final PaymentAllocationRepository allocations;
@@ -39,6 +41,19 @@ public class PaymentService {
     private final InvoiceOperations invoiceOps;
     private final NumberingOperations numbering;
     private final DocumentRenderer renderer;
+
+    // ── PaymentLookup (used by the customer-statement aggregator) ──────────
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StatementPaymentEntry> findConfirmedForCustomer(
+            UUID customerId, LocalDate from, LocalDate to) {
+        return payments.findConfirmedForCustomerStatement(customerId, from, to).stream()
+                .map(p -> new StatementPaymentEntry(
+                        p.getId(), p.getNumber(), p.getPaymentDate(), p.getAmount(),
+                        p.getMethod().name(), p.getReference(), p.getStatus().name()))
+                .toList();
+    }
 
     @Transactional
     public PaymentDto.PaymentResponse create(PaymentDto.CreatePaymentRequest req) {
@@ -108,6 +123,55 @@ public class PaymentService {
             throw new BusinessException("error.payment.already_confirmed", Map.of());
         }
         p.setStatus(PaymentStatus.CANCELLED);
+        return toDto(p);
+    }
+
+    /**
+     * Adds new allocations to an existing payment (DRAFT or CONFIRMED). Validates
+     * that cumulative allocations ≤ payment.amount. For CONFIRMED payments,
+     * each new allocation is applied immediately (invoice.applyPayment or
+     * customer balance addToPaid).
+     */
+    @Transactional
+    public PaymentDto.PaymentResponse allocate(UUID paymentId, PaymentDto.AllocateRequest req) {
+        Payment p = payments.findById(paymentId)
+                .orElseThrow(() -> NotFoundException.of("entity.payment", paymentId));
+        if (p.getStatus() == PaymentStatus.CANCELLED) {
+            throw new BusinessException("error.payment.cancelled", Map.of());
+        }
+        if (req.allocations() == null || req.allocations().isEmpty()) {
+            throw new BusinessException("error.payment.no_allocations", Map.of());
+        }
+
+        BigDecimal existing = allocations.findByPaymentId(paymentId).stream()
+                .map(PaymentAllocation::getAllocatedAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal incoming = req.allocations().stream()
+                .map(PaymentDto.AllocationRequest::allocatedAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (existing.add(incoming).compareTo(p.getAmount()) > 0) {
+            throw new BusinessException("error.payment.over_allocated",
+                    Map.of("amount", p.getAmount(), "allocated", existing.add(incoming)));
+        }
+
+        boolean applyNow = p.getStatus() == PaymentStatus.CONFIRMED;
+        for (PaymentDto.AllocationRequest ar : req.allocations()) {
+            AllocationTargetType type = AllocationTargetType.valueOf(ar.targetType());
+            allocations.save(PaymentAllocation.builder()
+                    .paymentId(paymentId)
+                    .targetType(type)
+                    .targetId(ar.targetId())
+                    .allocatedAmount(ar.allocatedAmount())
+                    .notes(ar.notes())
+                    .build());
+            if (applyNow) {
+                if (type == AllocationTargetType.SALE_INVOICE) {
+                    invoiceOps.applyPayment(ar.targetId(), ar.allocatedAmount());
+                } else if (type == AllocationTargetType.CUSTOMER_BALANCE) {
+                    balanceOps.addToPaid(ar.targetId(), ar.allocatedAmount(), true);
+                }
+            }
+        }
         return toDto(p);
     }
 

@@ -1,7 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { ConfirmationService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -198,6 +199,8 @@ interface UserForm {
 })
 export class UserListPage implements OnInit {
   private http = inject(HttpClient);
+  private i18n = inject(TranslateService);
+  private confirmation = inject(ConfirmationService);
 
   protected users = signal<User[]>([]);
   protected roles = signal<Role[]>([]);
@@ -279,19 +282,33 @@ export class UserListPage implements OnInit {
     }
   }
 
-  protected async deactivate(u: User) {
-    if (!confirm(`Désactiver l'utilisateur « ${u.fullName} » ?`)) return;
-    await firstValueFrom(this.http.delete(`/api/v1/users/${u.id}`));
-    this.load();
+  protected deactivate(u: User) {
+    this.confirmation.confirm({
+      message: `Désactiver l'utilisateur « ${u.fullName} » ?`,
+      header: this.i18n.instant('common.confirmation'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-sm p-button-danger',
+      accept: async () => {
+        await firstValueFrom(this.http.delete(`/api/v1/users/${u.id}`));
+        this.load();
+      },
+    });
   }
 
-  protected async resetPassword(u: User) {
-    if (!confirm(`Réinitialiser le mot de passe de « ${u.fullName} » ?`)) return;
-    const res = await firstValueFrom(
-      this.http.post<{ temporaryPassword: string }>(`/api/v1/users/${u.id}/reset-password`, {})
-    );
-    this.tempPassword.set(res.temporaryPassword);
-    this.tempPasswordOpen = true;
+  protected resetPassword(u: User) {
+    this.confirmation.confirm({
+      message: `Réinitialiser le mot de passe de « ${u.fullName} » ?`,
+      header: this.i18n.instant('common.confirmation'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-sm',
+      accept: async () => {
+        const res = await firstValueFrom(
+          this.http.post<{ temporaryPassword: string }>(`/api/v1/users/${u.id}/reset-password`, {})
+        );
+        this.tempPassword.set(res.temporaryPassword);
+        this.tempPasswordOpen = true;
+      },
+    });
   }
 
   protected async unlock(u: User) {

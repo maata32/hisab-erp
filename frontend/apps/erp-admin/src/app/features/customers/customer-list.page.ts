@@ -1,7 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { ConfirmationService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -10,6 +11,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
+import { CalendarModule } from 'primeng/calendar';
 import { TooltipModule } from 'primeng/tooltip';
 import { firstValueFrom } from 'rxjs';
 
@@ -25,6 +27,7 @@ interface Customer {
   currency: string;
   notes: string | null;
   active: boolean;
+  balance: number;
 }
 
 interface CustomerForm {
@@ -44,7 +47,7 @@ interface CustomerForm {
   standalone: true,
   imports: [
     CommonModule, FormsModule, TranslateModule, TableModule, TagModule,
-    InputTextModule, InputNumberModule, ButtonModule, DialogModule, DropdownModule, TooltipModule,
+    InputTextModule, InputNumberModule, ButtonModule, DialogModule, DropdownModule, CalendarModule, TooltipModule,
   ],
   template: `
     <div class="space-y-4">
@@ -76,6 +79,7 @@ interface CustomerForm {
               <th>{{ 'customers.email' | translate }}</th>
               <th>{{ 'customers.phone' | translate }}</th>
               <th class="text-right">{{ 'customers.creditLimit' | translate }}</th>
+              <th class="text-right">{{ 'customers.balance' | translate }}</th>
               <th>{{ 'customers.status' | translate }}</th>
               <th></th>
             </tr>
@@ -88,15 +92,19 @@ interface CustomerForm {
               <td>{{ c.email || '—' }}</td>
               <td>{{ c.phone || '—' }}</td>
               <td class="text-right">{{ c.creditLimit | number:'1.0-0' }} {{ c.currency }}</td>
+              <td class="text-right font-medium"
+                  [class.text-red-600]="c.balance > 0"
+                  [class.text-green-600]="c.balance < 0">
+                {{ c.balance | number:'1.0-0' }} {{ c.currency }}
+              </td>
               <td>
                 <p-tag [value]="(c.active ? 'common.active' : 'common.inactive') | translate"
                        [severity]="c.active ? 'success' : 'secondary'" />
               </td>
               <td class="whitespace-nowrap">
-                <a [href]="'/api/v1/customers/' + c.id + '/statement.pdf'" target="_blank"
-                   class="p-button p-button-sm p-button-text" [title]="'customers.statement' | translate">
-                  <i class="pi pi-file-pdf"></i>
-                </a>
+                <button pButton icon="pi pi-file-pdf" class="p-button-sm p-button-text"
+                        [pTooltip]="'customers.statement' | translate"
+                        (click)="openStatementDialog(c)"></button>
                 <button pButton icon="pi pi-pencil" class="p-button-sm p-button-text"
                         [pTooltip]="'common.edit' | translate"
                         (click)="openEdit(c)"></button>
@@ -109,7 +117,7 @@ interface CustomerForm {
             </tr>
           </ng-template>
           <ng-template pTemplate="emptymessage">
-            <tr><td colspan="8" class="text-center text-gray-400 py-8">{{ 'customers.empty' | translate }}</td></tr>
+            <tr><td colspan="9" class="text-center text-gray-400 py-8">{{ 'customers.empty' | translate }}</td></tr>
           </ng-template>
         </p-table>
       </div>
@@ -121,12 +129,14 @@ interface CustomerForm {
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'customers.code' | translate }} *</label>
-              <input pInputText [(ngModel)]="form.code" [disabled]="!!editing()" class="w-full" />
+              <input pInputText [(ngModel)]="form.code" [disabled]="!!editing()"
+                     (input)="onCodeInput()" class="w-full" />
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'customers.type' | translate }} *</label>
               <p-dropdown [(ngModel)]="form.type" [options]="typeOptions"
-                          optionLabel="label" optionValue="value" styleClass="w-full" />
+                          optionLabel="label" optionValue="value" styleClass="w-full"
+                          (onChange)="onTypeChange()" />
             </div>
           </div>
           <div>
@@ -170,11 +180,49 @@ interface CustomerForm {
                   (click)="save()" [loading]="saving()"></button>
         </ng-template>
       </p-dialog>
+
+      <!-- Statement dialog -->
+      <p-dialog [(visible)]="statementDialogOpen" [modal]="true" [style]="{ width: '500px' }"
+                [header]="('customers.statementDialogTitle' | translate) + ' — ' + (statementCustomer()?.name ?? '')"
+                [closable]="!fetchingStatement()">
+        <div class="space-y-3">
+          <p class="text-sm text-gray-600">{{ 'customers.statementDialogHint' | translate }}</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'customers.statementFrom' | translate }}</label>
+              <p-calendar [(ngModel)]="statementFrom" dateFormat="dd/mm/yy"
+                          styleClass="w-full" appendTo="body" [showClear]="true" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'customers.statementTo' | translate }}</label>
+              <p-calendar [(ngModel)]="statementTo" dateFormat="dd/mm/yy"
+                          styleClass="w-full" appendTo="body" [showClear]="true" />
+            </div>
+          </div>
+        </div>
+        <ng-template pTemplate="footer">
+          <div class="flex flex-wrap gap-2 justify-end">
+            <button pButton [label]="'common.cancel' | translate" class="p-button-text p-button-sm"
+                    (click)="statementDialogOpen = false" [disabled]="fetchingStatement()"></button>
+            <button pButton icon="pi pi-list" [label]="'customers.statementFull' | translate"
+                    class="p-button-sm p-button-outlined"
+                    (click)="downloadStatement('full')" [loading]="fetchingStatement()"></button>
+            <button pButton icon="pi pi-table" [label]="'customers.statementDetailed' | translate"
+                    class="p-button-sm p-button-outlined"
+                    (click)="downloadStatement('detailed')" [loading]="fetchingStatement()"></button>
+            <button pButton icon="pi pi-exclamation-circle" [label]="'customers.statementOutstanding' | translate"
+                    class="p-button-sm"
+                    (click)="downloadStatement('outstanding')" [loading]="fetchingStatement()"></button>
+          </div>
+        </ng-template>
+      </p-dialog>
     </div>
   `,
 })
 export class CustomerListPage implements OnInit {
   private http = inject(HttpClient);
+  private i18n = inject(TranslateService);
+  private confirmation = inject(ConfirmationService);
 
   protected customers = signal<Customer[]>([]);
   protected loading = signal(true);
@@ -182,14 +230,27 @@ export class CustomerListPage implements OnInit {
   protected dialogOpen = false;
   protected editing = signal<Customer | null>(null);
   protected form: CustomerForm = this.emptyForm();
+  protected codeAutoFilled = false;
+  protected typeOptions: Array<{ value: string; label: string }> = [];
+  protected statementDialogOpen = false;
+  protected statementCustomer = signal<Customer | null>(null);
+  protected fetchingStatement = signal(false);
+  protected statementFrom: Date | null = new Date(new Date().getFullYear(), 0, 1);
+  protected statementTo: Date | null = new Date();
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
-  protected readonly typeOptions = [
-    { value: 'INDIVIDUAL', label: 'Particulier' },
-    { value: 'BUSINESS', label: 'Entreprise' },
-  ];
+  ngOnInit() {
+    this.refreshTypeOptions();
+    this.i18n.onLangChange.subscribe(() => this.refreshTypeOptions());
+    this.load();
+  }
 
-  ngOnInit() { this.load(); }
+  private refreshTypeOptions() {
+    this.typeOptions = ['INDIVIDUAL', 'COMPANY'].map(v => ({
+      value: v,
+      label: this.i18n.instant('customers.types.' + v),
+    }));
+  }
 
   protected onSearch(e: Event) {
     const q = (e.target as HTMLInputElement).value;
@@ -200,7 +261,34 @@ export class CustomerListPage implements OnInit {
   protected openCreate() {
     this.editing.set(null);
     this.form = this.emptyForm();
+    this.codeAutoFilled = true;
     this.dialogOpen = true;
+    this.fetchSuggestedCode();
+  }
+
+  protected onTypeChange() {
+    if (!this.editing() && this.codeAutoFilled) {
+      this.fetchSuggestedCode();
+    }
+  }
+
+  protected onCodeInput() {
+    this.codeAutoFilled = false;
+  }
+
+  private async fetchSuggestedCode() {
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ code: string }>(
+          `/api/v1/customers/next-code?type=${encodeURIComponent(this.form.type)}`
+        )
+      );
+      if (this.codeAutoFilled) {
+        this.form.code = res.code;
+      }
+    } catch {
+      // silent — user can still type a code manually
+    }
   }
 
   protected openEdit(c: Customer) {
@@ -216,13 +304,61 @@ export class CustomerListPage implements OnInit {
       currency: c.currency ?? 'MRU',
       notes: c.notes ?? '',
     };
+    this.codeAutoFilled = false;
     this.dialogOpen = true;
   }
 
-  protected async confirmDelete(c: Customer) {
-    if (!confirm(`Désactiver le client « ${c.name} » ?`)) return;
-    await firstValueFrom(this.http.delete(`/api/v1/customers/${c.id}`));
-    this.load();
+  protected openStatementDialog(c: Customer) {
+    this.statementCustomer.set(c);
+    this.statementFrom = new Date(new Date().getFullYear(), 0, 1);
+    this.statementTo = new Date();
+    this.statementDialogOpen = true;
+  }
+
+  protected async downloadStatement(type: 'full' | 'detailed' | 'outstanding') {
+    const c = this.statementCustomer();
+    if (!c) return;
+    this.fetchingStatement.set(true);
+    try {
+      const params = new URLSearchParams({ type });
+      if (this.statementFrom) params.set('from', this.toIsoDate(this.statementFrom));
+      if (this.statementTo) params.set('to', this.toIsoDate(this.statementTo));
+      await this.printPdf(`/api/v1/customers/${c.id}/statement.pdf?${params}`);
+      this.statementDialogOpen = false;
+    } finally {
+      this.fetchingStatement.set(false);
+    }
+  }
+
+  private toIsoDate(d: Date): string {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  protected async printPdf(url: string) {
+    try {
+      const blob = await firstValueFrom(this.http.get(url, { responseType: 'blob' }));
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+    } catch (e) {
+      console.error('PDF fetch failed', e);
+    }
+  }
+
+  protected confirmDelete(c: Customer) {
+    this.confirmation.confirm({
+      message: `Désactiver le client « ${c.name} » ?`,
+      header: this.i18n.instant('common.confirmation'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-sm p-button-danger',
+      accept: async () => {
+        await firstValueFrom(this.http.delete(`/api/v1/customers/${c.id}`));
+        this.load();
+      },
+    });
   }
 
   protected async save() {

@@ -21,7 +21,10 @@
     "deactivate": "تعطيل",
     "activate": "تفعيل",
     "close": "إغلاق",
-    "clear": "مسح"
+    "clear": "مسح",
+    "action": "إجراء",
+    "confirmation": "تأكيد",
+    "print": "طباعة"
   },
   "auth": {
     "login": {
@@ -228,6 +231,7 @@
     "email": "البريد الإلكتروني",
     "phone": "الهاتف",
     "creditLimit": "حد الائتمان",
+    "balance": "الرصيد",
     "status": "الحالة",
     "empty": "لا يوجد عملاء",
     "types": {
@@ -239,6 +243,13 @@
     "createTitle": "إنشاء عميل",
     "editTitle": "تعديل العميل",
     "statement": "كشف الحساب (PDF)",
+    "statementDialogTitle": "كشف الحساب",
+    "statementDialogHint": "اختر الفترة ثم نوع الكشف للطباعة.",
+    "statementFrom": "من",
+    "statementTo": "إلى",
+    "statementFull": "كشف",
+    "statementDetailed": "كشف مفصل",
+    "statementOutstanding": "المستحقات",
     "address": "العنوان",
     "currency": "العملة"
   },
@@ -258,30 +269,59 @@
       "REJECTED": "مرفوض",
       "EXPIRED": "منتهي الصلاحية",
       "CONFIRMED": "مؤكد",
+      "PARTIALLY_DELIVERED": "تسليم جزئي",
+      "DELIVERED": "مُسلَّم",
+      "PARTIALLY_INVOICED": "فوترة جزئية",
       "INVOICED": "مُفوتر",
       "CANCELLED": "ملغى",
+      "CONVERTED": "مُحوَّل",
       "ISSUED": "مُصدر",
       "PARTIAL": "جزئي",
       "PAID": "مدفوع",
       "OVERDUE": "متأخر"
-    }
+    },
+    "confirmStatusChange": "تغيير حالة {{number}} إلى «{{status}}»؟",
+    "lines": "البنود",
+    "addLine": "إضافة بند",
+    "product": "المنتج",
+    "quantity": "الكمية",
+    "unitPrice": "سعر الوحدة",
+    "discount": "خصم",
+    "lineTotal": "إجمالي البند",
+    "noLines": "لا توجد بنود. اضغط إضافة بند."
   },
   "quotes": {
     "title": "عروض الأسعار",
     "subtitle": "العروض التجارية والتقديرات",
-    "empty": "لا يوجد عروض أسعار"
+    "empty": "لا يوجد عروض أسعار",
+    "create": "عرض سعر جديد",
+    "createTitle": "إنشاء عرض سعر",
+    "convertToOrder": "تحويل إلى طلب",
+    "confirmConvert": "تحويل عرض السعر {{number}} إلى طلب؟"
   },
   "orders": {
     "title": "الطلبات",
     "subtitle": "طلبات العملاء المؤكدة",
-    "empty": "لا يوجد طلبات"
+    "empty": "لا يوجد طلبات",
+    "create": "طلب جديد",
+    "createTitle": "إنشاء طلب",
+    "deliveryRequired": "التسليم مطلوب",
+    "convertToInvoice": "تحويل إلى فاتورة",
+    "invoiceFromOrderHint": "إنشاء فاتورة من الطلب"
   },
   "invoices": {
     "title": "الفواتير",
     "subtitle": "فواتير العملاء وأوامر الخصم",
     "dueDate": "تاريخ الاستحقاق",
     "balance": "المبلغ المتبقي",
-    "empty": "لا يوجد فواتير"
+    "empty": "لا يوجد فواتير",
+    "paymentTerms": "شروط الدفع",
+    "paymentTermsHint": "مثلا: 30 يومًا",
+    "cancel": "إلغاء الفاتورة",
+    "confirmCancel": "إلغاء الفاتورة {{number}}؟",
+    "createDirect": "فاتورة مباشرة",
+    "createDirectHint": "إنشاء فاتورة بدون عرض سعر أو طلب",
+    "createTitle": "إنشاء فاتورة مباشرة"
   },
   "deliveries": {
     "title": "التسليمات",
@@ -290,7 +330,24 @@
     "deliveredAt": "سُلِّم في",
     "progress": "التقدم",
     "address": "العنوان",
+    "contactPhone": "هاتف الاتصال",
     "empty": "لا يوجد تسليمات",
+    "create": "إذن تسليم جديد",
+    "createTitle": "إذن تسليم جديد",
+    "pickOrder": "اختر طلبًا…",
+    "pickOrderFirst": "اختر الطلب أولاً",
+    "linesToShip": "البنود المراد شحنها",
+    "remaining": "المتبقي",
+    "quantityToShip": "الكمية المراد شحنها",
+    "start": "بدء",
+    "record": "تسجيل التسليم",
+    "recordTitle": "تسجيل التسليم",
+    "recordQty": "الكمية المُسلَّمة",
+    "planned": "المخطط",
+    "alreadyDelivered": "تم تسليمه",
+    "signedBy": "وقع من قبل",
+    "confirmRecord": "تأكيد التسليم",
+    "confirmCancel": "إلغاء إذن التسليم {{number}}؟",
     "statuses": {
       "PENDING": "قيد الانتظار",
       "IN_PROGRESS": "قيد التنفيذ",
@@ -329,7 +386,17 @@
     "filterParty": "تصفية حسب الطرف",
     "allParties": "كل الأطراف",
     "kind": "النوع",
-    "confirm": "تأكيد"
+    "confirm": "تأكيد",
+    "allocations": "التخصيص للفواتير",
+    "autoAllocate": "تخصيص تلقائي",
+    "noOpenInvoices": "لا توجد فواتير مفتوحة لهذا العميل",
+    "allocated": "المخصص",
+    "totalAllocated": "إجمالي المخصص",
+    "allocateTitle": "تخصيص الدفعة",
+    "allocateTooltip": "تخصيص المتبقي —",
+    "alreadyAllocated": "المخصص مسبقًا",
+    "remaining": "المتبقي للتخصيص",
+    "surplusInfo": "أي مبلغ غير مخصص للفواتير يُحفظ تلقائيًا كرصيد للعميل (يمكن استخدامه لفاتورة لاحقة أو سحبه)."
   },
   "errors": {
     "forbidden": "ليس لديك إذن للوصول إلى هذه الصفحة.",

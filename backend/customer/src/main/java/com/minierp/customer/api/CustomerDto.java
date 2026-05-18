@@ -18,5 +18,6 @@ public record CustomerDto(
         UUID defaultPriceTierId,
         String notificationPreferences,
         boolean active,
-        Instant createdAt
+        Instant createdAt,
+        BigDecimal balance
 ) {}

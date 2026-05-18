@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        DeliveryController checks `delivery:write` on every mutating endpoint
+        (create / start / record / cancel), but TenantRolesBootstrapper only
+        granted `delivery:plan` and `delivery:execute` to roles. Every existing
+        tenant therefore got 403 on POST /api/v1/deliveries. Backfill so that
+        TENANT_ADMIN / MANAGER / STOCK_KEEPER can plan deliveries.
+    -->
+    <changeSet id="0036-delivery-permissions-backfill" author="mini-erp">
+        <sql splitStatements="false">
+            DO $$
+            DECLARE
+                grants jsonb := '[
+                  {"role": "TENANT_ADMIN", "perms": ["delivery:write"]},
+                  {"role": "MANAGER",      "perms": ["delivery:write"]},
+                  {"role": "STOCK_KEEPER", "perms": ["delivery:write"]}
+                ]'::jsonb;
+                entry jsonb;
+                rcode text;
+                pcodes text[];
+            BEGIN
+                FOR entry IN SELECT * FROM jsonb_array_elements(grants) LOOP
+                    rcode := entry->>'role';
+                    SELECT ARRAY(SELECT jsonb_array_elements_text(entry->'perms')) INTO pcodes;
+
+                    INSERT INTO role_permission (role_id, permission_id)
+                    SELECT r.id, p.id
+                    FROM roles r
+                    JOIN permissions p ON p.code = ANY(pcodes)
+                    WHERE r.code = rcode
+                    ON CONFLICT DO NOTHING;
+                END LOOP;
+            END $$;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

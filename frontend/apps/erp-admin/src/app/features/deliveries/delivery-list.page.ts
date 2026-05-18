@@ -1,21 +1,72 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { TranslateModule } from '@ngx-translate/core';
+import { FormsModule } from '@angular/forms';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { ConfirmationService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
+import { DialogModule } from 'primeng/dialog';
+import { DropdownModule } from 'primeng/dropdown';
+import { InputTextModule } from 'primeng/inputtext';
+import { InputNumberModule } from 'primeng/inputnumber';
+import { CalendarModule } from 'primeng/calendar';
+import { TooltipModule } from 'primeng/tooltip';
 import { firstValueFrom } from 'rxjs';
+
+interface DeliveryLine {
+  id: string;
+  productId: string;
+  uomId: string;
+  quantityOrdered: number;
+  quantityDelivered: number;
+  status: string;
+  productName: string;
+  sku: string;
+}
 
 interface Delivery {
   id: string;
   number: string;
+  customerId: string;
   customerName: string;
+  orderId: string;
+  status: string;
   scheduledDate: string;
   deliveredAt: string;
-  status: string;
   address: string;
-  lines: { quantityOrdered: number; quantityDelivered: number }[];
+  contactPhone: string;
+  signedBy: string;
+  notes: string;
+  lines: DeliveryLine[];
+}
+
+interface OrderLite {
+  id: string;
+  number: string;
+  customerId: string;
+  customerName: string;
+  status: string;
+  deliveryRequired: boolean;
+  lines: { id: string; productId: string; uomId: string; quantity: number; productName: string; sku: string }[];
+}
+
+interface DeliveryLineForm {
+  productId: string;
+  uomId: string;
+  productName: string;
+  sku: string;
+  quantityOrdered: number;
+}
+
+interface RecordLineForm {
+  lineId: string;
+  productName: string;
+  sku: string;
+  quantityPlanned: number;
+  quantityAlreadyDelivered: number;
+  quantityDelivered: number;
 }
 
 type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast';
@@ -23,12 +74,19 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
 @Component({
   selector: 'erp-admin-delivery-list',
   standalone: true,
-  imports: [CommonModule, TranslateModule, TableModule, TagModule, ButtonModule],
+  imports: [
+    CommonModule, FormsModule, TranslateModule, TableModule, TagModule, ButtonModule,
+    DialogModule, DropdownModule, InputTextModule, InputNumberModule, CalendarModule, TooltipModule,
+  ],
   template: `
     <div class="space-y-4">
-      <header>
-        <h1 class="text-2xl font-bold text-gray-800">{{ 'deliveries.title' | translate }}</h1>
-        <p class="text-gray-500 text-sm mt-1">{{ 'deliveries.subtitle' | translate }}</p>
+      <header class="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-800">{{ 'deliveries.title' | translate }}</h1>
+          <p class="text-gray-500 text-sm mt-1">{{ 'deliveries.subtitle' | translate }}</p>
+        </div>
+        <button pButton icon="pi pi-plus" [label]="'deliveries.create' | translate"
+                (click)="openCreate()" class="p-button-sm"></button>
       </header>
 
       <div class="bg-white rounded-lg border border-gray-200 p-4">
@@ -59,11 +117,25 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               </td>
               <td class="max-w-xs truncate text-sm text-gray-600">{{ d.address }}</td>
               <td><p-tag [value]="'deliveries.statuses.' + d.status | translate" [severity]="statusSeverity(d.status)" /></td>
-              <td>
-                <a [href]="'/api/v1/deliveries/' + d.id + '/pdf'" target="_blank"
-                   class="text-primary-600 hover:underline text-sm">
-                  <i class="pi pi-file-pdf mr-1"></i>BL
-                </a>
+              <td class="whitespace-nowrap">
+                <button pButton icon="pi pi-file-pdf" class="p-button-sm p-button-text mr-1"
+                        [pTooltip]="'common.print' | translate"
+                        (click)="printPdf('/api/v1/deliveries/' + d.id + '/pdf')"></button>
+                @if (d.status === 'PENDING') {
+                  <button pButton icon="pi pi-play" class="p-button-sm p-button-text"
+                          [pTooltip]="'deliveries.start' | translate"
+                          (click)="start(d)"></button>
+                }
+                @if (d.status === 'IN_PROGRESS' || d.status === 'PENDING') {
+                  <button pButton icon="pi pi-check-circle" class="p-button-sm p-button-text p-button-success"
+                          [pTooltip]="'deliveries.record' | translate"
+                          (click)="openRecord(d)"></button>
+                }
+                @if (d.status !== 'DELIVERED' && d.status !== 'CANCELLED') {
+                  <button pButton icon="pi pi-times" class="p-button-sm p-button-text p-button-danger"
+                          [pTooltip]="'common.cancel' | translate"
+                          (click)="cancel(d)"></button>
+                }
               </td>
             </tr>
           </ng-template>
@@ -72,16 +144,185 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           </ng-template>
         </p-table>
       </div>
+
+      <!-- Create dialog -->
+      <p-dialog [(visible)]="createOpen" [modal]="true" [style]="{ width: '850px' }"
+                [header]="'deliveries.createTitle' | translate" [closable]="!saving()">
+        <div class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'orders.title' | translate }} *</label>
+              <p-dropdown [(ngModel)]="form.orderId" [options]="deliverableOrders()"
+                          optionLabel="number" optionValue="id"
+                          [filter]="true" filterBy="number,customerName"
+                          [placeholder]="'deliveries.pickOrder' | translate"
+                          (onChange)="onOrderChange()"
+                          styleClass="w-full" appendTo="body">
+                <ng-template let-o pTemplate="item">
+                  <div class="flex flex-col">
+                    <span class="font-mono text-sm">{{ o.number }}</span>
+                    <span class="text-xs text-gray-500">{{ o.customerName }}</span>
+                  </div>
+                </ng-template>
+              </p-dropdown>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'deliveries.scheduledDate' | translate }} *</label>
+              <p-calendar [(ngModel)]="form.scheduledDate" dateFormat="dd/mm/yy"
+                          styleClass="w-full" appendTo="body" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'deliveries.address' | translate }}</label>
+              <input pInputText [(ngModel)]="form.address" class="w-full" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'deliveries.contactPhone' | translate }}</label>
+              <input pInputText [(ngModel)]="form.contactPhone" class="w-full" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'common.notes' | translate }}</label>
+            <input pInputText [(ngModel)]="form.notes" class="w-full" />
+          </div>
+
+          <div class="border rounded">
+            <div class="p-2 bg-gray-50 border-b font-medium text-sm">
+              {{ 'deliveries.linesToShip' | translate }}
+            </div>
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 text-gray-600">
+                <tr>
+                  <th class="text-left p-2">{{ 'sales.product' | translate }}</th>
+                  <th class="text-right p-2 w-32">{{ 'deliveries.remaining' | translate }}</th>
+                  <th class="text-right p-2 w-32">{{ 'deliveries.quantityToShip' | translate }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (l of form.lines; track l.productId; let i = $index) {
+                  <tr class="border-t">
+                    <td class="p-2">
+                      <div class="font-medium">{{ l.productName }}</div>
+                      <div class="text-xs text-gray-500 font-mono">{{ l.sku }}</div>
+                    </td>
+                    <td class="p-2 text-right text-gray-500">{{ remainingByProduct[l.productId] ?? 0 }}</td>
+                    <td class="p-1">
+                      <p-inputNumber [(ngModel)]="l.quantityOrdered" [min]="0"
+                                     [max]="remainingByProduct[l.productId] ?? 0"
+                                     [minFractionDigits]="0" [maxFractionDigits]="3"
+                                     inputStyleClass="w-full text-right" styleClass="w-full" />
+                    </td>
+                  </tr>
+                }
+                @if (form.lines.length === 0) {
+                  <tr><td colspan="3" class="p-4 text-center text-gray-400">{{ 'deliveries.pickOrderFirst' | translate }}</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <ng-template pTemplate="footer">
+          <button pButton [label]="'common.cancel' | translate" class="p-button-text"
+                  (click)="createOpen = false" [disabled]="saving()"></button>
+          <button pButton [label]="'common.save' | translate" icon="pi pi-check"
+                  (click)="save()" [loading]="saving()" [disabled]="!canSave()"></button>
+        </ng-template>
+      </p-dialog>
+
+      <!-- Record dialog -->
+      <p-dialog [(visible)]="recordOpen" [modal]="true" [style]="{ width: '700px' }"
+                [header]="'deliveries.recordTitle' | translate" [closable]="!saving()">
+        <div class="space-y-3">
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'deliveries.signedBy' | translate }} *</label>
+            <input pInputText [(ngModel)]="recordForm.signedBy" class="w-full" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'common.notes' | translate }}</label>
+            <input pInputText [(ngModel)]="recordForm.notes" class="w-full" />
+          </div>
+          <div class="border rounded">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 text-gray-600">
+                <tr>
+                  <th class="text-left p-2">{{ 'sales.product' | translate }}</th>
+                  <th class="text-right p-2 w-28">{{ 'deliveries.planned' | translate }}</th>
+                  <th class="text-right p-2 w-32">{{ 'deliveries.alreadyDelivered' | translate }}</th>
+                  <th class="text-right p-2 w-32">{{ 'deliveries.recordQty' | translate }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (l of recordForm.lines; track l.lineId) {
+                  <tr class="border-t">
+                    <td class="p-2">
+                      <div class="font-medium">{{ l.productName }}</div>
+                      <div class="text-xs text-gray-500 font-mono">{{ l.sku }}</div>
+                    </td>
+                    <td class="p-2 text-right text-gray-500">{{ l.quantityPlanned }}</td>
+                    <td class="p-2 text-right text-gray-500">{{ l.quantityAlreadyDelivered }}</td>
+                    <td class="p-1">
+                      <p-inputNumber [(ngModel)]="l.quantityDelivered" [min]="0" [max]="l.quantityPlanned"
+                                     [minFractionDigits]="0" [maxFractionDigits]="3"
+                                     inputStyleClass="w-full text-right" styleClass="w-full" />
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <ng-template pTemplate="footer">
+          <button pButton [label]="'common.cancel' | translate" class="p-button-text"
+                  (click)="recordOpen = false" [disabled]="saving()"></button>
+          <button pButton [label]="'deliveries.confirmRecord' | translate" icon="pi pi-check-circle"
+                  (click)="saveRecord()" [loading]="saving()" [disabled]="!recordForm.signedBy?.trim()"></button>
+        </ng-template>
+      </p-dialog>
     </div>
   `,
 })
 export class DeliveryListPage implements OnInit {
   private http = inject(HttpClient);
+  private i18n = inject(TranslateService);
+  private confirmation = inject(ConfirmationService);
 
   protected deliveries = signal<Delivery[]>([]);
+  protected orders = signal<OrderLite[]>([]);
   protected loading = signal(true);
+  protected saving = signal(false);
+  protected createOpen = false;
+  protected recordOpen = false;
+  protected remainingByProduct: Record<string, number> = {};
 
-  ngOnInit() { this.load(); }
+  protected form: {
+    orderId: string | null;
+    scheduledDate: Date;
+    address: string;
+    contactPhone: string;
+    notes: string;
+    lines: DeliveryLineForm[];
+  } = this.emptyForm();
+
+  protected recordForm: {
+    deliveryId: string | null;
+    signedBy: string;
+    notes: string;
+    lines: RecordLineForm[];
+  } = { deliveryId: null, signedBy: '', notes: '', lines: [] };
+
+  ngOnInit() {
+    this.load();
+    this.loadOrders();
+  }
+
+  protected deliverableOrders(): OrderLite[] {
+    // A confirmed order remains deliverable until it's fully delivered or cancelled,
+    // regardless of invoicing state — a customer may be invoiced upfront yet still
+    // have remaining items to ship.
+    const excluded = new Set(['DRAFT', 'DELIVERED', 'CANCELLED']);
+    return this.orders().filter(o => o.deliveryRequired && !excluded.has(o.status));
+  }
 
   protected totalOrdered(d: Delivery): number {
     return d.lines?.reduce((s, l) => s + l.quantityOrdered, 0) ?? 0;
@@ -92,18 +333,217 @@ export class DeliveryListPage implements OnInit {
   }
 
   protected statusSeverity(status: string): Severity {
-    return ({ PENDING: 'secondary', IN_PROGRESS: 'info', PARTIAL: 'warning', DELIVERED: 'success', CANCELLED: 'danger' } as Record<string, Severity>)[status] ?? 'secondary';
+    return ({
+      PENDING: 'secondary', IN_PROGRESS: 'info', PARTIAL: 'warning',
+      DELIVERED: 'success', CANCELLED: 'danger',
+    } as Record<string, Severity>)[status] ?? 'secondary';
+  }
+
+  protected async printPdf(url: string) {
+    try {
+      const blob = await firstValueFrom(this.http.get(url, { responseType: 'blob' }));
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+    } catch (e) {
+      console.error('PDF fetch failed', e);
+    }
+  }
+
+  protected openCreate() {
+    this.form = this.emptyForm();
+    this.remainingByProduct = {};
+    this.createOpen = true;
+  }
+
+  protected async onOrderChange() {
+    const order = this.orders().find(o => o.id === this.form.orderId);
+    if (!order) { this.form.lines = []; return; }
+    // Fetch all deliveries for this order to compute remaining qty per product.
+    const allDeliveries = await this.fetchAllDeliveriesForCustomer(order.customerId);
+    const deliveredByProduct: Record<string, number> = {};
+    for (const d of allDeliveries) {
+      if (d.orderId !== order.id) continue;
+      if (d.status === 'CANCELLED') continue;
+      for (const ln of d.lines ?? []) {
+        deliveredByProduct[ln.productId] = (deliveredByProduct[ln.productId] ?? 0)
+          + Math.max(ln.quantityDelivered ?? 0, ln.quantityOrdered ?? 0);
+      }
+    }
+    this.remainingByProduct = {};
+    const lines: DeliveryLineForm[] = [];
+    for (const ol of order.lines) {
+      const remaining = ol.quantity - (deliveredByProduct[ol.productId] ?? 0);
+      if (remaining <= 0) continue;
+      this.remainingByProduct[ol.productId] = remaining;
+      lines.push({
+        productId: ol.productId,
+        uomId: ol.uomId,
+        productName: ol.productName,
+        sku: ol.sku,
+        quantityOrdered: remaining,
+      });
+    }
+    this.form.lines = lines;
+    if (order.customerId) {
+      // pull customer address into the form
+      try {
+        const cust = await firstValueFrom(
+          this.http.get<{ address?: string; phone?: string }>(`/api/v1/customers/${order.customerId}`)
+        );
+        if (!this.form.address) this.form.address = cust.address ?? '';
+        if (!this.form.contactPhone) this.form.contactPhone = cust.phone ?? '';
+      } catch { /* ignore */ }
+    }
+  }
+
+  protected canSave(): boolean {
+    return !!this.form.orderId
+        && this.form.lines.length > 0
+        && this.form.lines.some(l => (l.quantityOrdered ?? 0) > 0);
+  }
+
+  protected async save() {
+    if (!this.canSave()) return;
+    this.saving.set(true);
+    try {
+      const order = this.orders().find(o => o.id === this.form.orderId);
+      const payload = {
+        customerId: order?.customerId,
+        orderId: this.form.orderId,
+        scheduledDate: this.toIsoDate(this.form.scheduledDate),
+        address: this.form.address || null,
+        contactPhone: this.form.contactPhone || null,
+        notes: this.form.notes || null,
+        lines: this.form.lines
+          .filter(l => (l.quantityOrdered ?? 0) > 0)
+          .map(l => ({
+            productId: l.productId,
+            uomId: l.uomId,
+            quantityOrdered: l.quantityOrdered,
+            productName: l.productName,
+            sku: l.sku,
+          })),
+      };
+      await firstValueFrom(this.http.post('/api/v1/deliveries', payload));
+      this.createOpen = false;
+      this.load();
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  protected async start(d: Delivery) {
+    try {
+      await firstValueFrom(this.http.post(`/api/v1/deliveries/${d.id}/start`, {}));
+    } finally {
+      this.load();
+    }
+  }
+
+  protected openRecord(d: Delivery) {
+    this.recordForm = {
+      deliveryId: d.id,
+      signedBy: d.signedBy ?? '',
+      notes: '',
+      lines: (d.lines ?? []).map(l => ({
+        lineId: l.id,
+        productName: l.productName,
+        sku: l.sku,
+        quantityPlanned: l.quantityOrdered,
+        quantityAlreadyDelivered: l.quantityDelivered ?? 0,
+        quantityDelivered: l.quantityOrdered - (l.quantityDelivered ?? 0),
+      })),
+    };
+    this.recordOpen = true;
+  }
+
+  protected async saveRecord() {
+    if (!this.recordForm.deliveryId || !this.recordForm.signedBy?.trim()) return;
+    this.saving.set(true);
+    try {
+      await firstValueFrom(this.http.post(`/api/v1/deliveries/${this.recordForm.deliveryId}/record`, {
+        lines: this.recordForm.lines.map(l => ({
+          lineId: l.lineId,
+          quantityDelivered: l.quantityDelivered,
+        })),
+        signedBy: this.recordForm.signedBy.trim(),
+        notes: this.recordForm.notes || null,
+      }));
+      this.recordOpen = false;
+      this.load();
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  protected cancel(d: Delivery) {
+    this.confirmation.confirm({
+      message: this.i18n.instant('deliveries.confirmCancel', { number: d.number }),
+      header: this.i18n.instant('common.confirmation'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-sm p-button-danger',
+      accept: async () => {
+        try {
+          await firstValueFrom(this.http.post(`/api/v1/deliveries/${d.id}/cancel`, {}));
+        } finally {
+          this.load();
+        }
+      },
+    });
+  }
+
+  private toIsoDate(d: Date): string {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
   }
 
   private async load() {
     this.loading.set(true);
     try {
-      const res = await firstValueFrom(this.http.get<{ content: Delivery[] }>('/api/v1/deliveries'));
+      const res = await firstValueFrom(this.http.get<{ content: Delivery[] }>('/api/v1/deliveries?size=200'));
       this.deliveries.set(res.content ?? []);
     } catch {
       this.deliveries.set([]);
     } finally {
       this.loading.set(false);
     }
+  }
+
+  private async loadOrders() {
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ content: OrderLite[] }>('/api/v1/orders?size=200')
+      );
+      this.orders.set(res.content ?? []);
+    } catch {
+      this.orders.set([]);
+    }
+  }
+
+  private async fetchAllDeliveriesForCustomer(customerId: string): Promise<Delivery[]> {
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ content: Delivery[] }>(
+          `/api/v1/deliveries?customerId=${encodeURIComponent(customerId)}&size=200`
+        )
+      );
+      return res.content ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  private emptyForm() {
+    return {
+      orderId: null as string | null,
+      scheduledDate: new Date(),
+      address: '',
+      contactPhone: '',
+      notes: '',
+      lines: [] as DeliveryLineForm[],
+    };
   }
 }

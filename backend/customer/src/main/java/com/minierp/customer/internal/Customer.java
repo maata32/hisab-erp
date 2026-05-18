@@ -3,6 +3,8 @@ package com.minierp.customer.internal;
 import com.minierp.shared.persistence.TenantAwareEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -60,6 +62,7 @@ class Customer extends TenantAwareEntity {
     private UUID defaultPriceTierId;
 
     /** CDC §3.12.2 — JSONB preferences (acceptSms, acceptEmail, preferredLocale, optedOutEvents). */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "notification_preferences", columnDefinition = "jsonb")
     private String notificationPreferences;
 

@@ -63,6 +63,18 @@ public class PaymentController {
         return service.autoAllocate(req);
     }
 
+    /**
+     * Manual post-hoc allocation: distribute the still-unallocated portion of an
+     * existing payment across invoices and/or customer credit. Works on DRAFT and
+     * CONFIRMED payments; the latter applies the new allocations immediately.
+     */
+    @PostMapping("/{id}/allocate")
+    @PreAuthorize("hasAuthority('payment:write')")
+    public PaymentDto.PaymentResponse allocate(@PathVariable UUID id,
+                                               @Valid @RequestBody PaymentDto.AllocateRequest req) {
+        return service.allocate(id, req);
+    }
+
     @GetMapping("/{id}/receipt.pdf")
     @PreAuthorize("hasAuthority('payment:read')")
     public ResponseEntity<byte[]> receipt(@PathVariable UUID id) {

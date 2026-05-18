@@ -22,7 +22,10 @@
     "activate": "Activer",
     "close": "Fermer",
     "confirm": "Confirmer",
-    "clear": "Effacer"
+    "clear": "Effacer",
+    "action": "Action",
+    "confirmation": "Confirmation",
+    "print": "Imprimer"
   },
   "auth": {
     "login": {
@@ -229,6 +232,7 @@
     "email": "Email",
     "phone": "Téléphone",
     "creditLimit": "Limite de crédit",
+    "balance": "Solde",
     "status": "Statut",
     "empty": "Aucun client trouvé",
     "types": {
@@ -240,6 +244,13 @@
     "createTitle": "Créer un client",
     "editTitle": "Modifier le client",
     "statement": "Relevé de compte (PDF)",
+    "statementDialogTitle": "Relevé de compte",
+    "statementDialogHint": "Choisissez la période puis le type de relevé à imprimer.",
+    "statementFrom": "Du",
+    "statementTo": "Au",
+    "statementFull": "Relevé",
+    "statementDetailed": "Relevé détaillé",
+    "statementOutstanding": "Impayés",
     "address": "Adresse",
     "currency": "Devise"
   },
@@ -259,30 +270,59 @@
       "REJECTED": "Refusé",
       "EXPIRED": "Expiré",
       "CONFIRMED": "Confirmé",
+      "PARTIALLY_DELIVERED": "Partiellement livré",
+      "DELIVERED": "Livré",
+      "PARTIALLY_INVOICED": "Partiellement facturé",
       "INVOICED": "Facturé",
       "CANCELLED": "Annulé",
+      "CONVERTED": "Converti",
       "ISSUED": "Émis",
       "PARTIAL": "Partiel",
       "PAID": "Payé",
       "OVERDUE": "En retard"
-    }
+    },
+    "confirmStatusChange": "Passer {{number}} au statut « {{status}} » ?",
+    "lines": "Lignes",
+    "addLine": "Ajouter une ligne",
+    "product": "Produit",
+    "quantity": "Quantité",
+    "unitPrice": "Prix unitaire",
+    "discount": "Remise",
+    "lineTotal": "Total ligne",
+    "noLines": "Aucune ligne. Cliquez sur Ajouter une ligne."
   },
   "quotes": {
     "title": "Devis",
     "subtitle": "Propositions commerciales et estimations",
-    "empty": "Aucun devis trouvé"
+    "empty": "Aucun devis trouvé",
+    "create": "Nouveau devis",
+    "createTitle": "Créer un devis",
+    "convertToOrder": "Convertir en commande",
+    "confirmConvert": "Convertir le devis {{number}} en commande ?"
   },
   "orders": {
     "title": "Commandes",
     "subtitle": "Commandes clients confirmées",
-    "empty": "Aucune commande trouvée"
+    "empty": "Aucune commande trouvée",
+    "create": "Nouvelle commande",
+    "createTitle": "Créer une commande",
+    "deliveryRequired": "Livraison requise",
+    "convertToInvoice": "Convertir en facture",
+    "invoiceFromOrderHint": "Créer une facture à partir de la commande"
   },
   "invoices": {
     "title": "Factures",
     "subtitle": "Factures clients et avoirs",
     "dueDate": "Date d'échéance",
     "balance": "Reste à payer",
-    "empty": "Aucune facture trouvée"
+    "empty": "Aucune facture trouvée",
+    "paymentTerms": "Conditions de paiement",
+    "paymentTermsHint": "ex. 30 jours net",
+    "cancel": "Annuler la facture",
+    "confirmCancel": "Annuler la facture {{number}} ?",
+    "createDirect": "Facture directe",
+    "createDirectHint": "Créer une facture sans passer par devis / commande",
+    "createTitle": "Créer une facture directe"
   },
   "deliveries": {
     "title": "Livraisons",
@@ -291,7 +331,24 @@
     "deliveredAt": "Livré le",
     "progress": "Progression",
     "address": "Adresse",
+    "contactPhone": "Téléphone contact",
     "empty": "Aucune livraison trouvée",
+    "create": "Nouveau BL",
+    "createTitle": "Nouveau bon de livraison",
+    "pickOrder": "Choisir une commande…",
+    "pickOrderFirst": "Sélectionnez d'abord une commande",
+    "linesToShip": "Lignes à expédier",
+    "remaining": "Reste à livrer",
+    "quantityToShip": "Quantité à livrer",
+    "start": "Démarrer",
+    "record": "Enregistrer la livraison",
+    "recordTitle": "Enregistrer la livraison",
+    "recordQty": "Quantité livrée",
+    "planned": "Prévu",
+    "alreadyDelivered": "Déjà livré",
+    "signedBy": "Signé par",
+    "confirmRecord": "Confirmer la livraison",
+    "confirmCancel": "Annuler le BL {{number}} ?",
     "statuses": {
       "PENDING": "En attente",
       "IN_PROGRESS": "En cours",
@@ -330,7 +387,17 @@
     "filterParty": "Filtrer par tiers",
     "allParties": "Tous les tiers",
     "kind": "Type",
-    "confirm": "Confirmer"
+    "confirm": "Confirmer",
+    "allocations": "Allouer aux factures",
+    "autoAllocate": "Auto-allouer",
+    "noOpenInvoices": "Aucune facture ouverte pour ce client",
+    "allocated": "À allouer",
+    "totalAllocated": "Total alloué",
+    "allocateTitle": "Allouer le paiement",
+    "allocateTooltip": "Allouer le reste —",
+    "alreadyAllocated": "Déjà alloué",
+    "remaining": "Reste à allouer",
+    "surplusInfo": "Tout reliquat non alloué aux factures sera automatiquement conservé comme crédit client (utilisable pour une facture future ou un retrait)."
   },
   "errors": {
     "forbidden": "Vous n'avez pas la permission d'accéder à cette page.",

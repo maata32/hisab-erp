@@ -18,4 +18,7 @@ interface CustomerRepository extends JpaRepository<Customer, UUID> {
            "LOWER(c.code) LIKE LOWER(CONCAT('%',:q,'%')) OR " +
            "LOWER(c.phone) LIKE LOWER(CONCAT('%',:q,'%')))")
     Page<Customer> search(String q, Pageable pageable);
+
+    @Query("SELECT MAX(c.code) FROM Customer c WHERE c.code LIKE :prefix")
+    Optional<String> findMaxCodeByPrefix(String prefix);
 }

@@ -21,7 +21,10 @@
     "deactivate": "Deactivate",
     "activate": "Activate",
     "close": "Close",
-    "clear": "Clear"
+    "clear": "Clear",
+    "action": "Action",
+    "confirmation": "Confirmation",
+    "print": "Print"
   },
   "auth": {
     "login": {
@@ -228,6 +231,7 @@
     "email": "Email",
     "phone": "Phone",
     "creditLimit": "Credit limit",
+    "balance": "Balance",
     "status": "Status",
     "empty": "No customers found",
     "types": {
@@ -239,6 +243,13 @@
     "createTitle": "Create customer",
     "editTitle": "Edit customer",
     "statement": "Account statement (PDF)",
+    "statementDialogTitle": "Account statement",
+    "statementDialogHint": "Pick a period, then choose the statement type to print.",
+    "statementFrom": "From",
+    "statementTo": "To",
+    "statementFull": "Statement",
+    "statementDetailed": "Detailed statement",
+    "statementOutstanding": "Outstanding",
     "address": "Address",
     "currency": "Currency"
   },
@@ -258,30 +269,59 @@
       "REJECTED": "Rejected",
       "EXPIRED": "Expired",
       "CONFIRMED": "Confirmed",
+      "PARTIALLY_DELIVERED": "Partially delivered",
+      "DELIVERED": "Delivered",
+      "PARTIALLY_INVOICED": "Partially invoiced",
       "INVOICED": "Invoiced",
       "CANCELLED": "Cancelled",
+      "CONVERTED": "Converted",
       "ISSUED": "Issued",
       "PARTIAL": "Partial",
       "PAID": "Paid",
       "OVERDUE": "Overdue"
-    }
+    },
+    "confirmStatusChange": "Move {{number}} to status \"{{status}}\"?",
+    "lines": "Lines",
+    "addLine": "Add line",
+    "product": "Product",
+    "quantity": "Quantity",
+    "unitPrice": "Unit price",
+    "discount": "Discount",
+    "lineTotal": "Line total",
+    "noLines": "No lines. Click Add line."
   },
   "quotes": {
     "title": "Quotes",
     "subtitle": "Sales proposals and estimates",
-    "empty": "No quotes found"
+    "empty": "No quotes found",
+    "create": "New quote",
+    "createTitle": "Create quote",
+    "convertToOrder": "Convert to order",
+    "confirmConvert": "Convert quote {{number}} to an order?"
   },
   "orders": {
     "title": "Orders",
     "subtitle": "Confirmed customer orders",
-    "empty": "No orders found"
+    "empty": "No orders found",
+    "create": "New order",
+    "createTitle": "Create an order",
+    "deliveryRequired": "Delivery required",
+    "convertToInvoice": "Convert to invoice",
+    "invoiceFromOrderHint": "Create an invoice from the order"
   },
   "invoices": {
     "title": "Invoices",
     "subtitle": "Customer invoices and credit notes",
     "dueDate": "Due date",
     "balance": "Balance due",
-    "empty": "No invoices found"
+    "empty": "No invoices found",
+    "paymentTerms": "Payment terms",
+    "paymentTermsHint": "e.g. Net 30 days",
+    "cancel": "Cancel invoice",
+    "confirmCancel": "Cancel invoice {{number}}?",
+    "createDirect": "Direct invoice",
+    "createDirectHint": "Create an invoice without a quote or order",
+    "createTitle": "Create a direct invoice"
   },
   "deliveries": {
     "title": "Deliveries",
@@ -290,7 +330,24 @@
     "deliveredAt": "Delivered at",
     "progress": "Progress",
     "address": "Address",
+    "contactPhone": "Contact phone",
     "empty": "No deliveries found",
+    "create": "New DN",
+    "createTitle": "New delivery note",
+    "pickOrder": "Pick an order…",
+    "pickOrderFirst": "Pick an order first",
+    "linesToShip": "Lines to ship",
+    "remaining": "Remaining",
+    "quantityToShip": "Quantity to ship",
+    "start": "Start",
+    "record": "Record delivery",
+    "recordTitle": "Record delivery",
+    "recordQty": "Quantity delivered",
+    "planned": "Planned",
+    "alreadyDelivered": "Already delivered",
+    "signedBy": "Signed by",
+    "confirmRecord": "Confirm delivery",
+    "confirmCancel": "Cancel delivery {{number}}?",
     "statuses": {
       "PENDING": "Pending",
       "IN_PROGRESS": "In progress",
@@ -329,7 +386,17 @@
     "filterParty": "Filter by party",
     "allParties": "All parties",
     "kind": "Type",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "allocations": "Allocate to invoices",
+    "autoAllocate": "Auto-allocate",
+    "noOpenInvoices": "No open invoices for this customer",
+    "allocated": "Allocated",
+    "totalAllocated": "Total allocated",
+    "allocateTitle": "Allocate payment",
+    "allocateTooltip": "Allocate remaining —",
+    "alreadyAllocated": "Already allocated",
+    "remaining": "Remaining",
+    "surplusInfo": "Any portion not allocated to invoices is automatically kept as customer credit (usable on a future invoice or for withdrawal)."
   },
   "errors": {
     "forbidden": "You do not have permission to access this page.",

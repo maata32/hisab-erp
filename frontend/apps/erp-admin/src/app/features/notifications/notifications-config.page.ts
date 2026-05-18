@@ -1,7 +1,8 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { ConfirmationService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -117,6 +118,8 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
 })
 export class NotificationsConfigPage implements OnInit {
   private http = inject(HttpClient);
+  private i18n = inject(TranslateService);
+  private confirmation = inject(ConfirmationService);
 
   protected events = signal<EventDefinition[]>([]);
   protected configs = signal<TenantConfig[]>([]);
@@ -156,13 +159,28 @@ export class NotificationsConfigPage implements OnInit {
   }
 
   protected openAdvanced(e: EventDefinition) {
-    alert(`Configuration avancée pour ${e.code} — à implémenter (channels, recipients, custom roles).`);
+    this.confirmation.confirm({
+      message: `Configuration avancée pour ${e.code} — à implémenter (channels, recipients, custom roles).`,
+      header: this.i18n.instant('common.confirmation'),
+      icon: 'pi pi-info-circle',
+      acceptLabel: 'OK',
+      rejectVisible: false,
+      acceptButtonStyleClass: 'p-button-sm',
+      accept: () => { /* info only */ },
+    });
   }
 
-  protected async reset() {
-    if (!confirm('Réinitialiser toutes les configurations aux valeurs par défaut ?')) return;
-    await firstValueFrom(this.http.post('/api/v1/notifications/config/reset', {}));
-    this.load();
+  protected reset() {
+    this.confirmation.confirm({
+      message: 'Réinitialiser toutes les configurations aux valeurs par défaut ?',
+      header: this.i18n.instant('common.confirmation'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-sm p-button-danger',
+      accept: async () => {
+        await firstValueFrom(this.http.post('/api/v1/notifications/config/reset', {}));
+        this.load();
+      },
+    });
   }
 
   private async load() {

@@ -1,0 +1,15 @@
+package com.minierp.payment.api;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.UUID;
+
+public record StatementPaymentEntry(
+        UUID id,
+        String number,
+        LocalDate paymentDate,
+        BigDecimal amount,
+        String method,
+        String reference,
+        String status
+) {}

@@ -1,7 +1,8 @@
 import { Component, OnInit, ViewChild, ElementRef, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { ConfirmationService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -309,6 +310,8 @@ const CURRENCY = 'MRU';
 })
 export class ProductListPage implements OnInit {
   private http = inject(HttpClient);
+  private i18n = inject(TranslateService);
+  private confirmation = inject(ConfirmationService);
 
   protected products = signal<Product[]>([]);
   protected uoms = signal<UomLite[]>([]);
@@ -407,11 +410,18 @@ export class ProductListPage implements OnInit {
     op.toggle(event);
   }
 
-  protected async toggleActive(p: Product) {
+  protected toggleActive(p: Product) {
     const verb = p.active ? 'Désactiver' : 'Activer';
-    if (!confirm(`${verb} le produit « ${p.name} » ?`)) return;
-    await firstValueFrom(this.http.patch(`/api/v1/products/${p.id}`, { active: !p.active }));
-    this.load(this.lastQuery);
+    this.confirmation.confirm({
+      message: `${verb} le produit « ${p.name} » ?`,
+      header: this.i18n.instant('common.confirmation'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: p.active ? 'p-button-sm p-button-danger' : 'p-button-sm',
+      accept: async () => {
+        await firstValueFrom(this.http.patch(`/api/v1/products/${p.id}`, { active: !p.active }));
+        this.load(this.lastQuery);
+      },
+    });
   }
 
   protected async save() {
@@ -527,13 +537,20 @@ export class ProductListPage implements OnInit {
     this.pendingImages.set([]);
   }
 
-  protected async removeImage(img: ProductImageDto) {
+  protected removeImage(img: ProductImageDto) {
     const id = this.editingId();
     if (!id) return;
-    if (!confirm('Supprimer cette image ?')) return;
-    await firstValueFrom(this.http.delete(`/api/v1/products/${id}/images/${img.id}`));
-    this.dialogImages.update(list => list.filter(i => i.id !== img.id));
-    this.load(this.lastQuery);
+    this.confirmation.confirm({
+      message: 'Supprimer cette image ?',
+      header: this.i18n.instant('common.confirmation'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-sm p-button-danger',
+      accept: async () => {
+        await firstValueFrom(this.http.delete(`/api/v1/products/${id}/images/${img.id}`));
+        this.dialogImages.update(list => list.filter(i => i.id !== img.id));
+        this.load(this.lastQuery);
+      },
+    });
   }
 
   private async savePriceIfChanged(productId: string) {

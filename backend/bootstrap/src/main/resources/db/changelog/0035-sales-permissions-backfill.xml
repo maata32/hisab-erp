@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Backfill the aggregate sales:read / sales:write permissions to existing tenant
+        roles. The QuoteController / OrderController / InvoiceController all check these
+        codes, but TenantRolesBootstrapper (and 0027-permissions-alignment) only granted
+        the finer-grained sale:* and invoice:* codes, so every existing TENANT_ADMIN /
+        MANAGER / CASHIER got 403 on /api/v1/invoices, /api/v1/quotes, /api/v1/orders.
+        Mirrors the post-fix mapping in TenantRolesBootstrapper.
+    -->
+    <changeSet id="0035-sales-permissions-backfill" author="mini-erp">
+        <sql splitStatements="false">
+            DO $$
+            DECLARE
+                grants jsonb := '[
+                  {"role": "TENANT_ADMIN",    "perms": ["sales:read","sales:write"]},
+                  {"role": "MANAGER",         "perms": ["sales:read","sales:write"]},
+                  {"role": "ACCOUNTANT",      "perms": ["sales:read"]},
+                  {"role": "PAYMENT_OFFICER", "perms": ["sales:read"]},
+                  {"role": "CASHIER",         "perms": ["sales:read","sales:write"]},
+                  {"role": "VIEWER",          "perms": ["sales:read"]}
+                ]'::jsonb;
+                entry jsonb;
+                rcode text;
+                pcodes text[];
+            BEGIN
+                FOR entry IN SELECT * FROM jsonb_array_elements(grants) LOOP
+                    rcode := entry->>'role';
+                    SELECT ARRAY(SELECT jsonb_array_elements_text(entry->'perms')) INTO pcodes;
+
+                    INSERT INTO role_permission (role_id, permission_id)
+                    SELECT r.id, p.id
+                    FROM roles r
+                    JOIN permissions p ON p.code = ANY(pcodes)
+                    WHERE r.code = rcode
+                    ON CONFLICT DO NOTHING;
+                END LOOP;
+            END $$;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

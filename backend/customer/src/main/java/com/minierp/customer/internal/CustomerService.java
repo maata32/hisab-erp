@@ -1,8 +1,9 @@
 package com.minierp.customer.internal;
 
 import com.minierp.customer.api.*;
-import com.minierp.document.api.DocumentRenderer;
-import com.minierp.document.api.PdfRenderRequest;
+import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.ConflictException;
 import com.minierp.shared.error.NotFoundException;
@@ -14,21 +15,21 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.HashMap;
+import java.time.Year;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class CustomerService implements CustomerLookup, CustomerBalanceOperations {
+public class CustomerService implements CustomerLookup, CustomerBalanceOperations, CustomerStatementLookup {
 
     private final CustomerRepository customers;
     private final CustomerBalanceRepository balances;
     private final CustomerCreditRepository credits;
     private final CustomerCreditUsageRepository creditUsages;
-    private final DocumentRenderer pdfRenderer;
 
     // ── CustomerLookup ───────────────────────────────────────────────────────
 
@@ -42,6 +43,32 @@ public class CustomerService implements CustomerLookup, CustomerBalanceOperation
     @Transactional(readOnly = true)
     public Optional<CustomerSummary> findByCode(String code) {
         return customers.findByCode(code).map(this::toSummary);
+    }
+
+    // ── CustomerStatementLookup ──────────────────────────────────────────────
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StatementCreditEntry> findActiveCreditsForStatement(UUID customerId, LocalDate from, LocalDate to) {
+        Instant fromI = from.atStartOfDay().toInstant(ZoneOffset.UTC);
+        Instant toI = to.atTime(LocalTime.MAX).toInstant(ZoneOffset.UTC);
+        return credits.findActiveForStatement(customerId, fromI, toI).stream()
+                .map(c -> new StatementCreditEntry(
+                        c.getId(), c.getCreatedAt(),
+                        c.getInitialAmount(), c.getRemainingAmount(),
+                        c.getSource().name(), c.getStatus().name(), c.getNotes()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BalanceSnapshot getBalance(UUID customerId) {
+        return balances.findByCustomerId(customerId)
+                .map(b -> new BalanceSnapshot(
+                        b.getTotalInvoiced(), b.getTotalPaid(), b.getBalance(),
+                        b.getOverdueAmount(), b.getLastPaymentDate()))
+                .orElse(new BalanceSnapshot(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                        BigDecimal.ZERO, null));
     }
 
     // ── CustomerBalanceOperations ─────────────────────────────────────────────
@@ -134,12 +161,46 @@ public class CustomerService implements CustomerLookup, CustomerBalanceOperation
                 .orElseThrow(() -> NotFoundException.of("entity.customer", id)));
     }
 
+    /**
+     * Suggests the next customer code following the convention
+     * {P|E}-{YY}-{NNNN} — prefix from CustomerType (P=INDIVIDUAL, E=BUSINESS),
+     * 2-digit year of registration, 4-digit zero-padded sequence per tenant/prefix.
+     * If the requested type is unknown, falls back to INDIVIDUAL.
+     */
+    @Transactional(readOnly = true)
+    public String suggestCode(String type) {
+        CustomerType t;
+        try {
+            t = type != null ? CustomerType.valueOf(type) : CustomerType.INDIVIDUAL;
+        } catch (IllegalArgumentException ex) {
+            t = CustomerType.INDIVIDUAL;
+        }
+        String typePrefix = t == CustomerType.COMPANY ? "E" : "P";
+        String yy = String.format("%02d", Year.now().getValue() % 100);
+        String prefix = typePrefix + "-" + yy + "-";
+        int next = customers.findMaxCodeByPrefix(prefix + "%")
+                .map(code -> {
+                    String suffix = code.substring(prefix.length());
+                    try {
+                        return Integer.parseInt(suffix);
+                    } catch (NumberFormatException ex) {
+                        return 0;
+                    }
+                })
+                .orElse(0) + 1;
+        return prefix + String.format("%04d", next);
+    }
+
     @Transactional(readOnly = true)
     public PageResponse<CustomerDto> list(String query, Pageable pageable) {
-        if (query != null && !query.isBlank()) {
-            return PageResponse.of(customers.search(query.trim(), pageable).map(this::toDto));
-        }
-        return PageResponse.of(customers.findByActiveTrue(pageable).map(this::toDto));
+        var page = (query != null && !query.isBlank())
+                ? customers.search(query.trim(), pageable)
+                : customers.findByActiveTrue(pageable);
+        Map<UUID, BigDecimal> balanceByCustomer = balances
+                .findByCustomerIdIn(page.map(Customer::getId).getContent())
+                .stream()
+                .collect(Collectors.toMap(CustomerBalance::getCustomerId, CustomerBalance::getBalance));
+        return PageResponse.of(page.map(c -> toDto(c, balanceByCustomer.getOrDefault(c.getId(), BigDecimal.ZERO))));
     }
 
     @Transactional(readOnly = true)
@@ -205,45 +266,6 @@ public class CustomerService implements CustomerLookup, CustomerBalanceOperation
         return toCreditDto(credit);
     }
 
-    /**
-     * CDC §15.4 GET /customers/{id}/statement.pdf — periodic statement of account
-     * (balance, recent payments, open credits). Rendered by Thymeleaf + OpenHTMLtoPDF.
-     */
-    @Transactional(readOnly = true)
-    public byte[] generateStatementPdf(UUID customerId) {
-        Customer c = customers.findById(customerId)
-                .orElseThrow(() -> NotFoundException.of("entity.customer", customerId));
-        CustomerBalance b = balances.findByCustomerId(customerId).orElseGet(() -> getOrCreate(customerId));
-        List<CustomerCredit> openCredits = credits
-                .findByCustomerIdAndStatusOrderByCreatedAtAsc(customerId, CustomerCreditStatus.ACTIVE);
-
-        Map<String, Object> vars = new HashMap<>();
-        vars.put("customer", Map.of(
-                "id", c.getId(),
-                "code", c.getCode(),
-                "name", c.getName(),
-                "email", c.getEmail() == null ? "" : c.getEmail(),
-                "phone", c.getPhone() == null ? "" : c.getPhone(),
-                "address", c.getAddress() == null ? "" : c.getAddress()
-        ));
-        vars.put("balance", Map.of(
-                "totalInvoiced", b.getTotalInvoiced(),
-                "totalPaid", b.getTotalPaid(),
-                "balance", b.getBalance(),
-                "overdue", b.getOverdueAmount(),
-                "lastPaymentDate", b.getLastPaymentDate() == null ? "" : b.getLastPaymentDate().toString()
-        ));
-        vars.put("credits", openCredits.stream().map(cr -> Map.of(
-                "createdAt", cr.getCreatedAt(),
-                "initialAmount", cr.getInitialAmount(),
-                "remainingAmount", cr.getRemainingAmount(),
-                "source", cr.getSource().name()
-        )).toList());
-        vars.put("statementDate", LocalDate.now());
-        vars.put("currency", c.getCurrency());
-        return pdfRenderer.renderPdf(PdfRenderRequest.of("customer-statement", vars));
-    }
-
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private CustomerBalance getOrCreate(UUID customerId) {
@@ -259,11 +281,18 @@ public class CustomerService implements CustomerLookup, CustomerBalanceOperation
     }
 
     private CustomerDto toDto(Customer c) {
+        return toDto(c, balances.findByCustomerId(c.getId())
+                .map(CustomerBalance::getBalance)
+                .orElse(BigDecimal.ZERO));
+    }
+
+    private CustomerDto toDto(Customer c, BigDecimal balance) {
         return new CustomerDto(c.getId(), c.getCode(), c.getType().name(),
                 c.getName(), c.getEmail(), c.getPhone(), c.getAddress(),
                 c.getCreditLimit(), c.getCurrency(), c.getNotes(),
                 c.getDefaultPriceTierId(), c.getNotificationPreferences(),
-                c.isActive(), c.getCreatedAt());
+                c.isActive(), c.getCreatedAt(),
+                balance != null ? balance : BigDecimal.ZERO);
     }
 
     private CustomerBalanceDto toBalanceDto(CustomerBalance b) {
