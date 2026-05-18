@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { MoneyPipe } from '@minierp/shared-i18n';
 import { ConfirmationService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
@@ -66,7 +67,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
   selector: 'erp-admin-payment-list',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, TranslateModule, TableModule, TagModule, ButtonModule,
+    CommonModule, FormsModule, TranslateModule, MoneyPipe, TableModule, TagModule, ButtonModule,
     DialogModule, DropdownModule, InputTextModule, InputNumberModule, CheckboxModule, TooltipModule,
   ],
   template: `
@@ -111,7 +112,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <td><span class="font-mono text-sm">{{ p.number }}</span></td>
               <td>{{ p.partyName }}</td>
               <td>{{ p.paymentDate | date:'mediumDate' }}</td>
-              <td class="text-right font-medium">{{ p.amount | number:'1.2-2' }} {{ p.currency }}</td>
+              <td class="text-right font-medium">{{ p.amount | money }} {{ p.currency }}</td>
               <td>{{ 'payments.methods.' + p.method | translate }}</td>
               <td class="text-sm text-gray-500">{{ p.reference || '—' }}</td>
               <td>
@@ -121,7 +122,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <td class="whitespace-nowrap">
                 @if (remaining(p) > 0 && p.status !== 'CANCELLED') {
                   <button pButton icon="pi pi-sitemap" class="p-button-sm p-button-text"
-                          [pTooltip]="('payments.allocateTooltip' | translate) + ' ' + (remaining(p) | number:'1.2-2') + ' ' + p.currency"
+                          [pTooltip]="('payments.allocateTooltip' | translate) + ' ' + (remaining(p) | money) + ' ' + p.currency"
                           (click)="openAllocate(p)"></button>
                 }
                 @if (p.status === 'DRAFT') {
@@ -220,10 +221,11 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                       <tr class="border-t">
                         <td class="p-2 font-mono text-xs">{{ a.number }}</td>
                         <td class="p-2 text-gray-600">{{ a.dueDate | date:'mediumDate' }}</td>
-                        <td class="p-2 text-right text-gray-700">{{ a.balance | number:'1.2-2' }}</td>
+                        <td class="p-2 text-right text-gray-700">{{ a.balance | money }}</td>
                         <td class="p-1">
                           <p-inputNumber [(ngModel)]="a.allocated" [min]="0" [max]="a.balance"
-                                         [minFractionDigits]="0" [maxFractionDigits]="2"
+                                         [minFractionDigits]="2" [maxFractionDigits]="2"
+                                         (onInput)="onAllocationEdit()"
                                          inputStyleClass="w-full text-right" styleClass="w-full" />
                         </td>
                       </tr>
@@ -235,7 +237,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                       <td class="p-2 text-right font-bold"
                           [class.text-red-600]="!allocationValid()"
                           [class.text-green-600]="allocationValid() && totalAllocated() > 0">
-                        {{ totalAllocated() | number:'1.2-2' }} / {{ form.amount | number:'1.2-2' }}
+                        {{ totalAllocated() | money }} / {{ form.amount | money }}
                       </td>
                     </tr>
                   </tfoot>
@@ -260,15 +262,15 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           <div class="grid grid-cols-3 gap-3 bg-gray-50 p-3 rounded border">
             <div>
               <div class="text-xs text-gray-500">{{ 'payments.amount' | translate }}</div>
-              <div class="font-bold">{{ allocatePayment()?.amount | number:'1.2-2' }} {{ allocatePayment()?.currency }}</div>
+              <div class="font-bold">{{ allocatePayment()?.amount | money }} {{ allocatePayment()?.currency }}</div>
             </div>
             <div>
               <div class="text-xs text-gray-500">{{ 'payments.alreadyAllocated' | translate }}</div>
-              <div class="font-bold text-gray-700">{{ alreadyAllocated() | number:'1.2-2' }}</div>
+              <div class="font-bold text-gray-700">{{ alreadyAllocated() | money }}</div>
             </div>
             <div>
               <div class="text-xs text-gray-500">{{ 'payments.remaining' | translate }}</div>
-              <div class="font-bold text-blue-600">{{ remainingToAllocate() | number:'1.2-2' }}</div>
+              <div class="font-bold text-blue-600">{{ remainingToAllocate() | money }}</div>
             </div>
           </div>
 
@@ -299,10 +301,10 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                     <tr class="border-t">
                       <td class="p-2 font-mono text-xs">{{ a.number }}</td>
                       <td class="p-2 text-gray-600">{{ a.dueDate | date:'mediumDate' }}</td>
-                      <td class="p-2 text-right text-gray-700">{{ a.balance | number:'1.2-2' }}</td>
+                      <td class="p-2 text-right text-gray-700">{{ a.balance | money }}</td>
                       <td class="p-1">
                         <p-inputNumber [(ngModel)]="a.allocated" [min]="0" [max]="a.balance"
-                                       [minFractionDigits]="0" [maxFractionDigits]="2"
+                                       [minFractionDigits]="2" [maxFractionDigits]="2"
                                        inputStyleClass="w-full text-right" styleClass="w-full" />
                       </td>
                     </tr>
@@ -314,7 +316,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                     <td class="p-2 text-right font-bold"
                         [class.text-red-600]="allocateOver()"
                         [class.text-green-600]="!allocateOver() && allocateTotal() > 0">
-                      {{ allocateTotal() | number:'1.2-2' }} / {{ remainingToAllocate() | number:'1.2-2' }}
+                      {{ allocateTotal() | money }} / {{ remainingToAllocate() | money }}
                     </td>
                   </tr>
                 </tfoot>
@@ -362,7 +364,6 @@ export class PaymentListPage implements OnInit {
   protected readonly typeOptions = [
     { value: 'CUSTOMER_PAYMENT', label: 'Encaissement client' },
     { value: 'CUSTOMER_REFUND', label: 'Remboursement client' },
-    { value: 'CUSTOMER_DEPOSIT', label: 'Acompte client' },
   ];
 
   protected readonly methodOptions = [
@@ -374,6 +375,7 @@ export class PaymentListPage implements OnInit {
   ];
 
   protected form = this.emptyForm();
+  private allocationsUserEdited = false;
 
   ngOnInit() {
     this.loadCustomers();
@@ -390,6 +392,7 @@ export class PaymentListPage implements OnInit {
     this.form = this.emptyForm();
     this.form.paymentDate = new Date().toISOString().slice(0, 10);
     this.openInvoices.set([]);
+    this.allocationsUserEdited = false;
     this.dialogOpen = true;
   }
 
@@ -397,6 +400,7 @@ export class PaymentListPage implements OnInit {
     // Allocations only apply to incoming customer payments (CUSTOMER_PAYMENT).
     this.form.allocations = [];
     this.openInvoices.set([]);
+    this.allocationsUserEdited = false;
     if (this.form.type === 'CUSTOMER_PAYMENT' && this.form.partyId) {
       this.onPartyChange();
     }
@@ -405,6 +409,7 @@ export class PaymentListPage implements OnInit {
   protected async onPartyChange() {
     this.form.allocations = [];
     this.openInvoices.set([]);
+    this.allocationsUserEdited = false;
     if (this.form.type !== 'CUSTOMER_PAYMENT' || !this.form.partyId) return;
     try {
       const res = await firstValueFrom(
@@ -432,15 +437,19 @@ export class PaymentListPage implements OnInit {
   }
 
   protected onAmountChange() {
-    // Auto-allocate FIFO only if the user hasn't manually touched any line yet
-    // (every `allocated` is still 0). Once they edit a row we leave their
+    // Re-run auto-allocate FIFO as long as the user hasn't directly typed in
+    // an allocation cell. Once they manually edit a row, we leave their
     // distribution alone — they can re-trigger via the "Auto-allouer" button.
     if (this.form.type !== 'CUSTOMER_PAYMENT' || this.form.allocations.length === 0) return;
-    const untouched = this.form.allocations.every(a => (a.allocated || 0) === 0);
-    if (untouched) this.autoAllocate();
+    if (!this.allocationsUserEdited) this.autoAllocate();
+  }
+
+  protected onAllocationEdit() {
+    this.allocationsUserEdited = true;
   }
 
   protected autoAllocate() {
+    this.allocationsUserEdited = false;
     let remaining = this.form.amount || 0;
     for (const a of this.form.allocations) {
       const take = Math.min(remaining, a.balance);
@@ -466,7 +475,13 @@ export class PaymentListPage implements OnInit {
     if (this.form.type !== 'CUSTOMER_PAYMENT') return true;
     if (this.openInvoices().length === 0) return true; // no open invoices = unallocated payment is fine
     const sum = this.totalAllocated();
-    return sum === 0 || sum === +Number(this.form.amount || 0).toFixed(2);
+    const amount = +Number(this.form.amount || 0).toFixed(2);
+    return sum <= amount;
+  }
+
+  protected allocationSurplus(): number {
+    const amount = +Number(this.form.amount || 0).toFixed(2);
+    return +(amount - this.totalAllocated()).toFixed(2);
   }
 
   protected canSave(): boolean {

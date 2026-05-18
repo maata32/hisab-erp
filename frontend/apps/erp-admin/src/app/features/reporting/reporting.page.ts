@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
+import { MoneyPipe } from '@minierp/shared-i18n';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -47,7 +48,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
 @Component({
   selector: 'erp-admin-reporting',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslateModule, TableModule, TagModule, TabViewModule],
+  imports: [CommonModule, FormsModule, TranslateModule, MoneyPipe, TableModule, TagModule, TabViewModule],
   template: `
     <div class="space-y-4">
       <header>
@@ -72,8 +73,8 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                 <tr>
                   <td>{{ r.saleDay }}</td>
                   <td class="text-right">{{ r.saleCount }}</td>
-                  <td class="text-right font-semibold">{{ r.revenue | number:'1.0-0' }}</td>
-                  <td class="text-right">{{ r.grossProfit | number:'1.0-0' }}</td>
+                  <td class="text-right font-semibold">{{ r.revenue | money }}</td>
+                  <td class="text-right">{{ r.grossProfit | money }}</td>
                 </tr>
               </ng-template>
             </p-table>
@@ -96,7 +97,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <td>{{ r.saleDay }}</td>
                   <td>{{ r.paymentMethod }}</td>
                   <td class="text-right">{{ r.saleCount }}</td>
-                  <td class="text-right font-semibold">{{ r.totalRevenue | number:'1.0-0' }}</td>
+                  <td class="text-right font-semibold">{{ r.totalRevenue | money }}</td>
                   <td class="text-right">{{ r.avgTicket | number:'1.0-2' }}</td>
                 </tr>
               </ng-template>
@@ -118,7 +119,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                 <tr>
                   <td><span class="font-mono text-xs">{{ r.sku }}</span> · {{ r.productName }}</td>
                   <td class="text-right">{{ r.qtyOnHand | number:'1.0-3' }}</td>
-                  <td class="text-right font-semibold">{{ r.stockValue | number:'1.0-0' }}</td>
+                  <td class="text-right font-semibold">{{ r.stockValue | money }}</td>
                   <td>
                     @if (r.isLowStock) {
                       <p-tag [value]="'reporting.lowStock' | translate" severity="danger" />
@@ -174,7 +175,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                     <td><p-tag [value]="r.riskLevel" [severity]="riskSeverity(r.riskLevel)" /></td>
                     <td class="text-right">{{ r.lotCount }}</td>
                     <td class="text-right">{{ r.quantityAtRisk | number:'1.0-3' }}</td>
-                    <td class="text-right font-semibold">{{ r.valueAtRisk | number:'1.0-0' }}</td>
+                    <td class="text-right font-semibold">{{ r.valueAtRisk | money }}</td>
                   </tr>
                 </ng-template>
               </p-table>
@@ -199,7 +200,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <td>{{ r.type }}</td>
                   <td>{{ r.method }}</td>
                   <td class="text-right">{{ r.paymentCount }}</td>
-                  <td class="text-right font-semibold">{{ r.totalAmount | number:'1.0-0' }}</td>
+                  <td class="text-right font-semibold">{{ r.totalAmount | money }}</td>
                 </tr>
               </ng-template>
             </p-table>
@@ -243,12 +244,12 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <ng-template pTemplate="body" let-r>
                 <tr>
                   <td><span class="font-mono text-xs">{{ r.customerCode }}</span> · {{ r.customerName }}</td>
-                  <td class="text-right">{{ r.current | number:'1.0-0' }}</td>
-                  <td class="text-right">{{ r.d1to30 | number:'1.0-0' }}</td>
-                  <td class="text-right">{{ r.d31to60 | number:'1.0-0' }}</td>
-                  <td class="text-right text-orange-600">{{ r.d61to90 | number:'1.0-0' }}</td>
-                  <td class="text-right text-red-600 font-semibold">{{ r.d90plus | number:'1.0-0' }}</td>
-                  <td class="text-right font-bold">{{ r.totalOutstanding | number:'1.0-0' }}</td>
+                  <td class="text-right">{{ r.current | money }}</td>
+                  <td class="text-right">{{ r.d1to30 | money }}</td>
+                  <td class="text-right">{{ r.d31to60 | money }}</td>
+                  <td class="text-right text-orange-600">{{ r.d61to90 | money }}</td>
+                  <td class="text-right text-red-600 font-semibold">{{ r.d90plus | money }}</td>
+                  <td class="text-right font-bold">{{ r.totalOutstanding | money }}</td>
                 </tr>
               </ng-template>
             </p-table>

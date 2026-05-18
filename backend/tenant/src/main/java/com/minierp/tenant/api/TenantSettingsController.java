@@ -16,7 +16,7 @@ public class TenantSettingsController {
     private final TenantSettingsService service;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('tenant_settings:read') or hasAuthority('pos:operate')")
+    @PreAuthorize("isAuthenticated()")
     public TenantSettingsDto get() {
         return service.getForCurrentTenant();
     }

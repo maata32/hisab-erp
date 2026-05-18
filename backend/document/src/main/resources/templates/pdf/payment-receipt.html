@@ -45,7 +45,7 @@
 
   <div class="amount-block">
     <div class="amount-label">Montant reçu</div>
-    <div class="amount-value" th:text="${payment.currency + ' ' + #numbers.formatDecimal(payment.amount,1,2)}"></div>
+    <div class="amount-value" th:text="${payment.currency + ' ' + #numbers.formatDecimal(payment.amount,1,decimals)}"></div>
   </div>
 
   <table class="details-table">
@@ -83,7 +83,7 @@
       <tbody>
         <tr th:each="alloc : ${payment.allocations}">
           <td th:text="${alloc.targetLabel}"></td>
-          <td class="text-right" th:text="${#numbers.formatDecimal(alloc.allocatedAmount,1,2)}"></td>
+          <td class="text-right" th:text="${#numbers.formatDecimal(alloc.allocatedAmount,1,decimals)}"></td>
         </tr>
       </tbody>
     </table>

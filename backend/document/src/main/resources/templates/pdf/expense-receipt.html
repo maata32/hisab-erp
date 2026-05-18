@@ -44,7 +44,7 @@
   <div class="amount-block">
     <div class="amount-label">Montant</div>
     <div class="amount-value"
-         th:text="${#numbers.formatDecimal(amount, 1, 2)} + ' ' + ${currency}"></div>
+         th:text="${#numbers.formatDecimal(amount,1,decimals)} + ' ' + ${currency}"></div>
   </div>
 
   <table class="details-table">
@@ -70,7 +70,7 @@
     </tr>
     <tr th:if="${paidAmount != null}">
       <td>Montant payé</td>
-      <td th:text="${#numbers.formatDecimal(paidAmount, 1, 2)} + ' ' + ${currency}"></td>
+      <td th:text="${#numbers.formatDecimal(paidAmount,1,decimals)} + ' ' + ${currency}"></td>
     </tr>
   </table>
 

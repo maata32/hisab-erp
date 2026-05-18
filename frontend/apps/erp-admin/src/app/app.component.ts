@@ -3,7 +3,7 @@ import { RouterOutlet } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { LocaleService } from '@minierp/shared-i18n';
+import { LocaleService, MoneyFormatService } from '@minierp/shared-i18n';
 import { AUTH_SERVICE } from '@minierp/shared-auth';
 
 @Component({
@@ -21,9 +21,11 @@ import { AUTH_SERVICE } from '@minierp/shared-auth';
 })
 export class AppComponent implements OnInit {
   private readonly localeService = inject(LocaleService);
+  private readonly moneyFormat = inject(MoneyFormatService);
   private readonly auth = inject(AUTH_SERVICE);
 
   ngOnInit(): void {
     this.localeService.initialize(this.auth.getCurrentLanguage());
+    this.moneyFormat.load();
   }
 }

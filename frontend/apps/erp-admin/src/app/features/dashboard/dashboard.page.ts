@@ -4,6 +4,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { AUTH_SERVICE } from '@minierp/shared-auth';
+import { MoneyFormatService } from '@minierp/shared-i18n';
 
 interface DashboardKpis {
   salesToday: number;
@@ -107,6 +108,7 @@ interface Phase {
 export class DashboardPage implements OnInit {
   private readonly auth = inject(AUTH_SERVICE);
   private readonly http = inject(HttpClient);
+  private readonly moneyFormat = inject(MoneyFormatService);
 
   protected readonly loading = signal(true);
   protected readonly kpis = signal<DashboardKpis | null>(null);
@@ -131,8 +133,7 @@ export class DashboardPage implements OnInit {
   protected readonly kpiCards = computed(() => {
     const k = this.kpis();
     const fmt = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n);
-    const fmtM = (n: number) =>
-      new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n) + ' MRU';
+    const fmtM = (n: number) => this.moneyFormat.format(n) + ' MRU';
     const delta = k && k.salesYesterday > 0
       ? Math.round(((k.salesToday - k.salesYesterday) / k.salesYesterday) * 100)
       : null;

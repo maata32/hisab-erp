@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { MoneyPipe } from '@minierp/shared-i18n';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -57,7 +58,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
   selector: 'erp-admin-quote-list',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, TranslateModule, TableModule, TagModule, ButtonModule,
+    CommonModule, FormsModule, TranslateModule, MoneyPipe, TableModule, TagModule, ButtonModule,
     DialogModule, DropdownModule, InputTextModule, InputNumberModule, CalendarModule, TooltipModule,
   ],
   template: `
@@ -91,7 +92,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <td>{{ q.customerName }}</td>
               <td>{{ q.issueDate | date:'mediumDate' }}</td>
               <td>{{ q.validUntil | date:'mediumDate' }}</td>
-              <td class="text-right font-medium">{{ q.total | number:'1.2-2' }} {{ q.currency }}</td>
+              <td class="text-right font-medium">{{ q.total | money }} {{ q.currency }}</td>
               <td><p-tag [value]="'sales.statuses.' + q.status | translate" [severity]="statusSeverity(q.status)" /></td>
               <td class="whitespace-nowrap">
                 <button pButton icon="pi pi-print" class="p-button-sm p-button-text mr-1"
@@ -189,7 +190,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                                      [minFractionDigits]="0" [maxFractionDigits]="2"
                                      inputStyleClass="w-full text-right" styleClass="w-full" />
                     </td>
-                    <td class="p-2 text-right">{{ lineTotal(line) | number:'1.2-2' }}</td>
+                    <td class="p-2 text-right">{{ lineTotal(line) | money }}</td>
                     <td class="p-1 text-center">
                       <button pButton icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
                               (click)="removeLine(i)"></button>
@@ -203,7 +204,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <tfoot class="bg-gray-50 border-t">
                 <tr>
                   <td colspan="4" class="p-2 text-right font-medium">{{ 'sales.total' | translate }}</td>
-                  <td class="p-2 text-right font-bold">{{ grandTotal() | number:'1.2-2' }} {{ form.currency }}</td>
+                  <td class="p-2 text-right font-bold">{{ grandTotal() | money }} {{ form.currency }}</td>
                   <td></td>
                 </tr>
               </tfoot>

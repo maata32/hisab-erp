@@ -145,16 +145,16 @@ public class CustomerStatementService {
             row.put("debit", m.debit());
             row.put("credit", m.credit());
             row.put("running", running);
-            if (m.lines() != null && !m.lines().isEmpty()) {
-                row.put("lines", m.lines().stream().map(l -> Map.<String, Object>of(
-                        "productName", nullSafe(l.productName()),
-                        "sku", nullSafe(l.sku()),
-                        "quantity", nz(l.quantity()),
-                        "unitPrice", nz(l.unitPrice()),
-                        "discountPercent", nz(l.discountPercent()),
-                        "lineTotal", nz(l.lineTotal())
-                )).toList());
-            }
+            row.put("lines", (m.lines() != null && !m.lines().isEmpty())
+                    ? m.lines().stream().map(l -> Map.<String, Object>of(
+                            "productName", nullSafe(l.productName()),
+                            "sku", nullSafe(l.sku()),
+                            "quantity", nz(l.quantity()),
+                            "unitPrice", nz(l.unitPrice()),
+                            "discountPercent", nz(l.discountPercent()),
+                            "lineTotal", nz(l.lineTotal())
+                    )).toList()
+                    : List.of());
             rows.add(row);
         }
         return rows;

@@ -100,10 +100,10 @@
         <td th:text="${line.productName}"></td>
         <td th:text="${line.sku}"></td>
         <td class="text-right" th:text="${#numbers.formatDecimal(line.quantity,1,3)}"></td>
-        <td class="text-right" th:text="${#numbers.formatDecimal(line.unitPrice,1,2)}"></td>
+        <td class="text-right" th:text="${#numbers.formatDecimal(line.unitPrice,1,decimals)}"></td>
         <td class="text-right" th:text="${line.discountPercent > 0 ? #numbers.formatDecimal(line.discountPercent,1,1) + '%' : '-'}"></td>
         <td class="text-right" th:text="${#numbers.formatDecimal(line.taxRate * 100,1,0) + '%'}"></td>
-        <td class="text-right" th:text="${#numbers.formatDecimal(line.lineTotal,1,2)}"></td>
+        <td class="text-right" th:text="${#numbers.formatDecimal(line.lineTotal,1,decimals)}"></td>
       </tr>
     </tbody>
   </table>
@@ -114,27 +114,27 @@
       <table>
         <tr>
           <td>Sous-total HT</td>
-          <td class="text-right" th:text="${#numbers.formatDecimal(invoice.subtotal,1,2)}"></td>
+          <td class="text-right" th:text="${#numbers.formatDecimal(invoice.subtotal,1,decimals)}"></td>
         </tr>
         <tr th:if="${invoice.discountAmount > 0}">
           <td>Remise</td>
-          <td class="text-right" th:text="${'-' + #numbers.formatDecimal(invoice.discountAmount,1,2)}"></td>
+          <td class="text-right" th:text="${'-' + #numbers.formatDecimal(invoice.discountAmount,1,decimals)}"></td>
         </tr>
         <tr th:if="${invoice.taxAmount > 0}">
           <td>TVA</td>
-          <td class="text-right" th:text="${#numbers.formatDecimal(invoice.taxAmount,1,2)}"></td>
+          <td class="text-right" th:text="${#numbers.formatDecimal(invoice.taxAmount,1,decimals)}"></td>
         </tr>
         <tr class="total-row">
           <td>TOTAL TTC</td>
-          <td class="text-right" th:text="${invoice.currency + ' ' + #numbers.formatDecimal(invoice.total,1,2)}"></td>
+          <td class="text-right" th:text="${invoice.currency + ' ' + #numbers.formatDecimal(invoice.total,1,decimals)}"></td>
         </tr>
         <tr th:if="${invoice.paidAmount > 0}">
           <td style="color:#166534;">Déjà payé</td>
-          <td class="text-right" style="color:#166534;" th:text="${#numbers.formatDecimal(invoice.paidAmount,1,2)}"></td>
+          <td class="text-right" style="color:#166534;" th:text="${#numbers.formatDecimal(invoice.paidAmount,1,decimals)}"></td>
         </tr>
         <tr th:if="${invoice.balance > 0}">
           <td style="color:#991b1b;font-weight:bold;">Reste à payer</td>
-          <td class="text-right" style="color:#991b1b;font-weight:bold;" th:text="${invoice.currency + ' ' + #numbers.formatDecimal(invoice.balance,1,2)}"></td>
+          <td class="text-right" style="color:#991b1b;font-weight:bold;" th:text="${invoice.currency + ' ' + #numbers.formatDecimal(invoice.balance,1,decimals)}"></td>
         </tr>
       </table>
     </div>

@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { MoneyPipe } from '@minierp/shared-i18n';
 import { ConfirmationService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
@@ -46,7 +47,7 @@ interface CustomerForm {
   selector: 'erp-admin-customer-list',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, TranslateModule, TableModule, TagModule,
+    CommonModule, FormsModule, TranslateModule, MoneyPipe, TableModule, TagModule,
     InputTextModule, InputNumberModule, ButtonModule, DialogModule, DropdownModule, CalendarModule, TooltipModule,
   ],
   template: `
@@ -91,11 +92,11 @@ interface CustomerForm {
               <td>{{ 'customers.types.' + c.type | translate }}</td>
               <td>{{ c.email || '—' }}</td>
               <td>{{ c.phone || '—' }}</td>
-              <td class="text-right">{{ c.creditLimit | number:'1.0-0' }} {{ c.currency }}</td>
+              <td class="text-right">{{ c.creditLimit | money }} {{ c.currency }}</td>
               <td class="text-right font-medium"
                   [class.text-red-600]="c.balance > 0"
                   [class.text-green-600]="c.balance < 0">
-                {{ c.balance | number:'1.0-0' }} {{ c.currency }}
+                {{ c.balance | money }} {{ c.currency }}
               </td>
               <td>
                 <p-tag [value]="(c.active ? 'common.active' : 'common.inactive') | translate"

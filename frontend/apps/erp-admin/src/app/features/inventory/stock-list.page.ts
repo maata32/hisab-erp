@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
+import { MoneyPipe } from '@minierp/shared-i18n';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { DropdownModule } from 'primeng/dropdown';
@@ -27,7 +28,7 @@ interface WarehouseLite { id: string; code: string; name: string; }
   selector: 'erp-admin-stock-list',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, TranslateModule, TableModule, DropdownModule, TagModule,
+    CommonModule, FormsModule, TranslateModule, MoneyPipe, TableModule, DropdownModule, TagModule,
   ],
   template: `
     <div class="space-y-4">
@@ -67,7 +68,7 @@ interface WarehouseLite { id: string; code: string; name: string; }
               <td class="text-right text-gray-500">{{ r.qtyReserved | number:'1.0-3' }}</td>
               <td class="text-right font-semibold">{{ r.qtyAvailable | number:'1.0-3' }}</td>
               <td class="text-right text-gray-600">{{ r.averageCost | number:'1.0-2' }}</td>
-              <td class="text-right font-semibold">{{ r.stockValue | number:'1.0-0' }}</td>
+              <td class="text-right font-semibold">{{ r.stockValue | money }}</td>
               <td>
                 @if (r.isLowStock) {
                   <p-tag [value]="'stock.low' | translate" severity="danger" icon="pi pi-exclamation-triangle" />

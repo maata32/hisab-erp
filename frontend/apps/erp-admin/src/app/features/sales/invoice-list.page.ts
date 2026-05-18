@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { MoneyPipe } from '@minierp/shared-i18n';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -57,7 +58,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
   selector: 'erp-admin-invoice-list',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, TranslateModule, TableModule, TagModule, ButtonModule, TooltipModule,
+    CommonModule, FormsModule, TranslateModule, MoneyPipe, TableModule, TagModule, ButtonModule, TooltipModule,
     DialogModule, DropdownModule, InputTextModule, InputNumberModule, CalendarModule,
   ],
   template: `
@@ -94,9 +95,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <td>{{ inv.customerName }}</td>
               <td>{{ inv.issueDate | date:'mediumDate' }}</td>
               <td [class.text-red-600]="isOverdue(inv)">{{ inv.dueDate | date:'mediumDate' }}</td>
-              <td class="text-right font-medium">{{ inv.total | number:'1.2-2' }} {{ inv.currency }}</td>
+              <td class="text-right font-medium">{{ inv.total | money }} {{ inv.currency }}</td>
               <td class="text-right" [class.text-red-600]="inv.balance > 0">
-                {{ inv.balance | number:'1.2-2' }} {{ inv.currency }}
+                {{ inv.balance | money }} {{ inv.currency }}
               </td>
               <td><p-tag [value]="'sales.statuses.' + inv.status | translate" [severity]="statusSeverity(inv.status)" /></td>
               <td class="whitespace-nowrap">
@@ -195,7 +196,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                                      [minFractionDigits]="0" [maxFractionDigits]="2"
                                      inputStyleClass="w-full text-right" styleClass="w-full" />
                     </td>
-                    <td class="p-2 text-right">{{ lineTotal(line) | number:'1.2-2' }}</td>
+                    <td class="p-2 text-right">{{ lineTotal(line) | money }}</td>
                     <td class="p-1 text-center">
                       <button pButton icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
                               (click)="removeLine(i)"></button>
@@ -209,7 +210,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <tfoot class="bg-gray-50 border-t">
                 <tr>
                   <td colspan="4" class="p-2 text-right font-medium">{{ 'sales.total' | translate }}</td>
-                  <td class="p-2 text-right font-bold">{{ grandTotal() | number:'1.2-2' }} {{ form.currency }}</td>
+                  <td class="p-2 text-right font-bold">{{ grandTotal() | money }} {{ form.currency }}</td>
                   <td></td>
                 </tr>
               </tfoot>

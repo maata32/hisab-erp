@@ -3,6 +3,7 @@ package com.minierp.tenant.internal;
 import com.minierp.shared.error.NotFoundException;
 import com.minierp.shared.security.CurrentUserHolder;
 import com.minierp.tenant.api.TenantSettingsDto;
+import com.minierp.tenant.api.TenantSettingsLookup;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,9 +13,20 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class TenantSettingsService {
+public class TenantSettingsService implements TenantSettingsLookup {
 
     private final TenantSettingsRepository repo;
+
+    @Override
+    @Transactional(readOnly = true)
+    public int getCurrencyDecimalPlaces(UUID tenantId) {
+        return repo.findByOrganizationId(tenantId)
+                .map(TenantSettings::getPosSettings)
+                .map(m -> m.get("currencyDecimalPlaces"))
+                .map(v -> v instanceof Number n ? n.intValue() : null)
+                .filter(n -> n >= 0)
+                .orElse(0);
+    }
 
     @Transactional(readOnly = true)
     public TenantSettingsDto getForCurrentTenant() {
