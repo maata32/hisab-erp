@@ -1,8 +1,8 @@
 package com.minierp.phase2;
 
 import com.minierp.MiniErpApplication;
-import com.minierp.customer.api.CreateSupplierRequest;
-import com.minierp.customer.internal.SupplierService;
+import com.minierp.partner.api.CreatePartnerRequest;
+import com.minierp.partner.internal.PartnerService;
 import com.minierp.purchase.api.PurchaseDto;
 import com.minierp.purchase.internal.PurchaseService;
 import com.minierp.shared.tenant.TenantContext;
@@ -37,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class PurchaseOrderReceiveIT {
 
     @Autowired PurchaseService purchaseService;
-    @Autowired SupplierService supplierService;
+    @Autowired PartnerService partnerService;
     @Autowired JdbcTemplate jdbc;
 
     UUID tenantId;
@@ -87,9 +87,12 @@ class PurchaseOrderReceiveIT {
                 VALUES (?, ?, 'WH-PUR', 'Purchase WH', 'MAIN', true, true, now(), now(), 0)
                 """, warehouseId, tenantId);
 
-        supplierId = supplierService.create(new CreateSupplierRequest(
-                "F-TST-0001", "COMPANY", "ACME Supplier", null, "+22244001100",
-                "Nouakchott", null, "NET30", "MRU", null, BigDecimal.ZERO
+        supplierId = partnerService.create(new CreatePartnerRequest(
+                false, true,
+                null, "F-TST-0001",
+                "COMPANY", "ACME Supplier", null, "+22244001100",
+                "Nouakchott", null, "NET30", "MRU", null,
+                null, null, null, BigDecimal.ZERO
         )).id();
     }
 

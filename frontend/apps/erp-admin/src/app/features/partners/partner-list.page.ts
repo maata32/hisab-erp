@@ -1,0 +1,683 @@
+import { Component, OnInit, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { MoneyPipe } from '@minierp/shared-i18n';
+import { ConfirmationService } from 'primeng/api';
+import { HttpClient } from '@angular/common/http';
+import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
+import { TabViewModule } from 'primeng/tabview';
+import { InputTextModule } from 'primeng/inputtext';
+import { InputNumberModule } from 'primeng/inputnumber';
+import { CheckboxModule } from 'primeng/checkbox';
+import { ButtonModule } from 'primeng/button';
+import { DialogModule } from 'primeng/dialog';
+import { DropdownModule } from 'primeng/dropdown';
+import { CalendarModule } from 'primeng/calendar';
+import { TooltipModule } from 'primeng/tooltip';
+import { firstValueFrom } from 'rxjs';
+
+type Role = 'all' | 'customer' | 'supplier';
+
+interface Partner {
+  id: string;
+  customerCode: string | null;
+  supplierCode: string | null;
+  type: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  taxId: string | null;
+  paymentTerms: string | null;
+  currency: string;
+  notes: string | null;
+  customerCreditLimit: number;
+  supplierCreditLimit: number;
+  isCustomer: boolean;
+  isSupplier: boolean;
+  active: boolean;
+  customerBalance: number;
+  supplierBalance: number;
+}
+
+interface PartnerForm {
+  isCustomer: boolean;
+  isSupplier: boolean;
+  customerCode: string;
+  supplierCode: string;
+  type: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  taxId: string;
+  paymentTerms: string;
+  currency: string;
+  notes: string;
+  customerCreditLimit: number;
+  supplierCreditLimit: number;
+}
+
+@Component({
+  selector: 'erp-admin-partner-list',
+  standalone: true,
+  imports: [
+    CommonModule, FormsModule, TranslateModule, MoneyPipe, TableModule, TagModule,
+    TabViewModule, InputTextModule, InputNumberModule, CheckboxModule, ButtonModule,
+    DialogModule, DropdownModule, CalendarModule, TooltipModule,
+  ],
+  template: `
+    <div class="space-y-4">
+      <header class="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-800">{{ 'partners.title' | translate }}</h1>
+          <p class="text-gray-500 text-sm mt-1">{{ 'partners.subtitle' | translate }}</p>
+        </div>
+        <button pButton icon="pi pi-plus" [label]="'partners.create' | translate"
+                (click)="openCreate()" class="p-button-sm"></button>
+      </header>
+
+      <div class="bg-white rounded-lg border border-gray-200">
+        <p-tabView [(activeIndex)]="activeTab" (onChange)="onTabChange($event)" styleClass="border-none">
+          <p-tabPanel [header]="'partners.tab_all' | translate"></p-tabPanel>
+          <p-tabPanel [header]="'partners.tab_customers' | translate"></p-tabPanel>
+          <p-tabPanel [header]="'partners.tab_suppliers' | translate"></p-tabPanel>
+        </p-tabView>
+
+        <div class="p-4">
+          <div class="mb-3">
+            <span class="relative block w-full sm:w-72">
+              <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+              <input pInputText type="text" [placeholder]="'common.search' | translate"
+                     (input)="onSearch($event)" class="w-full !pl-9" />
+            </span>
+          </div>
+
+          <p-table [value]="partners()" [loading]="loading()" stripedRows responsiveLayout="scroll"
+                   [rowHover]="true" styleClass="p-datatable-sm">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>{{ 'partners.codes' | translate }}</th>
+                <th>{{ 'partners.name' | translate }}</th>
+                <th>{{ 'partners.roles' | translate }}</th>
+                <th>{{ 'partners.phone' | translate }}</th>
+                <th>{{ 'partners.email' | translate }}</th>
+                <th class="text-right">{{ 'partners.ar_balance' | translate }}</th>
+                <th class="text-right">{{ 'partners.ap_balance' | translate }}</th>
+                <th>{{ 'partners.status' | translate }}</th>
+                <th></th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-p>
+              <tr>
+                <td class="font-mono text-sm">
+                  @if (p.customerCode) { <span class="text-blue-700">{{ p.customerCode }}</span> }
+                  @if (p.customerCode && p.supplierCode) { <span class="text-gray-400"> · </span> }
+                  @if (p.supplierCode) { <span class="text-amber-700">{{ p.supplierCode }}</span> }
+                </td>
+                <td class="font-medium">{{ p.name }}</td>
+                <td>
+                  @if (p.isCustomer) {
+                    <p-tag severity="info" [value]="'partners.role_customer' | translate" class="mr-1" />
+                  }
+                  @if (p.isSupplier) {
+                    <p-tag severity="warning" [value]="'partners.role_supplier' | translate" />
+                  }
+                </td>
+                <td>{{ p.phone || '—' }}</td>
+                <td>{{ p.email || '—' }}</td>
+                <td class="text-right font-medium"
+                    [class.text-red-600]="p.customerBalance > 0">
+                  @if (p.isCustomer) {
+                    {{ p.customerBalance | money }} {{ p.currency }}
+                  } @else { — }
+                </td>
+                <td class="text-right font-medium"
+                    [class.text-red-600]="p.supplierBalance > 0">
+                  @if (p.isSupplier) {
+                    {{ p.supplierBalance | money }} {{ p.currency }}
+                  } @else { — }
+                </td>
+                <td>
+                  <p-tag [value]="(p.active ? 'common.active' : 'common.inactive') | translate"
+                         [severity]="p.active ? 'success' : 'secondary'" />
+                </td>
+                <td class="whitespace-nowrap">
+                  @if (p.isCustomer) {
+                    <button pButton icon="pi pi-file-pdf" class="p-button-sm p-button-text"
+                            [pTooltip]="'partners.statement' | translate"
+                            (click)="openStatementDialog(p)"></button>
+                  }
+                  <button pButton icon="pi pi-pencil" class="p-button-sm p-button-text"
+                          [pTooltip]="'common.edit' | translate"
+                          (click)="openEdit(p)"></button>
+                  @if (!p.isSupplier) {
+                    <button pButton icon="pi pi-briefcase" class="p-button-sm p-button-text"
+                            [pTooltip]="'partners.activate_supplier' | translate"
+                            (click)="openActivateSupplier(p)"></button>
+                  }
+                  @if (!p.isCustomer) {
+                    <button pButton icon="pi pi-user-plus" class="p-button-sm p-button-text"
+                            [pTooltip]="'partners.activate_customer' | translate"
+                            (click)="openActivateCustomer(p)"></button>
+                  }
+                  @if (p.active) {
+                    <button pButton icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
+                            [pTooltip]="'common.deactivate' | translate"
+                            (click)="confirmDelete(p)"></button>
+                  }
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr><td colspan="9" class="text-center text-gray-400 py-8">{{ 'partners.empty' | translate }}</td></tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </div>
+
+      <!-- Create / edit dialog -->
+      <p-dialog [(visible)]="dialogOpen" [modal]="true" [style]="{ width: '560px' }"
+                [header]="(editing() ? 'partners.editTitle' : 'partners.createTitle') | translate"
+                [closable]="!saving()">
+        <div class="space-y-3">
+          @if (!editing()) {
+            <div class="flex gap-4 items-center bg-gray-50 p-3 rounded">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <p-checkbox [(ngModel)]="form.isCustomer" [binary]="true"
+                            (onChange)="onRoleToggle('customer')"/>
+                <span class="font-medium">{{ 'partners.role_customer' | translate }}</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <p-checkbox [(ngModel)]="form.isSupplier" [binary]="true"
+                            (onChange)="onRoleToggle('supplier')"/>
+                <span class="font-medium">{{ 'partners.role_supplier' | translate }}</span>
+              </label>
+            </div>
+          }
+          <div class="grid grid-cols-2 gap-3">
+            @if (form.isCustomer) {
+              <div>
+                <label class="block text-sm font-medium mb-1">{{ 'partners.customerCode' | translate }} *</label>
+                <input pInputText [(ngModel)]="form.customerCode" [disabled]="!!editing()" class="w-full"/>
+              </div>
+            }
+            @if (form.isSupplier) {
+              <div>
+                <label class="block text-sm font-medium mb-1">{{ 'partners.supplierCode' | translate }} *</label>
+                <input pInputText [(ngModel)]="form.supplierCode" [disabled]="!!editing()" class="w-full"/>
+              </div>
+            }
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'partners.type' | translate }} *</label>
+              <p-dropdown [(ngModel)]="form.type" [options]="typeOptions"
+                          optionLabel="label" optionValue="value" styleClass="w-full"/>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'partners.name' | translate }} *</label>
+            <input pInputText [(ngModel)]="form.name" class="w-full"/>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'partners.email' | translate }}</label>
+              <input pInputText type="email" [(ngModel)]="form.email" class="w-full"/>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'partners.phone' | translate }}</label>
+              <input pInputText [(ngModel)]="form.phone" class="w-full"/>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'partners.address' | translate }}</label>
+            <input pInputText [(ngModel)]="form.address" class="w-full"/>
+          </div>
+          @if (form.isSupplier) {
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-sm font-medium mb-1">{{ 'partners.taxId' | translate }}</label>
+                <input pInputText [(ngModel)]="form.taxId" class="w-full"/>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">{{ 'partners.paymentTerms' | translate }}</label>
+                <input pInputText [(ngModel)]="form.paymentTerms" class="w-full"/>
+              </div>
+            </div>
+          }
+          <div class="grid grid-cols-2 gap-3">
+            @if (form.isCustomer) {
+              <div>
+                <label class="block text-sm font-medium mb-1">{{ 'partners.customer_credit_limit' | translate }}</label>
+                <p-inputNumber [(ngModel)]="form.customerCreditLimit" mode="decimal"
+                               [maxFractionDigits]="2" styleClass="w-full"/>
+              </div>
+            }
+            @if (form.isSupplier) {
+              <div>
+                <label class="block text-sm font-medium mb-1">{{ 'partners.supplier_credit_limit' | translate }}</label>
+                <p-inputNumber [(ngModel)]="form.supplierCreditLimit" mode="decimal"
+                               [maxFractionDigits]="2" styleClass="w-full"/>
+              </div>
+            }
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'partners.currency' | translate }}</label>
+              <input pInputText [(ngModel)]="form.currency" class="w-full"/>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'common.notes' | translate }}</label>
+            <input pInputText [(ngModel)]="form.notes" class="w-full"/>
+          </div>
+        </div>
+        <ng-template pTemplate="footer">
+          <button pButton [label]="'common.cancel' | translate" class="p-button-text"
+                  (click)="dialogOpen = false" [disabled]="saving()"></button>
+          <button pButton [label]="'common.save' | translate" icon="pi pi-check"
+                  (click)="save()" [loading]="saving()"></button>
+        </ng-template>
+      </p-dialog>
+
+      <!-- Activate supplier role dialog -->
+      <p-dialog [(visible)]="activateSupplierOpen" [modal]="true" [style]="{ width: '450px' }"
+                [header]="'partners.activate_supplier' | translate"
+                [closable]="!activatingRole()">
+        <div class="space-y-3">
+          <p class="text-sm text-gray-600">{{ 'partners.activate_supplier_hint' | translate }}</p>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'partners.supplierCode' | translate }} *</label>
+            <input pInputText [(ngModel)]="activateSupplierForm.supplierCode" class="w-full"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'partners.taxId' | translate }}</label>
+            <input pInputText [(ngModel)]="activateSupplierForm.taxId" class="w-full"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'partners.paymentTerms' | translate }}</label>
+            <input pInputText [(ngModel)]="activateSupplierForm.paymentTerms" class="w-full"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'partners.supplier_credit_limit' | translate }}</label>
+            <p-inputNumber [(ngModel)]="activateSupplierForm.supplierCreditLimit" mode="decimal"
+                           [maxFractionDigits]="2" styleClass="w-full"/>
+          </div>
+        </div>
+        <ng-template pTemplate="footer">
+          <button pButton [label]="'common.cancel' | translate" class="p-button-text"
+                  (click)="activateSupplierOpen = false" [disabled]="activatingRole()"></button>
+          <button pButton [label]="'common.save' | translate" icon="pi pi-check"
+                  (click)="submitActivateSupplier()" [loading]="activatingRole()"></button>
+        </ng-template>
+      </p-dialog>
+
+      <!-- Activate customer role dialog -->
+      <p-dialog [(visible)]="activateCustomerOpen" [modal]="true" [style]="{ width: '450px' }"
+                [header]="'partners.activate_customer' | translate"
+                [closable]="!activatingRole()">
+        <div class="space-y-3">
+          <p class="text-sm text-gray-600">{{ 'partners.activate_customer_hint' | translate }}</p>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'partners.customerCode' | translate }} *</label>
+            <input pInputText [(ngModel)]="activateCustomerForm.customerCode" class="w-full"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'partners.customer_credit_limit' | translate }}</label>
+            <p-inputNumber [(ngModel)]="activateCustomerForm.customerCreditLimit" mode="decimal"
+                           [maxFractionDigits]="2" styleClass="w-full"/>
+          </div>
+        </div>
+        <ng-template pTemplate="footer">
+          <button pButton [label]="'common.cancel' | translate" class="p-button-text"
+                  (click)="activateCustomerOpen = false" [disabled]="activatingRole()"></button>
+          <button pButton [label]="'common.save' | translate" icon="pi pi-check"
+                  (click)="submitActivateCustomer()" [loading]="activatingRole()"></button>
+        </ng-template>
+      </p-dialog>
+
+      <!-- Statement dialog (customers only) -->
+      <p-dialog [(visible)]="statementDialogOpen" [modal]="true" [style]="{ width: '500px' }"
+                [header]="('partners.statementDialogTitle' | translate) + ' — ' + (statementCustomer()?.name ?? '')"
+                [closable]="!fetchingStatement()">
+        <div class="space-y-3">
+          <p class="text-sm text-gray-600">{{ 'partners.statementDialogHint' | translate }}</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'partners.statementFrom' | translate }}</label>
+              <p-calendar [(ngModel)]="statementFrom" dateFormat="dd/mm/yy"
+                          styleClass="w-full" appendTo="body" [showClear]="true"/>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'partners.statementTo' | translate }}</label>
+              <p-calendar [(ngModel)]="statementTo" dateFormat="dd/mm/yy"
+                          styleClass="w-full" appendTo="body" [showClear]="true"/>
+            </div>
+          </div>
+        </div>
+        <ng-template pTemplate="footer">
+          <div class="flex flex-wrap gap-2 justify-end">
+            <button pButton [label]="'common.cancel' | translate" class="p-button-text p-button-sm"
+                    (click)="statementDialogOpen = false" [disabled]="fetchingStatement()"></button>
+            <button pButton icon="pi pi-list" [label]="'partners.statementFull' | translate"
+                    class="p-button-sm p-button-outlined"
+                    (click)="downloadStatement('full')" [loading]="fetchingStatement()"></button>
+            <button pButton icon="pi pi-table" [label]="'partners.statementDetailed' | translate"
+                    class="p-button-sm p-button-outlined"
+                    (click)="downloadStatement('detailed')" [loading]="fetchingStatement()"></button>
+            <button pButton icon="pi pi-exclamation-circle" [label]="'partners.statementOutstanding' | translate"
+                    class="p-button-sm"
+                    (click)="downloadStatement('outstanding')" [loading]="fetchingStatement()"></button>
+          </div>
+        </ng-template>
+      </p-dialog>
+    </div>
+  `,
+})
+export class PartnerListPage implements OnInit {
+  private http = inject(HttpClient);
+  private i18n = inject(TranslateService);
+  private confirmation = inject(ConfirmationService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+
+  protected partners = signal<Partner[]>([]);
+  protected loading = signal(true);
+  protected saving = signal(false);
+  protected dialogOpen = false;
+  protected editing = signal<Partner | null>(null);
+  protected form: PartnerForm = this.emptyForm();
+  protected typeOptions: Array<{ value: string; label: string }> = [];
+  protected activeTab = 0;
+  private currentRole: Role = 'all';
+  private searchTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastQuery = '';
+
+  // Activate supplier role
+  protected activateSupplierOpen = false;
+  protected activateSupplierForm = { supplierCode: '', taxId: '', paymentTerms: '', supplierCreditLimit: 0 };
+
+  // Activate customer role
+  protected activateCustomerOpen = false;
+  protected activateCustomerForm = { customerCode: '', customerCreditLimit: 0 };
+
+  protected activatingRole = signal(false);
+  protected targetPartner = signal<Partner | null>(null);
+
+  // Statement
+  protected statementDialogOpen = false;
+  protected statementCustomer = signal<Partner | null>(null);
+  protected fetchingStatement = signal(false);
+  protected statementFrom: Date | null = new Date(new Date().getFullYear(), 0, 1);
+  protected statementTo: Date | null = new Date();
+
+  ngOnInit() {
+    this.refreshTypeOptions();
+    this.i18n.onLangChange.subscribe(() => this.refreshTypeOptions());
+    this.route.queryParamMap.subscribe(params => {
+      const role = (params.get('role') ?? 'all') as Role;
+      this.currentRole = role;
+      this.activeTab = role === 'customer' ? 1 : role === 'supplier' ? 2 : 0;
+      this.load();
+    });
+  }
+
+  protected onTabChange(e: { index: number }) {
+    const role: Role = e.index === 1 ? 'customer' : e.index === 2 ? 'supplier' : 'all';
+    this.currentRole = role;
+    this.router.navigate([], { queryParams: { role: role === 'all' ? null : role }, queryParamsHandling: 'merge' });
+    this.load();
+  }
+
+  private refreshTypeOptions() {
+    this.typeOptions = ['INDIVIDUAL', 'COMPANY'].map(v => ({
+      value: v,
+      label: this.i18n.instant('partners.types.' + v),
+    }));
+  }
+
+  protected onSearch(e: Event) {
+    this.lastQuery = (e.target as HTMLInputElement).value;
+    if (this.searchTimer) clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => this.load(), 300);
+  }
+
+  protected openCreate() {
+    this.editing.set(null);
+    this.form = this.emptyForm();
+    // Pre-select role based on current tab
+    if (this.currentRole === 'customer') this.form.isCustomer = true;
+    else if (this.currentRole === 'supplier') this.form.isSupplier = true;
+    else this.form.isCustomer = true;
+    this.dialogOpen = true;
+    this.refreshSuggestedCodes();
+  }
+
+  protected onRoleToggle(_role: 'customer' | 'supplier') {
+    this.refreshSuggestedCodes();
+  }
+
+  private async refreshSuggestedCodes() {
+    if (this.form.isCustomer && !this.form.customerCode) {
+      try {
+        const res = await firstValueFrom(
+          this.http.get<{ code: string }>(`/api/v1/partners/next-code?role=customer&type=${encodeURIComponent(this.form.type)}`)
+        );
+        this.form.customerCode = res.code;
+      } catch { /* silent */ }
+    }
+    if (this.form.isSupplier && !this.form.supplierCode) {
+      try {
+        const res = await firstValueFrom(
+          this.http.get<{ code: string }>('/api/v1/partners/next-code?role=supplier')
+        );
+        this.form.supplierCode = res.code;
+      } catch { /* silent */ }
+    }
+  }
+
+  protected openEdit(p: Partner) {
+    this.editing.set(p);
+    this.form = {
+      isCustomer: p.isCustomer,
+      isSupplier: p.isSupplier,
+      customerCode: p.customerCode ?? '',
+      supplierCode: p.supplierCode ?? '',
+      type: p.type,
+      name: p.name,
+      email: p.email ?? '',
+      phone: p.phone ?? '',
+      address: p.address ?? '',
+      taxId: p.taxId ?? '',
+      paymentTerms: p.paymentTerms ?? '',
+      currency: p.currency ?? 'MRU',
+      notes: p.notes ?? '',
+      customerCreditLimit: p.customerCreditLimit ?? 0,
+      supplierCreditLimit: p.supplierCreditLimit ?? 0,
+    };
+    this.dialogOpen = true;
+  }
+
+  protected openActivateSupplier(p: Partner) {
+    this.targetPartner.set(p);
+    this.activateSupplierForm = { supplierCode: '', taxId: '', paymentTerms: '', supplierCreditLimit: 0 };
+    this.activateSupplierOpen = true;
+    firstValueFrom(this.http.get<{ code: string }>('/api/v1/partners/next-code?role=supplier'))
+      .then(res => { this.activateSupplierForm.supplierCode = res.code; })
+      .catch(() => {});
+  }
+
+  protected openActivateCustomer(p: Partner) {
+    this.targetPartner.set(p);
+    this.activateCustomerForm = { customerCode: '', customerCreditLimit: 0 };
+    this.activateCustomerOpen = true;
+    firstValueFrom(this.http.get<{ code: string }>(`/api/v1/partners/next-code?role=customer&type=${encodeURIComponent(p.type)}`))
+      .then(res => { this.activateCustomerForm.customerCode = res.code; })
+      .catch(() => {});
+  }
+
+  protected async submitActivateSupplier() {
+    const p = this.targetPartner();
+    if (!p || !this.activateSupplierForm.supplierCode?.trim()) return;
+    this.activatingRole.set(true);
+    try {
+      await firstValueFrom(this.http.post(
+        `/api/v1/partners/${p.id}/activate-supplier-role`,
+        {
+          supplierCode: this.activateSupplierForm.supplierCode.trim(),
+          taxId: this.activateSupplierForm.taxId || null,
+          paymentTerms: this.activateSupplierForm.paymentTerms || null,
+          supplierCreditLimit: this.activateSupplierForm.supplierCreditLimit || null,
+        }));
+      this.activateSupplierOpen = false;
+      this.load();
+    } finally {
+      this.activatingRole.set(false);
+    }
+  }
+
+  protected async submitActivateCustomer() {
+    const p = this.targetPartner();
+    if (!p || !this.activateCustomerForm.customerCode?.trim()) return;
+    this.activatingRole.set(true);
+    try {
+      await firstValueFrom(this.http.post(
+        `/api/v1/partners/${p.id}/activate-customer-role`,
+        {
+          customerCode: this.activateCustomerForm.customerCode.trim(),
+          customerCreditLimit: this.activateCustomerForm.customerCreditLimit || null,
+        }));
+      this.activateCustomerOpen = false;
+      this.load();
+    } finally {
+      this.activatingRole.set(false);
+    }
+  }
+
+  protected openStatementDialog(p: Partner) {
+    this.statementCustomer.set(p);
+    this.statementFrom = new Date(new Date().getFullYear(), 0, 1);
+    this.statementTo = new Date();
+    this.statementDialogOpen = true;
+  }
+
+  protected async downloadStatement(type: 'full' | 'detailed' | 'outstanding') {
+    const c = this.statementCustomer();
+    if (!c) return;
+    this.fetchingStatement.set(true);
+    try {
+      const params = new URLSearchParams({ type });
+      if (this.statementFrom) params.set('from', this.toIsoDate(this.statementFrom));
+      if (this.statementTo) params.set('to', this.toIsoDate(this.statementTo));
+      await this.printPdf(`/api/v1/customers/${c.id}/statement.pdf?${params}`);
+      this.statementDialogOpen = false;
+    } finally {
+      this.fetchingStatement.set(false);
+    }
+  }
+
+  private toIsoDate(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  protected async printPdf(url: string) {
+    try {
+      const blob = await firstValueFrom(this.http.get(url, { responseType: 'blob' }));
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+    } catch (e) {
+      console.error('PDF fetch failed', e);
+    }
+  }
+
+  protected confirmDelete(p: Partner) {
+    this.confirmation.confirm({
+      message: this.i18n.instant('partners.confirm_deactivate', { name: p.name }),
+      header: this.i18n.instant('common.confirmation'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-sm p-button-danger',
+      accept: async () => {
+        await firstValueFrom(this.http.delete(`/api/v1/partners/${p.id}`));
+        this.load();
+      },
+    });
+  }
+
+  protected async save() {
+    if (!this.form.name?.trim()) return;
+    if (!this.form.isCustomer && !this.form.isSupplier) return;
+    if (this.form.isCustomer && !this.form.customerCode?.trim()) return;
+    if (this.form.isSupplier && !this.form.supplierCode?.trim()) return;
+    this.saving.set(true);
+    try {
+      const payload = {
+        isCustomer: this.form.isCustomer,
+        isSupplier: this.form.isSupplier,
+        customerCode: this.form.isCustomer ? this.form.customerCode.trim() : null,
+        supplierCode: this.form.isSupplier ? this.form.supplierCode.trim() : null,
+        type: this.form.type || 'INDIVIDUAL',
+        name: this.form.name.trim(),
+        email: this.form.email || null,
+        phone: this.form.phone || null,
+        address: this.form.address || null,
+        taxId: this.form.taxId || null,
+        paymentTerms: this.form.paymentTerms || null,
+        currency: this.form.currency || 'MRU',
+        notes: this.form.notes || null,
+        defaultPriceTierId: null,
+        notificationPreferences: null,
+        customerCreditLimit: this.form.isCustomer ? (this.form.customerCreditLimit || 0) : null,
+        supplierCreditLimit: this.form.isSupplier ? (this.form.supplierCreditLimit || 0) : null,
+      };
+      const current = this.editing();
+      if (current) {
+        await firstValueFrom(this.http.put(`/api/v1/partners/${current.id}`, payload));
+      } else {
+        await firstValueFrom(this.http.post('/api/v1/partners', payload));
+      }
+      this.dialogOpen = false;
+      this.load();
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  private async load() {
+    this.loading.set(true);
+    try {
+      const params = new URLSearchParams();
+      if (this.currentRole !== 'all') params.set('role', this.currentRole.toUpperCase());
+      if (this.lastQuery) params.set('q', this.lastQuery);
+      const qs = params.toString() ? '?' + params.toString() : '';
+      const res = await firstValueFrom(
+        this.http.get<{ content: Partner[] }>(`/api/v1/partners${qs}`)
+      );
+      this.partners.set(res.content ?? []);
+    } catch {
+      this.partners.set([]);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  private emptyForm(): PartnerForm {
+    return {
+      isCustomer: false,
+      isSupplier: false,
+      customerCode: '',
+      supplierCode: '',
+      type: 'INDIVIDUAL',
+      name: '',
+      email: '',
+      phone: '',
+      address: '',
+      taxId: '',
+      paymentTerms: '',
+      currency: 'MRU',
+      notes: '',
+      customerCreditLimit: 0,
+      supplierCreditLimit: 0,
+    };
+  }
+}

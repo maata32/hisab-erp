@@ -2,9 +2,9 @@ package com.minierp.purchase.internal;
 
 import com.minierp.catalog.api.CatalogLookup;
 import com.minierp.catalog.api.ProductSnapshot;
-import com.minierp.customer.api.SupplierBalanceOperations;
-import com.minierp.customer.api.SupplierLookup;
-import com.minierp.customer.api.SupplierSummary;
+import com.minierp.partner.api.ApBalanceOperations;
+import com.minierp.partner.api.PartnerLookup;
+import com.minierp.partner.api.PartnerSummary;
 import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
 import com.minierp.inventory.api.StockMovementDto;
@@ -44,8 +44,8 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     private final PurchaseInvoiceRepository purchaseInvoices;
     private final PurchaseInvoiceLineRepository purchaseInvoiceLines;
 
-    private final SupplierLookup supplierLookup;
-    private final SupplierBalanceOperations supplierBalanceOps;
+    private final PartnerLookup supplierLookup;
+    private final ApBalanceOperations supplierBalanceOps;
     private final CatalogLookup catalog;
     private final StockOperations stockOps;
     private final LotOperations lotOps;
@@ -58,7 +58,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
 
     @Transactional
     public PurchaseDto.PurchaseOrderDto createOrder(PurchaseDto.CreatePurchaseOrderRequest req) {
-        SupplierSummary supplier = supplierLookup.findById(req.supplierId())
+        PartnerSummary supplier = supplierLookup.findById(req.supplierId())
                 .orElseThrow(() -> NotFoundException.of("entity.supplier", req.supplierId()));
 
         String number = numbering.nextPurchaseOrderNumber();
@@ -83,7 +83,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     public PurchaseDto.PurchaseOrderDto getOrder(UUID id) {
         PurchaseOrder po = purchaseOrders.findById(id)
                 .orElseThrow(() -> NotFoundException.of("entity.purchase_order", id));
-        String name = supplierLookup.findById(po.getPartyId()).map(SupplierSummary::name).orElse("");
+        String name = supplierLookup.findById(po.getPartyId()).map(PartnerSummary::name).orElse("");
         return toPoDto(po, purchaseOrderLines.findByPurchaseOrderIdOrderByLineNumberAsc(id), name);
     }
 
@@ -92,7 +92,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
         PurchaseOrderStatus st = status != null && !status.isBlank() ? PurchaseOrderStatus.valueOf(status) : null;
         var page = purchaseOrders.findFiltered(supplierId, st, pageable);
         return PageResponse.of(page.map(po -> {
-            String name = supplierLookup.findById(po.getPartyId()).map(SupplierSummary::name).orElse("");
+            String name = supplierLookup.findById(po.getPartyId()).map(PartnerSummary::name).orElse("");
             return toPoDto(po, purchaseOrderLines.findByPurchaseOrderIdOrderByLineNumberAsc(po.getId()), name);
         }));
     }
@@ -106,7 +106,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
                     Map.of("status", po.getStatus().name()));
         }
         po.setStatus(PurchaseOrderStatus.CONFIRMED);
-        String name = supplierLookup.findById(po.getPartyId()).map(SupplierSummary::name).orElse("");
+        String name = supplierLookup.findById(po.getPartyId()).map(PartnerSummary::name).orElse("");
         return toPoDto(po, purchaseOrderLines.findByPurchaseOrderIdOrderByLineNumberAsc(id), name);
     }
 
@@ -120,7 +120,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
                     Map.of("status", po.getStatus().name()));
         }
         po.setStatus(PurchaseOrderStatus.CANCELLED);
-        String name = supplierLookup.findById(po.getPartyId()).map(SupplierSummary::name).orElse("");
+        String name = supplierLookup.findById(po.getPartyId()).map(PartnerSummary::name).orElse("");
         return toPoDto(po, purchaseOrderLines.findByPurchaseOrderIdOrderByLineNumberAsc(id), name);
     }
 
@@ -209,7 +209,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
 
     @Transactional
     public PurchaseDto.PurchaseInvoiceDto createInvoice(PurchaseDto.CreatePurchaseInvoiceRequest req) {
-        SupplierSummary supplier = supplierLookup.findById(req.supplierId())
+        PartnerSummary supplier = supplierLookup.findById(req.supplierId())
                 .orElseThrow(() -> NotFoundException.of("entity.supplier", req.supplierId()));
 
         String number = numbering.nextPurchaseInvoiceNumber();
@@ -237,7 +237,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     public PurchaseDto.PurchaseInvoiceDto getInvoice(UUID id) {
         PurchaseInvoice inv = purchaseInvoices.findById(id)
                 .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", id));
-        String name = supplierLookup.findById(inv.getPartyId()).map(SupplierSummary::name).orElse("");
+        String name = supplierLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
         return toInvoiceDto(inv, purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(id), name);
     }
 
@@ -246,7 +246,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
         PurchaseInvoiceStatus st = status != null && !status.isBlank() ? PurchaseInvoiceStatus.valueOf(status) : null;
         var page = purchaseInvoices.findFiltered(supplierId, st, pageable);
         return PageResponse.of(page.map(inv -> {
-            String name = supplierLookup.findById(inv.getPartyId()).map(SupplierSummary::name).orElse("");
+            String name = supplierLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
             return toInvoiceDto(inv, purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(inv.getId()), name);
         }));
     }
@@ -264,7 +264,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
             supplierBalanceOps.addToInvoiced(inv.getPartyId(), inv.getTotal().negate());
             inv.setStatus(PurchaseInvoiceStatus.CANCELLED);
         }
-        String name = supplierLookup.findById(inv.getPartyId()).map(SupplierSummary::name).orElse("");
+        String name = supplierLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
         return toInvoiceDto(inv, purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(id), name);
     }
 
@@ -306,7 +306,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     public byte[] generateInvoicePdf(UUID id) {
         PurchaseInvoice inv = purchaseInvoices.findById(id)
                 .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", id));
-        SupplierSummary supplier = supplierLookup.findById(inv.getPartyId()).orElse(null);
+        PartnerSummary supplier = supplierLookup.findById(inv.getPartyId()).orElse(null);
         List<PurchaseInvoiceLine> lines = purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(id);
         Map<String, Object> vars = buildPurchaseInvoiceVars(inv, lines, supplier);
         return renderer.renderPdf(PdfRenderRequest.of("purchase-invoice", vars));
@@ -316,7 +316,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     public byte[] generateOrderPdf(UUID id) {
         PurchaseOrder po = purchaseOrders.findById(id)
                 .orElseThrow(() -> NotFoundException.of("entity.purchase_order", id));
-        SupplierSummary supplier = supplierLookup.findById(po.getPartyId()).orElse(null);
+        PartnerSummary supplier = supplierLookup.findById(po.getPartyId()).orElse(null);
         List<PurchaseOrderLine> lines = purchaseOrderLines.findByPurchaseOrderIdOrderByLineNumberAsc(id);
         Map<String, Object> vars = buildPurchaseOrderVars(po, lines, supplier);
         return renderer.renderPdf(PdfRenderRequest.of("purchase-order", vars));
@@ -430,7 +430,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
                 inv.getPaidAmount(), inv.getBalance(), inv.getStatus().name());
     }
 
-    private Map<String, Object> buildPurchaseInvoiceVars(PurchaseInvoice inv, List<PurchaseInvoiceLine> lines, SupplierSummary supplier) {
+    private Map<String, Object> buildPurchaseInvoiceVars(PurchaseInvoice inv, List<PurchaseInvoiceLine> lines, PartnerSummary supplier) {
         String payStatus = switch (inv.getStatus()) {
             case PAID -> "PAYÉE";
             case PARTIAL -> "PARTIELLE";
@@ -454,7 +454,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
                         inv.getPaidAmount(), inv.getBalance(),
                         inv.getCurrency(), inv.getNotes(), linesModel),
                 "supplier", new SupplierModel(
-                        supplier != null ? supplier.code() : "",
+                        supplier != null ? supplier.supplierCode() : "",
                         supplier != null ? supplier.name() : "",
                         supplier != null ? supplier.phone() : "",
                         supplier != null ? supplier.email() : ""),
@@ -466,7 +466,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
         );
     }
 
-    private Map<String, Object> buildPurchaseOrderVars(PurchaseOrder po, List<PurchaseOrderLine> lines, SupplierSummary supplier) {
+    private Map<String, Object> buildPurchaseOrderVars(PurchaseOrder po, List<PurchaseOrderLine> lines, PartnerSummary supplier) {
         record LineModel(String productName, String sku, BigDecimal quantity, BigDecimal quantityReceived,
                          BigDecimal unitCost, BigDecimal taxRate, BigDecimal lineTotal) {}
         record OrderModel(String number, LocalDate orderDate, LocalDate expectedDate, String statusLabel,
@@ -481,7 +481,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
                         po.getSubtotal(), po.getTaxAmount(), po.getTotal(),
                         po.getCurrency(), po.getNotes(), lm),
                 "supplier", new SupplierModel(
-                        supplier != null ? supplier.code() : "",
+                        supplier != null ? supplier.supplierCode() : "",
                         supplier != null ? supplier.name() : "",
                         supplier != null ? supplier.phone() : "",
                         supplier != null ? supplier.email() : ""),

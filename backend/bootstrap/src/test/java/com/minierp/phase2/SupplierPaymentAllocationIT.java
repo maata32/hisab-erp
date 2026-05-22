@@ -1,8 +1,8 @@
 package com.minierp.phase2;
 
 import com.minierp.MiniErpApplication;
-import com.minierp.customer.api.CreateSupplierRequest;
-import com.minierp.customer.internal.SupplierService;
+import com.minierp.partner.api.CreatePartnerRequest;
+import com.minierp.partner.internal.PartnerService;
 import com.minierp.payment.api.PaymentDto;
 import com.minierp.payment.internal.PaymentService;
 import com.minierp.purchase.api.PurchaseDto;
@@ -37,7 +37,7 @@ class SupplierPaymentAllocationIT {
 
     @Autowired PurchaseService purchaseService;
     @Autowired PaymentService paymentService;
-    @Autowired SupplierService supplierService;
+    @Autowired PartnerService partnerService;
     @Autowired JdbcTemplate jdbc;
 
     UUID tenantId;
@@ -79,9 +79,12 @@ class SupplierPaymentAllocationIT {
                         true, true, now(), now(), 0)
                 """, productId, tenantId, uomId);
 
-        supplierId = supplierService.create(new CreateSupplierRequest(
-                "F-SUP-0001", "COMPANY", "Pay Test Supplier", null, "+22244002200",
-                null, null, null, "MRU", null, BigDecimal.ZERO
+        supplierId = partnerService.create(new CreatePartnerRequest(
+                false, true,
+                null, "F-SUP-0001",
+                "COMPANY", "Pay Test Supplier", null, "+22244002200",
+                null, null, null, "MRU", null,
+                null, null, null, BigDecimal.ZERO
         )).id();
     }
 
@@ -101,7 +104,7 @@ class SupplierPaymentAllocationIT {
                         BigDecimal.valueOf(8), new BigDecimal("100000"), BigDecimal.ZERO))
         ));
         assertThat(inv.total()).isEqualByComparingTo("800000.00");
-        assertThat(supplierService.getBalanceInfo(supplierId).balance()).isEqualByComparingTo("800000.00");
+        assertThat(partnerService.getApBalance(supplierId).balance()).isEqualByComparingTo("800000.00");
 
         // Pay it via SUPPLIER_PAYMENT → BANK_TRANSFER
         PaymentDto.PaymentResponse payment = paymentService.create(new PaymentDto.CreatePaymentRequest(
@@ -119,6 +122,6 @@ class SupplierPaymentAllocationIT {
         assertThat(reloaded.paidAmount()).isEqualByComparingTo("800000.00");
         assertThat(reloaded.balance()).isEqualByComparingTo("0.00");
 
-        assertThat(supplierService.getBalanceInfo(supplierId).balance()).isEqualByComparingTo("0.00");
+        assertThat(partnerService.getApBalance(supplierId).balance()).isEqualByComparingTo("0.00");
     }
 }

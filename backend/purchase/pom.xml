@@ -21,7 +21,7 @@
         </dependency>
         <dependency>
             <groupId>com.minierp</groupId>
-            <artifactId>customer</artifactId>
+            <artifactId>partner</artifactId>
         </dependency>
         <dependency>
             <groupId>com.minierp</groupId>

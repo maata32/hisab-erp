@@ -1,9 +1,9 @@
 package com.minierp.sales.internal;
 
 import com.minierp.catalog.api.CatalogLookup;
-import com.minierp.customer.api.CustomerBalanceOperations;
-import com.minierp.customer.api.CustomerLookup;
-import com.minierp.customer.api.CustomerSummary;
+import com.minierp.partner.api.ArBalanceOperations;
+import com.minierp.partner.api.PartnerLookup;
+import com.minierp.partner.api.PartnerSummary;
 import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
 import com.minierp.sales.api.InvoiceOperations;
@@ -46,8 +46,8 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     private final CreditNoteRepository creditNotes;
     private final NumberingService numbering;
     private final CatalogLookup catalog;
-    private final CustomerLookup customerLookup;
-    private final CustomerBalanceOperations balanceOps;
+    private final PartnerLookup customerLookup;
+    private final ArBalanceOperations balanceOps;
     private final DocumentRenderer renderer;
 
     // ── SalesStatementLookup (used by the customer-statement aggregator) ────
@@ -131,7 +131,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
 
     @Transactional
     public SalesDto.QuoteDto createQuote(SalesDto.CreateQuoteRequest req) {
-        CustomerSummary customer = customerLookup.findById(req.customerId())
+        PartnerSummary customer = customerLookup.findById(req.customerId())
                 .orElseThrow(() -> NotFoundException.of("entity.customer", req.customerId()));
         String number = numbering.next(DocumentType.QUOTE);
         Quote quote = Quote.builder()
@@ -151,7 +151,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     @Transactional(readOnly = true)
     public SalesDto.QuoteDto getQuote(UUID id) {
         Quote q = quotes.findById(id).orElseThrow(() -> NotFoundException.of("entity.quote", id));
-        String customerName = customerLookup.findById(q.getPartyId()).map(CustomerSummary::name).orElse("");
+        String customerName = customerLookup.findById(q.getPartyId()).map(PartnerSummary::name).orElse("");
         return toQuoteDto(q, quoteLines.findByQuoteIdOrderByLineNumberAsc(q.getId()), customerName);
     }
 
@@ -161,7 +161,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
                 ? quotes.findByPartyId(customerId, pageable)
                 : quotes.findAll(pageable);
         return PageResponse.of(page.map(q -> {
-            String name = customerLookup.findById(q.getPartyId()).map(CustomerSummary::name).orElse("");
+            String name = customerLookup.findById(q.getPartyId()).map(PartnerSummary::name).orElse("");
             return toQuoteDto(q, quoteLines.findByQuoteIdOrderByLineNumberAsc(q.getId()), name);
         }));
     }
@@ -170,7 +170,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     public SalesDto.QuoteDto updateQuoteStatus(UUID id, String status) {
         Quote q = quotes.findById(id).orElseThrow(() -> NotFoundException.of("entity.quote", id));
         q.setStatus(QuoteStatus.valueOf(status));
-        String name = customerLookup.findById(q.getPartyId()).map(CustomerSummary::name).orElse("");
+        String name = customerLookup.findById(q.getPartyId()).map(PartnerSummary::name).orElse("");
         return toQuoteDto(q, quoteLines.findByQuoteIdOrderByLineNumberAsc(id), name);
     }
 
@@ -215,7 +215,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         q.setStatus(QuoteStatus.CONVERTED);
         q.setConvertedToOrderId(order.getId());
 
-        String name = customerLookup.findById(order.getPartyId()).map(CustomerSummary::name).orElse("");
+        String name = customerLookup.findById(order.getPartyId()).map(PartnerSummary::name).orElse("");
         return toOrderDto(order, orderLines.findByOrderIdOrderByLineNumberAsc(order.getId()), name);
     }
 
@@ -223,7 +223,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
 
     @Transactional
     public SalesDto.OrderDto createOrder(SalesDto.CreateOrderRequest req) {
-        CustomerSummary customer = customerLookup.findById(req.customerId())
+        PartnerSummary customer = customerLookup.findById(req.customerId())
                 .orElseThrow(() -> NotFoundException.of("entity.customer", req.customerId()));
         String number = numbering.next(DocumentType.ORDER);
         Order order = Order.builder()
@@ -244,7 +244,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     @Transactional(readOnly = true)
     public SalesDto.OrderDto getOrder(UUID id) {
         Order o = orders.findById(id).orElseThrow(() -> NotFoundException.of("entity.order", id));
-        String name = customerLookup.findById(o.getPartyId()).map(CustomerSummary::name).orElse("");
+        String name = customerLookup.findById(o.getPartyId()).map(PartnerSummary::name).orElse("");
         return toOrderDto(o, orderLines.findByOrderIdOrderByLineNumberAsc(id), name);
     }
 
@@ -254,7 +254,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
                 ? orders.findByPartyId(customerId, pageable)
                 : orders.findAll(pageable);
         return PageResponse.of(page.map(o -> {
-            String name = customerLookup.findById(o.getPartyId()).map(CustomerSummary::name).orElse("");
+            String name = customerLookup.findById(o.getPartyId()).map(PartnerSummary::name).orElse("");
             return toOrderDto(o, orderLines.findByOrderIdOrderByLineNumberAsc(o.getId()), name);
         }));
     }
@@ -263,7 +263,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     public SalesDto.OrderDto updateOrderStatus(UUID id, String status) {
         Order o = orders.findById(id).orElseThrow(() -> NotFoundException.of("entity.order", id));
         o.setStatus(OrderStatus.valueOf(status));
-        String name = customerLookup.findById(o.getPartyId()).map(CustomerSummary::name).orElse("");
+        String name = customerLookup.findById(o.getPartyId()).map(PartnerSummary::name).orElse("");
         return toOrderDto(o, orderLines.findByOrderIdOrderByLineNumberAsc(id), name);
     }
 
@@ -308,7 +308,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         o.setStatus(OrderStatus.INVOICED);
         balanceOps.addToInvoiced(inv.getPartyId(), inv.getTotal());
 
-        String name = customerLookup.findById(inv.getPartyId()).map(CustomerSummary::name).orElse("");
+        String name = customerLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
         return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(inv.getId()), name);
     }
 
@@ -316,7 +316,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
 
     @Transactional
     public SalesDto.InvoiceDto createInvoice(SalesDto.CreateInvoiceRequest req) {
-        CustomerSummary customer = customerLookup.findById(req.customerId())
+        PartnerSummary customer = customerLookup.findById(req.customerId())
                 .orElseThrow(() -> NotFoundException.of("entity.customer", req.customerId()));
         String number = numbering.next(DocumentType.INVOICE);
         Invoice inv = Invoice.builder()
@@ -340,7 +340,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     @Transactional(readOnly = true)
     public SalesDto.InvoiceDto getInvoice(UUID id) {
         Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));
-        String name = customerLookup.findById(inv.getPartyId()).map(CustomerSummary::name).orElse("");
+        String name = customerLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
         return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id), name);
     }
 
@@ -350,7 +350,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
                 ? invoices.findByPartyId(customerId, pageable)
                 : invoices.findAll(pageable);
         return PageResponse.of(page.map(inv -> {
-            String name = customerLookup.findById(inv.getPartyId()).map(CustomerSummary::name).orElse("");
+            String name = customerLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
             return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(inv.getId()), name);
         }));
     }
@@ -364,7 +364,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     public SalesDto.InvoiceDto cancelInvoice(UUID id) {
         Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));
         if (inv.getStatus() == InvoiceStatus.CANCELLED) {
-            String name = customerLookup.findById(inv.getPartyId()).map(CustomerSummary::name).orElse("");
+            String name = customerLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
             return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id), name);
         }
         if (inv.getStatus() == InvoiceStatus.PAID || inv.getStatus() == InvoiceStatus.PARTIAL) {
@@ -373,7 +373,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         }
         balanceOps.addToInvoiced(inv.getPartyId(), inv.getTotal().negate());
         inv.setStatus(InvoiceStatus.CANCELLED);
-        String name = customerLookup.findById(inv.getPartyId()).map(CustomerSummary::name).orElse("");
+        String name = customerLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
         return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id), name);
     }
 
@@ -411,7 +411,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     @Transactional(readOnly = true)
     public byte[] generateInvoicePdf(UUID id) {
         Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));
-        CustomerSummary customer = customerLookup.findById(inv.getPartyId()).orElse(null);
+        PartnerSummary customer = customerLookup.findById(inv.getPartyId()).orElse(null);
         List<InvoiceLine> lines = invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id);
         Map<String, Object> vars = buildInvoiceVars(inv, lines, customer);
         return renderer.renderPdf(PdfRenderRequest.of("invoice", vars));
@@ -420,7 +420,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     @Transactional(readOnly = true)
     public byte[] generateQuotePdf(UUID id) {
         Quote q = quotes.findById(id).orElseThrow(() -> NotFoundException.of("entity.quote", id));
-        CustomerSummary customer = customerLookup.findById(q.getPartyId()).orElse(null);
+        PartnerSummary customer = customerLookup.findById(q.getPartyId()).orElse(null);
         List<QuoteLine> lines = quoteLines.findByQuoteIdOrderByLineNumberAsc(id);
         Map<String, Object> vars = buildQuoteVars(q, lines, customer);
         return renderer.renderPdf(PdfRenderRequest.of("quote", vars));
@@ -429,7 +429,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     @Transactional(readOnly = true)
     public byte[] generateOrderPdf(UUID id) {
         Order o = orders.findById(id).orElseThrow(() -> NotFoundException.of("entity.order", id));
-        CustomerSummary customer = customerLookup.findById(o.getPartyId()).orElse(null);
+        PartnerSummary customer = customerLookup.findById(o.getPartyId()).orElse(null);
         List<OrderLine> lines = orderLines.findByOrderIdOrderByLineNumberAsc(id);
         Map<String, Object> vars = buildOrderVars(o, lines, customer);
         return renderer.renderPdf(PdfRenderRequest.of("order", vars));
@@ -589,7 +589,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
                 inv.getBalance(), inv.getStatus().name());
     }
 
-    private Map<String, Object> buildInvoiceVars(Invoice inv, List<InvoiceLine> lines, CustomerSummary customer) {
+    private Map<String, Object> buildInvoiceVars(Invoice inv, List<InvoiceLine> lines, PartnerSummary customer) {
         String payStatus = switch (inv.getStatus()) {
             case PAID -> "PAYÉE";
             case PARTIAL -> "PARTIELLE";
@@ -625,7 +625,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         );
     }
 
-    private Map<String, Object> buildOrderVars(Order o, List<OrderLine> lines, CustomerSummary customer) {
+    private Map<String, Object> buildOrderVars(Order o, List<OrderLine> lines, PartnerSummary customer) {
         record LineModel(String productName, String sku, BigDecimal quantity, BigDecimal unitPrice,
                          BigDecimal discountPercent, BigDecimal taxRate, BigDecimal lineTotal) {}
         record OrderModel(String number, LocalDate orderDate, String statusLabel,
@@ -647,7 +647,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         );
     }
 
-    private Map<String, Object> buildQuoteVars(Quote q, List<QuoteLine> lines, CustomerSummary customer) {
+    private Map<String, Object> buildQuoteVars(Quote q, List<QuoteLine> lines, PartnerSummary customer) {
         record LineModel(String productName, String sku, BigDecimal quantity, BigDecimal unitPrice,
                          BigDecimal taxRate, BigDecimal lineTotal) {}
         record QuoteModel(String number, LocalDate issueDate, LocalDate validUntil,

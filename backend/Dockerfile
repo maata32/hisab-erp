@@ -14,7 +14,7 @@ COPY pricing/pom.xml pricing/pom.xml
 COPY inventory/pom.xml inventory/pom.xml
 COPY notifications/pom.xml notifications/pom.xml
 COPY pos/pom.xml pos/pom.xml
-COPY customer/pom.xml customer/pom.xml
+COPY partner/pom.xml partner/pom.xml
 COPY document/pom.xml document/pom.xml
 COPY sales/pom.xml sales/pom.xml
 COPY delivery/pom.xml delivery/pom.xml
@@ -36,7 +36,7 @@ COPY pricing/src pricing/src
 COPY inventory/src inventory/src
 COPY notifications/src notifications/src
 COPY pos/src pos/src
-COPY customer/src customer/src
+COPY partner/src partner/src
 COPY document/src document/src
 COPY sales/src sales/src
 COPY delivery/src delivery/src

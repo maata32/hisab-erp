@@ -1,11 +1,11 @@
 package com.minierp.payment.internal;
 
-import com.minierp.customer.api.CustomerBalanceOperations;
-import com.minierp.customer.api.CustomerLookup;
-import com.minierp.customer.api.CustomerSummary;
-import com.minierp.customer.api.SupplierBalanceOperations;
-import com.minierp.customer.api.SupplierLookup;
-import com.minierp.customer.api.SupplierSummary;
+import com.minierp.partner.api.ArBalanceOperations;
+import com.minierp.partner.api.PartnerLookup;
+import com.minierp.partner.api.PartnerSummary;
+import com.minierp.partner.api.ApBalanceOperations;
+import com.minierp.partner.api.PartnerLookup;
+import com.minierp.partner.api.PartnerSummary;
 import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
 import com.minierp.payment.api.PaymentDto;
@@ -40,10 +40,10 @@ public class PaymentService implements PaymentLookup {
 
     private final PaymentRepository payments;
     private final PaymentAllocationRepository allocations;
-    private final CustomerLookup customerLookup;
-    private final CustomerBalanceOperations balanceOps;
-    private final SupplierLookup supplierLookup;
-    private final SupplierBalanceOperations supplierBalanceOps;
+    private final PartnerLookup customerLookup;
+    private final ArBalanceOperations balanceOps;
+    private final PartnerLookup supplierLookup;
+    private final ApBalanceOperations supplierBalanceOps;
     private final InvoiceOperations invoiceOps;
     private final PurchaseInvoiceOperations purchaseInvoiceOps;
     private final NumberingOperations numbering;
@@ -246,7 +246,7 @@ public class PaymentService implements PaymentLookup {
     @Transactional(readOnly = true)
     public byte[] generateReceipt(UUID id) {
         Payment p = payments.findById(id).orElseThrow(() -> NotFoundException.of("entity.payment", id));
-        CustomerSummary customer = customerLookup.findById(p.getPartyId()).orElse(null);
+        PartnerSummary customer = customerLookup.findById(p.getPartyId()).orElse(null);
         List<PaymentAllocation> allocs = allocations.findByPaymentId(id);
         Map<String, Object> vars = buildReceiptVars(p, allocs, customer);
         return renderer.renderPdf(PdfRenderRequest.of("payment-receipt", vars));
@@ -272,15 +272,15 @@ public class PaymentService implements PaymentLookup {
     private String resolvePartyName(Payment p) {
         if (p.getType() == PaymentType.SUPPLIER_PAYMENT || p.getType() == PaymentType.SUPPLIER_REFUND) {
             return supplierLookup.findById(p.getPartyId())
-                    .map(SupplierSummary::name)
-                    .orElseGet(() -> customerLookup.findById(p.getPartyId()).map(CustomerSummary::name).orElse(""));
+                    .map(PartnerSummary::name)
+                    .orElseGet(() -> customerLookup.findById(p.getPartyId()).map(PartnerSummary::name).orElse(""));
         }
         return customerLookup.findById(p.getPartyId())
-                .map(CustomerSummary::name)
-                .orElseGet(() -> supplierLookup.findById(p.getPartyId()).map(SupplierSummary::name).orElse(""));
+                .map(PartnerSummary::name)
+                .orElseGet(() -> supplierLookup.findById(p.getPartyId()).map(PartnerSummary::name).orElse(""));
     }
 
-    private Map<String, Object> buildReceiptVars(Payment p, List<PaymentAllocation> allocs, CustomerSummary customer) {
+    private Map<String, Object> buildReceiptVars(Payment p, List<PaymentAllocation> allocs, PartnerSummary customer) {
         String methodLabel = switch (p.getMethod()) {
             case CASH -> "Espèces";
             case CHECK -> "Chèque";

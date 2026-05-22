@@ -35,10 +35,11 @@ export const appRoutes: Routes = [
           import('./features/settings/settings.page').then((m) => m.SettingsPage),
       },
       {
-        path: 'customers',
+        path: 'partners',
         loadComponent: () =>
-          import('./features/customers/customer-list.page').then((m) => m.CustomerListPage),
+          import('./features/partners/partner-list.page').then((m) => m.PartnerListPage),
       },
+      { path: 'customers', redirectTo: '/partners?role=customer', pathMatch: 'full' },
       {
         path: 'quotes',
         loadComponent: () =>
@@ -64,11 +65,7 @@ export const appRoutes: Routes = [
         loadComponent: () =>
           import('./features/payments/payment-list.page').then((m) => m.PaymentListPage),
       },
-      {
-        path: 'suppliers',
-        loadComponent: () =>
-          import('./features/suppliers/supplier-list.page').then((m) => m.SupplierListPage),
-      },
+      { path: 'suppliers', redirectTo: '/partners?role=supplier', pathMatch: 'full' },
       {
         path: 'purchase-orders',
         loadComponent: () =>

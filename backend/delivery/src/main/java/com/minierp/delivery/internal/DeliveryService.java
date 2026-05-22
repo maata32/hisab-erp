@@ -1,7 +1,7 @@
 package com.minierp.delivery.internal;
 
-import com.minierp.customer.api.CustomerLookup;
-import com.minierp.customer.api.CustomerSummary;
+import com.minierp.partner.api.PartnerLookup;
+import com.minierp.partner.api.PartnerSummary;
 import com.minierp.delivery.api.DeliveryDto;
 import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
@@ -26,7 +26,7 @@ public class DeliveryService {
 
     private final DeliveryRepository deliveries;
     private final DeliveryLineRepository deliveryLines;
-    private final CustomerLookup customerLookup;
+    private final PartnerLookup customerLookup;
     private final NumberingOperations numbering;
     private final DocumentRenderer renderer;
 
@@ -135,7 +135,7 @@ public class DeliveryService {
     @Transactional(readOnly = true)
     public byte[] generatePdf(UUID id) {
         Delivery d = deliveries.findById(id).orElseThrow(() -> NotFoundException.of("entity.delivery", id));
-        CustomerSummary customer = customerLookup.findById(d.getPartyId()).orElse(null);
+        PartnerSummary customer = customerLookup.findById(d.getPartyId()).orElse(null);
         List<DeliveryLine> lines = deliveryLines.findByDeliveryId(id);
         Map<String, Object> vars = buildPdfVars(d, lines, customer);
         return renderer.renderPdf(PdfRenderRequest.of("delivery-note", vars));
@@ -143,7 +143,7 @@ public class DeliveryService {
 
     private DeliveryDto.DeliveryResponse toDto(Delivery d) {
         List<DeliveryLine> lines = deliveryLines.findByDeliveryId(d.getId());
-        String customerName = customerLookup.findById(d.getPartyId()).map(CustomerSummary::name).orElse("");
+        String customerName = customerLookup.findById(d.getPartyId()).map(PartnerSummary::name).orElse("");
         return new DeliveryDto.DeliveryResponse(
                 d.getId(), d.getNumber(), d.getPartyId(), customerName, d.getOrderId(),
                 d.getStatus().name(), d.getScheduledDate(), d.getDeliveredAt(),
@@ -154,7 +154,7 @@ public class DeliveryService {
                 d.getCreatedAt());
     }
 
-    private Map<String, Object> buildPdfVars(Delivery d, List<DeliveryLine> lines, CustomerSummary customer) {
+    private Map<String, Object> buildPdfVars(Delivery d, List<DeliveryLine> lines, PartnerSummary customer) {
         record LineModel(String productName, String sku, BigDecimal quantityOrdered, BigDecimal quantityDelivered) {}
         record DeliveryModel(String number, java.time.LocalDate scheduledDate, java.time.Instant deliveredAt,
                              String address, String contactPhone, String signedBy, String notes,

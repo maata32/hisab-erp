@@ -1,9 +1,9 @@
 package com.minierp.statement;
 
-import com.minierp.customer.api.CustomerLookup;
-import com.minierp.customer.api.CustomerStatementLookup;
-import com.minierp.customer.api.CustomerSummary;
-import com.minierp.customer.api.StatementCreditEntry;
+import com.minierp.partner.api.PartnerLookup;
+import com.minierp.partner.api.CustomerStatementLookup;
+import com.minierp.partner.api.PartnerSummary;
+import com.minierp.partner.api.StatementCreditEntry;
 import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
 import com.minierp.payment.api.PaymentLookup;
@@ -32,7 +32,7 @@ public class CustomerStatementService {
 
     private static final BigDecimal ZERO = BigDecimal.ZERO;
 
-    private final CustomerLookup customers;
+    private final PartnerLookup customers;
     private final CustomerStatementLookup statementLookup;
     private final SalesStatementLookup salesLookup;
     private final PaymentLookup paymentLookup;
@@ -43,7 +43,7 @@ public class CustomerStatementService {
         LocalDate effectiveFrom = from != null ? from : LocalDate.of(1970, 1, 1);
         LocalDate effectiveTo = to != null ? to : LocalDate.of(2999, 12, 31);
 
-        CustomerSummary customer = customers.findById(customerId)
+        PartnerSummary customer = customers.findById(customerId)
                 .orElseThrow(() -> NotFoundException.of("entity.customer", customerId));
 
         boolean detailed = st == StatementType.DETAILED;
@@ -69,7 +69,7 @@ public class CustomerStatementService {
         vars.put("periodFrom", from);
         vars.put("periodTo", to);
         vars.put("customer", Map.of(
-                "code", nullSafe(customer.code()),
+                "code", nullSafe(customer.customerCode()),
                 "name", nullSafe(customer.name()),
                 "phone", nullSafe(customer.phone()),
                 "email", nullSafe(customer.email())

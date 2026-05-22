@@ -29,7 +29,7 @@
         <module>inventory</module>
         <module>notifications</module>
         <module>pos</module>
-        <module>customer</module>
+        <module>partner</module>
         <module>document</module>
         <module>sales</module>
         <module>delivery</module>
@@ -87,7 +87,7 @@
             </dependency>
             <dependency>
                 <groupId>com.minierp</groupId>
-                <artifactId>customer</artifactId>
+                <artifactId>partner</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

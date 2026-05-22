@@ -1,10 +1,10 @@
 package com.minierp.phase2;
 
 import com.minierp.MiniErpApplication;
-import com.minierp.customer.api.ActivateSupplierRoleRequest;
-import com.minierp.customer.api.CreateCustomerRequest;
-import com.minierp.customer.api.CustomerDto;
-import com.minierp.customer.internal.CustomerService;
+import com.minierp.partner.api.ActivateSupplierRoleRequest;
+import com.minierp.partner.api.CreatePartnerRequest;
+import com.minierp.partner.api.PartnerDto;
+import com.minierp.partner.internal.PartnerService;
 import com.minierp.shared.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,19 +21,20 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Verifies a single party row can carry both customer and supplier roles after activation
- * (Odoo/SAP style). Creates a customer, activates the supplier role, asserts:
+ * Verifies a single partner row can carry both customer and supplier roles after
+ * activation (Odoo-style). Creates a customer-only partner, activates the
+ * supplier role, asserts:
  *  - the parties row stays unique (same id) but both is_customer and is_supplier are true,
  *  - exactly one ap_balances row exists for the party (eagerly seeded by activation),
- *  - no ar_balances row yet (created lazily on first invoice, not on customer create),
- *  - the CustomerDto exposes alsoSupplier=true and the supplierCode.
+ *  - no ar_balances row yet (created lazily on first invoice, not on partner create),
+ *  - the PartnerDto exposes isSupplier=true and the supplierCode.
  */
 @SpringBootTest(classes = MiniErpApplication.class)
 @ActiveProfiles("test")
-@DisplayName("Party dual role — customer can also become supplier")
+@DisplayName("Partner dual role — customer-only partner can also become supplier")
 class PartyDualRoleIT {
 
-    @Autowired CustomerService customerService;
+    @Autowired PartnerService partnerService;
     @Autowired JdbcTemplate jdbc;
 
     UUID tenantId;
@@ -58,20 +59,25 @@ class PartyDualRoleIT {
 
     @Test
     void activatingSupplierRoleKeepsSingleRowAndAddsApBalance() {
-        CustomerDto created = customerService.create(new CreateCustomerRequest(
-                "C-DUAL-0001", "COMPANY", "Dual Role Co.", "ops@dual.co", "+22244000000",
-                "Nouakchott", BigDecimal.ZERO, "MRU", null, null, null));
+        PartnerDto created = partnerService.create(new CreatePartnerRequest(
+                true, false,
+                "C-DUAL-0001", null,
+                "COMPANY", "Dual Role Co.", "ops@dual.co", "+22244000000",
+                "Nouakchott", null, null, "MRU", null,
+                null, null, BigDecimal.ZERO, null));
 
-        assertThat(created.alsoSupplier()).isFalse();
+        assertThat(created.isCustomer()).isTrue();
+        assertThat(created.isSupplier()).isFalse();
         assertThat(created.supplierCode()).isNull();
 
-        CustomerDto promoted = customerService.activateSupplierRole(created.id(),
+        PartnerDto promoted = partnerService.activateSupplierRole(created.id(),
                 new ActivateSupplierRoleRequest(
                         "F-DUAL-0001", "MR0123456", "NET30",
                         new BigDecimal("500000.00")));
 
         assertThat(promoted.id()).isEqualTo(created.id());
-        assertThat(promoted.alsoSupplier()).isTrue();
+        assertThat(promoted.isCustomer()).isTrue();
+        assertThat(promoted.isSupplier()).isTrue();
         assertThat(promoted.supplierCode()).isEqualTo("F-DUAL-0001");
 
         Long partyRows = jdbc.queryForObject(
