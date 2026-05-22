@@ -3,11 +3,15 @@ package com.minierp.payment.internal;
 import com.minierp.customer.api.CustomerBalanceOperations;
 import com.minierp.customer.api.CustomerLookup;
 import com.minierp.customer.api.CustomerSummary;
+import com.minierp.customer.api.SupplierBalanceOperations;
+import com.minierp.customer.api.SupplierLookup;
+import com.minierp.customer.api.SupplierSummary;
 import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
 import com.minierp.payment.api.PaymentDto;
 import com.minierp.payment.api.PaymentLookup;
 import com.minierp.payment.api.StatementPaymentEntry;
+import com.minierp.purchase.api.PurchaseInvoiceOperations;
 import com.minierp.sales.api.InvoiceOperations;
 import com.minierp.sales.api.InvoiceSummary;
 import com.minierp.sales.api.NumberingOperations;
@@ -38,7 +42,10 @@ public class PaymentService implements PaymentLookup {
     private final PaymentAllocationRepository allocations;
     private final CustomerLookup customerLookup;
     private final CustomerBalanceOperations balanceOps;
+    private final SupplierLookup supplierLookup;
+    private final SupplierBalanceOperations supplierBalanceOps;
     private final InvoiceOperations invoiceOps;
+    private final PurchaseInvoiceOperations purchaseInvoiceOps;
     private final NumberingOperations numbering;
     private final DocumentRenderer renderer;
 
@@ -103,11 +110,7 @@ public class PaymentService implements PaymentLookup {
 
         List<PaymentAllocation> allocs = allocations.findByPaymentId(id);
         for (PaymentAllocation a : allocs) {
-            if (a.getTargetType() == AllocationTargetType.SALE_INVOICE) {
-                invoiceOps.applyPayment(a.getTargetId(), a.getAllocatedAmount());
-            } else if (a.getTargetType() == AllocationTargetType.CUSTOMER_BALANCE) {
-                balanceOps.addToPaid(a.getTargetId(), a.getAllocatedAmount(), true);
-            }
+            applyAllocation(p, a.getTargetType(), a.getTargetId(), a.getAllocatedAmount());
         }
 
         p.setStatus(PaymentStatus.CONFIRMED);
@@ -165,14 +168,31 @@ public class PaymentService implements PaymentLookup {
                     .notes(ar.notes())
                     .build());
             if (applyNow) {
-                if (type == AllocationTargetType.SALE_INVOICE) {
-                    invoiceOps.applyPayment(ar.targetId(), ar.allocatedAmount());
-                } else if (type == AllocationTargetType.CUSTOMER_BALANCE) {
-                    balanceOps.addToPaid(ar.targetId(), ar.allocatedAmount(), true);
-                }
+                applyAllocation(p, type, ar.targetId(), ar.allocatedAmount());
             }
         }
         return toDto(p);
+    }
+
+    /**
+     * Dispatch a single allocation to the right downstream module based on payment type
+     * (CUSTOMER party → sales invoice / customer balance, SUPPLIER party → purchase invoice
+     * / supplier balance). Reads p.getType() to decide whether CUSTOMER_BALANCE means
+     * customer or supplier balance for the rare PURCHASE_INVOICE / SUPPLIER_BALANCE pairing.
+     */
+    private void applyAllocation(Payment p, AllocationTargetType type, UUID targetId, BigDecimal amount) {
+        switch (type) {
+            case SALE_INVOICE -> invoiceOps.applyPayment(targetId, amount);
+            case PURCHASE_INVOICE -> purchaseInvoiceOps.applyPayment(targetId, amount);
+            case CUSTOMER_BALANCE -> {
+                if (p.getType() == PaymentType.SUPPLIER_PAYMENT) {
+                    supplierBalanceOps.addToPaid(targetId, amount, true);
+                } else {
+                    balanceOps.addToPaid(targetId, amount, true);
+                }
+            }
+            default -> { /* SALE, CUSTOMER_CREDIT, EXPENSE, SALARY: no-op or handled elsewhere */ }
+        }
     }
 
     @Transactional
@@ -234,7 +254,7 @@ public class PaymentService implements PaymentLookup {
 
     private PaymentDto.PaymentResponse toDto(Payment p) {
         List<PaymentAllocation> allocs = allocations.findByPaymentId(p.getId());
-        String partyName = customerLookup.findById(p.getPartyId()).map(CustomerSummary::name).orElse("");
+        String partyName = resolvePartyName(p);
         return new PaymentDto.PaymentResponse(
                 p.getId(), p.getNumber(), p.getType().name(), p.getPartyId(), partyName,
                 p.getAmount(), p.getCurrency(), p.getPaymentDate(), p.getMethod().name(),
@@ -243,6 +263,21 @@ public class PaymentService implements PaymentLookup {
                         a.getId(), a.getTargetType().name(), a.getTargetId(),
                         a.getAllocatedAmount(), a.getNotes())).toList(),
                 p.getCreatedAt());
+    }
+
+    /**
+     * Resolves the party display name. For SUPPLIER_* payment types, looks up the supplier
+     * first; otherwise falls back to the customer lookup. Returns "" if neither resolves.
+     */
+    private String resolvePartyName(Payment p) {
+        if (p.getType() == PaymentType.SUPPLIER_PAYMENT || p.getType() == PaymentType.SUPPLIER_REFUND) {
+            return supplierLookup.findById(p.getPartyId())
+                    .map(SupplierSummary::name)
+                    .orElseGet(() -> customerLookup.findById(p.getPartyId()).map(CustomerSummary::name).orElse(""));
+        }
+        return customerLookup.findById(p.getPartyId())
+                .map(CustomerSummary::name)
+                .orElseGet(() -> supplierLookup.findById(p.getPartyId()).map(SupplierSummary::name).orElse(""));
     }
 
     private Map<String, Object> buildReceiptVars(Payment p, List<PaymentAllocation> allocs, CustomerSummary customer) {

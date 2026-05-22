@@ -29,6 +29,10 @@
         </dependency>
         <dependency>
             <groupId>com.minierp</groupId>
+            <artifactId>purchase</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
             <artifactId>document</artifactId>
         </dependency>
     </dependencies>

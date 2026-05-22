@@ -64,7 +64,10 @@
     "priceTiers": "Tarifs",
     "notifConfig": "Notifications",
     "expenseCategories": "Catégories de dépenses",
-    "treasury": "Trésorerie"
+    "treasury": "Trésorerie",
+    "suppliers": "Fournisseurs",
+    "purchaseOrders": "Commandes fournisseur",
+    "purchaseInvoices": "Factures d'achat"
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -93,6 +96,17 @@
       "pdf": "Génération PDF : Thymeleaf + OpenHTMLtoPDF",
       "vat": "TVA 16 % sur les documents (ADR-002)"
     },
+    "group": {
+      "ventes": "Ventes",
+      "factures": "Factures & dépenses",
+      "activite": "Activité du mois",
+      "stock": "Stock & opérations",
+      "clients": "Clients & équipe"
+    },
+    "toggle": {
+      "more": "Plus d'indicateurs",
+      "less": "Moins d'indicateurs"
+    },
     "kpi": {
       "tenants": "Organisations",
       "users": "Utilisateurs",
@@ -106,7 +120,41 @@
       "expenses_month": "Dépenses du mois",
       "pending_approvals": "{{count}} en attente d'approbation",
       "lots_expiring": "Lots expirant (J-30)",
-      "lots_expired_count": "{{count}} déjà expirés"
+      "lots_expired_count": "{{count}} déjà expirés",
+      "cash_received_today": "Encaissement du jour",
+      "avg_ticket_today": "Ticket moyen / jour",
+      "avg_ticket_month_hint": "Mois : {{value}}",
+      "sales_month": "Ventes du mois",
+      "overdue_invoices": "Factures en retard",
+      "stock_value": "Valeur du stock",
+      "low_stock": "Produits en stock bas",
+      "low_stock_hint": "Sous le seuil de réapprovisionnement",
+      "pending_deliveries": "Livraisons en attente",
+      "open_sessions": "Sessions caisse ouvertes",
+      "active_customers": "Clients actifs",
+      "over_credit_limit": "Au-dessus de la limite",
+      "over_credit_limit_hint": "Limite de crédit dépassée",
+      "total_customer_balance": "Créances clients",
+      "active_users": "Utilisateurs actifs"
+    },
+    "aging": {
+      "title": "Vieillissement des créances",
+      "current": "Courantes",
+      "d1_30": "1-30 j",
+      "d31_60": "31-60 j",
+      "d61_90": "61-90 j",
+      "d90plus": "+90 j"
+    },
+    "trend": {
+      "sales7": "Ventes — 7 derniers jours",
+      "paymentsToday": "Paiements du jour"
+    },
+    "top": {
+      "products": "Top produits du mois",
+      "product": "Produit",
+      "sku": "Réf.",
+      "qty": "Qté",
+      "revenue": "CA"
     },
     "phase1c": {
       "title": "Phase 1C — Multi-entrepôts / Lots / Dépenses / Reporting",
@@ -707,6 +755,85 @@
       "DEPOSIT_FROM_VAULT": "Dépôt du coffre",
       "WITHDRAWAL_TO_VAULT": "Retrait vers coffre",
       "ADJUSTMENT": "Ajustement"
+    }
+  },
+  "suppliers": {
+    "title": "Fournisseurs",
+    "subtitle": "Gérez vos fournisseurs et leurs soldes",
+    "create": "Nouveau fournisseur",
+    "createTitle": "Nouveau fournisseur",
+    "editTitle": "Modifier fournisseur",
+    "empty": "Aucun fournisseur",
+    "code": "Code",
+    "name": "Nom",
+    "type": "Type",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "address": "Adresse",
+    "taxId": "Identifiant fiscal",
+    "paymentTerms": "Conditions de paiement",
+    "currency": "Devise",
+    "creditLimit": "Plafond crédit",
+    "balance": "Solde",
+    "status": "Statut"
+  },
+  "purchaseOrders": {
+    "title": "Commandes fournisseur",
+    "subtitle": "Émission, réception et suivi des commandes fournisseur",
+    "create": "Nouvelle commande",
+    "createTitle": "Nouvelle commande fournisseur",
+    "empty": "Aucune commande fournisseur",
+    "number": "Numéro",
+    "supplier": "Fournisseur",
+    "warehouse": "Entrepôt",
+    "orderDate": "Date de commande",
+    "expectedDate": "Date prévue",
+    "total": "Total",
+    "status": "Statut",
+    "lines": "Lignes de commande",
+    "unitCost": "Coût unitaire",
+    "confirm": "Confirmer",
+    "confirmHint": "Confirmer la commande {{number}} ?",
+    "cancel": "Annuler",
+    "cancelHint": "Annuler la commande {{number}} ?",
+    "receive": "Réceptionner",
+    "receiveAction": "Valider la réception",
+    "receiveHint": "Saisissez les quantités reçues. Pour les produits avec date d'expiration, lot et date d'expiration sont obligatoires.",
+    "ordered": "Cmd",
+    "already": "Reçu",
+    "receivingNow": "Réception",
+    "lotNumber": "N° de lot",
+    "productionDate": "Date production",
+    "expirationDate": "Date d'expiration",
+    "statuses": {
+      "DRAFT": "Brouillon",
+      "CONFIRMED": "Confirmée",
+      "PARTIALLY_RECEIVED": "Partiellement reçue",
+      "RECEIVED": "Reçue",
+      "CANCELLED": "Annulée"
+    }
+  },
+  "purchaseInvoices": {
+    "title": "Factures fournisseur",
+    "subtitle": "Enregistrement et règlement des factures d'achat",
+    "create": "Nouvelle facture",
+    "createTitle": "Nouvelle facture fournisseur",
+    "empty": "Aucune facture fournisseur",
+    "number": "Numéro",
+    "supplier": "Fournisseur",
+    "supplierReference": "Réf. fournisseur",
+    "invoiceDate": "Date facture",
+    "dueDate": "Échéance",
+    "total": "Total",
+    "balance": "Reste à payer",
+    "status": "Statut",
+    "cancelHint": "Annuler la facture {{number}} ?",
+    "statuses": {
+      "DRAFT": "Brouillon",
+      "ISSUED": "Émise",
+      "PARTIAL": "Partiellement payée",
+      "PAID": "Payée",
+      "CANCELLED": "Annulée"
     }
   }
 }

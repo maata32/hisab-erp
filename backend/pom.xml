@@ -38,6 +38,7 @@
         <module>expense</module>
         <module>treasury</module>
         <module>reporting</module>
+        <module>purchase</module>
         <module>bootstrap</module>
     </modules>
 
@@ -172,6 +173,11 @@
             <dependency>
                 <groupId>com.minierp</groupId>
                 <artifactId>reporting</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.minierp</groupId>
+                <artifactId>purchase</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

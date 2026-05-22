@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #222; }
+  .page { padding: 30px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; border-bottom: 2px solid #b45309; padding-bottom: 16px; }
+  .logo-block img { max-height: 60px; max-width: 160px; }
+  .logo-block .company-name { font-size: 18px; font-weight: bold; color: #b45309; }
+  .doc-title { text-align: right; }
+  .doc-title h1 { font-size: 22px; font-weight: bold; color: #b45309; margin-bottom: 4px; }
+  .doc-title .doc-number { font-size: 13px; color: #555; }
+  .doc-title .doc-date { font-size: 11px; color: #888; margin-top: 2px; }
+  .parties { display: flex; justify-content: space-between; margin-bottom: 20px; }
+  .party-block { width: 48%; }
+  .party-block .party-label { font-size: 9px; font-weight: bold; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .party-block .party-name { font-size: 13px; font-weight: bold; }
+  .party-block .party-detail { color: #555; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+  thead tr { background: #b45309; color: white; }
+  thead th { padding: 7px 8px; text-align: left; font-size: 10px; font-weight: bold; }
+  tbody tr:nth-child(even) { background: #fef3c7; }
+  tbody td { padding: 6px 8px; border-bottom: 1px solid #e5e7eb; }
+  .text-right { text-align: right; }
+  .totals { float: right; width: 260px; }
+  .totals td { padding: 4px 8px; }
+  .totals .total-row { font-weight: bold; font-size: 13px; border-top: 2px solid #b45309; }
+  .totals .total-row td { padding-top: 8px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+  .badge-paid { background: #dcfce7; color: #166534; }
+  .badge-partial { background: #fef9c3; color: #854d0e; }
+  .badge-issued, .badge-cancelled { background: #fee2e2; color: #991b1b; }
+  .footer { margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 10px; text-align: center; font-size: 9px; color: #aaa; }
+  .notes { margin-top: 16px; font-size: 10px; color: #555; }
+  .clearfix::after { content: ""; display: table; clear: both; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="logo-block">
+      <img th:if="${!#strings.isEmpty(logoUrl)}" th:src="${logoUrl}" alt="Logo"/>
+      <div th:if="${#strings.isEmpty(logoUrl)}" class="company-name" th:text="${orgName}">Mini-ERP</div>
+      <div th:if="${!#strings.isEmpty(logoUrl)}" style="margin-top:4px;font-weight:bold;" th:text="${orgName}"></div>
+      <div style="color:#555;font-size:10px;" th:text="${orgAddress}"></div>
+      <div style="color:#555;font-size:10px;" th:text="${orgPhone}"></div>
+    </div>
+    <div class="doc-title">
+      <h1>FACTURE D'ACHAT</h1>
+      <div class="doc-number" th:text="${invoice.number}">PINV-2026-00001</div>
+      <div class="doc-date" th:if="${invoice.supplierReference}">Réf. fournisseur : <span th:text="${invoice.supplierReference}"></span></div>
+      <div class="doc-date">Date : <span th:text="${#temporals.format(invoice.invoiceDate,'dd/MM/yyyy')}"></span></div>
+      <div class="doc-date" th:if="${invoice.dueDate}">Échéance : <span th:text="${#temporals.format(invoice.dueDate,'dd/MM/yyyy')}"></span></div>
+      <div style="margin-top:6px;">
+        <span th:class="${'badge badge-' + #strings.toLowerCase(invoice.paymentStatus)}"
+              th:text="${invoice.paymentStatusLabel}">NON PAYÉE</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="parties">
+    <div class="party-block">
+      <div class="party-label">Acheteur</div>
+      <div class="party-name" th:text="${orgName}"></div>
+      <div class="party-detail" th:text="${orgAddress}"></div>
+      <div class="party-detail" th:text="${orgPhone}"></div>
+      <div class="party-detail" th:text="${orgEmail}"></div>
+    </div>
+    <div class="party-block" style="text-align:right;">
+      <div class="party-label">Fournisseur</div>
+      <div class="party-name" th:text="${supplier.name}"></div>
+      <div class="party-detail" th:text="${supplier.code}"></div>
+      <div class="party-detail" th:text="${supplier.phone}"></div>
+      <div class="party-detail" th:text="${supplier.email}"></div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Description</th>
+        <th>Réf.</th>
+        <th class="text-right">Qté</th>
+        <th class="text-right">P.U. HT</th>
+        <th class="text-right">TVA</th>
+        <th class="text-right">Total HT</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="line, stat : ${invoice.lines}">
+        <td th:text="${stat.index + 1}"></td>
+        <td th:text="${line.productName}"></td>
+        <td th:text="${line.sku}"></td>
+        <td class="text-right" th:text="${#numbers.formatDecimal(line.quantity,1,3)}"></td>
+        <td class="text-right" th:text="${#numbers.formatDecimal(line.unitCost,1,decimals)}"></td>
+        <td class="text-right" th:text="${#numbers.formatDecimal(line.taxRate * 100,1,0) + '%'}"></td>
+        <td class="text-right" th:text="${#numbers.formatDecimal(line.lineTotal,1,decimals)}"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="clearfix">
+    <div class="totals">
+      <table>
+        <tr>
+          <td>Sous-total HT</td>
+          <td class="text-right" th:text="${#numbers.formatDecimal(invoice.subtotal,1,decimals)}"></td>
+        </tr>
+        <tr th:if="${invoice.taxAmount > 0}">
+          <td>TVA</td>
+          <td class="text-right" th:text="${#numbers.formatDecimal(invoice.taxAmount,1,decimals)}"></td>
+        </tr>
+        <tr class="total-row">
+          <td>TOTAL TTC</td>
+          <td class="text-right" th:text="${invoice.currency + ' ' + #numbers.formatDecimal(invoice.total,1,decimals)}"></td>
+        </tr>
+        <tr th:if="${invoice.paidAmount > 0}">
+          <td style="color:#166534;">Déjà payé</td>
+          <td class="text-right" style="color:#166534;" th:text="${#numbers.formatDecimal(invoice.paidAmount,1,decimals)}"></td>
+        </tr>
+        <tr th:if="${invoice.balance > 0}">
+          <td style="color:#991b1b;font-weight:bold;">Reste à payer</td>
+          <td class="text-right" style="color:#991b1b;font-weight:bold;" th:text="${invoice.currency + ' ' + #numbers.formatDecimal(invoice.balance,1,decimals)}"></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="notes" th:if="${invoice.notes}">
+    <strong>Notes :</strong> <span th:text="${invoice.notes}"></span>
+  </div>
+
+  <div class="footer">
+    <span th:text="${orgName}"></span> — Document généré par Mini-ERP
+  </div>
+</div>
+</body>
+</html>

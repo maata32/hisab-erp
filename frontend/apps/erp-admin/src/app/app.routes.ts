@@ -65,6 +65,21 @@ export const appRoutes: Routes = [
           import('./features/payments/payment-list.page').then((m) => m.PaymentListPage),
       },
       {
+        path: 'suppliers',
+        loadComponent: () =>
+          import('./features/suppliers/supplier-list.page').then((m) => m.SupplierListPage),
+      },
+      {
+        path: 'purchase-orders',
+        loadComponent: () =>
+          import('./features/purchase/purchase-order-list.page').then((m) => m.PurchaseOrderListPage),
+      },
+      {
+        path: 'purchase-invoices',
+        loadComponent: () =>
+          import('./features/purchase/purchase-invoice-list.page').then((m) => m.PurchaseInvoiceListPage),
+      },
+      {
         path: 'products',
         loadComponent: () =>
           import('./features/products/product-list.page').then((m) => m.ProductListPage),

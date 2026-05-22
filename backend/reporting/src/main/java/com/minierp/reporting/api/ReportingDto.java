@@ -2,6 +2,7 @@ package com.minierp.reporting.api;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 public final class ReportingDto {
@@ -97,16 +98,50 @@ public final class ReportingDto {
             BigDecimal d90plus,
             BigDecimal totalOutstanding) {}
 
+    /** Single date+amount tuple used for 7-day sales sparkline. */
+    public record DailyAmount(LocalDate day, BigDecimal amount) {}
+
+    /** Payment method aggregate for a single day. */
+    public record PaymentMethodAmount(String method, long count, BigDecimal amount) {}
+
     /** GET /reports/dashboard — single-call snapshot of live KPIs used by the home page. */
     public record DashboardKpis(
+            // Finance — today
             BigDecimal salesToday,
             long salesCountToday,
             BigDecimal salesYesterday,
+            BigDecimal avgTicketToday,
+            // Finance — month
+            BigDecimal salesMonth,
+            long salesCountMonth,
+            BigDecimal avgTicketMonth,
             BigDecimal expensesMonth,
             long pendingExpenseApprovals,
+            // Finance — invoices/cash
+            long unpaidInvoicesCount,
+            BigDecimal unpaidInvoicesAmount,
+            long overdueInvoicesCount,
+            BigDecimal overdueInvoicesAmount,
+            BigDecimal cashReceivedToday,
+            // Stock & ops
+            BigDecimal stockValueTotal,
+            long lowStockCount,
+            long pendingDeliveriesCount,
+            long openCashierSessionsCount,
             long expiringLots30,
             long expiredLots,
+            // Users & customers
             long activeUsers,
-            long unpaidInvoicesCount,
-            BigDecimal unpaidInvoicesAmount) {}
+            long activeCustomersCount,
+            long customersOverCreditLimit,
+            BigDecimal totalCustomerBalance,
+            BigDecimal agingCurrent,
+            BigDecimal aging1to30,
+            BigDecimal aging31to60,
+            BigDecimal aging61to90,
+            BigDecimal aging90plus,
+            // Lists & trends
+            List<TopProductRow> topProductsMonth,
+            List<DailyAmount> sales7Days,
+            List<PaymentMethodAmount> paymentMethodsToday) {}
 }

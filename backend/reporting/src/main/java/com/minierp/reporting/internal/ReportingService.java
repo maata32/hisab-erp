@@ -250,7 +250,9 @@ public class ReportingService {
         LocalDate today = LocalDate.now();
         LocalDate yesterday = today.minusDays(1);
         LocalDate monthStart = today.withDayOfMonth(1);
+        LocalDate sevenDaysAgo = today.minusDays(6);
 
+        // ── Finance — today/month sales ───────────────────────────────────────
         BigDecimal salesToday = nz(jdbc.queryForObject(
                 "SELECT COALESCE(SUM(total),0) FROM sales WHERE tenant_id=? AND status='COMPLETED' " +
                 "AND completed_at::date = ?", BigDecimal.class, tenant, today));
@@ -260,11 +262,56 @@ public class ReportingService {
         BigDecimal salesYesterday = nz(jdbc.queryForObject(
                 "SELECT COALESCE(SUM(total),0) FROM sales WHERE tenant_id=? AND status='COMPLETED' " +
                 "AND completed_at::date = ?", BigDecimal.class, tenant, yesterday));
+        BigDecimal salesMonth = nz(jdbc.queryForObject(
+                "SELECT COALESCE(SUM(total),0) FROM sales WHERE tenant_id=? AND status='COMPLETED' " +
+                "AND completed_at::date >= ?", BigDecimal.class, tenant, monthStart));
+        long salesCountMonth = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM sales WHERE tenant_id=? AND status='COMPLETED' " +
+                "AND completed_at::date >= ?", Long.class, tenant, monthStart));
+        BigDecimal avgTicketToday = avg(salesToday, salesCountToday);
+        BigDecimal avgTicketMonth = avg(salesMonth, salesCountMonth);
+
+        // ── Expenses ─────────────────────────────────────────────────────────
         BigDecimal expensesMonth = nz(jdbc.queryForObject(
                 "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE tenant_id=? AND expense_date >= ?",
                 BigDecimal.class, tenant, monthStart));
         long pendingApprovals = nz(jdbc.queryForObject(
                 "SELECT COUNT(*) FROM expenses WHERE tenant_id=? AND approval_status='PENDING'",
+                Long.class, tenant));
+
+        // ── Invoices ─────────────────────────────────────────────────────────
+        long unpaidInvoicesCount = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM invoices WHERE tenant_id=? AND balance>0 AND status NOT IN ('CANCELLED','PAID')",
+                Long.class, tenant));
+        BigDecimal unpaidInvoicesAmount = nz(jdbc.queryForObject(
+                "SELECT COALESCE(SUM(balance),0) FROM invoices WHERE tenant_id=? AND balance>0 " +
+                "AND status NOT IN ('CANCELLED','PAID')",
+                BigDecimal.class, tenant));
+        long overdueInvoicesCount = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM invoices WHERE tenant_id=? AND balance>0 AND due_date < ? " +
+                "AND status NOT IN ('CANCELLED','PAID')",
+                Long.class, tenant, today));
+        BigDecimal overdueInvoicesAmount = nz(jdbc.queryForObject(
+                "SELECT COALESCE(SUM(balance),0) FROM invoices WHERE tenant_id=? AND balance>0 AND due_date < ? " +
+                "AND status NOT IN ('CANCELLED','PAID')",
+                BigDecimal.class, tenant, today));
+        BigDecimal cashReceivedToday = nz(jdbc.queryForObject(
+                "SELECT COALESCE(SUM(amount),0) FROM payments WHERE tenant_id=? AND status='CONFIRMED' " +
+                "AND payment_date = ? AND type IN ('CUSTOMER_PAYMENT','CUSTOMER_DEPOSIT')",
+                BigDecimal.class, tenant, today));
+
+        // ── Stock & ops ──────────────────────────────────────────────────────
+        BigDecimal stockValueTotal = nz(jdbc.queryForObject(
+                "SELECT COALESCE(SUM(stock_value),0) FROM v_report_stock WHERE tenant_id=?",
+                BigDecimal.class, tenant));
+        long lowStockCount = nz(jdbc.queryForObject(
+                "SELECT COUNT(DISTINCT product_id) FROM v_report_stock WHERE tenant_id=? AND is_low_stock=true",
+                Long.class, tenant));
+        long pendingDeliveries = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM deliveries WHERE tenant_id=? AND status IN ('PENDING','PREPARING','READY')",
+                Long.class, tenant));
+        long openSessions = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM cash_sessions WHERE tenant_id=? AND status='OPEN'",
                 Long.class, tenant));
         long expiring30 = nz(jdbc.queryForObject(
                 "SELECT COUNT(*) FROM product_lots WHERE tenant_id=? AND status='ACTIVE' " +
@@ -274,25 +321,111 @@ public class ReportingService {
                 "SELECT COUNT(*) FROM product_lots WHERE tenant_id=? " +
                 "AND (status='EXPIRED' OR (status='ACTIVE' AND expiration_date < ?))",
                 Long.class, tenant, today));
+
+        // ── Users & customers ────────────────────────────────────────────────
         long activeUsers = nz(jdbc.queryForObject(
                 "SELECT COUNT(*) FROM users WHERE tenant_id=? AND is_active=true",
                 Long.class, tenant));
-        long unpaidInvoicesCount = nz(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM invoices WHERE tenant_id=? AND balance>0 AND status NOT IN ('CANCELLED','PAID')",
+        long activeCustomers = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM customers WHERE tenant_id=? AND active=true",
                 Long.class, tenant));
-        BigDecimal unpaidInvoicesAmount = nz(jdbc.queryForObject(
-                "SELECT COALESCE(SUM(balance),0) FROM invoices WHERE tenant_id=? AND balance>0 " +
-                "AND status NOT IN ('CANCELLED','PAID')",
+        long overCreditLimit = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM customers c JOIN customer_balances cb ON cb.customer_id=c.id " +
+                "WHERE c.tenant_id=? AND c.active=true AND c.credit_limit > 0 AND cb.balance > c.credit_limit",
+                Long.class, tenant));
+        BigDecimal totalCustomerBalance = nz(jdbc.queryForObject(
+                "SELECT COALESCE(SUM(balance),0) FROM customer_balances WHERE tenant_id=?",
                 BigDecimal.class, tenant));
 
+        // ── Aging buckets (sums across all unpaid invoices) ──────────────────
+        BigDecimal[] aging = jdbc.queryForObject(
+                "SELECT " +
+                "  COALESCE(SUM(CASE WHEN due_date IS NULL OR due_date >= ? THEN balance ELSE 0 END), 0), " +
+                "  COALESCE(SUM(CASE WHEN due_date BETWEEN ? AND ? THEN balance ELSE 0 END), 0), " +
+                "  COALESCE(SUM(CASE WHEN due_date BETWEEN ? AND ? THEN balance ELSE 0 END), 0), " +
+                "  COALESCE(SUM(CASE WHEN due_date BETWEEN ? AND ? THEN balance ELSE 0 END), 0), " +
+                "  COALESCE(SUM(CASE WHEN due_date < ? THEN balance ELSE 0 END), 0) " +
+                "FROM invoices WHERE tenant_id=? AND balance>0 AND status NOT IN ('CANCELLED','PAID')",
+                (rs, i) -> new BigDecimal[]{
+                        rs.getBigDecimal(1), rs.getBigDecimal(2), rs.getBigDecimal(3),
+                        rs.getBigDecimal(4), rs.getBigDecimal(5)
+                },
+                today,
+                today.minusDays(30), today.minusDays(1),
+                today.minusDays(60), today.minusDays(31),
+                today.minusDays(90), today.minusDays(61),
+                today.minusDays(90),
+                tenant);
+        BigDecimal agingCurrent = aging != null ? nz(aging[0]) : BigDecimal.ZERO;
+        BigDecimal aging1to30 = aging != null ? nz(aging[1]) : BigDecimal.ZERO;
+        BigDecimal aging31to60 = aging != null ? nz(aging[2]) : BigDecimal.ZERO;
+        BigDecimal aging61to90 = aging != null ? nz(aging[3]) : BigDecimal.ZERO;
+        BigDecimal aging90plus = aging != null ? nz(aging[4]) : BigDecimal.ZERO;
+
+        // ── Top 5 products (by revenue) this month ───────────────────────────
+        List<ReportingDto.TopProductRow> topProducts = jdbc.query(
+                "SELECT sl.product_id, COALESCE(p.name, sl.snapshot_name) AS product_name, " +
+                "       COALESCE(p.sku, sl.snapshot_sku) AS sku, " +
+                "       ?::date AS sale_month, " +
+                "       SUM(sl.quantity) AS qty_sold, SUM(sl.total) AS revenue " +
+                "FROM sale_lines sl " +
+                "JOIN sales s ON s.id = sl.sale_id AND s.tenant_id = sl.tenant_id " +
+                "LEFT JOIN products p ON p.id = sl.product_id AND p.tenant_id = sl.tenant_id " +
+                "WHERE sl.tenant_id = ? AND s.status='COMPLETED' AND s.completed_at::date >= ? " +
+                "GROUP BY sl.product_id, COALESCE(p.name, sl.snapshot_name), COALESCE(p.sku, sl.snapshot_sku) " +
+                "ORDER BY revenue DESC NULLS LAST LIMIT 5",
+                (rs, i) -> new ReportingDto.TopProductRow(
+                        rs.getObject("product_id", UUID.class),
+                        rs.getString("product_name"),
+                        rs.getString("sku"),
+                        rs.getObject("sale_month", LocalDate.class),
+                        rs.getBigDecimal("qty_sold"),
+                        rs.getBigDecimal("revenue")),
+                monthStart, tenant, monthStart);
+
+        // ── Sales last 7 days (incl. today) ──────────────────────────────────
+        List<ReportingDto.DailyAmount> sales7Days = jdbc.query(
+                "WITH days AS ( " +
+                "  SELECT generate_series(?::date, ?::date, '1 day')::date AS day " +
+                ") " +
+                "SELECT d.day, COALESCE(SUM(s.total), 0) AS amount " +
+                "FROM days d " +
+                "LEFT JOIN sales s ON s.tenant_id = ? AND s.status='COMPLETED' AND s.completed_at::date = d.day " +
+                "GROUP BY d.day ORDER BY d.day",
+                (rs, i) -> new ReportingDto.DailyAmount(
+                        rs.getObject("day", LocalDate.class),
+                        rs.getBigDecimal("amount")),
+                sevenDaysAgo, today, tenant);
+
+        // ── Payment method breakdown for today ───────────────────────────────
+        List<ReportingDto.PaymentMethodAmount> paymentMethodsToday = jdbc.query(
+                "SELECT method, COUNT(*) AS cnt, COALESCE(SUM(amount),0) AS amt " +
+                "FROM payments WHERE tenant_id=? AND status='CONFIRMED' AND payment_date = ? " +
+                "GROUP BY method ORDER BY amt DESC",
+                (rs, i) -> new ReportingDto.PaymentMethodAmount(
+                        rs.getString("method"),
+                        rs.getLong("cnt"),
+                        rs.getBigDecimal("amt")),
+                tenant, today);
+
         return new ReportingDto.DashboardKpis(
-                salesToday, salesCountToday, salesYesterday,
+                salesToday, salesCountToday, salesYesterday, avgTicketToday,
+                salesMonth, salesCountMonth, avgTicketMonth,
                 expensesMonth, pendingApprovals,
+                unpaidInvoicesCount, unpaidInvoicesAmount,
+                overdueInvoicesCount, overdueInvoicesAmount,
+                cashReceivedToday,
+                stockValueTotal, lowStockCount, pendingDeliveries, openSessions,
                 expiring30, expired,
-                activeUsers,
-                unpaidInvoicesCount, unpaidInvoicesAmount);
+                activeUsers, activeCustomers, overCreditLimit, totalCustomerBalance,
+                agingCurrent, aging1to30, aging31to60, aging61to90, aging90plus,
+                topProducts, sales7Days, paymentMethodsToday);
     }
 
     private static BigDecimal nz(BigDecimal v) { return v == null ? BigDecimal.ZERO : v; }
     private static long nz(Long v) { return v == null ? 0L : v; }
+    private static BigDecimal avg(BigDecimal total, long count) {
+        if (count <= 0) return BigDecimal.ZERO;
+        return total.divide(BigDecimal.valueOf(count), 2, java.math.RoundingMode.HALF_UP);
+    }
 }

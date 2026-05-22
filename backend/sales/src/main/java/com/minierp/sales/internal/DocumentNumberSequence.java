@@ -48,6 +48,8 @@ class DocumentNumberSequence extends AuditableEntity {
             case CREDIT_NOTE -> "AVO";
             case DELIVERY_NOTE -> "BL";
             case PAYMENT_RECEIPT -> "PAY";
+            case PURCHASE_ORDER -> "PO";
+            case PURCHASE_INVOICE -> "PINV";
         };
     }
 

@@ -63,7 +63,10 @@
     "priceTiers": "Price tiers",
     "notifConfig": "Notifications",
     "expenseCategories": "Expense categories",
-    "treasury": "Treasury"
+    "treasury": "Treasury",
+    "suppliers": "Suppliers",
+    "purchaseOrders": "Purchase orders",
+    "purchaseInvoices": "Purchase invoices"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -92,6 +95,17 @@
       "pdf": "PDF generation: Thymeleaf + OpenHTMLtoPDF",
       "vat": "VAT 16% on documents (ADR-002)"
     },
+    "group": {
+      "ventes": "Sales",
+      "factures": "Invoices & expenses",
+      "activite": "Monthly activity",
+      "stock": "Stock & operations",
+      "clients": "Customers & team"
+    },
+    "toggle": {
+      "more": "More indicators",
+      "less": "Fewer indicators"
+    },
     "kpi": {
       "tenants": "Organizations",
       "users": "Users",
@@ -105,7 +119,41 @@
       "expenses_month": "Expenses this month",
       "pending_approvals": "{{count}} pending approval",
       "lots_expiring": "Lots expiring (D-30)",
-      "lots_expired_count": "{{count}} already expired"
+      "lots_expired_count": "{{count}} already expired",
+      "cash_received_today": "Cash received today",
+      "avg_ticket_today": "Avg ticket / day",
+      "avg_ticket_month_hint": "Month: {{value}}",
+      "sales_month": "Sales this month",
+      "overdue_invoices": "Overdue invoices",
+      "stock_value": "Stock value",
+      "low_stock": "Low stock products",
+      "low_stock_hint": "Below reorder threshold",
+      "pending_deliveries": "Pending deliveries",
+      "open_sessions": "Open cashier sessions",
+      "active_customers": "Active customers",
+      "over_credit_limit": "Over credit limit",
+      "over_credit_limit_hint": "Credit limit exceeded",
+      "total_customer_balance": "Customer receivables",
+      "active_users": "Active users"
+    },
+    "aging": {
+      "title": "Receivables aging",
+      "current": "Current",
+      "d1_30": "1-30 d",
+      "d31_60": "31-60 d",
+      "d61_90": "61-90 d",
+      "d90plus": "+90 d"
+    },
+    "trend": {
+      "sales7": "Sales — last 7 days",
+      "paymentsToday": "Payments today"
+    },
+    "top": {
+      "products": "Top products this month",
+      "product": "Product",
+      "sku": "SKU",
+      "qty": "Qty",
+      "revenue": "Revenue"
     },
     "phase1c": {
       "title": "Phase 1C — Multi-warehouse / Lots / Expenses / Reporting",
@@ -706,6 +754,85 @@
       "DEPOSIT_FROM_VAULT": "Deposit from vault",
       "WITHDRAWAL_TO_VAULT": "Withdrawal to vault",
       "ADJUSTMENT": "Adjustment"
+    }
+  },
+  "suppliers": {
+    "title": "Suppliers",
+    "subtitle": "Manage your suppliers and their balances",
+    "create": "New supplier",
+    "createTitle": "New supplier",
+    "editTitle": "Edit supplier",
+    "empty": "No suppliers",
+    "code": "Code",
+    "name": "Name",
+    "type": "Type",
+    "email": "Email",
+    "phone": "Phone",
+    "address": "Address",
+    "taxId": "Tax ID",
+    "paymentTerms": "Payment terms",
+    "currency": "Currency",
+    "creditLimit": "Credit limit",
+    "balance": "Balance",
+    "status": "Status"
+  },
+  "purchaseOrders": {
+    "title": "Purchase orders",
+    "subtitle": "Issue, receive and track supplier orders",
+    "create": "New order",
+    "createTitle": "New purchase order",
+    "empty": "No purchase orders",
+    "number": "Number",
+    "supplier": "Supplier",
+    "warehouse": "Warehouse",
+    "orderDate": "Order date",
+    "expectedDate": "Expected date",
+    "total": "Total",
+    "status": "Status",
+    "lines": "Order lines",
+    "unitCost": "Unit cost",
+    "confirm": "Confirm",
+    "confirmHint": "Confirm order {{number}}?",
+    "cancel": "Cancel",
+    "cancelHint": "Cancel order {{number}}?",
+    "receive": "Receive",
+    "receiveAction": "Confirm receipt",
+    "receiveHint": "Enter received quantities. For products with expiry tracking, lot and expiration date are required.",
+    "ordered": "Ord",
+    "already": "Rcvd",
+    "receivingNow": "Receiving",
+    "lotNumber": "Lot #",
+    "productionDate": "Production date",
+    "expirationDate": "Expiration date",
+    "statuses": {
+      "DRAFT": "Draft",
+      "CONFIRMED": "Confirmed",
+      "PARTIALLY_RECEIVED": "Partially received",
+      "RECEIVED": "Received",
+      "CANCELLED": "Cancelled"
+    }
+  },
+  "purchaseInvoices": {
+    "title": "Supplier invoices",
+    "subtitle": "Record and settle supplier invoices",
+    "create": "New invoice",
+    "createTitle": "New supplier invoice",
+    "empty": "No supplier invoices",
+    "number": "Number",
+    "supplier": "Supplier",
+    "supplierReference": "Supplier ref.",
+    "invoiceDate": "Invoice date",
+    "dueDate": "Due date",
+    "total": "Total",
+    "balance": "Outstanding",
+    "status": "Status",
+    "cancelHint": "Cancel invoice {{number}}?",
+    "statuses": {
+      "DRAFT": "Draft",
+      "ISSUED": "Issued",
+      "PARTIAL": "Partially paid",
+      "PAID": "Paid",
+      "CANCELLED": "Cancelled"
     }
   }
 }

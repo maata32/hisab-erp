@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0038-purchase-tables" author="mini-erp">
+        <sql>
+            CREATE TABLE purchase_orders (
+                id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                tenant_id       UUID NOT NULL,
+                number          VARCHAR(30) NOT NULL,
+                supplier_id     UUID NOT NULL,
+                warehouse_id    UUID NOT NULL,
+                order_date      DATE NOT NULL,
+                expected_date   DATE,
+                status          VARCHAR(30) NOT NULL DEFAULT 'DRAFT',
+                currency        VARCHAR(3) NOT NULL DEFAULT 'MRU',
+                subtotal        NUMERIC(19,2) NOT NULL DEFAULT 0,
+                tax_amount      NUMERIC(19,2) NOT NULL DEFAULT 0,
+                total           NUMERIC(19,2) NOT NULL DEFAULT 0,
+                notes           VARCHAR(1000),
+                created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+                created_by      UUID,
+                updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_by      UUID,
+                version         BIGINT NOT NULL DEFAULT 0,
+                CONSTRAINT uk_purchase_orders_tenant_number UNIQUE (tenant_id, number)
+            );
+
+            CREATE INDEX idx_purchase_orders_supplier  ON purchase_orders(supplier_id);
+            CREATE INDEX idx_purchase_orders_status    ON purchase_orders(status);
+            CREATE INDEX idx_purchase_orders_warehouse ON purchase_orders(warehouse_id);
+
+            CREATE TABLE purchase_order_lines (
+                id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                tenant_id           UUID NOT NULL,
+                purchase_order_id   UUID NOT NULL,
+                line_number         INT NOT NULL,
+                product_id          UUID NOT NULL,
+                uom_id              UUID NOT NULL,
+                quantity            NUMERIC(19,6) NOT NULL,
+                quantity_received   NUMERIC(19,6) NOT NULL DEFAULT 0,
+                unit_cost           NUMERIC(19,4) NOT NULL,
+                tax_rate            NUMERIC(5,4) NOT NULL DEFAULT 0,
+                line_total          NUMERIC(19,2) NOT NULL,
+                snapshot_name       VARCHAR(250),
+                snapshot_sku        VARCHAR(64),
+                created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                created_by          UUID,
+                updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_by          UUID,
+                version             BIGINT NOT NULL DEFAULT 0
+            );
+
+            CREATE INDEX idx_purchase_order_lines_po ON purchase_order_lines(purchase_order_id);
+
+            CREATE TABLE purchase_invoices (
+                id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                tenant_id           UUID NOT NULL,
+                number              VARCHAR(30) NOT NULL,
+                supplier_id         UUID NOT NULL,
+                purchase_order_id   UUID,
+                supplier_reference  VARCHAR(100),
+                invoice_date        DATE NOT NULL,
+                due_date            DATE,
+                status              VARCHAR(20) NOT NULL DEFAULT 'ISSUED',
+                currency            VARCHAR(3) NOT NULL DEFAULT 'MRU',
+                subtotal            NUMERIC(19,2) NOT NULL DEFAULT 0,
+                tax_amount          NUMERIC(19,2) NOT NULL DEFAULT 0,
+                total               NUMERIC(19,2) NOT NULL DEFAULT 0,
+                paid_amount         NUMERIC(19,2) NOT NULL DEFAULT 0,
+                balance             NUMERIC(19,2) NOT NULL DEFAULT 0,
+                notes               VARCHAR(1000),
+                created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                created_by          UUID,
+                updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_by          UUID,
+                version             BIGINT NOT NULL DEFAULT 0,
+                CONSTRAINT uk_purchase_invoices_tenant_number UNIQUE (tenant_id, number)
+            );
+
+            CREATE INDEX idx_purchase_invoices_supplier ON purchase_invoices(supplier_id);
+            CREATE INDEX idx_purchase_invoices_status   ON purchase_invoices(status);
+            CREATE INDEX idx_purchase_invoices_due_date ON purchase_invoices(due_date);
+
+            CREATE TABLE purchase_invoice_lines (
+                id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                tenant_id           UUID NOT NULL,
+                purchase_invoice_id UUID NOT NULL,
+                line_number         INT NOT NULL,
+                product_id          UUID,
+                uom_id              UUID,
+                quantity            NUMERIC(19,6) NOT NULL,
+                unit_cost           NUMERIC(19,4) NOT NULL,
+                tax_rate            NUMERIC(5,4) NOT NULL DEFAULT 0,
+                line_total          NUMERIC(19,2) NOT NULL,
+                snapshot_name       VARCHAR(250),
+                snapshot_sku        VARCHAR(64),
+                created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                created_by          UUID,
+                updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_by          UUID,
+                version             BIGINT NOT NULL DEFAULT 0
+            );
+
+            CREATE INDEX idx_purchase_invoice_lines_inv ON purchase_invoice_lines(purchase_invoice_id);
+        </sql>
+    </changeSet>
+
+    <changeSet id="0038-seed-purchase-permissions" author="mini-erp">
+        <sql>
+            INSERT INTO permissions (id, code, resource, action, description) VALUES
+              (uuid_generate_v4(), 'purchase:read',    'purchase', 'read',    'Read purchase orders and supplier invoices'),
+              (uuid_generate_v4(), 'purchase:write',   'purchase', 'write',   'Create/update/cancel purchase orders and supplier invoices'),
+              (uuid_generate_v4(), 'purchase:receive', 'purchase', 'receive', 'Receive purchase orders into stock')
+            ON CONFLICT (code) DO NOTHING;
+        </sql>
+    </changeSet>
+
+    <!-- Grant purchase permissions to roles. STOCK_KEEPER receives stock; TENANT_ADMIN/MANAGER/PAYMENT_OFFICER can fully manage POs and PIs. -->
+    <changeSet id="0038-grant-purchase-perms-to-roles" author="mini-erp">
+        <sql>
+            INSERT INTO role_permission (role_id, permission_id)
+            SELECT r.id, p.id
+            FROM roles r CROSS JOIN permissions p
+            WHERE r.code IN ('TENANT_ADMIN', 'MANAGER', 'PAYMENT_OFFICER', 'ACCOUNTANT')
+              AND p.code IN ('purchase:read', 'purchase:write')
+            ON CONFLICT DO NOTHING;
+
+            INSERT INTO role_permission (role_id, permission_id)
+            SELECT r.id, p.id
+            FROM roles r CROSS JOIN permissions p
+            WHERE r.code IN ('TENANT_ADMIN', 'MANAGER', 'STOCK_KEEPER')
+              AND p.code = 'purchase:receive'
+            ON CONFLICT DO NOTHING;
+
+            INSERT INTO role_permission (role_id, permission_id)
+            SELECT r.id, p.id
+            FROM roles r CROSS JOIN permissions p
+            WHERE r.code IN ('VIEWER', 'STOCK_KEEPER')
+              AND p.code = 'purchase:read'
+            ON CONFLICT DO NOTHING;
+        </sql>
+    </changeSet>
+</databaseChangeLog>

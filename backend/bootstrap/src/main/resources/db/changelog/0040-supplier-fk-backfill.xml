@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Adds foreign-key constraints from existing supplier_id columns to the new suppliers table.
+        Existing dev/test rows where supplier_id is NULL pass; non-null orphan rows would block,
+        but Phase 1C never wrote non-null supplier_id values (UI fields were placeholders).
+        Constraint is ON DELETE SET NULL so deactivating a supplier never breaks history.
+    -->
+
+    <changeSet id="0040-expenses-supplier-fk" author="mini-erp">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="expenses"/>
+            <columnExists tableName="expenses" columnName="supplier_id"/>
+        </preConditions>
+        <sql>
+            ALTER TABLE expenses
+                ADD CONSTRAINT fk_expenses_supplier
+                FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0040-product-lots-supplier-fk" author="mini-erp">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="product_lots"/>
+            <columnExists tableName="product_lots" columnName="supplier_id"/>
+        </preConditions>
+        <sql>
+            ALTER TABLE product_lots
+                ADD CONSTRAINT fk_product_lots_supplier
+                FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL;
+        </sql>
+    </changeSet>
+
+    <!-- Reuses purchase_orders.id for traceability on lots received via the new flow. -->
+    <changeSet id="0040-product-lots-purchase-order-fk" author="mini-erp">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="product_lots"/>
+            <columnExists tableName="product_lots" columnName="purchase_order_id"/>
+        </preConditions>
+        <sql>
+            ALTER TABLE product_lots
+                ADD CONSTRAINT fk_product_lots_purchase_order
+                FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id) ON DELETE SET NULL;
+        </sql>
+    </changeSet>
+</databaseChangeLog>

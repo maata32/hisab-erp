@@ -63,7 +63,10 @@
     "priceTiers": "مستويات الأسعار",
     "notifConfig": "الإشعارات",
     "expenseCategories": "فئات المصاريف",
-    "treasury": "الخزينة"
+    "treasury": "الخزينة",
+    "suppliers": "الموردون",
+    "purchaseOrders": "طلبات الشراء",
+    "purchaseInvoices": "فواتير الشراء"
   },
   "dashboard": {
     "title": "لوحة القيادة",
@@ -92,6 +95,17 @@
       "pdf": "توليد PDF: Thymeleaf + OpenHTMLtoPDF",
       "vat": "ضريبة القيمة المضافة 16% على المستندات (ADR-002)"
     },
+    "group": {
+      "ventes": "المبيعات",
+      "factures": "الفواتير والمصاريف",
+      "activite": "نشاط الشهر",
+      "stock": "المخزون والعمليات",
+      "clients": "العملاء والفريق"
+    },
+    "toggle": {
+      "more": "مؤشرات إضافية",
+      "less": "إخفاء المؤشرات"
+    },
     "kpi": {
       "tenants": "المنظمات",
       "users": "المستخدمون",
@@ -105,7 +119,41 @@
       "expenses_month": "مصاريف الشهر",
       "pending_approvals": "{{count}} في انتظار الموافقة",
       "lots_expiring": "دفعات تنتهي (يوم 30-)",
-      "lots_expired_count": "{{count}} منتهية الصلاحية"
+      "lots_expired_count": "{{count}} منتهية الصلاحية",
+      "cash_received_today": "المقبوضات اليوم",
+      "avg_ticket_today": "متوسط التذكرة / يوم",
+      "avg_ticket_month_hint": "الشهر: {{value}}",
+      "sales_month": "مبيعات الشهر",
+      "overdue_invoices": "فواتير متأخرة",
+      "stock_value": "قيمة المخزون",
+      "low_stock": "منتجات بمخزون منخفض",
+      "low_stock_hint": "تحت حد إعادة الطلب",
+      "pending_deliveries": "تسليمات معلقة",
+      "open_sessions": "جلسات صندوق مفتوحة",
+      "active_customers": "عملاء نشطون",
+      "over_credit_limit": "تجاوز حد الائتمان",
+      "over_credit_limit_hint": "حد الائتمان متجاوز",
+      "total_customer_balance": "مستحقات العملاء",
+      "active_users": "مستخدمون نشطون"
+    },
+    "aging": {
+      "title": "تقادم الذمم",
+      "current": "جارية",
+      "d1_30": "1-30 ي",
+      "d31_60": "31-60 ي",
+      "d61_90": "61-90 ي",
+      "d90plus": "+90 ي"
+    },
+    "trend": {
+      "sales7": "المبيعات — آخر 7 أيام",
+      "paymentsToday": "مدفوعات اليوم"
+    },
+    "top": {
+      "products": "أفضل المنتجات هذا الشهر",
+      "product": "المنتج",
+      "sku": "الرمز",
+      "qty": "الكمية",
+      "revenue": "الإيرادات"
     },
     "phase1c": {
       "title": "المرحلة 1C — مستودعات متعددة / دفعات / مصاريف / تقارير",
@@ -706,6 +754,85 @@
       "DEPOSIT_FROM_VAULT": "إيداع من الخزينة",
       "WITHDRAWAL_TO_VAULT": "سحب إلى الخزينة",
       "ADJUSTMENT": "تسوية"
+    }
+  },
+  "suppliers": {
+    "title": "الموردون",
+    "subtitle": "إدارة الموردين وأرصدتهم",
+    "create": "مورّد جديد",
+    "createTitle": "مورّد جديد",
+    "editTitle": "تعديل المورّد",
+    "empty": "لا يوجد موردون",
+    "code": "الرمز",
+    "name": "الاسم",
+    "type": "النوع",
+    "email": "البريد الإلكتروني",
+    "phone": "الهاتف",
+    "address": "العنوان",
+    "taxId": "الرقم الضريبي",
+    "paymentTerms": "شروط الدفع",
+    "currency": "العملة",
+    "creditLimit": "حد الائتمان",
+    "balance": "الرصيد",
+    "status": "الحالة"
+  },
+  "purchaseOrders": {
+    "title": "طلبات الشراء",
+    "subtitle": "إصدار واستلام ومتابعة طلبات الموردين",
+    "create": "طلب جديد",
+    "createTitle": "طلب شراء جديد",
+    "empty": "لا توجد طلبات شراء",
+    "number": "الرقم",
+    "supplier": "المورّد",
+    "warehouse": "المستودع",
+    "orderDate": "تاريخ الطلب",
+    "expectedDate": "تاريخ الاستلام المتوقع",
+    "total": "الإجمالي",
+    "status": "الحالة",
+    "lines": "بنود الطلب",
+    "unitCost": "تكلفة الوحدة",
+    "confirm": "تأكيد",
+    "confirmHint": "تأكيد الطلب {{number}}؟",
+    "cancel": "إلغاء",
+    "cancelHint": "إلغاء الطلب {{number}}؟",
+    "receive": "استلام",
+    "receiveAction": "تأكيد الاستلام",
+    "receiveHint": "أدخل الكميات المستلمة. للمنتجات ذات تتبّع الصلاحية، الدفعة وتاريخ الانتهاء إلزاميان.",
+    "ordered": "مطلوب",
+    "already": "مستلم",
+    "receivingNow": "الاستلام الآن",
+    "lotNumber": "رقم الدفعة",
+    "productionDate": "تاريخ الإنتاج",
+    "expirationDate": "تاريخ الانتهاء",
+    "statuses": {
+      "DRAFT": "مسودة",
+      "CONFIRMED": "مؤكدة",
+      "PARTIALLY_RECEIVED": "استلام جزئي",
+      "RECEIVED": "مستلمة",
+      "CANCELLED": "ملغاة"
+    }
+  },
+  "purchaseInvoices": {
+    "title": "فواتير الموردين",
+    "subtitle": "تسجيل وتسوية فواتير المشتريات",
+    "create": "فاتورة جديدة",
+    "createTitle": "فاتورة مورّد جديدة",
+    "empty": "لا توجد فواتير موردين",
+    "number": "الرقم",
+    "supplier": "المورّد",
+    "supplierReference": "مرجع المورّد",
+    "invoiceDate": "تاريخ الفاتورة",
+    "dueDate": "تاريخ الاستحقاق",
+    "total": "الإجمالي",
+    "balance": "المتبقي",
+    "status": "الحالة",
+    "cancelHint": "إلغاء الفاتورة {{number}}؟",
+    "statuses": {
+      "DRAFT": "مسودة",
+      "ISSUED": "مُصدرة",
+      "PARTIAL": "مدفوعة جزئيًا",
+      "PAID": "مدفوعة",
+      "CANCELLED": "ملغاة"
     }
   }
 }

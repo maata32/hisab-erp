@@ -41,5 +41,9 @@
     <include file="db/changelog/0034-session-validation.xml"/>
     <include file="db/changelog/0035-sales-permissions-backfill.xml"/>
     <include file="db/changelog/0036-delivery-permissions-backfill.xml"/>
+    <include file="db/changelog/0037-suppliers.xml"/>
+    <include file="db/changelog/0038-purchase.xml"/>
+    <include file="db/changelog/0039-rls-purchase.xml"/>
+    <include file="db/changelog/0040-supplier-fk-backfill.xml"/>
 
 </databaseChangeLog>

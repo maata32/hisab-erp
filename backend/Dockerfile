@@ -23,6 +23,7 @@ COPY lot-expiry/pom.xml lot-expiry/pom.xml
 COPY expense/pom.xml expense/pom.xml
 COPY treasury/pom.xml treasury/pom.xml
 COPY reporting/pom.xml reporting/pom.xml
+COPY purchase/pom.xml purchase/pom.xml
 COPY bootstrap/pom.xml bootstrap/pom.xml
 RUN mvn -B -ntp -pl bootstrap -am dependency:go-offline -DskipTests || true
 COPY shared/src shared/src
@@ -44,6 +45,7 @@ COPY lot-expiry/src lot-expiry/src
 COPY expense/src expense/src
 COPY treasury/src treasury/src
 COPY reporting/src reporting/src
+COPY purchase/src purchase/src
 COPY bootstrap/src bootstrap/src
 RUN mvn -B -ntp -pl bootstrap -am package -DskipTests
 RUN cp bootstrap/target/bootstrap-*.jar /workspace/app.jar
