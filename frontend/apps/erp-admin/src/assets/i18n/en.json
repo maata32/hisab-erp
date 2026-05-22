@@ -299,7 +299,10 @@
     "statementDetailed": "Detailed statement",
     "statementOutstanding": "Outstanding",
     "address": "Address",
-    "currency": "Currency"
+    "currency": "Currency",
+    "also_supplier": "Also supplier",
+    "activate_supplier": "Activate supplier role",
+    "activate_supplier_hint": "This customer becomes a supplier too. Enter the supplier code (401xxx series) and payment terms."
   },
   "sales": {
     "number": "Number",
@@ -774,7 +777,10 @@
     "currency": "Currency",
     "creditLimit": "Credit limit",
     "balance": "Balance",
-    "status": "Status"
+    "status": "Status",
+    "also_customer": "Also customer",
+    "activate_customer": "Activate customer role",
+    "activate_customer_hint": "This supplier becomes a customer too. Enter the customer code (411xxx series) and credit limit."
   },
   "purchaseOrders": {
     "title": "Purchase orders",

@@ -299,7 +299,10 @@
     "statementDetailed": "كشف مفصل",
     "statementOutstanding": "المستحقات",
     "address": "العنوان",
-    "currency": "العملة"
+    "currency": "العملة",
+    "also_supplier": "مورّد أيضًا",
+    "activate_supplier": "تفعيل دور المورّد",
+    "activate_supplier_hint": "يصبح هذا العميل مورّدًا أيضًا. أدخل رمز المورّد (سلسلة 401xxx) وشروط الدفع."
   },
   "sales": {
     "number": "الرقم",
@@ -774,7 +777,10 @@
     "currency": "العملة",
     "creditLimit": "حد الائتمان",
     "balance": "الرصيد",
-    "status": "الحالة"
+    "status": "الحالة",
+    "also_customer": "عميل أيضًا",
+    "activate_customer": "تفعيل دور العميل",
+    "activate_customer_hint": "يصبح هذا المورّد عميلًا أيضًا. أدخل رمز العميل (سلسلة 411xxx) وحدّ الائتمان."
   },
   "purchaseOrders": {
     "title": "طلبات الشراء",

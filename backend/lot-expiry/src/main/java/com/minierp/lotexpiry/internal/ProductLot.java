@@ -57,8 +57,8 @@ public class ProductLot extends TenantAwareEntity {
     @Column(name = "purchase_order_id", columnDefinition = "uuid")
     private UUID purchaseOrderId;
 
-    @Column(name = "supplier_id", columnDefinition = "uuid")
-    private UUID supplierId;
+    @Column(name = "party_id", columnDefinition = "uuid")
+    private UUID partyId;
 
     @Column(name = "purchase_unit_cost", precision = 19, scale = 6)
     private BigDecimal purchaseUnitCost;

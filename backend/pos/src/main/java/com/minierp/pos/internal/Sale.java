@@ -56,8 +56,8 @@ class Sale extends TenantAwareEntity {
     @Column(name = "cashier_user_id", columnDefinition = "uuid", nullable = false)
     private UUID cashierUserId;
 
-    @Column(name = "customer_id", columnDefinition = "uuid")
-    private UUID customerId;
+    @Column(name = "party_id", columnDefinition = "uuid")
+    private UUID partyId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

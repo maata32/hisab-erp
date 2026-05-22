@@ -10,11 +10,11 @@ import java.util.List;
 import java.util.UUID;
 
 interface CreditNoteRepository extends JpaRepository<CreditNote, UUID> {
-    Page<CreditNote> findByCustomerId(UUID customerId, Pageable pageable);
+    Page<CreditNote> findByPartyId(UUID partyId, Pageable pageable);
     Page<CreditNote> findAll(Pageable pageable);
 
-    @Query("SELECT cn FROM CreditNote cn WHERE cn.customerId = :customerId " +
+    @Query("SELECT cn FROM CreditNote cn WHERE cn.partyId = :partyId " +
            "AND cn.issueDate >= :from AND cn.issueDate <= :to " +
            "ORDER BY cn.issueDate ASC")
-    List<CreditNote> findForStatement(UUID customerId, LocalDate from, LocalDate to);
+    List<CreditNote> findForStatement(UUID partyId, LocalDate from, LocalDate to);
 }

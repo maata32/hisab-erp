@@ -64,7 +64,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
         String number = numbering.nextPurchaseOrderNumber();
         PurchaseOrder po = PurchaseOrder.builder()
                 .number(number)
-                .supplierId(req.supplierId())
+                .partyId(req.supplierId())
                 .warehouseId(req.warehouseId())
                 .orderDate(req.orderDate() != null ? req.orderDate() : LocalDate.now())
                 .expectedDate(req.expectedDate())
@@ -83,7 +83,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     public PurchaseDto.PurchaseOrderDto getOrder(UUID id) {
         PurchaseOrder po = purchaseOrders.findById(id)
                 .orElseThrow(() -> NotFoundException.of("entity.purchase_order", id));
-        String name = supplierLookup.findById(po.getSupplierId()).map(SupplierSummary::name).orElse("");
+        String name = supplierLookup.findById(po.getPartyId()).map(SupplierSummary::name).orElse("");
         return toPoDto(po, purchaseOrderLines.findByPurchaseOrderIdOrderByLineNumberAsc(id), name);
     }
 
@@ -92,7 +92,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
         PurchaseOrderStatus st = status != null && !status.isBlank() ? PurchaseOrderStatus.valueOf(status) : null;
         var page = purchaseOrders.findFiltered(supplierId, st, pageable);
         return PageResponse.of(page.map(po -> {
-            String name = supplierLookup.findById(po.getSupplierId()).map(SupplierSummary::name).orElse("");
+            String name = supplierLookup.findById(po.getPartyId()).map(SupplierSummary::name).orElse("");
             return toPoDto(po, purchaseOrderLines.findByPurchaseOrderIdOrderByLineNumberAsc(po.getId()), name);
         }));
     }
@@ -106,7 +106,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
                     Map.of("status", po.getStatus().name()));
         }
         po.setStatus(PurchaseOrderStatus.CONFIRMED);
-        String name = supplierLookup.findById(po.getSupplierId()).map(SupplierSummary::name).orElse("");
+        String name = supplierLookup.findById(po.getPartyId()).map(SupplierSummary::name).orElse("");
         return toPoDto(po, purchaseOrderLines.findByPurchaseOrderIdOrderByLineNumberAsc(id), name);
     }
 
@@ -120,7 +120,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
                     Map.of("status", po.getStatus().name()));
         }
         po.setStatus(PurchaseOrderStatus.CANCELLED);
-        String name = supplierLookup.findById(po.getSupplierId()).map(SupplierSummary::name).orElse("");
+        String name = supplierLookup.findById(po.getPartyId()).map(SupplierSummary::name).orElse("");
         return toPoDto(po, purchaseOrderLines.findByPurchaseOrderIdOrderByLineNumberAsc(id), name);
     }
 
@@ -174,7 +174,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
                         product.id(), warehouseId, product.baseUomId(),
                         lineReq.lotNumber(), lineReq.expirationDate(), lineReq.productionDate(),
                         lineReq.quantityReceived(), line.getUnitCost(),
-                        po.getSupplierId(), po.getId());
+                        po.getPartyId(), po.getId());
             }
 
             StockMovementDto mv = stockOps.receive(
@@ -215,7 +215,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
         String number = numbering.nextPurchaseInvoiceNumber();
         PurchaseInvoice inv = PurchaseInvoice.builder()
                 .number(number)
-                .supplierId(req.supplierId())
+                .partyId(req.supplierId())
                 .purchaseOrderId(req.purchaseOrderId())
                 .supplierReference(req.supplierReference())
                 .invoiceDate(req.invoiceDate() != null ? req.invoiceDate() : LocalDate.now())
@@ -229,7 +229,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
         List<PurchaseInvoiceLine> built = buildInvoiceLines(inv.getId(), req.lines());
         computeInvoiceTotals(inv, built);
 
-        supplierBalanceOps.addToInvoiced(inv.getSupplierId(), inv.getTotal());
+        supplierBalanceOps.addToInvoiced(inv.getPartyId(), inv.getTotal());
         return toInvoiceDto(inv, built, supplier.name());
     }
 
@@ -237,7 +237,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     public PurchaseDto.PurchaseInvoiceDto getInvoice(UUID id) {
         PurchaseInvoice inv = purchaseInvoices.findById(id)
                 .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", id));
-        String name = supplierLookup.findById(inv.getSupplierId()).map(SupplierSummary::name).orElse("");
+        String name = supplierLookup.findById(inv.getPartyId()).map(SupplierSummary::name).orElse("");
         return toInvoiceDto(inv, purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(id), name);
     }
 
@@ -246,7 +246,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
         PurchaseInvoiceStatus st = status != null && !status.isBlank() ? PurchaseInvoiceStatus.valueOf(status) : null;
         var page = purchaseInvoices.findFiltered(supplierId, st, pageable);
         return PageResponse.of(page.map(inv -> {
-            String name = supplierLookup.findById(inv.getSupplierId()).map(SupplierSummary::name).orElse("");
+            String name = supplierLookup.findById(inv.getPartyId()).map(SupplierSummary::name).orElse("");
             return toInvoiceDto(inv, purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(inv.getId()), name);
         }));
     }
@@ -261,10 +261,10 @@ public class PurchaseService implements PurchaseInvoiceOperations {
                     Map.of("status", inv.getStatus().name()));
         }
         if (inv.getStatus() != PurchaseInvoiceStatus.CANCELLED) {
-            supplierBalanceOps.addToInvoiced(inv.getSupplierId(), inv.getTotal().negate());
+            supplierBalanceOps.addToInvoiced(inv.getPartyId(), inv.getTotal().negate());
             inv.setStatus(PurchaseInvoiceStatus.CANCELLED);
         }
-        String name = supplierLookup.findById(inv.getSupplierId()).map(SupplierSummary::name).orElse("");
+        String name = supplierLookup.findById(inv.getPartyId()).map(SupplierSummary::name).orElse("");
         return toInvoiceDto(inv, purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(id), name);
     }
 
@@ -279,7 +279,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     @Override
     @Transactional(readOnly = true)
     public List<PurchaseInvoiceSummary> findUnpaidBySupplier(UUID supplierId) {
-        return purchaseInvoices.findUnpaidBySupplier(supplierId)
+        return purchaseInvoices.findUnpaidByParty(supplierId)
                 .stream().map(this::toInvoiceSummary).toList();
     }
 
@@ -295,7 +295,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
         } else if (inv.getPaidAmount().compareTo(BigDecimal.ZERO) > 0) {
             inv.setStatus(PurchaseInvoiceStatus.PARTIAL);
         }
-        supplierBalanceOps.addToPaid(inv.getSupplierId(), amount, true);
+        supplierBalanceOps.addToPaid(inv.getPartyId(), amount, true);
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -306,7 +306,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     public byte[] generateInvoicePdf(UUID id) {
         PurchaseInvoice inv = purchaseInvoices.findById(id)
                 .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", id));
-        SupplierSummary supplier = supplierLookup.findById(inv.getSupplierId()).orElse(null);
+        SupplierSummary supplier = supplierLookup.findById(inv.getPartyId()).orElse(null);
         List<PurchaseInvoiceLine> lines = purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(id);
         Map<String, Object> vars = buildPurchaseInvoiceVars(inv, lines, supplier);
         return renderer.renderPdf(PdfRenderRequest.of("purchase-invoice", vars));
@@ -316,7 +316,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     public byte[] generateOrderPdf(UUID id) {
         PurchaseOrder po = purchaseOrders.findById(id)
                 .orElseThrow(() -> NotFoundException.of("entity.purchase_order", id));
-        SupplierSummary supplier = supplierLookup.findById(po.getSupplierId()).orElse(null);
+        SupplierSummary supplier = supplierLookup.findById(po.getPartyId()).orElse(null);
         List<PurchaseOrderLine> lines = purchaseOrderLines.findByPurchaseOrderIdOrderByLineNumberAsc(id);
         Map<String, Object> vars = buildPurchaseOrderVars(po, lines, supplier);
         return renderer.renderPdf(PdfRenderRequest.of("purchase-order", vars));
@@ -407,7 +407,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
 
     private PurchaseDto.PurchaseOrderDto toPoDto(PurchaseOrder po, List<PurchaseOrderLine> lines, String supplierName) {
         return new PurchaseDto.PurchaseOrderDto(po.getId(), po.getNumber(),
-                po.getSupplierId(), supplierName, po.getWarehouseId(),
+                po.getPartyId(), supplierName, po.getWarehouseId(),
                 po.getOrderDate(), po.getExpectedDate(), po.getStatus().name(),
                 po.getCurrency(), po.getSubtotal(), po.getTaxAmount(), po.getTotal(),
                 po.getNotes(), lines.stream().map(this::toLineDto).toList(),
@@ -416,7 +416,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
 
     private PurchaseDto.PurchaseInvoiceDto toInvoiceDto(PurchaseInvoice inv, List<PurchaseInvoiceLine> lines, String supplierName) {
         return new PurchaseDto.PurchaseInvoiceDto(inv.getId(), inv.getNumber(),
-                inv.getSupplierId(), supplierName, inv.getPurchaseOrderId(),
+                inv.getPartyId(), supplierName, inv.getPurchaseOrderId(),
                 inv.getSupplierReference(), inv.getInvoiceDate(), inv.getDueDate(),
                 inv.getStatus().name(), inv.getCurrency(),
                 inv.getSubtotal(), inv.getTaxAmount(), inv.getTotal(),
@@ -426,7 +426,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
 
     private PurchaseInvoiceSummary toInvoiceSummary(PurchaseInvoice inv) {
         return new PurchaseInvoiceSummary(inv.getId(), inv.getNumber(),
-                inv.getSupplierId(), inv.getDueDate(), inv.getTotal(),
+                inv.getPartyId(), inv.getDueDate(), inv.getTotal(),
                 inv.getPaidAmount(), inv.getBalance(), inv.getStatus().name());
     }
 

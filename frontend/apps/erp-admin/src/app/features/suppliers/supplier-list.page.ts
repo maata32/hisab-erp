@@ -30,6 +30,13 @@ interface Supplier {
   creditLimit: number;
   active: boolean;
   balance: number;
+  alsoCustomer: boolean;
+  customerCode: string | null;
+}
+
+interface ActivateCustomerForm {
+  customerCode: string;
+  customerCreditLimit: number;
 }
 
 interface SupplierForm {
@@ -90,7 +97,13 @@ interface SupplierForm {
           <ng-template pTemplate="body" let-s>
             <tr>
               <td><span class="font-mono text-sm">{{ s.code }}</span></td>
-              <td class="font-medium">{{ s.name }}</td>
+              <td class="font-medium">
+                {{ s.name }}
+                @if (s.alsoCustomer) {
+                  <p-tag class="ml-2" severity="info"
+                         [value]="'suppliers.also_customer' | translate" />
+                }
+              </td>
               <td>{{ s.phone || '—' }}</td>
               <td>{{ s.email || '—' }}</td>
               <td>{{ s.paymentTerms || '—' }}</td>
@@ -107,6 +120,11 @@ interface SupplierForm {
                 <button pButton icon="pi pi-pencil" class="p-button-sm p-button-text"
                         [pTooltip]="'common.edit' | translate"
                         (click)="openEdit(s)"></button>
+                @if (!s.alsoCustomer) {
+                  <button pButton icon="pi pi-user-plus" class="p-button-sm p-button-text"
+                          [pTooltip]="'suppliers.activate_customer' | translate"
+                          (click)="openActivateCustomer(s)"></button>
+                }
                 @if (s.active) {
                   <button pButton icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
                           [pTooltip]="'common.deactivate' | translate"
@@ -188,6 +206,30 @@ interface SupplierForm {
                   (click)="save()" [loading]="saving()"></button>
         </ng-template>
       </p-dialog>
+
+      <!-- Activate customer role dialog -->
+      <p-dialog [(visible)]="activateCustomerOpen" [modal]="true" [style]="{ width: '450px' }"
+                [header]="'suppliers.activate_customer' | translate"
+                [closable]="!activatingCustomer()">
+        <div class="space-y-3">
+          <p class="text-sm text-gray-600">{{ 'suppliers.activate_customer_hint' | translate }}</p>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'customers.code' | translate }} *</label>
+            <input pInputText [(ngModel)]="activateForm.customerCode" class="w-full" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'customers.creditLimit' | translate }}</label>
+            <p-inputNumber [(ngModel)]="activateForm.customerCreditLimit" mode="decimal"
+                           [maxFractionDigits]="2" styleClass="w-full" />
+          </div>
+        </div>
+        <ng-template pTemplate="footer">
+          <button pButton [label]="'common.cancel' | translate" class="p-button-text"
+                  (click)="activateCustomerOpen = false" [disabled]="activatingCustomer()"></button>
+          <button pButton [label]="'common.save' | translate" icon="pi pi-check"
+                  (click)="submitActivateCustomer()" [loading]="activatingCustomer()"></button>
+        </ng-template>
+      </p-dialog>
     </div>
   `,
 })
@@ -204,6 +246,10 @@ export class SupplierListPage implements OnInit {
   protected form: SupplierForm = this.emptyForm();
   protected codeAutoFilled = false;
   protected typeOptions: Array<{ value: string; label: string }> = [];
+  protected activateCustomerOpen = false;
+  protected activatingCustomer = signal(false);
+  protected activateSupplier = signal<Supplier | null>(null);
+  protected activateForm: ActivateCustomerForm = this.emptyActivateForm();
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   ngOnInit() {
@@ -330,5 +376,45 @@ export class SupplierListPage implements OnInit {
       code: '', type: 'COMPANY', name: '', email: '', phone: '', address: '',
       taxId: '', paymentTerms: '', currency: 'MRU', notes: '', creditLimit: 0,
     };
+  }
+
+  private emptyActivateForm(): ActivateCustomerForm {
+    return { customerCode: '', customerCreditLimit: 0 };
+  }
+
+  protected openActivateCustomer(s: Supplier) {
+    this.activateSupplier.set(s);
+    this.activateForm = this.emptyActivateForm();
+    this.activateCustomerOpen = true;
+    this.fetchSuggestedCustomerCode();
+  }
+
+  private async fetchSuggestedCustomerCode() {
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ code: string }>('/api/v1/customers/next-code?type=COMPANY')
+      );
+      if (!this.activateForm.customerCode) this.activateForm.customerCode = res.code;
+    } catch {
+      // silent
+    }
+  }
+
+  protected async submitActivateCustomer() {
+    const s = this.activateSupplier();
+    if (!s || !this.activateForm.customerCode?.trim()) return;
+    this.activatingCustomer.set(true);
+    try {
+      await firstValueFrom(this.http.post(
+        `/api/v1/suppliers/${s.id}/activate-customer-role`,
+        {
+          customerCode: this.activateForm.customerCode.trim(),
+          customerCreditLimit: this.activateForm.customerCreditLimit || null,
+        }));
+      this.activateCustomerOpen = false;
+      this.load();
+    } finally {
+      this.activatingCustomer.set(false);
+    }
   }
 }

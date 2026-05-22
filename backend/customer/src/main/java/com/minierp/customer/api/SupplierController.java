@@ -66,4 +66,12 @@ public class SupplierController {
     public SupplierBalanceDto balance(@PathVariable UUID id) {
         return service.getBalanceInfo(id);
     }
+
+    /** Promotes this supplier party to also be a customer (dual-role). */
+    @PostMapping("/{id}/activate-customer-role")
+    @PreAuthorize("hasAuthority('customer:write')")
+    public SupplierDto activateCustomerRole(@PathVariable UUID id,
+                                            @Valid @RequestBody ActivateCustomerRoleRequest req) {
+        return service.activateCustomerRole(id, req);
+    }
 }

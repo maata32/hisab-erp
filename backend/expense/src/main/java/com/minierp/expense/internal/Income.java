@@ -28,8 +28,8 @@ class Income extends TenantAwareEntity {
     @Column(name = "category_id", nullable = false, columnDefinition = "uuid")
     private UUID categoryId;
 
-    @Column(name = "customer_id", columnDefinition = "uuid")
-    private UUID customerId;
+    @Column(name = "party_id", columnDefinition = "uuid")
+    private UUID partyId;
 
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal amount;

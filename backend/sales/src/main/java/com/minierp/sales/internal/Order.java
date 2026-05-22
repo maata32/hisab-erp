@@ -12,7 +12,7 @@ import java.util.UUID;
 @Table(name = "orders",
         uniqueConstraints = @UniqueConstraint(name = "uk_orders_tenant_number", columnNames = {"tenant_id", "number"}),
         indexes = {
-                @Index(name = "idx_orders_customer", columnList = "customer_id"),
+                @Index(name = "idx_orders_party", columnList = "party_id"),
                 @Index(name = "idx_orders_status", columnList = "status")
         })
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -24,8 +24,8 @@ class Order extends TenantAwareEntity {
     @Column(nullable = false, length = 30)
     private String number;
 
-    @Column(name = "customer_id", nullable = false, columnDefinition = "uuid")
-    private UUID customerId;
+    @Column(name = "party_id", nullable = false, columnDefinition = "uuid")
+    private UUID partyId;
 
     @Column(name = "quote_id", columnDefinition = "uuid")
     private UUID quoteId;

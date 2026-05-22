@@ -13,16 +13,16 @@ import java.util.UUID;
 
 interface PurchaseInvoiceRepository extends JpaRepository<PurchaseInvoice, UUID> {
 
-    Page<PurchaseInvoice> findBySupplierId(UUID supplierId, Pageable pageable);
+    Page<PurchaseInvoice> findByPartyId(UUID partyId, Pageable pageable);
 
     @Query("SELECT pi FROM PurchaseInvoice pi WHERE " +
-           "(:supplierId IS NULL OR pi.supplierId = :supplierId) AND " +
+           "(:partyId IS NULL OR pi.partyId = :partyId) AND " +
            "(:status IS NULL OR pi.status = :status)")
-    Page<PurchaseInvoice> findFiltered(UUID supplierId, PurchaseInvoiceStatus status, Pageable pageable);
+    Page<PurchaseInvoice> findFiltered(UUID partyId, PurchaseInvoiceStatus status, Pageable pageable);
 
-    @Query("SELECT pi FROM PurchaseInvoice pi WHERE pi.supplierId = :supplierId " +
+    @Query("SELECT pi FROM PurchaseInvoice pi WHERE pi.partyId = :partyId " +
            "AND pi.status IN ('ISSUED','PARTIAL') ORDER BY pi.dueDate ASC NULLS LAST, pi.invoiceDate ASC")
-    List<PurchaseInvoice> findUnpaidBySupplier(UUID supplierId);
+    List<PurchaseInvoice> findUnpaidByParty(UUID partyId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT pi FROM PurchaseInvoice pi WHERE pi.id = :id")

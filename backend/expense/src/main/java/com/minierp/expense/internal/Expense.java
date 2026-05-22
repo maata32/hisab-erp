@@ -33,8 +33,8 @@ class Expense extends TenantAwareEntity {
     @Column(name = "category_id", nullable = false, columnDefinition = "uuid")
     private UUID categoryId;
 
-    @Column(name = "supplier_id", columnDefinition = "uuid")
-    private UUID supplierId;
+    @Column(name = "party_id", columnDefinition = "uuid")
+    private UUID partyId;
 
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal amount;

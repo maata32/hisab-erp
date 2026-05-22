@@ -110,7 +110,7 @@ public class ExpenseService {
         Expense expense = Expense.builder()
                 .expenseNumber(number)
                 .categoryId(categoryId)
-                .supplierId(supplierId)
+                .partyId(supplierId)
                 .amount(amount)
                 .expenseDate(expenseDate != null ? expenseDate : LocalDate.now())
                 .description(description)
@@ -195,7 +195,7 @@ public class ExpenseService {
         return toIncomeDto(incomes.save(Income.builder()
                 .incomeNumber(number)
                 .categoryId(categoryId)
-                .customerId(customerId)
+                .partyId(customerId)
                 .amount(amount)
                 .receivedDate(receivedDate != null ? receivedDate : LocalDate.now())
                 .description(description)
@@ -213,7 +213,7 @@ public class ExpenseService {
             Expense child = Expense.builder()
                     .expenseNumber(generateExpenseNumber())
                     .categoryId(parent.getCategoryId())
-                    .supplierId(parent.getSupplierId())
+                    .partyId(parent.getPartyId())
                     .amount(parent.getAmount())
                     .expenseDate(parent.getNextRecurrenceDate())
                     .description(parent.getDescription())
@@ -265,7 +265,7 @@ public class ExpenseService {
 
     private ExpenseDto.ExpenseResponse toExpenseDto(Expense e) {
         return new ExpenseDto.ExpenseResponse(
-                e.getId(), e.getExpenseNumber(), e.getCategoryId(), e.getSupplierId(),
+                e.getId(), e.getExpenseNumber(), e.getCategoryId(), e.getPartyId(),
                 e.getAmount(), e.getExpenseDate(), e.getDescription(),
                 e.getPaymentMethod() != null ? e.getPaymentMethod().name() : null,
                 e.getPaymentStatus() != null ? e.getPaymentStatus().name() : null,
@@ -278,7 +278,7 @@ public class ExpenseService {
 
     private ExpenseDto.IncomeResponse toIncomeDto(Income i) {
         return new ExpenseDto.IncomeResponse(
-                i.getId(), i.getIncomeNumber(), i.getCategoryId(), i.getCustomerId(),
+                i.getId(), i.getIncomeNumber(), i.getCategoryId(), i.getPartyId(),
                 i.getAmount(), i.getReceivedDate(), i.getDescription(),
                 i.getSource(), i.getPaymentMethod(), i.getAttachments());
     }

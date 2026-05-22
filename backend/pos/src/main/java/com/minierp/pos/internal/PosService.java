@@ -311,7 +311,7 @@ public class PosService {
                 .sessionId(req.sessionId())
                 .warehouseId(register.getWarehouseId())
                 .cashierUserId(userId)
-                .customerId(req.customerId())
+                .partyId(req.customerId())
                 .subtotal(subtotal)
                 .taxAmount(taxTotal)
                 .discountAmount(discountTotal)
@@ -455,7 +455,7 @@ public class PosService {
                 .toList();
         return new SaleDto(s.getId(), s.getNumber(), s.getIdempotencyKey(),
                 s.getRegisterId(), s.getSessionId(), s.getWarehouseId(),
-                s.getCashierUserId(), s.getCustomerId(), s.getStatus().name(),
+                s.getCashierUserId(), s.getPartyId(), s.getStatus().name(),
                 s.getCurrency(), s.getSubtotal(), s.getTaxAmount(), s.getDiscountAmount(),
                 s.getTotal(), s.getPaidCash(), s.getPaidCard(), s.getPaidMobile(),
                 s.getPaidCredit(), s.getChangeDue(), s.getCompletedAt(), s.getNote(),

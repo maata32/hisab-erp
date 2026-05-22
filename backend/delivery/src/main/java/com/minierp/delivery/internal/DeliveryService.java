@@ -37,7 +37,7 @@ public class DeliveryService {
         String number = numbering.nextDeliveryNumber();
         Delivery delivery = Delivery.builder()
                 .number(number)
-                .customerId(req.customerId())
+                .partyId(req.customerId())
                 .orderId(req.orderId())
                 .scheduledDate(req.scheduledDate())
                 .address(req.address())
@@ -127,7 +127,7 @@ public class DeliveryService {
     @Transactional(readOnly = true)
     public PageResponse<DeliveryDto.DeliveryResponse> list(UUID customerId, Pageable pageable) {
         var page = customerId != null
-                ? deliveries.findByCustomerId(customerId, pageable)
+                ? deliveries.findByPartyId(customerId, pageable)
                 : deliveries.findAll(pageable);
         return PageResponse.of(page.map(this::toDto));
     }
@@ -135,7 +135,7 @@ public class DeliveryService {
     @Transactional(readOnly = true)
     public byte[] generatePdf(UUID id) {
         Delivery d = deliveries.findById(id).orElseThrow(() -> NotFoundException.of("entity.delivery", id));
-        CustomerSummary customer = customerLookup.findById(d.getCustomerId()).orElse(null);
+        CustomerSummary customer = customerLookup.findById(d.getPartyId()).orElse(null);
         List<DeliveryLine> lines = deliveryLines.findByDeliveryId(id);
         Map<String, Object> vars = buildPdfVars(d, lines, customer);
         return renderer.renderPdf(PdfRenderRequest.of("delivery-note", vars));
@@ -143,9 +143,9 @@ public class DeliveryService {
 
     private DeliveryDto.DeliveryResponse toDto(Delivery d) {
         List<DeliveryLine> lines = deliveryLines.findByDeliveryId(d.getId());
-        String customerName = customerLookup.findById(d.getCustomerId()).map(CustomerSummary::name).orElse("");
+        String customerName = customerLookup.findById(d.getPartyId()).map(CustomerSummary::name).orElse("");
         return new DeliveryDto.DeliveryResponse(
-                d.getId(), d.getNumber(), d.getCustomerId(), customerName, d.getOrderId(),
+                d.getId(), d.getNumber(), d.getPartyId(), customerName, d.getOrderId(),
                 d.getStatus().name(), d.getScheduledDate(), d.getDeliveredAt(),
                 d.getAddress(), d.getContactPhone(), d.getSignedBy(), d.getNotes(),
                 lines.stream().map(l -> new DeliveryDto.LineDto(l.getId(), l.getProductId(), l.getUomId(),

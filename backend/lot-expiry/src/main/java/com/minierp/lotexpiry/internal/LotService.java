@@ -101,7 +101,7 @@ public class LotService implements LotOperations {
                 .initialQuantity(quantity)
                 .quantityRemaining(quantity)
                 .purchaseUnitCost(unitCost)
-                .supplierId(supplierId)
+                .partyId(supplierId)
                 .purchaseOrderId(purchaseOrderId)
                 .status(LotStatus.ACTIVE)
                 .build();

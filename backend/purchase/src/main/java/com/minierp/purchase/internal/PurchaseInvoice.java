@@ -12,7 +12,7 @@ import java.util.UUID;
 @Table(name = "purchase_invoices",
         uniqueConstraints = @UniqueConstraint(name = "uk_purchase_invoices_tenant_number", columnNames = {"tenant_id", "number"}),
         indexes = {
-                @Index(name = "idx_purchase_invoices_supplier", columnList = "supplier_id"),
+                @Index(name = "idx_purchase_invoices_party", columnList = "party_id"),
                 @Index(name = "idx_purchase_invoices_status", columnList = "status"),
                 @Index(name = "idx_purchase_invoices_due_date", columnList = "due_date")
         })
@@ -25,8 +25,8 @@ class PurchaseInvoice extends TenantAwareEntity {
     @Column(nullable = false, length = 30)
     private String number;
 
-    @Column(name = "supplier_id", nullable = false, columnDefinition = "uuid")
-    private UUID supplierId;
+    @Column(name = "party_id", nullable = false, columnDefinition = "uuid")
+    private UUID partyId;
 
     @Column(name = "purchase_order_id", columnDefinition = "uuid")
     private UUID purchaseOrderId;

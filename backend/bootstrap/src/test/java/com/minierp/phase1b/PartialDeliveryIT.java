@@ -63,7 +63,8 @@ class PartialDeliveryIT {
         uomId = UUID.randomUUID();
         productId = UUID.randomUUID();
 
-        jdbc.update("INSERT INTO customers (id, tenant_id, code, name, active, created_at, updated_at, version) VALUES (?,?,?,?,true,now(),now(),0)",
+        jdbc.update("INSERT INTO parties (id, tenant_id, customer_code, name, is_customer, is_supplier, active, created_at, updated_at, version) " +
+                "VALUES (?,?,?,?,true,false,true,now(),now(),0)",
                 customerId, tenantId, "C-DELTEST", "Delivery Test Customer");
     }
 

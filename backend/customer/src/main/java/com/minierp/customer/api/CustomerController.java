@@ -99,4 +99,12 @@ public class CustomerController {
             @NotNull @Positive BigDecimal amount,
             UUID paymentId,
             String notes) {}
+
+    /** Promotes this customer party to also be a supplier (dual-role). */
+    @PostMapping("/{id}/activate-supplier-role")
+    @PreAuthorize("hasAuthority('supplier:write')")
+    public CustomerDto activateSupplierRole(@PathVariable UUID id,
+                                            @Valid @RequestBody ActivateSupplierRoleRequest req) {
+        return service.activateSupplierRole(id, req);
+    }
 }

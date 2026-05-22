@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
-    Page<Invoice> findByCustomerId(UUID customerId, Pageable pageable);
+    Page<Invoice> findByPartyId(UUID partyId, Pageable pageable);
     Page<Invoice> findAll(Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -23,12 +23,12 @@ interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
     @Query("SELECT i FROM Invoice i WHERE i.status NOT IN ('PAID','CANCELLED') AND i.dueDate < :today")
     List<Invoice> findOverdue(LocalDate today);
 
-    @Query("SELECT i FROM Invoice i WHERE i.customerId = :customerId AND i.status NOT IN ('PAID','CANCELLED') ORDER BY i.dueDate ASC")
-    List<Invoice> findUnpaidByCustomerOrderByDueDate(UUID customerId);
+    @Query("SELECT i FROM Invoice i WHERE i.partyId = :partyId AND i.status NOT IN ('PAID','CANCELLED') ORDER BY i.dueDate ASC")
+    List<Invoice> findUnpaidByPartyOrderByDueDate(UUID partyId);
 
-    @Query("SELECT i FROM Invoice i WHERE i.customerId = :customerId " +
+    @Query("SELECT i FROM Invoice i WHERE i.partyId = :partyId " +
            "AND i.status <> 'CANCELLED' " +
            "AND i.issueDate >= :from AND i.issueDate <= :to " +
            "ORDER BY i.issueDate ASC, i.createdAt ASC")
-    List<Invoice> findForStatement(UUID customerId, LocalDate from, LocalDate to);
+    List<Invoice> findForStatement(UUID partyId, LocalDate from, LocalDate to);
 }

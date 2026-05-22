@@ -97,7 +97,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     @Override
     @Transactional(readOnly = true)
     public List<InvoiceSummary> findUnpaidByCustomer(UUID customerId) {
-        return invoices.findUnpaidByCustomerOrderByDueDate(customerId)
+        return invoices.findUnpaidByPartyOrderByDueDate(customerId)
                 .stream().map(this::toInvoiceSummary).toList();
     }
 
@@ -113,7 +113,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         } else if (inv.getPaidAmount().compareTo(BigDecimal.ZERO) > 0) {
             inv.setStatus(InvoiceStatus.PARTIAL);
         }
-        balanceOps.addToPaid(inv.getCustomerId(), amount, true);
+        balanceOps.addToPaid(inv.getPartyId(), amount, true);
     }
 
     @Override
@@ -122,7 +122,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         invoices.findById(invoiceId).ifPresent(inv -> {
             if (inv.getStatus() == InvoiceStatus.ISSUED || inv.getStatus() == InvoiceStatus.PARTIAL) {
                 inv.setStatus(InvoiceStatus.OVERDUE);
-                balanceOps.addToOverdue(inv.getCustomerId(), inv.getBalance());
+                balanceOps.addToOverdue(inv.getPartyId(), inv.getBalance());
             }
         });
     }
@@ -136,7 +136,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         String number = numbering.next(DocumentType.QUOTE);
         Quote quote = Quote.builder()
                 .number(number)
-                .customerId(req.customerId())
+                .partyId(req.customerId())
                 .issueDate(req.issueDate() != null ? req.issueDate() : LocalDate.now())
                 .validUntil(req.validUntil())
                 .currency(req.currency() != null ? req.currency() : customer.currency())
@@ -151,17 +151,17 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     @Transactional(readOnly = true)
     public SalesDto.QuoteDto getQuote(UUID id) {
         Quote q = quotes.findById(id).orElseThrow(() -> NotFoundException.of("entity.quote", id));
-        String customerName = customerLookup.findById(q.getCustomerId()).map(CustomerSummary::name).orElse("");
+        String customerName = customerLookup.findById(q.getPartyId()).map(CustomerSummary::name).orElse("");
         return toQuoteDto(q, quoteLines.findByQuoteIdOrderByLineNumberAsc(q.getId()), customerName);
     }
 
     @Transactional(readOnly = true)
     public PageResponse<SalesDto.QuoteDto> listQuotes(UUID customerId, Pageable pageable) {
         var page = customerId != null
-                ? quotes.findByCustomerId(customerId, pageable)
+                ? quotes.findByPartyId(customerId, pageable)
                 : quotes.findAll(pageable);
         return PageResponse.of(page.map(q -> {
-            String name = customerLookup.findById(q.getCustomerId()).map(CustomerSummary::name).orElse("");
+            String name = customerLookup.findById(q.getPartyId()).map(CustomerSummary::name).orElse("");
             return toQuoteDto(q, quoteLines.findByQuoteIdOrderByLineNumberAsc(q.getId()), name);
         }));
     }
@@ -170,7 +170,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     public SalesDto.QuoteDto updateQuoteStatus(UUID id, String status) {
         Quote q = quotes.findById(id).orElseThrow(() -> NotFoundException.of("entity.quote", id));
         q.setStatus(QuoteStatus.valueOf(status));
-        String name = customerLookup.findById(q.getCustomerId()).map(CustomerSummary::name).orElse("");
+        String name = customerLookup.findById(q.getPartyId()).map(CustomerSummary::name).orElse("");
         return toQuoteDto(q, quoteLines.findByQuoteIdOrderByLineNumberAsc(id), name);
     }
 
@@ -183,7 +183,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         String orderNumber = numbering.next(DocumentType.ORDER);
         Order order = Order.builder()
                 .number(orderNumber)
-                .customerId(q.getCustomerId())
+                .partyId(q.getPartyId())
                 .quoteId(quoteId)
                 .orderDate(LocalDate.now())
                 .deliveryRequired(deliveryRequired)
@@ -215,7 +215,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         q.setStatus(QuoteStatus.CONVERTED);
         q.setConvertedToOrderId(order.getId());
 
-        String name = customerLookup.findById(order.getCustomerId()).map(CustomerSummary::name).orElse("");
+        String name = customerLookup.findById(order.getPartyId()).map(CustomerSummary::name).orElse("");
         return toOrderDto(order, orderLines.findByOrderIdOrderByLineNumberAsc(order.getId()), name);
     }
 
@@ -228,7 +228,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         String number = numbering.next(DocumentType.ORDER);
         Order order = Order.builder()
                 .number(number)
-                .customerId(req.customerId())
+                .partyId(req.customerId())
                 .quoteId(req.quoteId())
                 .orderDate(req.orderDate() != null ? req.orderDate() : LocalDate.now())
                 .deliveryRequired(req.deliveryRequired())
@@ -244,17 +244,17 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     @Transactional(readOnly = true)
     public SalesDto.OrderDto getOrder(UUID id) {
         Order o = orders.findById(id).orElseThrow(() -> NotFoundException.of("entity.order", id));
-        String name = customerLookup.findById(o.getCustomerId()).map(CustomerSummary::name).orElse("");
+        String name = customerLookup.findById(o.getPartyId()).map(CustomerSummary::name).orElse("");
         return toOrderDto(o, orderLines.findByOrderIdOrderByLineNumberAsc(id), name);
     }
 
     @Transactional(readOnly = true)
     public PageResponse<SalesDto.OrderDto> listOrders(UUID customerId, Pageable pageable) {
         var page = customerId != null
-                ? orders.findByCustomerId(customerId, pageable)
+                ? orders.findByPartyId(customerId, pageable)
                 : orders.findAll(pageable);
         return PageResponse.of(page.map(o -> {
-            String name = customerLookup.findById(o.getCustomerId()).map(CustomerSummary::name).orElse("");
+            String name = customerLookup.findById(o.getPartyId()).map(CustomerSummary::name).orElse("");
             return toOrderDto(o, orderLines.findByOrderIdOrderByLineNumberAsc(o.getId()), name);
         }));
     }
@@ -263,7 +263,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     public SalesDto.OrderDto updateOrderStatus(UUID id, String status) {
         Order o = orders.findById(id).orElseThrow(() -> NotFoundException.of("entity.order", id));
         o.setStatus(OrderStatus.valueOf(status));
-        String name = customerLookup.findById(o.getCustomerId()).map(CustomerSummary::name).orElse("");
+        String name = customerLookup.findById(o.getPartyId()).map(CustomerSummary::name).orElse("");
         return toOrderDto(o, orderLines.findByOrderIdOrderByLineNumberAsc(id), name);
     }
 
@@ -273,7 +273,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         String invNumber = numbering.next(DocumentType.INVOICE);
         Invoice inv = Invoice.builder()
                 .number(invNumber)
-                .customerId(o.getCustomerId())
+                .partyId(o.getPartyId())
                 .orderId(orderId)
                 .issueDate(LocalDate.now())
                 .dueDate(dueDate)
@@ -306,9 +306,9 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
                     .build());
         }
         o.setStatus(OrderStatus.INVOICED);
-        balanceOps.addToInvoiced(inv.getCustomerId(), inv.getTotal());
+        balanceOps.addToInvoiced(inv.getPartyId(), inv.getTotal());
 
-        String name = customerLookup.findById(inv.getCustomerId()).map(CustomerSummary::name).orElse("");
+        String name = customerLookup.findById(inv.getPartyId()).map(CustomerSummary::name).orElse("");
         return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(inv.getId()), name);
     }
 
@@ -321,7 +321,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         String number = numbering.next(DocumentType.INVOICE);
         Invoice inv = Invoice.builder()
                 .number(number)
-                .customerId(req.customerId())
+                .partyId(req.customerId())
                 .orderId(req.orderId())
                 .issueDate(req.issueDate() != null ? req.issueDate() : LocalDate.now())
                 .dueDate(req.dueDate())
@@ -333,24 +333,24 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         invoices.save(inv);
         List<InvoiceLine> built = buildInvoiceLines(inv.getId(), req.lines());
         computeInvoiceTotals(inv, built);
-        balanceOps.addToInvoiced(inv.getCustomerId(), inv.getTotal());
+        balanceOps.addToInvoiced(inv.getPartyId(), inv.getTotal());
         return toInvoiceDto(inv, built, customer.name());
     }
 
     @Transactional(readOnly = true)
     public SalesDto.InvoiceDto getInvoice(UUID id) {
         Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));
-        String name = customerLookup.findById(inv.getCustomerId()).map(CustomerSummary::name).orElse("");
+        String name = customerLookup.findById(inv.getPartyId()).map(CustomerSummary::name).orElse("");
         return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id), name);
     }
 
     @Transactional(readOnly = true)
     public PageResponse<SalesDto.InvoiceDto> listInvoices(UUID customerId, Pageable pageable) {
         var page = customerId != null
-                ? invoices.findByCustomerId(customerId, pageable)
+                ? invoices.findByPartyId(customerId, pageable)
                 : invoices.findAll(pageable);
         return PageResponse.of(page.map(inv -> {
-            String name = customerLookup.findById(inv.getCustomerId()).map(CustomerSummary::name).orElse("");
+            String name = customerLookup.findById(inv.getPartyId()).map(CustomerSummary::name).orElse("");
             return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(inv.getId()), name);
         }));
     }
@@ -364,16 +364,16 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     public SalesDto.InvoiceDto cancelInvoice(UUID id) {
         Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));
         if (inv.getStatus() == InvoiceStatus.CANCELLED) {
-            String name = customerLookup.findById(inv.getCustomerId()).map(CustomerSummary::name).orElse("");
+            String name = customerLookup.findById(inv.getPartyId()).map(CustomerSummary::name).orElse("");
             return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id), name);
         }
         if (inv.getStatus() == InvoiceStatus.PAID || inv.getStatus() == InvoiceStatus.PARTIAL) {
             throw new BusinessException("error.sales.invoice_already_paid",
                     Map.of("status", inv.getStatus().name()));
         }
-        balanceOps.addToInvoiced(inv.getCustomerId(), inv.getTotal().negate());
+        balanceOps.addToInvoiced(inv.getPartyId(), inv.getTotal().negate());
         inv.setStatus(InvoiceStatus.CANCELLED);
-        String name = customerLookup.findById(inv.getCustomerId()).map(CustomerSummary::name).orElse("");
+        String name = customerLookup.findById(inv.getPartyId()).map(CustomerSummary::name).orElse("");
         return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id), name);
     }
 
@@ -387,7 +387,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         CreditNote cn = CreditNote.builder()
                 .number(number)
                 .invoiceId(req.invoiceId())
-                .customerId(inv.getCustomerId())
+                .partyId(inv.getPartyId())
                 .issueDate(LocalDate.now())
                 .reason(req.reason())
                 .amount(req.amount())
@@ -401,7 +401,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     @Transactional(readOnly = true)
     public PageResponse<SalesDto.CreditNoteDto> listCreditNotes(UUID customerId, Pageable pageable) {
         var page = customerId != null
-                ? creditNotes.findByCustomerId(customerId, pageable)
+                ? creditNotes.findByPartyId(customerId, pageable)
                 : creditNotes.findAll(pageable);
         return PageResponse.of(page.map(this::toCreditNoteDto));
     }
@@ -411,7 +411,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     @Transactional(readOnly = true)
     public byte[] generateInvoicePdf(UUID id) {
         Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));
-        CustomerSummary customer = customerLookup.findById(inv.getCustomerId()).orElse(null);
+        CustomerSummary customer = customerLookup.findById(inv.getPartyId()).orElse(null);
         List<InvoiceLine> lines = invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id);
         Map<String, Object> vars = buildInvoiceVars(inv, lines, customer);
         return renderer.renderPdf(PdfRenderRequest.of("invoice", vars));
@@ -420,7 +420,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     @Transactional(readOnly = true)
     public byte[] generateQuotePdf(UUID id) {
         Quote q = quotes.findById(id).orElseThrow(() -> NotFoundException.of("entity.quote", id));
-        CustomerSummary customer = customerLookup.findById(q.getCustomerId()).orElse(null);
+        CustomerSummary customer = customerLookup.findById(q.getPartyId()).orElse(null);
         List<QuoteLine> lines = quoteLines.findByQuoteIdOrderByLineNumberAsc(id);
         Map<String, Object> vars = buildQuoteVars(q, lines, customer);
         return renderer.renderPdf(PdfRenderRequest.of("quote", vars));
@@ -429,7 +429,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     @Transactional(readOnly = true)
     public byte[] generateOrderPdf(UUID id) {
         Order o = orders.findById(id).orElseThrow(() -> NotFoundException.of("entity.order", id));
-        CustomerSummary customer = customerLookup.findById(o.getCustomerId()).orElse(null);
+        CustomerSummary customer = customerLookup.findById(o.getPartyId()).orElse(null);
         List<OrderLine> lines = orderLines.findByOrderIdOrderByLineNumberAsc(id);
         Map<String, Object> vars = buildOrderVars(o, lines, customer);
         return renderer.renderPdf(PdfRenderRequest.of("order", vars));
@@ -555,21 +555,21 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     }
 
     private SalesDto.QuoteDto toQuoteDto(Quote q, List<QuoteLine> lines, String customerName) {
-        return new SalesDto.QuoteDto(q.getId(), q.getNumber(), q.getCustomerId(), customerName,
+        return new SalesDto.QuoteDto(q.getId(), q.getNumber(), q.getPartyId(), customerName,
                 q.getIssueDate(), q.getValidUntil(), q.getStatus().name(), q.getCurrency(),
                 q.getSubtotal(), q.getDiscountAmount(), q.getTaxAmount(), q.getTotal(),
                 q.getNotes(), lines.stream().map(this::toLineDto).toList(), q.getCreatedAt());
     }
 
     private SalesDto.OrderDto toOrderDto(Order o, List<OrderLine> lines, String customerName) {
-        return new SalesDto.OrderDto(o.getId(), o.getNumber(), o.getCustomerId(), customerName,
+        return new SalesDto.OrderDto(o.getId(), o.getNumber(), o.getPartyId(), customerName,
                 o.getQuoteId(), o.getOrderDate(), o.getStatus().name(), o.isDeliveryRequired(),
                 o.getCurrency(), o.getSubtotal(), o.getDiscountAmount(), o.getTaxAmount(), o.getTotal(),
                 o.getNotes(), lines.stream().map(this::toLineDto).toList(), o.getCreatedAt());
     }
 
     private SalesDto.InvoiceDto toInvoiceDto(Invoice inv, List<InvoiceLine> lines, String customerName) {
-        return new SalesDto.InvoiceDto(inv.getId(), inv.getNumber(), inv.getCustomerId(), customerName,
+        return new SalesDto.InvoiceDto(inv.getId(), inv.getNumber(), inv.getPartyId(), customerName,
                 inv.getOrderId(), inv.getIssueDate(), inv.getDueDate(), inv.getStatus().name(),
                 inv.getCurrency(), inv.getSubtotal(), inv.getDiscountAmount(), inv.getTaxAmount(),
                 inv.getTotal(), inv.getPaidAmount(), inv.getBalance(),
@@ -579,12 +579,12 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
 
     private SalesDto.CreditNoteDto toCreditNoteDto(CreditNote cn) {
         return new SalesDto.CreditNoteDto(cn.getId(), cn.getNumber(), cn.getInvoiceId(),
-                cn.getCustomerId(), cn.getIssueDate(), cn.getReason(), cn.getAmount(),
+                cn.getPartyId(), cn.getIssueDate(), cn.getReason(), cn.getAmount(),
                 cn.getStatus().name(), cn.getCurrency(), cn.getCreatedAt());
     }
 
     private InvoiceSummary toInvoiceSummary(Invoice inv) {
-        return new InvoiceSummary(inv.getId(), inv.getNumber(), inv.getCustomerId(),
+        return new InvoiceSummary(inv.getId(), inv.getNumber(), inv.getPartyId(),
                 inv.getDueDate(), inv.getTotal(), inv.getPaidAmount(),
                 inv.getBalance(), inv.getStatus().name());
     }

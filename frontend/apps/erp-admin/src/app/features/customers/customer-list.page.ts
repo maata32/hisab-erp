@@ -29,6 +29,15 @@ interface Customer {
   notes: string | null;
   active: boolean;
   balance: number;
+  alsoSupplier: boolean;
+  supplierCode: string | null;
+}
+
+interface ActivateSupplierForm {
+  supplierCode: string;
+  taxId: string;
+  paymentTerms: string;
+  supplierCreditLimit: number;
 }
 
 interface CustomerForm {
@@ -88,7 +97,13 @@ interface CustomerForm {
           <ng-template pTemplate="body" let-c>
             <tr>
               <td><span class="font-mono text-sm">{{ c.code }}</span></td>
-              <td class="font-medium">{{ c.name }}</td>
+              <td class="font-medium">
+                {{ c.name }}
+                @if (c.alsoSupplier) {
+                  <p-tag class="ml-2" severity="info"
+                         [value]="'customers.also_supplier' | translate" />
+                }
+              </td>
               <td>{{ 'customers.types.' + c.type | translate }}</td>
               <td>{{ c.email || '—' }}</td>
               <td>{{ c.phone || '—' }}</td>
@@ -109,6 +124,11 @@ interface CustomerForm {
                 <button pButton icon="pi pi-pencil" class="p-button-sm p-button-text"
                         [pTooltip]="'common.edit' | translate"
                         (click)="openEdit(c)"></button>
+                @if (!c.alsoSupplier) {
+                  <button pButton icon="pi pi-briefcase" class="p-button-sm p-button-text"
+                          [pTooltip]="'customers.activate_supplier' | translate"
+                          (click)="openActivateSupplier(c)"></button>
+                }
                 @if (c.active) {
                   <button pButton icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
                           [pTooltip]="'common.deactivate' | translate"
@@ -182,6 +202,38 @@ interface CustomerForm {
         </ng-template>
       </p-dialog>
 
+      <!-- Activate supplier role dialog -->
+      <p-dialog [(visible)]="activateSupplierOpen" [modal]="true" [style]="{ width: '450px' }"
+                [header]="'customers.activate_supplier' | translate"
+                [closable]="!activatingSupplier()">
+        <div class="space-y-3">
+          <p class="text-sm text-gray-600">{{ 'customers.activate_supplier_hint' | translate }}</p>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'suppliers.code' | translate }} *</label>
+            <input pInputText [(ngModel)]="activateForm.supplierCode" class="w-full" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'suppliers.taxId' | translate }}</label>
+            <input pInputText [(ngModel)]="activateForm.taxId" class="w-full" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'suppliers.paymentTerms' | translate }}</label>
+            <input pInputText [(ngModel)]="activateForm.paymentTerms" class="w-full" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'suppliers.creditLimit' | translate }}</label>
+            <p-inputNumber [(ngModel)]="activateForm.supplierCreditLimit" mode="decimal"
+                           [maxFractionDigits]="2" styleClass="w-full" />
+          </div>
+        </div>
+        <ng-template pTemplate="footer">
+          <button pButton [label]="'common.cancel' | translate" class="p-button-text"
+                  (click)="activateSupplierOpen = false" [disabled]="activatingSupplier()"></button>
+          <button pButton [label]="'common.save' | translate" icon="pi pi-check"
+                  (click)="submitActivateSupplier()" [loading]="activatingSupplier()"></button>
+        </ng-template>
+      </p-dialog>
+
       <!-- Statement dialog -->
       <p-dialog [(visible)]="statementDialogOpen" [modal]="true" [style]="{ width: '500px' }"
                 [header]="('customers.statementDialogTitle' | translate) + ' — ' + (statementCustomer()?.name ?? '')"
@@ -238,6 +290,10 @@ export class CustomerListPage implements OnInit {
   protected fetchingStatement = signal(false);
   protected statementFrom: Date | null = new Date(new Date().getFullYear(), 0, 1);
   protected statementTo: Date | null = new Date();
+  protected activateSupplierOpen = false;
+  protected activatingSupplier = signal(false);
+  protected activateCustomer = signal<Customer | null>(null);
+  protected activateForm: ActivateSupplierForm = this.emptyActivateForm();
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   ngOnInit() {
@@ -419,5 +475,47 @@ export class CustomerListPage implements OnInit {
       currency: 'MRU',
       notes: '',
     };
+  }
+
+  private emptyActivateForm(): ActivateSupplierForm {
+    return { supplierCode: '', taxId: '', paymentTerms: '', supplierCreditLimit: 0 };
+  }
+
+  protected openActivateSupplier(c: Customer) {
+    this.activateCustomer.set(c);
+    this.activateForm = this.emptyActivateForm();
+    this.activateSupplierOpen = true;
+    this.fetchSuggestedSupplierCode();
+  }
+
+  private async fetchSuggestedSupplierCode() {
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ code: string }>('/api/v1/suppliers/next-code')
+      );
+      if (!this.activateForm.supplierCode) this.activateForm.supplierCode = res.code;
+    } catch {
+      // silent
+    }
+  }
+
+  protected async submitActivateSupplier() {
+    const c = this.activateCustomer();
+    if (!c || !this.activateForm.supplierCode?.trim()) return;
+    this.activatingSupplier.set(true);
+    try {
+      await firstValueFrom(this.http.post(
+        `/api/v1/customers/${c.id}/activate-supplier-role`,
+        {
+          supplierCode: this.activateForm.supplierCode.trim(),
+          taxId: this.activateForm.taxId || null,
+          paymentTerms: this.activateForm.paymentTerms || null,
+          supplierCreditLimit: this.activateForm.supplierCreditLimit || null,
+        }));
+      this.activateSupplierOpen = false;
+      this.load();
+    } finally {
+      this.activatingSupplier.set(false);
+    }
   }
 }

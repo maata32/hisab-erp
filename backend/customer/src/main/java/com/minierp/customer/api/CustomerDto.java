@@ -19,5 +19,7 @@ public record CustomerDto(
         String notificationPreferences,
         boolean active,
         Instant createdAt,
-        BigDecimal balance
+        BigDecimal balance,
+        boolean alsoSupplier,
+        String supplierCode
 ) {}

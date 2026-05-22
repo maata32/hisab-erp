@@ -300,7 +300,10 @@
     "statementDetailed": "Relevé détaillé",
     "statementOutstanding": "Impayés",
     "address": "Adresse",
-    "currency": "Devise"
+    "currency": "Devise",
+    "also_supplier": "Aussi fournisseur",
+    "activate_supplier": "Activer rôle fournisseur",
+    "activate_supplier_hint": "Ce client devient aussi fournisseur. Renseignez son code fournisseur (série 401xxx) et ses conditions de paiement."
   },
   "sales": {
     "number": "Numéro",
@@ -775,7 +778,10 @@
     "currency": "Devise",
     "creditLimit": "Plafond crédit",
     "balance": "Solde",
-    "status": "Statut"
+    "status": "Statut",
+    "also_customer": "Aussi client",
+    "activate_customer": "Activer rôle client",
+    "activate_customer_hint": "Ce fournisseur devient aussi client. Renseignez son code client (série 411xxx) et son plafond de crédit."
   },
   "purchaseOrders": {
     "title": "Commandes fournisseur",

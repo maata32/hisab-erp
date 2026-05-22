@@ -24,8 +24,8 @@ class CreditNote extends TenantAwareEntity {
     @Column(name = "invoice_id", nullable = false, columnDefinition = "uuid")
     private UUID invoiceId;
 
-    @Column(name = "customer_id", nullable = false, columnDefinition = "uuid")
-    private UUID customerId;
+    @Column(name = "party_id", nullable = false, columnDefinition = "uuid")
+    private UUID partyId;
 
     @Column(name = "issue_date", nullable = false)
     private LocalDate issueDate;

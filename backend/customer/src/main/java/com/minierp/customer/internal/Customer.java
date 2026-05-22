@@ -77,6 +77,10 @@ class Customer extends TenantAwareEntity {
     @Builder.Default
     private boolean alsoSupplier = false;
 
+    /** Populated only when {@link #alsoSupplier} is true. Read-only through this view. */
+    @Column(name = "supplier_code", insertable = false, updatable = false, length = 50)
+    private String supplierCode;
+
     @PrePersist
     void enforceCustomerRoleOnInsert() {
         this.isCustomer = true;

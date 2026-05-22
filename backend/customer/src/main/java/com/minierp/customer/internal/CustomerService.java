@@ -1,6 +1,8 @@
 package com.minierp.customer.internal;
 
 import com.minierp.customer.api.*;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
@@ -30,6 +32,10 @@ public class CustomerService implements CustomerLookup, CustomerBalanceOperation
     private final CustomerBalanceRepository balances;
     private final CustomerCreditRepository credits;
     private final CustomerCreditUsageRepository creditUsages;
+    private final SupplierBalanceRepository supplierBalances;
+
+    @PersistenceContext
+    private EntityManager em;
 
     // ── CustomerLookup ───────────────────────────────────────────────────────
 
@@ -266,6 +272,46 @@ public class CustomerService implements CustomerLookup, CustomerBalanceOperation
         return toCreditDto(credit);
     }
 
+    /**
+     * Promotes a customer party to also be a supplier (dual-role). Flips
+     * {@code is_supplier=true} on the parties row, populates the supplier-side
+     * columns, and seeds an empty {@code ap_balances} row.
+     */
+    @Transactional
+    public CustomerDto activateSupplierRole(UUID id, ActivateSupplierRoleRequest req) {
+        Customer c = customers.findById(id)
+                .orElseThrow(() -> NotFoundException.of("entity.customer", id));
+        if (c.isAlsoSupplier()) {
+            throw new ConflictException("error.party.supplier_role_already_active",
+                    Map.of("partyId", id));
+        }
+        // Uniqueness check on supplier_code within tenant — let DB catch the race,
+        // but pre-check for a friendlier error.
+        Long dupes = (Long) em.createNativeQuery(
+                "SELECT COUNT(*) FROM parties WHERE supplier_code = :code")
+                .setParameter("code", req.supplierCode())
+                .getSingleResult();
+        if (dupes != null && dupes > 0) {
+            throw new ConflictException("error.data_integrity",
+                    Map.of("field", "supplierCode", "value", req.supplierCode()));
+        }
+        em.createNativeQuery(
+                "UPDATE parties SET is_supplier = true, supplier_code = :code, " +
+                        "tax_id = COALESCE(:taxId, tax_id), " +
+                        "payment_terms = COALESCE(:paymentTerms, payment_terms), " +
+                        "supplier_credit_limit = COALESCE(:limit, supplier_credit_limit) " +
+                        "WHERE id = :id")
+                .setParameter("code", req.supplierCode())
+                .setParameter("taxId", req.taxId())
+                .setParameter("paymentTerms", req.paymentTerms())
+                .setParameter("limit", req.supplierCreditLimit())
+                .setParameter("id", id)
+                .executeUpdate();
+        supplierBalances.save(SupplierBalance.builder().partyId(id).build());
+        em.refresh(c);
+        return toDto(c);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private CustomerBalance getOrCreate(UUID customerId) {
@@ -292,7 +338,8 @@ public class CustomerService implements CustomerLookup, CustomerBalanceOperation
                 c.getCreditLimit(), c.getCurrency(), c.getNotes(),
                 c.getDefaultPriceTierId(), c.getNotificationPreferences(),
                 c.isActive(), c.getCreatedAt(),
-                balance != null ? balance : BigDecimal.ZERO);
+                balance != null ? balance : BigDecimal.ZERO,
+                c.isAlsoSupplier(), c.getSupplierCode());
     }
 
     private CustomerBalanceDto toBalanceDto(CustomerBalance b) {

@@ -19,5 +19,7 @@ public record SupplierDto(
         BigDecimal creditLimit,
         boolean active,
         Instant createdAt,
-        BigDecimal balance
+        BigDecimal balance,
+        boolean alsoCustomer,
+        String customerCode
 ) {}

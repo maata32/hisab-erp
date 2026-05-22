@@ -46,8 +46,8 @@ class NotificationLog extends AuditableEntity {
     @Column(name = "user_id", columnDefinition = "uuid")
     private UUID userId;
 
-    @Column(name = "customer_id", columnDefinition = "uuid")
-    private UUID customerId;
+    @Column(name = "party_id", columnDefinition = "uuid")
+    private UUID partyId;
 
     @Column(name = "template_id", columnDefinition = "uuid")
     private UUID templateId;

@@ -182,9 +182,9 @@ public class ReportingService {
     public List<ReportingDto.AgingRow> aging() {
         UUID tenant = TenantContext.require();
         return jdbc.query("""
-                SELECT c.id   AS customer_id,
-                       c.code AS customer_code,
-                       c.name AS customer_name,
+                SELECT c.id            AS customer_id,
+                       c.customer_code AS customer_code,
+                       c.name          AS customer_name,
                        COALESCE(SUM(CASE WHEN i.due_date IS NULL OR i.due_date >= CURRENT_DATE
                                          THEN i.balance ELSE 0 END), 0) AS current_balance,
                        COALESCE(SUM(CASE WHEN i.due_date < CURRENT_DATE
@@ -200,14 +200,14 @@ public class ReportingService {
                                          AND (CURRENT_DATE - i.due_date) > 90
                                          THEN i.balance ELSE 0 END), 0) AS d90plus,
                        COALESCE(SUM(i.balance), 0)                       AS total_outstanding
-                FROM customers c
+                FROM parties c
                 LEFT JOIN invoices i
-                       ON i.customer_id = c.id
+                       ON i.party_id = c.id
                       AND i.tenant_id = c.tenant_id
                       AND i.balance > 0
                       AND i.status NOT IN ('CANCELLED','PAID')
-                WHERE c.tenant_id = ?
-                GROUP BY c.id, c.code, c.name
+                WHERE c.tenant_id = ? AND c.is_customer = TRUE
+                GROUP BY c.id, c.customer_code, c.name
                 HAVING COALESCE(SUM(i.balance), 0) > 0
                 ORDER BY total_outstanding DESC
                 """, (rs, i) -> new ReportingDto.AgingRow(
@@ -327,14 +327,15 @@ public class ReportingService {
                 "SELECT COUNT(*) FROM users WHERE tenant_id=? AND is_active=true",
                 Long.class, tenant));
         long activeCustomers = nz(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM customers WHERE tenant_id=? AND active=true",
+                "SELECT COUNT(*) FROM parties WHERE tenant_id=? AND is_customer=true AND active=true",
                 Long.class, tenant));
         long overCreditLimit = nz(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM customers c JOIN customer_balances cb ON cb.customer_id=c.id " +
-                "WHERE c.tenant_id=? AND c.active=true AND c.credit_limit > 0 AND cb.balance > c.credit_limit",
+                "SELECT COUNT(*) FROM parties c JOIN ar_balances ab ON ab.party_id=c.id " +
+                "WHERE c.tenant_id=? AND c.is_customer=true AND c.active=true " +
+                "AND c.customer_credit_limit > 0 AND ab.balance > c.customer_credit_limit",
                 Long.class, tenant));
         BigDecimal totalCustomerBalance = nz(jdbc.queryForObject(
-                "SELECT COALESCE(SUM(balance),0) FROM customer_balances WHERE tenant_id=?",
+                "SELECT COALESCE(SUM(balance),0) FROM ar_balances WHERE tenant_id=?",
                 BigDecimal.class, tenant));
 
         // ── Aging buckets (sums across all unpaid invoices) ──────────────────
