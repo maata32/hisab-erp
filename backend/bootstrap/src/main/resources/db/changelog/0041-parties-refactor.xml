@@ -187,7 +187,7 @@
             ALTER TABLE deliveries        RENAME COLUMN customer_id TO party_id;
             ALTER TABLE customer_credits  RENAME COLUMN customer_id TO party_id;
             ALTER TABLE incomes           RENAME COLUMN customer_id TO party_id;
-            ALTER TABLE notifications     RENAME COLUMN customer_id TO party_id;
+            ALTER TABLE notification_logs RENAME COLUMN customer_id TO party_id;
         </sql>
     </changeSet>
 
@@ -226,8 +226,8 @@
             ALTER TABLE incomes
                 ADD CONSTRAINT fk_incomes_party
                 FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE SET NULL;
-            ALTER TABLE notifications
-                ADD CONSTRAINT fk_notifications_party
+            ALTER TABLE notification_logs
+                ADD CONSTRAINT fk_notification_logs_party
                 FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE SET NULL;
 
             ALTER TABLE expenses

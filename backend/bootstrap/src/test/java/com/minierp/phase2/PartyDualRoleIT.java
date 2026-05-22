@@ -24,8 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Verifies a single party row can carry both customer and supplier roles after activation
  * (Odoo/SAP style). Creates a customer, activates the supplier role, asserts:
  *  - the parties row stays unique (same id) but both is_customer and is_supplier are true,
- *  - exactly one ar_balances row exists for the party,
- *  - exactly one ap_balances row exists for the party,
+ *  - exactly one ap_balances row exists for the party (eagerly seeded by activation),
+ *  - no ar_balances row yet (created lazily on first invoice, not on customer create),
  *  - the CustomerDto exposes alsoSupplier=true and the supplierCode.
  */
 @SpringBootTest(classes = MiniErpApplication.class)
@@ -82,11 +82,11 @@ class PartyDualRoleIT {
         Long arRows = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM ar_balances WHERE party_id = ?",
                 Long.class, created.id());
-        assertThat(arRows).isEqualTo(1L);
+        assertThat(arRows).as("ar_balances is lazy — no invoice yet").isEqualTo(0L);
 
         Long apRows = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM ap_balances WHERE party_id = ?",
                 Long.class, created.id());
-        assertThat(apRows).isEqualTo(1L);
+        assertThat(apRows).as("ap_balances eagerly seeded by activate-supplier-role").isEqualTo(1L);
     }
 }
