@@ -11,11 +11,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 interface CustomerBalanceRepository extends JpaRepository<CustomerBalance, UUID> {
-    Optional<CustomerBalance> findByCustomerId(UUID customerId);
+    Optional<CustomerBalance> findByPartyId(UUID partyId);
 
-    List<CustomerBalance> findByCustomerIdIn(Collection<UUID> customerIds);
+    List<CustomerBalance> findByPartyIdIn(Collection<UUID> partyIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT b FROM CustomerBalance b WHERE b.customerId = :customerId")
-    Optional<CustomerBalance> lockByCustomerId(UUID customerId);
+    @Query("SELECT b FROM CustomerBalance b WHERE b.partyId = :partyId")
+    Optional<CustomerBalance> lockByPartyId(UUID partyId);
 }

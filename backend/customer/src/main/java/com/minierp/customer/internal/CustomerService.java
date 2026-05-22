@@ -63,7 +63,7 @@ public class CustomerService implements CustomerLookup, CustomerBalanceOperation
     @Override
     @Transactional(readOnly = true)
     public BalanceSnapshot getBalance(UUID customerId) {
-        return balances.findByCustomerId(customerId)
+        return balances.findByPartyId(customerId)
                 .map(b -> new BalanceSnapshot(
                         b.getTotalInvoiced(), b.getTotalPaid(), b.getBalance(),
                         b.getOverdueAmount(), b.getLastPaymentDate()))
@@ -85,7 +85,7 @@ public class CustomerService implements CustomerLookup, CustomerBalanceOperation
     @Override
     @Transactional
     public void addToPaid(UUID customerId, BigDecimal amount, boolean isLastPaymentToday) {
-        CustomerBalance b = balances.lockByCustomerId(customerId).orElseGet(() -> getOrCreate(customerId));
+        CustomerBalance b = balances.lockByPartyId(customerId).orElseGet(() -> getOrCreate(customerId));
         b.setTotalPaid(b.getTotalPaid().add(amount));
         b.setBalance(b.getTotalInvoiced().subtract(b.getTotalPaid()));
         if (isLastPaymentToday) b.setLastPaymentDate(LocalDate.now());
@@ -103,7 +103,7 @@ public class CustomerService implements CustomerLookup, CustomerBalanceOperation
     @Override
     @Transactional(readOnly = true)
     public BigDecimal getBalanceAmount(UUID customerId) {
-        return balances.findByCustomerId(customerId)
+        return balances.findByPartyId(customerId)
                 .map(CustomerBalance::getBalance)
                 .orElse(BigDecimal.ZERO);
     }
@@ -197,22 +197,22 @@ public class CustomerService implements CustomerLookup, CustomerBalanceOperation
                 ? customers.search(query.trim(), pageable)
                 : customers.findByActiveTrue(pageable);
         Map<UUID, BigDecimal> balanceByCustomer = balances
-                .findByCustomerIdIn(page.map(Customer::getId).getContent())
+                .findByPartyIdIn(page.map(Customer::getId).getContent())
                 .stream()
-                .collect(Collectors.toMap(CustomerBalance::getCustomerId, CustomerBalance::getBalance));
+                .collect(Collectors.toMap(CustomerBalance::getPartyId, CustomerBalance::getBalance));
         return PageResponse.of(page.map(c -> toDto(c, balanceByCustomer.getOrDefault(c.getId(), BigDecimal.ZERO))));
     }
 
     @Transactional(readOnly = true)
     public CustomerBalanceDto getBalanceInfo(UUID id) {
         customers.findById(id).orElseThrow(() -> NotFoundException.of("entity.customer", id));
-        CustomerBalance b = balances.findByCustomerId(id).orElseGet(() -> getOrCreate(id));
+        CustomerBalance b = balances.findByPartyId(id).orElseGet(() -> getOrCreate(id));
         return toBalanceDto(b);
     }
 
     @Transactional(readOnly = true)
     public List<CustomerCreditDto> listCredits(UUID id) {
-        return credits.findByCustomerIdAndStatusOrderByCreatedAtAsc(id, CustomerCreditStatus.ACTIVE)
+        return credits.findByPartyIdAndStatusOrderByCreatedAtAsc(id, CustomerCreditStatus.ACTIVE)
                 .stream().map(this::toCreditDto).toList();
     }
 
@@ -220,7 +220,7 @@ public class CustomerService implements CustomerLookup, CustomerBalanceOperation
     public CustomerCreditDto createCredit(UUID customerId, BigDecimal amount, String source, String notes) {
         customers.findById(customerId).orElseThrow(() -> NotFoundException.of("entity.customer", customerId));
         CustomerCredit credit = CustomerCredit.builder()
-                .customerId(customerId)
+                .partyId(customerId)
                 .initialAmount(amount)
                 .remainingAmount(amount)
                 .source(CreditSource.valueOf(source))
@@ -243,7 +243,7 @@ public class CustomerService implements CustomerLookup, CustomerBalanceOperation
         }
         CustomerCredit credit = credits.findById(creditId)
                 .orElseThrow(() -> NotFoundException.of("entity.customer_credit", creditId));
-        if (!credit.getCustomerId().equals(customerId)) {
+        if (!credit.getPartyId().equals(customerId)) {
             throw NotFoundException.of("entity.customer_credit", creditId);
         }
         if (credit.getStatus() != CustomerCreditStatus.ACTIVE) {
@@ -269,8 +269,8 @@ public class CustomerService implements CustomerLookup, CustomerBalanceOperation
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private CustomerBalance getOrCreate(UUID customerId) {
-        return balances.findByCustomerId(customerId)
-                .orElse(CustomerBalance.builder().customerId(customerId).build());
+        return balances.findByPartyId(customerId)
+                .orElse(CustomerBalance.builder().partyId(customerId).build());
     }
 
     private CustomerSummary toSummary(Customer c) {
@@ -281,7 +281,7 @@ public class CustomerService implements CustomerLookup, CustomerBalanceOperation
     }
 
     private CustomerDto toDto(Customer c) {
-        return toDto(c, balances.findByCustomerId(c.getId())
+        return toDto(c, balances.findByPartyId(c.getId())
                 .map(CustomerBalance::getBalance)
                 .orElse(BigDecimal.ZERO));
     }
@@ -296,12 +296,12 @@ public class CustomerService implements CustomerLookup, CustomerBalanceOperation
     }
 
     private CustomerBalanceDto toBalanceDto(CustomerBalance b) {
-        return new CustomerBalanceDto(b.getCustomerId(), b.getTotalInvoiced(),
+        return new CustomerBalanceDto(b.getPartyId(), b.getTotalInvoiced(),
                 b.getTotalPaid(), b.getBalance(), b.getOverdueAmount(), b.getLastPaymentDate());
     }
 
     private CustomerCreditDto toCreditDto(CustomerCredit cr) {
-        return new CustomerCreditDto(cr.getId(), cr.getCustomerId(),
+        return new CustomerCreditDto(cr.getId(), cr.getPartyId(),
                 cr.getInitialAmount(), cr.getRemainingAmount(),
                 cr.getSource().name(), cr.getExpiresAt(),
                 cr.getStatus().name(), cr.getNotes(), cr.getCreatedAt());

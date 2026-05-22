@@ -3,24 +3,26 @@ package com.minierp.customer.internal;
 import com.minierp.shared.persistence.TenantAwareEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
+/**
+ * Supplier view over the unified {@code parties} table. A party row is visible
+ * through this entity when {@code is_supplier = true}. The same party row may
+ * also be a {@link Customer} when {@code is_customer = true}.
+ */
 @Entity
-@Table(name = "suppliers",
-        uniqueConstraints = @UniqueConstraint(name = "uk_suppliers_tenant_code", columnNames = {"tenant_id", "code"}),
-        indexes = {
-                @Index(name = "idx_suppliers_tenant", columnList = "tenant_id"),
-                @Index(name = "idx_suppliers_phone", columnList = "phone")
-        })
+@Table(name = "parties")
+@SQLRestriction("is_supplier = true")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 class Supplier extends TenantAwareEntity {
 
     @Id @GeneratedValue @Column(columnDefinition = "uuid")
     private UUID id;
 
-    @Column(nullable = false, length = 50)
+    @Column(name = "supplier_code", nullable = false, length = 50)
     private String code;
 
     @Enumerated(EnumType.STRING)
@@ -53,11 +55,26 @@ class Supplier extends TenantAwareEntity {
     @Column(length = 500)
     private String notes;
 
-    @Column(name = "credit_limit", precision = 19, scale = 2)
+    @Column(name = "supplier_credit_limit", precision = 19, scale = 2)
     @Builder.Default
     private BigDecimal creditLimit = BigDecimal.ZERO;
 
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /** Role flag: true for parties visible as suppliers. Always true through this view. */
+    @Column(name = "is_supplier", nullable = false)
+    @Builder.Default
+    private boolean isSupplier = true;
+
+    /** Role flag: true when the same party row is also a customer. */
+    @Column(name = "is_customer", nullable = false)
+    @Builder.Default
+    private boolean alsoCustomer = false;
+
+    @PrePersist
+    void enforceSupplierRoleOnInsert() {
+        this.isSupplier = true;
+    }
 }

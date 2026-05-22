@@ -4,26 +4,28 @@ import com.minierp.shared.persistence.TenantAwareEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
+/**
+ * Customer view over the unified {@code parties} table. A party row is visible
+ * through this entity when {@code is_customer = true}. The same party row may
+ * also expose itself as a {@link Supplier} when {@code is_supplier = true} —
+ * see the activate-role workflow.
+ */
 @Entity
-@Table(name = "customers",
-        uniqueConstraints = @UniqueConstraint(name = "uk_customers_tenant_code", columnNames = {"tenant_id", "code"}),
-        indexes = {
-                @Index(name = "idx_customers_tenant", columnList = "tenant_id"),
-                @Index(name = "idx_customers_email", columnList = "email"),
-                @Index(name = "idx_customers_phone", columnList = "phone")
-        })
+@Table(name = "parties")
+@SQLRestriction("is_customer = true")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 class Customer extends TenantAwareEntity {
 
     @Id @GeneratedValue @Column(columnDefinition = "uuid")
     private UUID id;
 
-    @Column(nullable = false, length = 50)
+    @Column(name = "customer_code", nullable = false, length = 50)
     private String code;
 
     @Enumerated(EnumType.STRING)
@@ -43,7 +45,7 @@ class Customer extends TenantAwareEntity {
     @Column(length = 500)
     private String address;
 
-    @Column(name = "credit_limit", precision = 19, scale = 2)
+    @Column(name = "customer_credit_limit", precision = 19, scale = 2)
     @Builder.Default
     private BigDecimal creditLimit = BigDecimal.ZERO;
 
@@ -54,14 +56,9 @@ class Customer extends TenantAwareEntity {
     @Column(length = 500)
     private String notes;
 
-    /**
-     * CDC §3.7.4 — applied automatically by PriceResolver when this customer's
-     * orders/invoices/POS sales are priced.
-     */
     @Column(name = "default_price_tier_id", columnDefinition = "uuid")
     private UUID defaultPriceTierId;
 
-    /** CDC §3.12.2 — JSONB preferences (acceptSms, acceptEmail, preferredLocale, optedOutEvents). */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "notification_preferences", columnDefinition = "jsonb")
     private String notificationPreferences;
@@ -69,4 +66,19 @@ class Customer extends TenantAwareEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /** Role flag: true for parties visible as customers. Always true through this view. */
+    @Column(name = "is_customer", nullable = false)
+    @Builder.Default
+    private boolean isCustomer = true;
+
+    /** Role flag: true when the same party row is also a supplier. */
+    @Column(name = "is_supplier", nullable = false)
+    @Builder.Default
+    private boolean alsoSupplier = false;
+
+    @PrePersist
+    void enforceCustomerRoleOnInsert() {
+        this.isCustomer = true;
+    }
 }

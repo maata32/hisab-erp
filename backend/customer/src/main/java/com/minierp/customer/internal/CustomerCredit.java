@@ -11,7 +11,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "customer_credits",
         indexes = {
-                @Index(name = "idx_customer_credits_customer", columnList = "customer_id"),
+                @Index(name = "idx_customer_credits_party", columnList = "party_id"),
                 @Index(name = "idx_customer_credits_status", columnList = "status")
         })
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -20,8 +20,8 @@ class CustomerCredit extends TenantAwareEntity {
     @Id @GeneratedValue @Column(columnDefinition = "uuid")
     private UUID id;
 
-    @Column(name = "customer_id", nullable = false, columnDefinition = "uuid")
-    private UUID customerId;
+    @Column(name = "party_id", nullable = false, columnDefinition = "uuid")
+    private UUID partyId;
 
     @Column(name = "initial_amount", precision = 19, scale = 2, nullable = false)
     private BigDecimal initialAmount;

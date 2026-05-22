@@ -11,11 +11,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 interface SupplierBalanceRepository extends JpaRepository<SupplierBalance, UUID> {
-    Optional<SupplierBalance> findBySupplierId(UUID supplierId);
+    Optional<SupplierBalance> findByPartyId(UUID partyId);
 
-    List<SupplierBalance> findBySupplierIdIn(Collection<UUID> supplierIds);
+    List<SupplierBalance> findByPartyIdIn(Collection<UUID> partyIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT b FROM SupplierBalance b WHERE b.supplierId = :supplierId")
-    Optional<SupplierBalance> lockBySupplierId(UUID supplierId);
+    @Query("SELECT b FROM SupplierBalance b WHERE b.partyId = :partyId")
+    Optional<SupplierBalance> lockByPartyId(UUID partyId);
 }

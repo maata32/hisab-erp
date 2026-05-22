@@ -57,7 +57,7 @@ public class SupplierService implements SupplierLookup, SupplierBalanceOperation
     @Override
     @Transactional
     public void addToPaid(UUID supplierId, BigDecimal amount, boolean isLastPaymentToday) {
-        SupplierBalance b = balances.lockBySupplierId(supplierId).orElseGet(() -> getOrCreate(supplierId));
+        SupplierBalance b = balances.lockByPartyId(supplierId).orElseGet(() -> getOrCreate(supplierId));
         b.setTotalPaid(b.getTotalPaid().add(amount));
         b.setBalance(b.getTotalInvoiced().subtract(b.getTotalPaid()));
         if (isLastPaymentToday) b.setLastPaymentDate(LocalDate.now());
@@ -67,7 +67,7 @@ public class SupplierService implements SupplierLookup, SupplierBalanceOperation
     @Override
     @Transactional(readOnly = true)
     public BigDecimal getBalanceAmount(UUID supplierId) {
-        return balances.findBySupplierId(supplierId)
+        return balances.findByPartyId(supplierId)
                 .map(SupplierBalance::getBalance)
                 .orElse(BigDecimal.ZERO);
     }
@@ -149,25 +149,25 @@ public class SupplierService implements SupplierLookup, SupplierBalanceOperation
                 ? suppliers.search(query.trim(), pageable)
                 : suppliers.findByActiveTrue(pageable);
         Map<UUID, BigDecimal> balanceBySupplier = balances
-                .findBySupplierIdIn(page.map(Supplier::getId).getContent())
+                .findByPartyIdIn(page.map(Supplier::getId).getContent())
                 .stream()
-                .collect(Collectors.toMap(SupplierBalance::getSupplierId, SupplierBalance::getBalance));
+                .collect(Collectors.toMap(SupplierBalance::getPartyId, SupplierBalance::getBalance));
         return PageResponse.of(page.map(s -> toDto(s, balanceBySupplier.getOrDefault(s.getId(), BigDecimal.ZERO))));
     }
 
     @Transactional(readOnly = true)
     public SupplierBalanceDto getBalanceInfo(UUID id) {
         suppliers.findById(id).orElseThrow(() -> NotFoundException.of("entity.supplier", id));
-        SupplierBalance b = balances.findBySupplierId(id).orElseGet(() -> getOrCreate(id));
-        return new SupplierBalanceDto(b.getSupplierId(), b.getTotalInvoiced(),
+        SupplierBalance b = balances.findByPartyId(id).orElseGet(() -> getOrCreate(id));
+        return new SupplierBalanceDto(b.getPartyId(), b.getTotalInvoiced(),
                 b.getTotalPaid(), b.getBalance(), b.getLastPaymentDate());
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private SupplierBalance getOrCreate(UUID supplierId) {
-        return balances.findBySupplierId(supplierId)
-                .orElse(SupplierBalance.builder().supplierId(supplierId).build());
+        return balances.findByPartyId(supplierId)
+                .orElse(SupplierBalance.builder().partyId(supplierId).build());
     }
 
     private SupplierSummary toSummary(Supplier s) {
@@ -176,7 +176,7 @@ public class SupplierService implements SupplierLookup, SupplierBalanceOperation
     }
 
     private SupplierDto toDto(Supplier s) {
-        return toDto(s, balances.findBySupplierId(s.getId())
+        return toDto(s, balances.findByPartyId(s.getId())
                 .map(SupplierBalance::getBalance)
                 .orElse(BigDecimal.ZERO));
     }

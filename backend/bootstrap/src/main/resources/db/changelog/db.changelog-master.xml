@@ -45,5 +45,6 @@
     <include file="db/changelog/0038-purchase.xml"/>
     <include file="db/changelog/0039-rls-purchase.xml"/>
     <include file="db/changelog/0040-supplier-fk-backfill.xml"/>
+    <include file="db/changelog/0041-parties-refactor.xml"/>
 
 </databaseChangeLog>

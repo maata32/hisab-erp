@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Party refactor (Odoo/SAP style).
+        Replaces customers + suppliers with a unified `parties` table carrying
+        is_customer / is_supplier role flags. Each role can have its own code
+        (customer_code, supplier_code) so the accounting code series (411xxx /
+        401xxx) stay distinct. Balances are split into ar_balances (receivables,
+        with overdue tracking) and ap_balances (payables).
+
+        FK columns previously named customer_id / supplier_id on transactional
+        tables are renamed to party_id and re-pointed at parties(id). IDs are
+        preserved across the migration, so the renames don't require data
+        rewriting beyond column re-targeting.
+    -->
+
+    <changeSet id="0041-parties-create" author="mini-erp">
+        <sql>
+            CREATE TABLE parties (
+                id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                tenant_id                   UUID NOT NULL,
+                customer_code               VARCHAR(50),
+                supplier_code               VARCHAR(50),
+                type                        VARCHAR(20) NOT NULL DEFAULT 'COMPANY',
+                name                        VARCHAR(250) NOT NULL,
+                email                       VARCHAR(150),
+                phone                       VARCHAR(30),
+                address                     VARCHAR(500),
+                tax_id                      VARCHAR(50),
+                payment_terms               VARCHAR(100),
+                customer_credit_limit       NUMERIC(19,2),
+                supplier_credit_limit       NUMERIC(19,2),
+                currency                    VARCHAR(3) NOT NULL DEFAULT 'MRU',
+                default_price_tier_id       UUID,
+                notification_preferences    JSONB,
+                notes                       VARCHAR(500),
+                is_customer                 BOOLEAN NOT NULL DEFAULT FALSE,
+                is_supplier                 BOOLEAN NOT NULL DEFAULT FALSE,
+                active                      BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
+                created_by                  UUID,
+                updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_by                  UUID,
+                version                     BIGINT NOT NULL DEFAULT 0,
+                CONSTRAINT ck_parties_role_required CHECK (is_customer OR is_supplier),
+                CONSTRAINT ck_parties_customer_code_role
+                    CHECK ((customer_code IS NULL) OR is_customer),
+                CONSTRAINT ck_parties_supplier_code_role
+                    CHECK ((supplier_code IS NULL) OR is_supplier)
+            );
+
+            CREATE UNIQUE INDEX uk_parties_tenant_customer_code
+                ON parties(tenant_id, customer_code)
+                WHERE customer_code IS NOT NULL;
+            CREATE UNIQUE INDEX uk_parties_tenant_supplier_code
+                ON parties(tenant_id, supplier_code)
+                WHERE supplier_code IS NOT NULL;
+            CREATE INDEX idx_parties_tenant ON parties(tenant_id);
+            CREATE INDEX idx_parties_email  ON parties(email);
+            CREATE INDEX idx_parties_phone  ON parties(phone);
+            CREATE INDEX idx_parties_tax_id ON parties(tax_id);
+            CREATE INDEX idx_parties_is_customer ON parties(tenant_id, is_customer) WHERE is_customer;
+            CREATE INDEX idx_parties_is_supplier ON parties(tenant_id, is_supplier) WHERE is_supplier;
+
+            CREATE TABLE ar_balances (
+                id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                tenant_id           UUID NOT NULL,
+                party_id            UUID NOT NULL REFERENCES parties(id) ON DELETE CASCADE,
+                total_invoiced      NUMERIC(19,2) NOT NULL DEFAULT 0,
+                total_paid          NUMERIC(19,2) NOT NULL DEFAULT 0,
+                balance             NUMERIC(19,2) NOT NULL DEFAULT 0,
+                overdue_amount      NUMERIC(19,2) NOT NULL DEFAULT 0,
+                last_payment_date   DATE,
+                created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                created_by          UUID,
+                updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_by          UUID,
+                version             BIGINT NOT NULL DEFAULT 0,
+                CONSTRAINT uk_ar_balances_party UNIQUE (tenant_id, party_id)
+            );
+            CREATE INDEX idx_ar_balances_tenant ON ar_balances(tenant_id);
+
+            CREATE TABLE ap_balances (
+                id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                tenant_id           UUID NOT NULL,
+                party_id            UUID NOT NULL REFERENCES parties(id) ON DELETE CASCADE,
+                total_invoiced      NUMERIC(19,2) NOT NULL DEFAULT 0,
+                total_paid          NUMERIC(19,2) NOT NULL DEFAULT 0,
+                balance             NUMERIC(19,2) NOT NULL DEFAULT 0,
+                last_payment_date   DATE,
+                created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                created_by          UUID,
+                updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_by          UUID,
+                version             BIGINT NOT NULL DEFAULT 0,
+                CONSTRAINT uk_ap_balances_party UNIQUE (tenant_id, party_id)
+            );
+            CREATE INDEX idx_ap_balances_tenant ON ap_balances(tenant_id);
+        </sql>
+    </changeSet>
+
+    <changeSet id="0041-parties-backfill" author="mini-erp">
+        <sql>
+            -- Customers → parties (IDs preserved)
+            INSERT INTO parties (
+                id, tenant_id, customer_code, type, name, email, phone, address,
+                customer_credit_limit, currency, default_price_tier_id,
+                notification_preferences, notes,
+                is_customer, is_supplier, active,
+                created_at, created_by, updated_at, updated_by, version
+            )
+            SELECT
+                c.id, c.tenant_id, c.code, c.type, c.name, c.email, c.phone, c.address,
+                c.credit_limit, c.currency, c.default_price_tier_id,
+                c.notification_preferences, c.notes,
+                TRUE, FALSE, c.active,
+                c.created_at, c.created_by, c.updated_at, c.updated_by, c.version
+            FROM customers c;
+
+            -- Suppliers → parties. If a row exists with the same id (shouldn't,
+            -- since customers and suppliers are independent), we ON CONFLICT
+            -- upgrade it: flip is_supplier=TRUE and copy supplier-only fields.
+            INSERT INTO parties (
+                id, tenant_id, supplier_code, type, name, email, phone, address,
+                tax_id, payment_terms, supplier_credit_limit, currency, notes,
+                is_customer, is_supplier, active,
+                created_at, created_by, updated_at, updated_by, version
+            )
+            SELECT
+                s.id, s.tenant_id, s.code, s.type, s.name, s.email, s.phone, s.address,
+                s.tax_id, s.payment_terms, s.credit_limit, s.currency, s.notes,
+                FALSE, TRUE, s.active,
+                s.created_at, s.created_by, s.updated_at, s.updated_by, s.version
+            FROM suppliers s
+            ON CONFLICT (id) DO UPDATE SET
+                is_supplier             = TRUE,
+                supplier_code           = EXCLUDED.supplier_code,
+                tax_id                  = COALESCE(parties.tax_id, EXCLUDED.tax_id),
+                payment_terms           = COALESCE(parties.payment_terms, EXCLUDED.payment_terms),
+                supplier_credit_limit   = COALESCE(parties.supplier_credit_limit, EXCLUDED.supplier_credit_limit);
+
+            -- customer_balances → ar_balances (IDs preserved)
+            INSERT INTO ar_balances (
+                id, tenant_id, party_id, total_invoiced, total_paid, balance,
+                overdue_amount, last_payment_date,
+                created_at, created_by, updated_at, updated_by, version
+            )
+            SELECT
+                id, tenant_id, customer_id, total_invoiced, total_paid, balance,
+                overdue_amount, last_payment_date,
+                created_at, created_by, updated_at, updated_by, version
+            FROM customer_balances;
+
+            -- supplier_balances → ap_balances (IDs preserved)
+            INSERT INTO ap_balances (
+                id, tenant_id, party_id, total_invoiced, total_paid, balance,
+                last_payment_date,
+                created_at, created_by, updated_at, updated_by, version
+            )
+            SELECT
+                id, tenant_id, supplier_id, total_invoiced, total_paid, balance,
+                last_payment_date,
+                created_at, created_by, updated_at, updated_by, version
+            FROM supplier_balances;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0041-drop-old-supplier-fks" author="mini-erp">
+        <sql>
+            ALTER TABLE expenses     DROP CONSTRAINT IF EXISTS fk_expenses_supplier;
+            ALTER TABLE product_lots DROP CONSTRAINT IF EXISTS fk_product_lots_supplier;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0041-rename-customer-id-columns" author="mini-erp">
+        <sql>
+            ALTER TABLE quotes            RENAME COLUMN customer_id TO party_id;
+            ALTER TABLE orders            RENAME COLUMN customer_id TO party_id;
+            ALTER TABLE invoices          RENAME COLUMN customer_id TO party_id;
+            ALTER TABLE credit_notes      RENAME COLUMN customer_id TO party_id;
+            ALTER TABLE sales             RENAME COLUMN customer_id TO party_id;
+            ALTER TABLE deliveries        RENAME COLUMN customer_id TO party_id;
+            ALTER TABLE customer_credits  RENAME COLUMN customer_id TO party_id;
+            ALTER TABLE incomes           RENAME COLUMN customer_id TO party_id;
+            ALTER TABLE notifications     RENAME COLUMN customer_id TO party_id;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0041-rename-supplier-id-columns" author="mini-erp">
+        <sql>
+            ALTER TABLE expenses           RENAME COLUMN supplier_id TO party_id;
+            ALTER TABLE product_lots       RENAME COLUMN supplier_id TO party_id;
+            ALTER TABLE purchase_orders    RENAME COLUMN supplier_id TO party_id;
+            ALTER TABLE purchase_invoices  RENAME COLUMN supplier_id TO party_id;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0041-add-party-fks" author="mini-erp">
+        <sql>
+            ALTER TABLE quotes
+                ADD CONSTRAINT fk_quotes_party
+                FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE RESTRICT;
+            ALTER TABLE orders
+                ADD CONSTRAINT fk_orders_party
+                FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE RESTRICT;
+            ALTER TABLE invoices
+                ADD CONSTRAINT fk_invoices_party
+                FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE RESTRICT;
+            ALTER TABLE credit_notes
+                ADD CONSTRAINT fk_credit_notes_party
+                FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE RESTRICT;
+            ALTER TABLE sales
+                ADD CONSTRAINT fk_sales_party
+                FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE SET NULL;
+            ALTER TABLE deliveries
+                ADD CONSTRAINT fk_deliveries_party
+                FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE RESTRICT;
+            ALTER TABLE customer_credits
+                ADD CONSTRAINT fk_customer_credits_party
+                FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE CASCADE;
+            ALTER TABLE incomes
+                ADD CONSTRAINT fk_incomes_party
+                FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE SET NULL;
+            ALTER TABLE notifications
+                ADD CONSTRAINT fk_notifications_party
+                FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE SET NULL;
+
+            ALTER TABLE expenses
+                ADD CONSTRAINT fk_expenses_party
+                FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE SET NULL;
+            ALTER TABLE product_lots
+                ADD CONSTRAINT fk_product_lots_party
+                FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE SET NULL;
+            ALTER TABLE purchase_orders
+                ADD CONSTRAINT fk_purchase_orders_party
+                FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE RESTRICT;
+            ALTER TABLE purchase_invoices
+                ADD CONSTRAINT fk_purchase_invoices_party
+                FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE RESTRICT;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0041-drop-legacy-tables" author="mini-erp">
+        <sql>
+            DROP TABLE IF EXISTS customer_balances CASCADE;
+            DROP TABLE IF EXISTS supplier_balances CASCADE;
+            DROP TABLE IF EXISTS customers CASCADE;
+            DROP TABLE IF EXISTS suppliers CASCADE;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0041-parties-rls" author="mini-erp">
+        <sql splitStatements="false">
+            DO $$
+            DECLARE
+                t text;
+                tables text[] := ARRAY['parties', 'ar_balances', 'ap_balances'];
+            BEGIN
+                FOREACH t IN ARRAY tables LOOP
+                    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+                    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
+
+                    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_select ON %I', t);
+                    EXECUTE format(
+                        'CREATE POLICY tenant_isolation_select ON %I
+                            FOR SELECT
+                            USING (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)',
+                        t);
+
+                    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_modify ON %I', t);
+                    EXECUTE format(
+                        'CREATE POLICY tenant_isolation_modify ON %I
+                            FOR ALL
+                            USING (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)
+                            WITH CHECK (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)',
+                        t);
+                END LOOP;
+            END
+            $$;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0041-grant-parties" author="mini-erp" runInTransaction="false">
+        <sql splitStatements="false">
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'minierp_app') THEN
+                    GRANT ALL ON TABLE parties, ar_balances, ap_balances TO minierp_app;
+                END IF;
+            END $$;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
