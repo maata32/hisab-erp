@@ -192,46 +192,45 @@ interface Phase {
         </section>
       }
 
-      <!-- Trends row: 7-day sales + payment methods -->
-      <div class="grid gap-4 grid-cols-1 lg:grid-cols-3">
-        @if (canSeeFinance() && kpis()?.sales7Days?.length) {
-          <section class="bg-white rounded-lg border border-gray-200 p-5 lg:col-span-2">
-            <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-3">
-              {{ 'dashboard.trend.sales7' | translate }}
-            </h2>
-            <div class="flex items-end gap-2 h-32">
-              @for (d of kpis()?.sales7Days; track d.day) {
-                <div class="flex-1 flex flex-col items-center gap-1 justify-end h-full">
-                  <div class="text-[10px] text-gray-500 truncate">{{ d.amount | money }}</div>
-                  <div class="w-full bg-blue-500 rounded-t"
-                       [style.height.%]="sparkBarHeight(d.amount)"
-                       [style.min-height.px]="d.amount > 0 ? 2 : 0"></div>
-                  <div class="text-xs text-gray-600">{{ d.day | date:'EEE dd' }}</div>
-                </div>
-              }
-            </div>
-          </section>
-        }
+      <!-- 7-day sales (full width) -->
+      @if (canSeeFinance() && kpis()?.sales7Days?.length) {
+        <section class="bg-white rounded-lg border border-gray-200 p-5">
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-3">
+            {{ 'dashboard.trend.sales7' | translate }}
+          </h2>
+          <div class="flex items-end gap-2 h-32">
+            @for (d of kpis()?.sales7Days; track d.day) {
+              <div class="flex-1 flex flex-col items-center gap-1 justify-end h-full">
+                <div class="text-[10px] text-gray-500 truncate">{{ d.amount | money }}</div>
+                <div class="w-full bg-blue-500 rounded-t"
+                     [style.height.%]="sparkBarHeight(d.amount)"
+                     [style.min-height.px]="d.amount > 0 ? 2 : 0"></div>
+                <div class="text-xs text-gray-600">{{ d.day | date:'EEE dd' }}</div>
+              </div>
+            }
+          </div>
+        </section>
+      }
 
-        @if (canSeePayments() && kpis()?.paymentMethodsToday?.length) {
-          <section class="bg-white rounded-lg border border-gray-200 p-5">
-            <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-3">
-              {{ 'dashboard.trend.paymentsToday' | translate }}
-            </h2>
-            <ul class="space-y-2 text-sm">
-              @for (pm of kpis()?.paymentMethodsToday; track pm.method) {
-                <li class="flex items-center justify-between">
-                  <span class="text-gray-700">{{ 'payments.methods.' + pm.method | translate }}</span>
-                  <span class="text-right">
-                    <span class="font-medium">{{ pm.amount | money }}</span>
-                    <span class="text-xs text-gray-500 ml-1">({{ pm.count }})</span>
-                  </span>
-                </li>
-              }
-            </ul>
-          </section>
-        }
-      </div>
+      <!-- Payments today (full width) -->
+      @if (canSeePayments() && kpis()?.paymentMethodsToday?.length) {
+        <section class="bg-white rounded-lg border border-gray-200 p-5">
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-3">
+            {{ 'dashboard.trend.paymentsToday' | translate }}
+          </h2>
+          <ul class="space-y-2 text-sm">
+            @for (pm of kpis()?.paymentMethodsToday; track pm.method) {
+              <li class="flex items-center justify-between">
+                <span class="text-gray-700">{{ 'payments.methods.' + pm.method | translate }}</span>
+                <span class="text-right">
+                  <span class="font-medium">{{ pm.amount | money }}</span>
+                  <span class="text-xs text-gray-500 ml-1">({{ pm.count }})</span>
+                </span>
+              </li>
+            }
+          </ul>
+        </section>
+      }
 
       <!-- Top products this month -->
       @if (canSeeFinance() && kpis()?.topProductsMonth?.length) {
