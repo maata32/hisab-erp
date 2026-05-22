@@ -7,15 +7,14 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * Create-partner payload. At least one of {@code isCustomer} / {@code isSupplier}
- * must be true; the corresponding *Code field must be provided when the role
- * flag is set.
+ * Create-partner payload. {@code code} is the unique partner reference
+ * (one value, role-agnostic). At least one of {@code isCustomer} /
+ * {@code isSupplier} must be true.
  */
 public record CreatePartnerRequest(
+        @NotBlank @Size(max = 50) String code,
         boolean isCustomer,
         boolean isSupplier,
-        @Size(max = 50) String customerCode,
-        @Size(max = 50) String supplierCode,
         String type,
         @NotBlank @Size(max = 250) String name,
         @Size(max = 150) String email,

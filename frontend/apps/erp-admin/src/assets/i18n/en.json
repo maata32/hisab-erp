@@ -24,7 +24,29 @@
     "clear": "Clear",
     "action": "Action",
     "confirmation": "Confirmation",
-    "print": "Print"
+    "print": "Print",
+    "error": "Error",
+    "error_generic": "An error occurred"
+  },
+  "error": {
+    "partner": {
+      "supplier_balance_not_zero": "Non-zero AP balance — cannot remove the supplier role.",
+      "customer_balance_not_zero": "Non-zero AR balance — cannot remove the customer role.",
+      "open_purchase_orders": "Open purchase orders still exist.",
+      "open_purchase_invoices": "Unpaid purchase invoices still exist.",
+      "open_quotes": "Open quotes still exist.",
+      "open_orders": "Open sales orders still exist.",
+      "open_invoices": "Unpaid invoices still exist.",
+      "open_deliveries": "Deliveries are still in progress.",
+      "active_credits": "Active customer credits still exist.",
+      "cannot_remove_last_role": "A partner must keep at least one role.",
+      "not_a_supplier": "This partner is not a supplier.",
+      "not_a_customer": "This partner is not a customer.",
+      "role_required": "At least one role is required.",
+      "code_required": "Code is required.",
+      "supplier_role_already_active": "Supplier role is already active.",
+      "customer_role_already_active": "Customer role is already active."
+    }
   },
   "auth": {
     "login": {
@@ -282,9 +304,7 @@
     "role_customer": "Customer",
     "role_supplier": "Supplier",
     "roles": "Roles",
-    "codes": "Codes",
-    "customerCode": "Customer code",
-    "supplierCode": "Supplier code",
+    "code": "Code",
     "type": "Type",
     "name": "Name",
     "email": "Email",
@@ -301,8 +321,12 @@
     "activate_supplier": "Activate supplier role",
     "activate_supplier_hint": "This partner will also become a supplier. Enter the 401xxx code and payment terms.",
     "activate_customer": "Activate customer role",
-    "activate_customer_hint": "This partner will also become a customer. Enter the 411xxx code and credit limit.",
+    "activate_customer_hint": "This partner will also become a customer. Credit limit is optional.",
+    "deactivate_supplier": "Remove supplier role",
+    "deactivate_customer": "Remove customer role",
     "confirm_deactivate": "Deactivate partner \"{{name}}\"?",
+    "confirm_deactivate_supplier": "Remove the supplier role from \"{{name}}\"? Requires zero AP balance and no open purchase documents.",
+    "confirm_deactivate_customer": "Remove the customer role from \"{{name}}\"? Requires zero AR balance, no active credits, and no open sales documents.",
     "statement": "Account statement (PDF)",
     "statementDialogTitle": "Account statement",
     "statementDialogHint": "Pick the period and statement type.",

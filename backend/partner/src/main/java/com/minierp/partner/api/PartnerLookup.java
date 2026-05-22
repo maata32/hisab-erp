@@ -11,6 +11,5 @@ import java.util.UUID;
  */
 public interface PartnerLookup {
     Optional<PartnerSummary> findById(UUID id);
-    Optional<PartnerSummary> findByCustomerCode(String customerCode);
-    Optional<PartnerSummary> findBySupplierCode(String supplierCode);
+    Optional<PartnerSummary> findByCode(String code);
 }

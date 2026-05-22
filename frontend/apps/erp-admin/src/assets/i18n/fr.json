@@ -25,7 +25,29 @@
     "clear": "Effacer",
     "action": "Action",
     "confirmation": "Confirmation",
-    "print": "Imprimer"
+    "print": "Imprimer",
+    "error": "Erreur",
+    "error_generic": "Une erreur s'est produite"
+  },
+  "error": {
+    "partner": {
+      "supplier_balance_not_zero": "Solde fournisseur non nul — impossible de retirer le rôle.",
+      "customer_balance_not_zero": "Solde client non nul — impossible de retirer le rôle.",
+      "open_purchase_orders": "Des commandes fournisseur sont encore ouvertes.",
+      "open_purchase_invoices": "Des factures fournisseur ne sont pas réglées.",
+      "open_quotes": "Des devis sont encore ouverts.",
+      "open_orders": "Des commandes client sont encore ouvertes.",
+      "open_invoices": "Des factures client ne sont pas réglées.",
+      "open_deliveries": "Des livraisons sont en cours.",
+      "active_credits": "Des crédits client sont encore actifs.",
+      "cannot_remove_last_role": "Un partenaire doit garder au moins un rôle.",
+      "not_a_supplier": "Ce partenaire n'est pas fournisseur.",
+      "not_a_customer": "Ce partenaire n'est pas client.",
+      "role_required": "Au moins un rôle est requis.",
+      "code_required": "Le code est requis.",
+      "supplier_role_already_active": "Le rôle fournisseur est déjà actif.",
+      "customer_role_already_active": "Le rôle client est déjà actif."
+    }
   },
   "auth": {
     "login": {
@@ -283,9 +305,7 @@
     "role_customer": "Client",
     "role_supplier": "Fournisseur",
     "roles": "Rôles",
-    "codes": "Codes",
-    "customerCode": "Code client",
-    "supplierCode": "Code fournisseur",
+    "code": "Code",
     "type": "Type",
     "name": "Nom",
     "email": "Email",
@@ -302,8 +322,12 @@
     "activate_supplier": "Activer rôle fournisseur",
     "activate_supplier_hint": "Ce partenaire deviendra aussi fournisseur. Renseignez le code 401xxx et les conditions de paiement.",
     "activate_customer": "Activer rôle client",
-    "activate_customer_hint": "Ce partenaire deviendra aussi client. Renseignez le code 411xxx et le plafond de crédit.",
+    "activate_customer_hint": "Ce partenaire deviendra aussi client. Plafond de crédit optionnel.",
+    "deactivate_supplier": "Retirer rôle fournisseur",
+    "deactivate_customer": "Retirer rôle client",
     "confirm_deactivate": "Désactiver le partenaire « {{name}} » ?",
+    "confirm_deactivate_supplier": "Retirer le rôle fournisseur de « {{name}} » ? Cette action exige un solde nul et aucun document fournisseur ouvert.",
+    "confirm_deactivate_customer": "Retirer le rôle client de « {{name}} » ? Cette action exige un solde nul, aucun crédit actif et aucun document client ouvert.",
     "statement": "Relevé de compte (PDF)",
     "statementDialogTitle": "Relevé de compte",
     "statementDialogHint": "Choisissez la période puis le type de relevé à imprimer.",

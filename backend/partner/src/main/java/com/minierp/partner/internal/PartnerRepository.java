@@ -10,11 +10,9 @@ import java.util.UUID;
 
 interface PartnerRepository extends JpaRepository<Partner, UUID> {
 
-    boolean existsByCustomerCode(String customerCode);
-    boolean existsBySupplierCode(String supplierCode);
+    boolean existsByCode(String code);
 
-    Optional<Partner> findByCustomerCode(String customerCode);
-    Optional<Partner> findBySupplierCode(String supplierCode);
+    Optional<Partner> findByCode(String code);
 
     @Query("SELECT p FROM Partner p WHERE p.active = true AND " +
            "(:role IS NULL OR " +
@@ -27,14 +25,10 @@ interface PartnerRepository extends JpaRepository<Partner, UUID> {
            "(:role = 'CUSTOMER' AND p.isCustomer = true) OR " +
            "(:role = 'SUPPLIER' AND p.isSupplier = true)) AND " +
            "(LOWER(p.name) LIKE LOWER(CONCAT('%',:q,'%')) OR " +
-           "LOWER(COALESCE(p.customerCode,'')) LIKE LOWER(CONCAT('%',:q,'%')) OR " +
-           "LOWER(COALESCE(p.supplierCode,'')) LIKE LOWER(CONCAT('%',:q,'%')) OR " +
+           "LOWER(p.code) LIKE LOWER(CONCAT('%',:q,'%')) OR " +
            "LOWER(COALESCE(p.phone,'')) LIKE LOWER(CONCAT('%',:q,'%')))")
     Page<Partner> searchByRole(String role, String q, Pageable pageable);
 
-    @Query("SELECT MAX(p.customerCode) FROM Partner p WHERE p.customerCode LIKE :prefix")
-    Optional<String> findMaxCustomerCodeByPrefix(String prefix);
-
-    @Query("SELECT MAX(p.supplierCode) FROM Partner p WHERE p.supplierCode LIKE :prefix")
-    Optional<String> findMaxSupplierCodeByPrefix(String prefix);
+    @Query("SELECT MAX(p.code) FROM Partner p WHERE p.code LIKE :prefix")
+    Optional<String> findMaxCodeByPrefix(String prefix);
 }

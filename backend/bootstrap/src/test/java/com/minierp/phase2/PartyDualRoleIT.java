@@ -19,19 +19,20 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Verifies a single partner row can carry both customer and supplier roles after
- * activation (Odoo-style). Creates a customer-only partner, activates the
- * supplier role, asserts:
- *  - the parties row stays unique (same id) but both is_customer and is_supplier are true,
- *  - exactly one ap_balances row exists for the party (eagerly seeded by activation),
- *  - no ar_balances row yet (created lazily on first invoice, not on partner create),
- *  - the PartnerDto exposes isSupplier=true and the supplierCode.
+ * Verifies a single partner row can carry both customer and supplier roles
+ * after activation, then drop a role via deactivate (Odoo-style, single code).
+ * Asserts:
+ *  - one parties row, single {@code code}, both flags after activation,
+ *  - ap_balances row eagerly seeded by activate-supplier-role,
+ *  - ar_balances stays lazy (no invoice yet),
+ *  - deactivate-supplier-role flips is_supplier=false and refuses to remove the last role.
  */
 @SpringBootTest(classes = MiniErpApplication.class)
 @ActiveProfiles("test")
-@DisplayName("Partner dual role — customer-only partner can also become supplier")
+@DisplayName("Partner dual role — single code, activate then deactivate supplier role")
 class PartyDualRoleIT {
 
     @Autowired PartnerService partnerService;
@@ -58,41 +59,44 @@ class PartyDualRoleIT {
     }
 
     @Test
-    void activatingSupplierRoleKeepsSingleRowAndAddsApBalance() {
+    void activatingThenDeactivatingSupplierRoleKeepsSingleCode() {
         PartnerDto created = partnerService.create(new CreatePartnerRequest(
+                "E-DUAL-0001",
                 true, false,
-                "C-DUAL-0001", null,
                 "COMPANY", "Dual Role Co.", "ops@dual.co", "+22244000000",
                 "Nouakchott", null, null, "MRU", null,
                 null, null, BigDecimal.ZERO, null));
 
+        assertThat(created.code()).isEqualTo("E-DUAL-0001");
         assertThat(created.isCustomer()).isTrue();
         assertThat(created.isSupplier()).isFalse();
-        assertThat(created.supplierCode()).isNull();
 
         PartnerDto promoted = partnerService.activateSupplierRole(created.id(),
-                new ActivateSupplierRoleRequest(
-                        "F-DUAL-0001", "MR0123456", "NET30",
+                new ActivateSupplierRoleRequest("MR0123456", "NET30",
                         new BigDecimal("500000.00")));
 
         assertThat(promoted.id()).isEqualTo(created.id());
+        assertThat(promoted.code()).isEqualTo("E-DUAL-0001");
         assertThat(promoted.isCustomer()).isTrue();
         assertThat(promoted.isSupplier()).isTrue();
-        assertThat(promoted.supplierCode()).isEqualTo("F-DUAL-0001");
 
         Long partyRows = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM parties WHERE id = ? AND is_customer = true AND is_supplier = true",
                 Long.class, created.id());
         assertThat(partyRows).isEqualTo(1L);
 
-        Long arRows = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM ar_balances WHERE party_id = ?",
-                Long.class, created.id());
-        assertThat(arRows).as("ar_balances is lazy — no invoice yet").isEqualTo(0L);
-
         Long apRows = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM ap_balances WHERE party_id = ?",
                 Long.class, created.id());
         assertThat(apRows).as("ap_balances eagerly seeded by activate-supplier-role").isEqualTo(1L);
+
+        PartnerDto demoted = partnerService.deactivateSupplierRole(created.id());
+        assertThat(demoted.isSupplier()).isFalse();
+        assertThat(demoted.isCustomer()).isTrue();
+        assertThat(demoted.code()).isEqualTo("E-DUAL-0001");
+
+        // Cannot drop the only remaining role
+        assertThatThrownBy(() -> partnerService.deactivateCustomerRole(created.id()))
+                .hasMessageContaining("cannot_remove_last_role");
     }
 }

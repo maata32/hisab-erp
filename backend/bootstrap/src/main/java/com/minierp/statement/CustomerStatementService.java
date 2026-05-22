@@ -69,7 +69,7 @@ public class CustomerStatementService {
         vars.put("periodFrom", from);
         vars.put("periodTo", to);
         vars.put("customer", Map.of(
-                "code", nullSafe(customer.customerCode()),
+                "code", nullSafe(customer.code()),
                 "name", nullSafe(customer.name()),
                 "phone", nullSafe(customer.phone()),
                 "email", nullSafe(customer.email())

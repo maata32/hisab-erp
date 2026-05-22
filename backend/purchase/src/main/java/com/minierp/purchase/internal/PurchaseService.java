@@ -454,7 +454,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
                         inv.getPaidAmount(), inv.getBalance(),
                         inv.getCurrency(), inv.getNotes(), linesModel),
                 "supplier", new SupplierModel(
-                        supplier != null ? supplier.supplierCode() : "",
+                        supplier != null ? supplier.code() : "",
                         supplier != null ? supplier.name() : "",
                         supplier != null ? supplier.phone() : "",
                         supplier != null ? supplier.email() : ""),
@@ -481,7 +481,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
                         po.getSubtotal(), po.getTaxAmount(), po.getTotal(),
                         po.getCurrency(), po.getNotes(), lm),
                 "supplier", new SupplierModel(
-                        supplier != null ? supplier.supplierCode() : "",
+                        supplier != null ? supplier.code() : "",
                         supplier != null ? supplier.name() : "",
                         supplier != null ? supplier.phone() : "",
                         supplier != null ? supplier.email() : ""),

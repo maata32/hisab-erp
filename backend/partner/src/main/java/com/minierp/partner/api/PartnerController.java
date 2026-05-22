@@ -30,15 +30,11 @@ public class PartnerController {
         return service.create(req);
     }
 
-    /**
-     * Suggests the next code for a given role. {@code role=customer} returns a
-     * 411xxx-style code; {@code role=supplier} returns a 401xxx-style code.
-     */
+    /** Suggests the next partner code following P-YY-NNNN or E-YY-NNNN depending on {@code type}. */
     @GetMapping("/next-code")
     @PreAuthorize("hasAuthority('customer:write') or hasAuthority('supplier:write')")
-    public NextCodeResponse nextCode(@RequestParam String role,
-                                    @RequestParam(required = false) String type) {
-        return new NextCodeResponse(service.suggestCode(role, type));
+    public NextCodeResponse nextCode(@RequestParam(required = false) String type) {
+        return new NextCodeResponse(service.suggestCode(type));
     }
 
     public record NextCodeResponse(String code) {}
@@ -126,5 +122,19 @@ public class PartnerController {
     public PartnerDto activateCustomerRole(@PathVariable UUID id,
                                            @Valid @RequestBody ActivateCustomerRoleRequest req) {
         return service.activateCustomerRole(id, req);
+    }
+
+    /** Removes the supplier role from a dual-role partner (must remain a customer). */
+    @PostMapping("/{id}/deactivate-supplier-role")
+    @PreAuthorize("hasAuthority('supplier:write')")
+    public PartnerDto deactivateSupplierRole(@PathVariable UUID id) {
+        return service.deactivateSupplierRole(id);
+    }
+
+    /** Removes the customer role from a dual-role partner (must remain a supplier). */
+    @PostMapping("/{id}/deactivate-customer-role")
+    @PreAuthorize("hasAuthority('customer:write')")
+    public PartnerDto deactivateCustomerRole(@PathVariable UUID id) {
+        return service.deactivateCustomerRole(id);
     }
 }

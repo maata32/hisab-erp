@@ -24,7 +24,29 @@
     "clear": "مسح",
     "action": "إجراء",
     "confirmation": "تأكيد",
-    "print": "طباعة"
+    "print": "طباعة",
+    "error": "خطأ",
+    "error_generic": "حدث خطأ"
+  },
+  "error": {
+    "partner": {
+      "supplier_balance_not_zero": "رصيد الدائنين غير صفري — لا يمكن إزالة دور المورّد.",
+      "customer_balance_not_zero": "رصيد المدينين غير صفري — لا يمكن إزالة دور العميل.",
+      "open_purchase_orders": "توجد طلبات شراء مفتوحة.",
+      "open_purchase_invoices": "توجد فواتير شراء غير مدفوعة.",
+      "open_quotes": "توجد عروض أسعار مفتوحة.",
+      "open_orders": "توجد طلبات بيع مفتوحة.",
+      "open_invoices": "توجد فواتير بيع غير مدفوعة.",
+      "open_deliveries": "توجد عمليات تسليم جارية.",
+      "active_credits": "توجد ائتمانات عميل نشطة.",
+      "cannot_remove_last_role": "يجب أن يحتفظ الشريك بدور واحد على الأقل.",
+      "not_a_supplier": "هذا الشريك ليس مورّدًا.",
+      "not_a_customer": "هذا الشريك ليس عميلًا.",
+      "role_required": "يتطلب دورًا واحدًا على الأقل.",
+      "code_required": "الرمز مطلوب.",
+      "supplier_role_already_active": "دور المورّد مفعّل بالفعل.",
+      "customer_role_already_active": "دور العميل مفعّل بالفعل."
+    }
   },
   "auth": {
     "login": {
@@ -282,9 +304,7 @@
     "role_customer": "عميل",
     "role_supplier": "مورّد",
     "roles": "الأدوار",
-    "codes": "الرموز",
-    "customerCode": "رمز العميل",
-    "supplierCode": "رمز المورّد",
+    "code": "الرمز",
     "type": "النوع",
     "name": "الاسم",
     "email": "البريد الإلكتروني",
@@ -301,8 +321,12 @@
     "activate_supplier": "تفعيل دور المورّد",
     "activate_supplier_hint": "سيصبح هذا الشريك مورّدًا أيضًا. أدخل رمز 401xxx وشروط الدفع.",
     "activate_customer": "تفعيل دور العميل",
-    "activate_customer_hint": "سيصبح هذا الشريك عميلًا أيضًا. أدخل رمز 411xxx وحد الائتمان.",
+    "activate_customer_hint": "سيصبح هذا الشريك عميلًا أيضًا. حد الائتمان اختياري.",
+    "deactivate_supplier": "إزالة دور المورّد",
+    "deactivate_customer": "إزالة دور العميل",
     "confirm_deactivate": "تعطيل الشريك \"{{name}}\"؟",
+    "confirm_deactivate_supplier": "إزالة دور المورّد من \"{{name}}\"؟ يتطلّب رصيد دائنين صفريًا ولا توجد مستندات شراء مفتوحة.",
+    "confirm_deactivate_customer": "إزالة دور العميل من \"{{name}}\"؟ يتطلّب رصيد مدينين صفريًا ولا توجد ائتمانات نشطة ولا مستندات بيع مفتوحة.",
     "statement": "كشف حساب (PDF)",
     "statementDialogTitle": "كشف الحساب",
     "statementDialogHint": "اختر الفترة ونوع الكشف.",

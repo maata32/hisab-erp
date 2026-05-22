@@ -23,11 +23,8 @@ public class Partner extends TenantAwareEntity {
     @Id @GeneratedValue @Column(columnDefinition = "uuid")
     private UUID id;
 
-    @Column(name = "customer_code", length = 50)
-    private String customerCode;
-
-    @Column(name = "supplier_code", length = 50)
-    private String supplierCode;
+    @Column(nullable = false, length = 50)
+    private String code;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -53,12 +50,10 @@ public class Partner extends TenantAwareEntity {
     private String paymentTerms;
 
     @Column(name = "customer_credit_limit", precision = 19, scale = 2)
-    @Builder.Default
-    private BigDecimal customerCreditLimit = BigDecimal.ZERO;
+    private BigDecimal customerCreditLimit;
 
     @Column(name = "supplier_credit_limit", precision = 19, scale = 2)
-    @Builder.Default
-    private BigDecimal supplierCreditLimit = BigDecimal.ZERO;
+    private BigDecimal supplierCreditLimit;
 
     @Column(nullable = false, length = 3)
     @Builder.Default

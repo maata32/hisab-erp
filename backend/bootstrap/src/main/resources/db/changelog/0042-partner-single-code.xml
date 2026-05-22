@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Partner single-code refactor.
+        Replaces customer_code + supplier_code with a single `code` column on
+        the parties table — Odoo-style res.partner.ref. The previous split was
+        a misclassification: 411xxx/401xxx are accounting account codes, not
+        partner reference codes. Partner ref is one value regardless of role.
+
+        Backfill picks customer_code first, then supplier_code, then a
+        fallback "PRT-{id-fragment}". Drops the role-coupled constraints and
+        unique indexes; adds a single (tenant_id, code) unique index.
+    -->
+
+    <changeSet id="0042-add-code-column" author="mini-erp">
+        <sql>
+            ALTER TABLE parties ADD COLUMN code VARCHAR(50);
+        </sql>
+    </changeSet>
+
+    <changeSet id="0042-backfill-code" author="mini-erp">
+        <sql>
+            UPDATE parties
+            SET code = COALESCE(
+                customer_code,
+                supplier_code,
+                'PRT-' || substr(id::text, 1, 8)
+            );
+        </sql>
+    </changeSet>
+
+    <changeSet id="0042-make-code-not-null" author="mini-erp">
+        <sql>
+            ALTER TABLE parties ALTER COLUMN code SET NOT NULL;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0042-drop-old-code-constraints" author="mini-erp">
+        <sql>
+            ALTER TABLE parties DROP CONSTRAINT IF EXISTS ck_parties_customer_code_role;
+            ALTER TABLE parties DROP CONSTRAINT IF EXISTS ck_parties_supplier_code_role;
+            DROP INDEX IF EXISTS uk_parties_tenant_customer_code;
+            DROP INDEX IF EXISTS uk_parties_tenant_supplier_code;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0042-drop-old-code-columns" author="mini-erp">
+        <sql>
+            ALTER TABLE parties DROP COLUMN customer_code;
+            ALTER TABLE parties DROP COLUMN supplier_code;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0042-add-code-unique-index" author="mini-erp">
+        <sql>
+            CREATE UNIQUE INDEX uk_parties_tenant_code ON parties(tenant_id, code);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

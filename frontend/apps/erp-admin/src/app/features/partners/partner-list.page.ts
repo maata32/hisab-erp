@@ -4,11 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MoneyPipe } from '@minierp/shared-i18n';
-import { ConfirmationService } from 'primeng/api';
-import { HttpClient } from '@angular/common/http';
+import { ConfirmationService, MessageService } from 'primeng/api';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
-import { TabViewModule } from 'primeng/tabview';
+import { SelectButtonModule } from 'primeng/selectbutton';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -17,14 +17,14 @@ import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
 import { CalendarModule } from 'primeng/calendar';
 import { TooltipModule } from 'primeng/tooltip';
+import { ToastModule } from 'primeng/toast';
 import { firstValueFrom } from 'rxjs';
 
 type Role = 'all' | 'customer' | 'supplier';
 
 interface Partner {
   id: string;
-  customerCode: string | null;
-  supplierCode: string | null;
+  code: string;
   type: string;
   name: string;
   email: string | null;
@@ -34,8 +34,8 @@ interface Partner {
   paymentTerms: string | null;
   currency: string;
   notes: string | null;
-  customerCreditLimit: number;
-  supplierCreditLimit: number;
+  customerCreditLimit: number | null;
+  supplierCreditLimit: number | null;
   isCustomer: boolean;
   isSupplier: boolean;
   active: boolean;
@@ -44,10 +44,9 @@ interface Partner {
 }
 
 interface PartnerForm {
+  code: string;
   isCustomer: boolean;
   isSupplier: boolean;
-  customerCode: string;
-  supplierCode: string;
   type: string;
   name: string;
   email: string;
@@ -66,10 +65,12 @@ interface PartnerForm {
   standalone: true,
   imports: [
     CommonModule, FormsModule, TranslateModule, MoneyPipe, TableModule, TagModule,
-    TabViewModule, InputTextModule, InputNumberModule, CheckboxModule, ButtonModule,
-    DialogModule, DropdownModule, CalendarModule, TooltipModule,
+    SelectButtonModule, InputTextModule, InputNumberModule, CheckboxModule, ButtonModule,
+    DialogModule, DropdownModule, CalendarModule, TooltipModule, ToastModule,
   ],
+  providers: [MessageService],
   template: `
+    <p-toast />
     <div class="space-y-4">
       <header class="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -81,14 +82,11 @@ interface PartnerForm {
       </header>
 
       <div class="bg-white rounded-lg border border-gray-200">
-        <p-tabView [(activeIndex)]="activeTab" (onChange)="onTabChange($event)" styleClass="border-none">
-          <p-tabPanel [header]="'partners.tab_all' | translate"></p-tabPanel>
-          <p-tabPanel [header]="'partners.tab_customers' | translate"></p-tabPanel>
-          <p-tabPanel [header]="'partners.tab_suppliers' | translate"></p-tabPanel>
-        </p-tabView>
-
         <div class="p-4">
-          <div class="mb-3">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <p-selectButton [options]="roleOptions" [(ngModel)]="currentRole"
+                            optionLabel="label" optionValue="value"
+                            (onChange)="onRoleChange()" />
             <span class="relative block w-full sm:w-72">
               <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
               <input pInputText type="text" [placeholder]="'common.search' | translate"
@@ -100,7 +98,7 @@ interface PartnerForm {
                    [rowHover]="true" styleClass="p-datatable-sm">
             <ng-template pTemplate="header">
               <tr>
-                <th>{{ 'partners.codes' | translate }}</th>
+                <th>{{ 'partners.code' | translate }}</th>
                 <th>{{ 'partners.name' | translate }}</th>
                 <th>{{ 'partners.roles' | translate }}</th>
                 <th>{{ 'partners.phone' | translate }}</th>
@@ -113,11 +111,7 @@ interface PartnerForm {
             </ng-template>
             <ng-template pTemplate="body" let-p>
               <tr>
-                <td class="font-mono text-sm">
-                  @if (p.customerCode) { <span class="text-blue-700">{{ p.customerCode }}</span> }
-                  @if (p.customerCode && p.supplierCode) { <span class="text-gray-400"> · </span> }
-                  @if (p.supplierCode) { <span class="text-amber-700">{{ p.supplierCode }}</span> }
-                </td>
+                <td class="font-mono text-sm">{{ p.code }}</td>
                 <td class="font-medium">{{ p.name }}</td>
                 <td>
                   @if (p.isCustomer) {
@@ -164,6 +158,15 @@ interface PartnerForm {
                             [pTooltip]="'partners.activate_customer' | translate"
                             (click)="openActivateCustomer(p)"></button>
                   }
+                  @if (p.isCustomer && p.isSupplier) {
+                    <button pButton icon="pi pi-briefcase" class="p-button-sm p-button-text p-button-warning"
+                            [pTooltip]="'partners.deactivate_supplier' | translate"
+                            style="text-decoration: line-through"
+                            (click)="confirmDeactivateSupplier(p)"></button>
+                    <button pButton icon="pi pi-user-minus" class="p-button-sm p-button-text p-button-warning"
+                            [pTooltip]="'partners.deactivate_customer' | translate"
+                            (click)="confirmDeactivateCustomer(p)"></button>
+                  }
                   @if (p.active) {
                     <button pButton icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
                             [pTooltip]="'common.deactivate' | translate"
@@ -187,34 +190,25 @@ interface PartnerForm {
           @if (!editing()) {
             <div class="flex gap-4 items-center bg-gray-50 p-3 rounded">
               <label class="flex items-center gap-2 cursor-pointer">
-                <p-checkbox [(ngModel)]="form.isCustomer" [binary]="true"
-                            (onChange)="onRoleToggle('customer')"/>
+                <p-checkbox [(ngModel)]="form.isCustomer" [binary]="true"/>
                 <span class="font-medium">{{ 'partners.role_customer' | translate }}</span>
               </label>
               <label class="flex items-center gap-2 cursor-pointer">
-                <p-checkbox [(ngModel)]="form.isSupplier" [binary]="true"
-                            (onChange)="onRoleToggle('supplier')"/>
+                <p-checkbox [(ngModel)]="form.isSupplier" [binary]="true"/>
                 <span class="font-medium">{{ 'partners.role_supplier' | translate }}</span>
               </label>
             </div>
           }
           <div class="grid grid-cols-2 gap-3">
-            @if (form.isCustomer) {
-              <div>
-                <label class="block text-sm font-medium mb-1">{{ 'partners.customerCode' | translate }} *</label>
-                <input pInputText [(ngModel)]="form.customerCode" [disabled]="!!editing()" class="w-full"/>
-              </div>
-            }
-            @if (form.isSupplier) {
-              <div>
-                <label class="block text-sm font-medium mb-1">{{ 'partners.supplierCode' | translate }} *</label>
-                <input pInputText [(ngModel)]="form.supplierCode" [disabled]="!!editing()" class="w-full"/>
-              </div>
-            }
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'partners.code' | translate }} *</label>
+              <input pInputText [(ngModel)]="form.code" [disabled]="!!editing()" class="w-full"/>
+            </div>
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'partners.type' | translate }} *</label>
               <p-dropdown [(ngModel)]="form.type" [options]="typeOptions"
-                          optionLabel="label" optionValue="value" styleClass="w-full"/>
+                          optionLabel="label" optionValue="value" styleClass="w-full"
+                          (onChange)="onTypeChange()"/>
             </div>
           </div>
           <div>
@@ -287,10 +281,6 @@ interface PartnerForm {
         <div class="space-y-3">
           <p class="text-sm text-gray-600">{{ 'partners.activate_supplier_hint' | translate }}</p>
           <div>
-            <label class="block text-sm font-medium mb-1">{{ 'partners.supplierCode' | translate }} *</label>
-            <input pInputText [(ngModel)]="activateSupplierForm.supplierCode" class="w-full"/>
-          </div>
-          <div>
             <label class="block text-sm font-medium mb-1">{{ 'partners.taxId' | translate }}</label>
             <input pInputText [(ngModel)]="activateSupplierForm.taxId" class="w-full"/>
           </div>
@@ -319,10 +309,6 @@ interface PartnerForm {
         <div class="space-y-3">
           <p class="text-sm text-gray-600">{{ 'partners.activate_customer_hint' | translate }}</p>
           <div>
-            <label class="block text-sm font-medium mb-1">{{ 'partners.customerCode' | translate }} *</label>
-            <input pInputText [(ngModel)]="activateCustomerForm.customerCode" class="w-full"/>
-          </div>
-          <div>
             <label class="block text-sm font-medium mb-1">{{ 'partners.customer_credit_limit' | translate }}</label>
             <p-inputNumber [(ngModel)]="activateCustomerForm.customerCreditLimit" mode="decimal"
                            [maxFractionDigits]="2" styleClass="w-full"/>
@@ -336,7 +322,7 @@ interface PartnerForm {
         </ng-template>
       </p-dialog>
 
-      <!-- Statement dialog (customers only) -->
+      <!-- Statement dialog -->
       <p-dialog [(visible)]="statementDialogOpen" [modal]="true" [style]="{ width: '500px' }"
                 [header]="('partners.statementDialogTitle' | translate) + ' — ' + (statementCustomer()?.name ?? '')"
                 [closable]="!fetchingStatement()">
@@ -378,6 +364,7 @@ export class PartnerListPage implements OnInit {
   private http = inject(HttpClient);
   private i18n = inject(TranslateService);
   private confirmation = inject(ConfirmationService);
+  private toast = inject(MessageService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
 
@@ -388,23 +375,19 @@ export class PartnerListPage implements OnInit {
   protected editing = signal<Partner | null>(null);
   protected form: PartnerForm = this.emptyForm();
   protected typeOptions: Array<{ value: string; label: string }> = [];
-  protected activeTab = 0;
-  private currentRole: Role = 'all';
+  protected roleOptions: Array<{ value: Role; label: string }> = [];
+  protected currentRole: Role = 'all';
+  protected codeAutoFilled = false;
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
   private lastQuery = '';
 
-  // Activate supplier role
   protected activateSupplierOpen = false;
-  protected activateSupplierForm = { supplierCode: '', taxId: '', paymentTerms: '', supplierCreditLimit: 0 };
-
-  // Activate customer role
+  protected activateSupplierForm = { taxId: '', paymentTerms: '', supplierCreditLimit: 0 };
   protected activateCustomerOpen = false;
-  protected activateCustomerForm = { customerCode: '', customerCreditLimit: 0 };
-
+  protected activateCustomerForm = { customerCreditLimit: 0 };
   protected activatingRole = signal(false);
   protected targetPartner = signal<Partner | null>(null);
 
-  // Statement
   protected statementDialogOpen = false;
   protected statementCustomer = signal<Partner | null>(null);
   protected fetchingStatement = signal(false);
@@ -412,28 +395,32 @@ export class PartnerListPage implements OnInit {
   protected statementTo: Date | null = new Date();
 
   ngOnInit() {
-    this.refreshTypeOptions();
-    this.i18n.onLangChange.subscribe(() => this.refreshTypeOptions());
+    this.refreshOptions();
+    this.i18n.onLangChange.subscribe(() => this.refreshOptions());
     this.route.queryParamMap.subscribe(params => {
-      const role = (params.get('role') ?? 'all') as Role;
-      this.currentRole = role;
-      this.activeTab = role === 'customer' ? 1 : role === 'supplier' ? 2 : 0;
+      this.currentRole = (params.get('role') ?? 'all') as Role;
       this.load();
     });
   }
 
-  protected onTabChange(e: { index: number }) {
-    const role: Role = e.index === 1 ? 'customer' : e.index === 2 ? 'supplier' : 'all';
-    this.currentRole = role;
-    this.router.navigate([], { queryParams: { role: role === 'all' ? null : role }, queryParamsHandling: 'merge' });
+  protected onRoleChange() {
+    this.router.navigate([], {
+      queryParams: { role: this.currentRole === 'all' ? null : this.currentRole },
+      queryParamsHandling: 'merge',
+    });
     this.load();
   }
 
-  private refreshTypeOptions() {
+  private refreshOptions() {
     this.typeOptions = ['INDIVIDUAL', 'COMPANY'].map(v => ({
       value: v,
       label: this.i18n.instant('partners.types.' + v),
     }));
+    this.roleOptions = [
+      { value: 'all', label: this.i18n.instant('partners.tab_all') },
+      { value: 'customer', label: this.i18n.instant('partners.tab_customers') },
+      { value: 'supplier', label: this.i18n.instant('partners.tab_suppliers') },
+    ];
   }
 
   protected onSearch(e: Event) {
@@ -445,44 +432,33 @@ export class PartnerListPage implements OnInit {
   protected openCreate() {
     this.editing.set(null);
     this.form = this.emptyForm();
-    // Pre-select role based on current tab
     if (this.currentRole === 'customer') this.form.isCustomer = true;
     else if (this.currentRole === 'supplier') this.form.isSupplier = true;
     else this.form.isCustomer = true;
+    this.codeAutoFilled = true;
     this.dialogOpen = true;
-    this.refreshSuggestedCodes();
+    this.fetchSuggestedCode();
   }
 
-  protected onRoleToggle(_role: 'customer' | 'supplier') {
-    this.refreshSuggestedCodes();
+  protected onTypeChange() {
+    if (!this.editing() && this.codeAutoFilled) this.fetchSuggestedCode();
   }
 
-  private async refreshSuggestedCodes() {
-    if (this.form.isCustomer && !this.form.customerCode) {
-      try {
-        const res = await firstValueFrom(
-          this.http.get<{ code: string }>(`/api/v1/partners/next-code?role=customer&type=${encodeURIComponent(this.form.type)}`)
-        );
-        this.form.customerCode = res.code;
-      } catch { /* silent */ }
-    }
-    if (this.form.isSupplier && !this.form.supplierCode) {
-      try {
-        const res = await firstValueFrom(
-          this.http.get<{ code: string }>('/api/v1/partners/next-code?role=supplier')
-        );
-        this.form.supplierCode = res.code;
-      } catch { /* silent */ }
-    }
+  private async fetchSuggestedCode() {
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ code: string }>(`/api/v1/partners/next-code?type=${encodeURIComponent(this.form.type)}`)
+      );
+      if (this.codeAutoFilled) this.form.code = res.code;
+    } catch { /* silent */ }
   }
 
   protected openEdit(p: Partner) {
     this.editing.set(p);
     this.form = {
+      code: p.code,
       isCustomer: p.isCustomer,
       isSupplier: p.isSupplier,
-      customerCode: p.customerCode ?? '',
-      supplierCode: p.supplierCode ?? '',
       type: p.type,
       name: p.name,
       email: p.email ?? '',
@@ -495,42 +471,38 @@ export class PartnerListPage implements OnInit {
       customerCreditLimit: p.customerCreditLimit ?? 0,
       supplierCreditLimit: p.supplierCreditLimit ?? 0,
     };
+    this.codeAutoFilled = false;
     this.dialogOpen = true;
   }
 
   protected openActivateSupplier(p: Partner) {
     this.targetPartner.set(p);
-    this.activateSupplierForm = { supplierCode: '', taxId: '', paymentTerms: '', supplierCreditLimit: 0 };
+    this.activateSupplierForm = { taxId: '', paymentTerms: '', supplierCreditLimit: 0 };
     this.activateSupplierOpen = true;
-    firstValueFrom(this.http.get<{ code: string }>('/api/v1/partners/next-code?role=supplier'))
-      .then(res => { this.activateSupplierForm.supplierCode = res.code; })
-      .catch(() => {});
   }
 
   protected openActivateCustomer(p: Partner) {
     this.targetPartner.set(p);
-    this.activateCustomerForm = { customerCode: '', customerCreditLimit: 0 };
+    this.activateCustomerForm = { customerCreditLimit: 0 };
     this.activateCustomerOpen = true;
-    firstValueFrom(this.http.get<{ code: string }>(`/api/v1/partners/next-code?role=customer&type=${encodeURIComponent(p.type)}`))
-      .then(res => { this.activateCustomerForm.customerCode = res.code; })
-      .catch(() => {});
   }
 
   protected async submitActivateSupplier() {
     const p = this.targetPartner();
-    if (!p || !this.activateSupplierForm.supplierCode?.trim()) return;
+    if (!p) return;
     this.activatingRole.set(true);
     try {
       await firstValueFrom(this.http.post(
         `/api/v1/partners/${p.id}/activate-supplier-role`,
         {
-          supplierCode: this.activateSupplierForm.supplierCode.trim(),
           taxId: this.activateSupplierForm.taxId || null,
           paymentTerms: this.activateSupplierForm.paymentTerms || null,
           supplierCreditLimit: this.activateSupplierForm.supplierCreditLimit || null,
         }));
       this.activateSupplierOpen = false;
       this.load();
+    } catch (e) {
+      this.showError(e);
     } finally {
       this.activatingRole.set(false);
     }
@@ -538,20 +510,53 @@ export class PartnerListPage implements OnInit {
 
   protected async submitActivateCustomer() {
     const p = this.targetPartner();
-    if (!p || !this.activateCustomerForm.customerCode?.trim()) return;
+    if (!p) return;
     this.activatingRole.set(true);
     try {
       await firstValueFrom(this.http.post(
         `/api/v1/partners/${p.id}/activate-customer-role`,
-        {
-          customerCode: this.activateCustomerForm.customerCode.trim(),
-          customerCreditLimit: this.activateCustomerForm.customerCreditLimit || null,
-        }));
+        { customerCreditLimit: this.activateCustomerForm.customerCreditLimit || null }));
       this.activateCustomerOpen = false;
       this.load();
+    } catch (e) {
+      this.showError(e);
     } finally {
       this.activatingRole.set(false);
     }
+  }
+
+  protected confirmDeactivateSupplier(p: Partner) {
+    this.confirmation.confirm({
+      message: this.i18n.instant('partners.confirm_deactivate_supplier', { name: p.name }),
+      header: this.i18n.instant('common.confirmation'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-sm p-button-warning',
+      accept: async () => {
+        try {
+          await firstValueFrom(this.http.post(`/api/v1/partners/${p.id}/deactivate-supplier-role`, {}));
+          this.load();
+        } catch (e) {
+          this.showError(e);
+        }
+      },
+    });
+  }
+
+  protected confirmDeactivateCustomer(p: Partner) {
+    this.confirmation.confirm({
+      message: this.i18n.instant('partners.confirm_deactivate_customer', { name: p.name }),
+      header: this.i18n.instant('common.confirmation'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-sm p-button-warning',
+      accept: async () => {
+        try {
+          await firstValueFrom(this.http.post(`/api/v1/partners/${p.id}/deactivate-customer-role`, {}));
+          this.load();
+        } catch (e) {
+          this.showError(e);
+        }
+      },
+    });
   }
 
   protected openStatementDialog(p: Partner) {
@@ -605,17 +610,14 @@ export class PartnerListPage implements OnInit {
   }
 
   protected async save() {
-    if (!this.form.name?.trim()) return;
+    if (!this.form.name?.trim() || !this.form.code?.trim()) return;
     if (!this.form.isCustomer && !this.form.isSupplier) return;
-    if (this.form.isCustomer && !this.form.customerCode?.trim()) return;
-    if (this.form.isSupplier && !this.form.supplierCode?.trim()) return;
     this.saving.set(true);
     try {
       const payload = {
+        code: this.form.code.trim(),
         isCustomer: this.form.isCustomer,
         isSupplier: this.form.isSupplier,
-        customerCode: this.form.isCustomer ? this.form.customerCode.trim() : null,
-        supplierCode: this.form.isSupplier ? this.form.supplierCode.trim() : null,
         type: this.form.type || 'INDIVIDUAL',
         name: this.form.name.trim(),
         email: this.form.email || null,
@@ -638,6 +640,8 @@ export class PartnerListPage implements OnInit {
       }
       this.dialogOpen = false;
       this.load();
+    } catch (e) {
+      this.showError(e);
     } finally {
       this.saving.set(false);
     }
@@ -661,12 +665,25 @@ export class PartnerListPage implements OnInit {
     }
   }
 
+  private showError(err: unknown) {
+    let detail = this.i18n.instant('common.error_generic');
+    if (err instanceof HttpErrorResponse) {
+      const body = err.error;
+      if (body?.code) {
+        const translated = this.i18n.instant(body.code);
+        detail = translated !== body.code ? translated : (body.message ?? body.code);
+      } else if (body?.message) {
+        detail = body.message;
+      }
+    }
+    this.toast.add({ severity: 'error', summary: this.i18n.instant('common.error'), detail, life: 5000 });
+  }
+
   private emptyForm(): PartnerForm {
     return {
+      code: '',
       isCustomer: false,
       isSupplier: false,
-      customerCode: '',
-      supplierCode: '',
       type: 'INDIVIDUAL',
       name: '',
       email: '',

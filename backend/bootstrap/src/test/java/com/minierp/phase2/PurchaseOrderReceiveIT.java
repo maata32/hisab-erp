@@ -88,8 +88,8 @@ class PurchaseOrderReceiveIT {
                 """, warehouseId, tenantId);
 
         supplierId = partnerService.create(new CreatePartnerRequest(
+                "E-TST-0001",
                 false, true,
-                null, "F-TST-0001",
                 "COMPANY", "ACME Supplier", null, "+22244001100",
                 "Nouakchott", null, "NET30", "MRU", null,
                 null, null, null, BigDecimal.ZERO

@@ -6,8 +6,7 @@ import java.util.UUID;
 
 public record PartnerDto(
         UUID id,
-        String customerCode,
-        String supplierCode,
+        String code,
         String type,
         String name,
         String email,

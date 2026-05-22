@@ -80,8 +80,8 @@ class SupplierPaymentAllocationIT {
                 """, productId, tenantId, uomId);
 
         supplierId = partnerService.create(new CreatePartnerRequest(
+                "E-SUP-0001",
                 false, true,
-                null, "F-SUP-0001",
                 "COMPANY", "Pay Test Supplier", null, "+22244002200",
                 null, null, null, "MRU", null,
                 null, null, null, BigDecimal.ZERO
