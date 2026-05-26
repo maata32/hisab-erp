@@ -61,6 +61,7 @@ public class StockTransferService {
 
         lineRequests.forEach(lr -> transfer.getLines().add(
                 StockTransferLine.builder()
+                        .transfer(transfer)
                         .productId(lr.productId())
                         .lotId(lr.lotId())
                         .uomId(lr.uomId())

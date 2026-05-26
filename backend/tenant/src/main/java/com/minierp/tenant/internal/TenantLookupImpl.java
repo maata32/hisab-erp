@@ -1,6 +1,7 @@
 package com.minierp.tenant.internal;
 
 import com.minierp.tenant.api.PlanLimits;
+import com.minierp.tenant.api.TenantBranding;
 import com.minierp.tenant.api.TenantLookup;
 import com.minierp.tenant.api.TenantSnapshot;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,13 @@ class TenantLookupImpl implements TenantLookup {
     @Cacheable(value = "tenants:byId", unless = "#result == null")
     public Optional<TenantSnapshot> findById(UUID id) {
         return orgs.findById(id).map(this::toSnapshot);
+    }
+
+    @Override
+    @Cacheable(value = "tenants:branding", unless = "#result == null")
+    public Optional<TenantBranding> findBrandingById(UUID id) {
+        return orgs.findById(id).map(o -> new TenantBranding(
+                o.getId(), o.getName(), o.getAddress(), o.getPhone(), o.getEmail(), o.getLogoUrl()));
     }
 
     @Override

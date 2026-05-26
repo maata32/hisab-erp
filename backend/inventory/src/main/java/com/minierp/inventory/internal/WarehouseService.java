@@ -59,6 +59,8 @@ public class WarehouseService {
 
     private WarehouseDto toDto(Warehouse w) {
         return new WarehouseDto(w.getId(), w.getCode(), w.getName(),
-                w.getAddress(), w.getPhone(), w.isDefaultWarehouse(), w.isActive());
+                w.getAddress(), w.getPhone(),
+                w.getType() != null ? w.getType().name() : null,
+                w.isDefaultWarehouse(), w.isActive());
     }
 }

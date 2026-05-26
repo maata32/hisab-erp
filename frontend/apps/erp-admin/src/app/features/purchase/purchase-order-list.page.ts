@@ -50,6 +50,10 @@ interface PurchaseOrderLine {
 interface SupplierOpt { id: string; code: string; name: string; currency: string; }
 interface WarehouseOpt { id: string; code: string; name: string; active: boolean; }
 interface ProductOpt { id: string; sku: string; name: string; baseUomId: string; defaultTaxRate: number; trackExpiry: boolean; }
+interface ProductStockBreakdown {
+  productId: string;
+  warehouses: { warehouseId: string; warehouseCode: string; warehouseName: string; isDefault: boolean; qtyAvailable: number }[];
+}
 
 interface LineForm {
   productId: string | null;
@@ -152,18 +156,28 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <p-dropdown [(ngModel)]="form.supplierId" [options]="suppliers()"
                           optionLabel="name" optionValue="id"
                           [filter]="true" filterBy="name,code"
-                          (onChange)="onSupplierChange()" styleClass="w-full" appendTo="body" />
+                          (onChange)="onSupplierChange()" appendTo="body"
+                          [styleClass]="'w-full' + (supplierInvalid() ? ' ng-invalid ng-dirty' : '')" />
+              @if (supplierInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+              }
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'purchaseOrders.warehouse' | translate }} *</label>
               <p-dropdown [(ngModel)]="form.warehouseId" [options]="warehouses()"
-                          optionLabel="name" optionValue="id"
-                          styleClass="w-full" appendTo="body" />
+                          optionLabel="name" optionValue="id" appendTo="body"
+                          [styleClass]="'w-full' + (warehouseInvalid() ? ' ng-invalid ng-dirty' : '')" />
+              @if (warehouseInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+              }
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'purchaseOrders.orderDate' | translate }} *</label>
-              <p-calendar [(ngModel)]="form.orderDate" dateFormat="dd/mm/yy"
-                          styleClass="w-full" appendTo="body" />
+              <p-calendar [(ngModel)]="form.orderDate" dateFormat="dd/mm/yy" appendTo="body"
+                          [styleClass]="'w-full' + (orderDateInvalid() ? ' ng-invalid ng-dirty' : '')" />
+              @if (orderDateInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+              }
             </div>
           </div>
           <div class="grid grid-cols-2 gap-3">
@@ -206,16 +220,31 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                       <p-dropdown [(ngModel)]="line.productId" [options]="products()"
                                   optionLabel="name" optionValue="id"
                                   [filter]="true" filterBy="name,sku"
-                                  (onChange)="onProductChange(line)"
-                                  styleClass="w-full" appendTo="body" />
+                                  (onChange)="onProductChange(line)" appendTo="body"
+                                  [styleClass]="'w-full' + (lineProductInvalid(line) ? ' ng-invalid ng-dirty' : '')">
+                        <ng-template let-product pTemplate="item">
+                          <div class="flex items-center justify-between gap-3 w-full">
+                            <span>{{ product.name }} <span class="text-gray-400">({{ product.sku }})</span></span>
+                            @if (stockLabel(product.id); as s) {
+                              <span class="text-xs whitespace-nowrap"
+                                    [class.text-red-600]="isOutOfStock(product.id)"
+                                    [class.text-gray-500]="!isOutOfStock(product.id)">
+                                Stock: {{ s }}
+                              </span>
+                            }
+                          </div>
+                        </ng-template>
+                      </p-dropdown>
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.quantity" [minFractionDigits]="0" [maxFractionDigits]="3"
-                                     inputStyleClass="w-full text-right" styleClass="w-full" />
+                                     inputStyleClass="w-full text-right"
+                                     [styleClass]="'w-full' + (lineQtyInvalid(line) ? ' ng-invalid ng-dirty' : '')" />
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.unitCost" [minFractionDigits]="0" [maxFractionDigits]="2"
-                                     inputStyleClass="w-full text-right" styleClass="w-full" />
+                                     inputStyleClass="w-full text-right"
+                                     [styleClass]="'w-full' + (lineCostInvalid(line) ? ' ng-invalid ng-dirty' : '')" />
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.taxRate" [min]="0" [max]="1"
@@ -230,7 +259,14 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   </tr>
                 }
                 @if (form.lines.length === 0) {
-                  <tr><td colspan="6" class="p-4 text-center text-gray-400">{{ 'sales.noLines' | translate }}</td></tr>
+                  <tr><td colspan="6" class="p-4 text-center"
+                          [class.text-gray-400]="!noLinesInvalid()" [class.text-red-600]="noLinesInvalid()">
+                    @if (noLinesInvalid()) {
+                      {{ 'common.atLeastOneLine' | translate }}
+                    } @else {
+                      {{ 'sales.noLines' | translate }}
+                    }
+                  </td></tr>
                 }
               </tbody>
               <tfoot class="bg-gray-50 border-t">
@@ -247,7 +283,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           <button pButton [label]="'common.cancel' | translate" class="p-button-text"
                   (click)="createOpen = false" [disabled]="saving()"></button>
           <button pButton [label]="'common.save' | translate" icon="pi pi-check"
-                  (click)="save()" [loading]="saving()" [disabled]="!canSave()"></button>
+                  (click)="save()" [loading]="saving()"></button>
         </ng-template>
       </p-dialog>
 
@@ -318,9 +354,35 @@ export class PurchaseOrderListPage implements OnInit {
   protected suppliers = signal<SupplierOpt[]>([]);
   protected warehouses = signal<WarehouseOpt[]>([]);
   protected products = signal<ProductOpt[]>([]);
+  protected stockBreakdown = signal<Record<string, number[]>>({});
+
+  protected stockLabel(productId: string): string {
+    const arr = this.stockBreakdown()[productId];
+    if (!arr || arr.length === 0) return '';
+    return arr.map(n => String(n)).join(',');
+  }
+
+  protected isOutOfStock(productId: string): boolean {
+    const arr = this.stockBreakdown()[productId];
+    if (!arr || arr.length === 0) return false;
+    return arr.every(n => n <= 0);
+  }
   protected loading = signal(true);
   protected saving = signal(false);
+  protected submitted = signal(false);
   protected createOpen = false;
+
+  protected supplierInvalid(): boolean { return this.submitted() && !this.form.supplierId; }
+  protected warehouseInvalid(): boolean { return this.submitted() && !this.form.warehouseId; }
+  protected orderDateInvalid(): boolean { return this.submitted() && !this.form.orderDate; }
+  protected noLinesInvalid(): boolean { return this.submitted() && this.form.lines.length === 0; }
+  protected lineProductInvalid(line: LineForm): boolean { return this.submitted() && !line.productId; }
+  protected lineQtyInvalid(line: LineForm): boolean {
+    return this.submitted() && (line.quantity == null || line.quantity <= 0);
+  }
+  protected lineCostInvalid(line: LineForm): boolean {
+    return this.submitted() && (line.unitCost == null || line.unitCost < 0);
+  }
 
   protected receiveOpen = false;
   protected receiving = signal(false);
@@ -395,6 +457,7 @@ export class PurchaseOrderListPage implements OnInit {
 
   protected openCreate() {
     this.form = this.emptyForm();
+    this.submitted.set(false);
     this.createOpen = true;
     const wDefault = this.warehouses().find(w => (w as any).defaultWarehouse) ?? this.warehouses()[0];
     if (wDefault) this.form.warehouseId = wDefault.id;
@@ -436,6 +499,7 @@ export class PurchaseOrderListPage implements OnInit {
   }
 
   protected async save() {
+    this.submitted.set(true);
     if (!this.canSave()) return;
     this.saving.set(true);
     try {
@@ -539,7 +603,7 @@ export class PurchaseOrderListPage implements OnInit {
 
   private async loadSuppliers() {
     try {
-      const res = await firstValueFrom(this.http.get<{ content: SupplierOpt[] }>('/api/v1/suppliers?size=200'));
+      const res = await firstValueFrom(this.http.get<{ content: SupplierOpt[] }>('/api/v1/partners?role=SUPPLIER&size=200'));
       this.suppliers.set(res.content ?? []);
     } catch { this.suppliers.set([]); }
   }
@@ -556,6 +620,22 @@ export class PurchaseOrderListPage implements OnInit {
       const res = await firstValueFrom(this.http.get<{ content: ProductOpt[] }>('/api/v1/products?size=500'));
       this.products.set((res.content ?? []).filter((p: any) => p.active !== false));
     } catch { this.products.set([]); }
+    this.loadStockBreakdown();
+  }
+
+  private async loadStockBreakdown() {
+    try {
+      const res = await firstValueFrom(
+        this.http.get<ProductStockBreakdown[]>('/api/v1/inventory/stocks/by-product')
+      );
+      const map: Record<string, number[]> = {};
+      for (const it of res ?? []) {
+        map[it.productId] = it.warehouses.map(w => Number(w.qtyAvailable));
+      }
+      this.stockBreakdown.set(map);
+    } catch {
+      this.stockBreakdown.set({});
+    }
   }
 
   private emptyForm() {

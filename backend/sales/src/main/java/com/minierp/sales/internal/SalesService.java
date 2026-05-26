@@ -8,6 +8,7 @@ import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
 import com.minierp.sales.api.InvoiceOperations;
 import com.minierp.sales.api.InvoiceSummary;
+import com.minierp.sales.api.OrderOperations;
 import com.minierp.sales.api.SalesDto;
 import com.minierp.sales.api.SalesStatementLookup;
 import com.minierp.sales.api.StatementCreditNoteEntry;
@@ -15,7 +16,9 @@ import com.minierp.sales.api.StatementInvoiceEntry;
 import com.minierp.sales.api.StatementInvoiceLine;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.tenant.TenantContext;
 import com.minierp.shared.util.PageResponse;
+import com.minierp.tenant.api.TenantLookup;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -27,6 +30,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -35,7 +39,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class SalesService implements InvoiceOperations, SalesStatementLookup {
+public class SalesService implements InvoiceOperations, SalesStatementLookup, OrderOperations {
 
     private final QuoteRepository quotes;
     private final QuoteLineRepository quoteLines;
@@ -49,6 +53,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     private final PartnerLookup customerLookup;
     private final ArBalanceOperations balanceOps;
     private final DocumentRenderer renderer;
+    private final TenantLookup tenantLookup;
 
     // ── SalesStatementLookup (used by the customer-statement aggregator) ────
 
@@ -92,6 +97,14 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     @Transactional(readOnly = true)
     public Optional<InvoiceSummary> findById(UUID id) {
         return invoices.findById(id).map(this::toInvoiceSummary);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<InvoiceSummary> findByOrderId(UUID orderId) {
+        return invoices.findActiveByOrderId(orderId).stream()
+                .findFirst()
+                .map(this::toInvoiceSummary);
     }
 
     @Override
@@ -262,9 +275,56 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     @Transactional
     public SalesDto.OrderDto updateOrderStatus(UUID id, String status) {
         Order o = orders.findById(id).orElseThrow(() -> NotFoundException.of("entity.order", id));
-        o.setStatus(OrderStatus.valueOf(status));
+        OrderStatus target = OrderStatus.valueOf(status);
+        // Delivery-driven statuses are auto-derived from shipments — reject manual transitions.
+        if (target == OrderStatus.PARTIALLY_DELIVERED || target == OrderStatus.DELIVERED) {
+            throw new BusinessException("error.order.status_auto_only",
+                    Map.of("status", target.name()));
+        }
+        o.setStatus(target);
         String name = customerLookup.findById(o.getPartyId()).map(PartnerSummary::name).orElse("");
         return toOrderDto(o, orderLines.findByOrderIdOrderByLineNumberAsc(id), name);
+    }
+
+    // ── OrderOperations (used by delivery module to auto-derive status) ─────
+
+    @Override
+    @Transactional
+    public void recomputeDeliveryStatus(UUID orderId, Map<UUID, BigDecimal> totalDeliveredByProduct) {
+        Order o = orders.findById(orderId).orElse(null);
+        if (o == null) return;
+        OrderStatus current = o.getStatus();
+        // Lifecycle: DRAFT → CONFIRMED → INVOICED → PARTIALLY_DELIVERED → DELIVERED.
+        // Recompute when the order is in any post-confirm state; leave DRAFT/CANCELLED alone.
+        if (current != OrderStatus.CONFIRMED
+                && current != OrderStatus.INVOICED
+                && current != OrderStatus.PARTIALLY_DELIVERED
+                && current != OrderStatus.DELIVERED) {
+            return;
+        }
+        Map<UUID, BigDecimal> orderedByProduct = new HashMap<>();
+        for (OrderLine ol : orderLines.findByOrderIdOrderByLineNumberAsc(orderId)) {
+            orderedByProduct.merge(ol.getProductId(), ol.getQuantity(), BigDecimal::add);
+        }
+        boolean allCovered = true;
+        boolean anyDelivered = false;
+        for (Map.Entry<UUID, BigDecimal> e : orderedByProduct.entrySet()) {
+            BigDecimal delivered = totalDeliveredByProduct.getOrDefault(e.getKey(), BigDecimal.ZERO);
+            if (delivered.signum() > 0) anyDelivered = true;
+            if (delivered.compareTo(e.getValue()) < 0) allCovered = false;
+        }
+        OrderStatus next;
+        if (allCovered && !orderedByProduct.isEmpty()) {
+            next = OrderStatus.DELIVERED;
+        } else if (anyDelivered) {
+            next = OrderStatus.PARTIALLY_DELIVERED;
+        } else {
+            // No shipment yet — keep the current pre-delivery status (CONFIRMED or INVOICED).
+            next = current;
+        }
+        if (next != current) {
+            o.setStatus(next);
+        }
     }
 
     @Transactional
@@ -606,23 +666,29 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         record CustomerModel(String name, String address, String phone, String email) {}
         var linesModel = lines.stream().map(l -> new LineModel(l.getSnapshotName(), l.getSnapshotSku(),
                 l.getQuantity(), l.getUnitPrice(), l.getDiscountPercent(), l.getTaxRate(), l.getLineTotal())).toList();
-        return Map.of(
-                "invoice", new InvoiceModel(inv.getNumber(), inv.getIssueDate(), inv.getDueDate(),
-                        inv.getStatus().name().toLowerCase(), payStatus,
-                        inv.getSubtotal(), inv.getDiscountAmount(), inv.getTaxAmount(),
-                        inv.getTotal(), inv.getPaidAmount(), inv.getBalance(),
-                        inv.getCurrency(), inv.getPaymentTerms(), inv.getNotes(), linesModel),
-                "customer", new CustomerModel(
-                        customer != null ? customer.name() : "",
-                        customer != null ? "" : "",
-                        customer != null ? customer.phone() : "",
-                        customer != null ? customer.email() : ""),
-                "orgName", "Mini-ERP",
-                "orgAddress", "",
-                "orgPhone", "",
-                "orgEmail", "",
-                "logoUrl", ""
-        );
+        Map<String, Object> vars = new HashMap<>(brandingVars());
+        vars.put("invoice", new InvoiceModel(inv.getNumber(), inv.getIssueDate(), inv.getDueDate(),
+                inv.getStatus().name().toLowerCase(), payStatus,
+                inv.getSubtotal(), inv.getDiscountAmount(), inv.getTaxAmount(),
+                inv.getTotal(), inv.getPaidAmount(), inv.getBalance(),
+                inv.getCurrency(), inv.getPaymentTerms(), inv.getNotes(), linesModel));
+        vars.put("customer", new CustomerModel(
+                customer != null ? customer.name() : "",
+                customer != null ? customer.address() : "",
+                customer != null ? customer.phone() : "",
+                customer != null ? customer.email() : ""));
+        return vars;
+    }
+
+    private Map<String, Object> brandingVars() {
+        var b = tenantLookup.findBrandingById(TenantContext.require()).orElse(null);
+        Map<String, Object> m = new HashMap<>();
+        m.put("orgName", b == null || b.name() == null ? "" : b.name());
+        m.put("orgAddress", b == null || b.address() == null ? "" : b.address());
+        m.put("orgPhone", b == null || b.phone() == null ? "" : b.phone());
+        m.put("orgEmail", b == null || b.email() == null ? "" : b.email());
+        m.put("logoUrl", b == null || b.logoUrl() == null ? "" : b.logoUrl());
+        return m;
     }
 
     private Map<String, Object> buildOrderVars(Order o, List<OrderLine> lines, PartnerSummary customer) {
@@ -631,20 +697,18 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         record OrderModel(String number, LocalDate orderDate, String statusLabel,
                           BigDecimal subtotal, BigDecimal discountAmount, BigDecimal taxAmount,
                           BigDecimal total, String currency, String notes, List<LineModel> lines) {}
-        record CustomerModel(String name, String phone) {}
+        record CustomerModel(String name, String address, String phone) {}
         var lm = lines.stream().map(l -> new LineModel(l.getSnapshotName(), l.getSnapshotSku(),
                 l.getQuantity(), l.getUnitPrice(), l.getDiscountPercent(), l.getTaxRate(), l.getLineTotal())).toList();
-        return Map.of(
-                "order", new OrderModel(o.getNumber(), o.getOrderDate(), o.getStatus().name(),
-                        o.getSubtotal(), o.getDiscountAmount(), o.getTaxAmount(), o.getTotal(),
-                        o.getCurrency(), o.getNotes(), lm),
-                "customer", new CustomerModel(customer != null ? customer.name() : "",
-                        customer != null ? customer.phone() : ""),
-                "orgName", "Mini-ERP",
-                "orgAddress", "",
-                "orgPhone", "",
-                "logoUrl", ""
-        );
+        Map<String, Object> vars = new HashMap<>(brandingVars());
+        vars.put("order", new OrderModel(o.getNumber(), o.getOrderDate(), o.getStatus().name(),
+                o.getSubtotal(), o.getDiscountAmount(), o.getTaxAmount(), o.getTotal(),
+                o.getCurrency(), o.getNotes(), lm));
+        vars.put("customer", new CustomerModel(
+                customer != null ? customer.name() : "",
+                customer != null ? customer.address() : "",
+                customer != null ? customer.phone() : ""));
+        return vars;
     }
 
     private Map<String, Object> buildQuoteVars(Quote q, List<QuoteLine> lines, PartnerSummary customer) {
@@ -656,11 +720,13 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         record CustomerModel(String name, String address, String phone) {}
         var lm = lines.stream().map(l -> new LineModel(l.getSnapshotName(), l.getSnapshotSku(),
                 l.getQuantity(), l.getUnitPrice(), l.getTaxRate(), l.getLineTotal())).toList();
-        return Map.of(
-                "quote", new QuoteModel(q.getNumber(), q.getIssueDate(), q.getValidUntil(),
-                        q.getSubtotal(), q.getTaxAmount(), q.getTotal(), q.getCurrency(), q.getNotes(), lm),
-                "customer", new CustomerModel(customer != null ? customer.name() : "", "", customer != null ? customer.phone() : ""),
-                "orgName", "Mini-ERP", "orgAddress", "", "logoUrl", ""
-        );
+        Map<String, Object> vars = new HashMap<>(brandingVars());
+        vars.put("quote", new QuoteModel(q.getNumber(), q.getIssueDate(), q.getValidUntil(),
+                q.getSubtotal(), q.getTaxAmount(), q.getTotal(), q.getCurrency(), q.getNotes(), lm));
+        vars.put("customer", new CustomerModel(
+                customer != null ? customer.name() : "",
+                customer != null ? customer.address() : "",
+                customer != null ? customer.phone() : ""));
+        return vars;
     }
 }

@@ -89,11 +89,19 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'inventoryCounts.warehouse' | translate }} *</label>
             <p-dropdown [(ngModel)]="form.warehouseId" [options]="warehouses()"
-                        optionLabel="name" optionValue="id" styleClass="w-full" />
+                        optionLabel="name" optionValue="id"
+                        [styleClass]="'w-full' + (warehouseInvalid() ? ' ng-invalid ng-dirty' : '')" />
+            @if (warehouseInvalid()) {
+              <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+            }
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'inventoryCounts.date' | translate }} *</label>
-            <input pInputText type="date" [(ngModel)]="form.countDate" class="w-full" />
+            <input pInputText type="date" [(ngModel)]="form.countDate" class="w-full"
+                   [class.ng-invalid]="dateInvalid()" [class.ng-dirty]="dateInvalid()" />
+            @if (dateInvalid()) {
+              <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+            }
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'common.notes' | translate }}</label>
@@ -117,9 +125,13 @@ export class InventoryCountListPage implements OnInit {
   protected warehouses = signal<WarehouseLite[]>([]);
   protected loading = signal(true);
   protected saving = signal(false);
+  protected submitted = signal(false);
   protected dialogOpen = false;
 
   protected form = this.emptyForm();
+
+  protected warehouseInvalid(): boolean { return this.submitted() && !this.form.warehouseId; }
+  protected dateInvalid(): boolean { return this.submitted() && !this.form.countDate; }
 
   ngOnInit() {
     this.loadWarehouses();
@@ -142,18 +154,19 @@ export class InventoryCountListPage implements OnInit {
   protected openCreate() {
     this.form = this.emptyForm();
     this.form.countDate = new Date().toISOString().slice(0, 10);
+    this.submitted.set(false);
     this.dialogOpen = true;
   }
 
   protected async save() {
+    this.submitted.set(true);
     if (!this.form.warehouseId || !this.form.countDate) return;
     this.saving.set(true);
     try {
-      await firstValueFrom(this.http.post('/api/v1/inventory/inventory-counts', {
+      await firstValueFrom(this.http.post('/api/v1/inventory/counts', {
         warehouseId: this.form.warehouseId,
         countDate: this.form.countDate,
         notes: this.form.notes || null,
-        lines: [],
       }));
       this.dialogOpen = false;
       this.load();
@@ -161,17 +174,17 @@ export class InventoryCountListPage implements OnInit {
   }
 
   protected async validateCount(id: string) {
-    await firstValueFrom(this.http.post(`/api/v1/inventory/inventory-counts/${id}/validate`, {}));
+    await firstValueFrom(this.http.post(`/api/v1/inventory/counts/${id}/validate`, {}));
     this.load();
   }
 
   private async load() {
     this.loading.set(true);
     try {
-      const list = await firstValueFrom(
-        this.http.get<InventoryCount[]>('/api/v1/inventory/inventory-counts')
+      const res = await firstValueFrom(
+        this.http.get<{ content: InventoryCount[] }>('/api/v1/inventory/counts')
       );
-      this.counts.set(list ?? []);
+      this.counts.set(res?.content ?? []);
     } catch { this.counts.set([]); }
     finally { this.loading.set(false); }
   }

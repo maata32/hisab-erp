@@ -28,6 +28,17 @@ public class TenantSettingsService implements TenantSettingsLookup {
                 .orElse(0);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public String getPaperSize(UUID tenantId) {
+        return repo.findByOrganizationId(tenantId)
+                .map(TenantSettings::getInvoiceSettings)
+                .map(m -> m.get("paperSize"))
+                .map(v -> v instanceof String s ? s : null)
+                .filter(s -> "A4".equals(s) || "A5".equals(s))
+                .orElse("A4");
+    }
+
     @Transactional(readOnly = true)
     public TenantSettingsDto getForCurrentTenant() {
         UUID tenantId = CurrentUserHolder.require().tenantId();

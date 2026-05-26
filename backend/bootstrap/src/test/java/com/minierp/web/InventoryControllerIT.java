@@ -80,7 +80,7 @@ class InventoryControllerIT {
 
         token = jwtService.issueAccessToken(new CurrentUser(
                 UUID.randomUUID(), tenantId, "test@test.local", "fr",
-                Set.of(), Set.of("warehouse:manage", "stock:read", "stock:adjust")));
+                Set.of(), Set.of("warehouse:manage", "stock:read", "stock:adjust", "inventory:count")));
     }
 
     @Test
@@ -105,5 +105,33 @@ class InventoryControllerIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.warehouseId").value(warehouseId.toString()))
                 .andExpect(jsonPath("$.productId").value(productId.toString()));
+    }
+
+    @Test
+    @DisplayName("POST /inventory/counts returns 201 and persists line with count_id")
+    void createInventoryCount_persistsLines() throws Exception {
+        jdbc.update("""
+                INSERT INTO stocks (id, tenant_id, warehouse_id, product_id,
+                                    qty_on_hand, qty_reserved, average_cost,
+                                    created_at, updated_at, version)
+                VALUES (uuid_generate_v4(), ?, ?, ?, 10, 0, 5, now(), now(), 0)
+                """, tenantId, warehouseId, productId);
+
+        mockMvc.perform(post("/api/v1/inventory/counts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(("{\"warehouseId\":\"" + warehouseId + "\"}")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").exists())
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.lines.length()").value(1))
+                .andExpect(jsonPath("$.lines[0].productId").value(productId.toString()))
+                .andExpect(jsonPath("$.lines[0].theoreticalQty").value(10));
+
+        Integer linesWithNullParent = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM inventory_count_lines WHERE count_id IS NULL AND tenant_id = ?",
+                Integer.class, tenantId);
+        assert linesWithNullParent != null && linesWithNullParent == 0
+                : "Expected no orphan inventory_count_lines, found " + linesWithNullParent;
     }
 }

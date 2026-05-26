@@ -16,8 +16,9 @@ class StockTransferLine extends TenantAwareEntity {
     @Id @GeneratedValue @Column(columnDefinition = "uuid")
     private UUID id;
 
-    @Column(name = "transfer_id", nullable = false, columnDefinition = "uuid")
-    private UUID transferId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "transfer_id", nullable = false, columnDefinition = "uuid")
+    private StockTransfer transfer;
 
     @Column(name = "product_id", nullable = false, columnDefinition = "uuid")
     private UUID productId;

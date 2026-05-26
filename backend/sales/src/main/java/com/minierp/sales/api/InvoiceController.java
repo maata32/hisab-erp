@@ -24,7 +24,7 @@ public class InvoiceController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('sales:write')")
+    @PreAuthorize("hasAuthority('sales:create')")
     public SalesDto.InvoiceDto create(@Valid @RequestBody SalesDto.CreateInvoiceRequest req) {
         return service.createInvoice(req);
     }
@@ -44,7 +44,7 @@ public class InvoiceController {
     }
 
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("hasAuthority('sales:write')")
+    @PreAuthorize("hasAuthority('invoice:cancel')")
     public SalesDto.InvoiceDto cancel(@PathVariable UUID id) {
         return service.cancelInvoice(id);
     }
@@ -61,7 +61,7 @@ public class InvoiceController {
 
     @PostMapping("/{id}/credit-notes")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('sales:write')")
+    @PreAuthorize("hasAuthority('sales:create')")
     public SalesDto.CreditNoteDto createCreditNote(@PathVariable UUID id,
                                                    @Valid @RequestBody SalesDto.CreateCreditNoteRequest req) {
         return service.createCreditNote(new SalesDto.CreateCreditNoteRequest(id, req.reason(), req.amount()));

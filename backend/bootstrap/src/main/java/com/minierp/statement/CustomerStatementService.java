@@ -13,6 +13,9 @@ import com.minierp.sales.api.StatementCreditNoteEntry;
 import com.minierp.sales.api.StatementInvoiceEntry;
 import com.minierp.sales.api.StatementInvoiceLine;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.tenant.TenantContext;
+import com.minierp.tenant.api.TenantBranding;
+import com.minierp.tenant.api.TenantLookup;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -37,6 +40,7 @@ public class CustomerStatementService {
     private final SalesStatementLookup salesLookup;
     private final PaymentLookup paymentLookup;
     private final DocumentRenderer renderer;
+    private final TenantLookup tenantLookup;
 
     public byte[] generate(UUID customerId, String type, LocalDate from, LocalDate to) {
         StatementType st = StatementType.parse(type);
@@ -83,10 +87,12 @@ public class CustomerStatementService {
         vars.put("balance", balanceMap);
         vars.put("currency", nullSafe(customer.currency()));
         vars.put("rows", rows);
-        vars.put("orgName", "Mini-ERP");
-        vars.put("orgAddress", "");
-        vars.put("orgPhone", "");
-        vars.put("logoUrl", "");
+        TenantBranding b = tenantLookup.findBrandingById(TenantContext.require()).orElse(null);
+        vars.put("orgName", b == null || b.name() == null ? "" : b.name());
+        vars.put("orgAddress", b == null || b.address() == null ? "" : b.address());
+        vars.put("orgPhone", b == null || b.phone() == null ? "" : b.phone());
+        vars.put("orgEmail", b == null || b.email() == null ? "" : b.email());
+        vars.put("logoUrl", b == null || b.logoUrl() == null ? "" : b.logoUrl());
         return renderer.renderPdf(PdfRenderRequest.of("customer-statement", vars));
     }
 

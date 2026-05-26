@@ -9,4 +9,6 @@ import java.util.UUID;
 interface StockMovementRepository extends JpaRepository<StockMovement, UUID> {
     Page<StockMovement> findByProductIdOrderByOccurredAtDesc(UUID productId, Pageable pageable);
     Page<StockMovement> findByWarehouseIdOrderByOccurredAtDesc(UUID warehouseId, Pageable pageable);
+    Page<StockMovement> findByProductIdAndWarehouseIdOrderByOccurredAtDesc(
+            UUID productId, UUID warehouseId, Pageable pageable);
 }

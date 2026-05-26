@@ -4,6 +4,7 @@ import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
 import com.minierp.shared.security.CurrentUserHolder;
 import com.minierp.tenant.api.TenantSettingsLookup;
+import com.openhtmltopdf.outputdevice.helper.BaseRendererBuilder;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ class ThymeleafDocumentRenderer implements DocumentRenderer {
 
     @Override
     public byte[] renderPdf(PdfRenderRequest request) {
+        String paperSize = resolvePaperSize();
         Context ctx = new Context(request.locale());
         if (request.variables() != null) {
             request.variables().forEach(ctx::setVariable);
@@ -30,12 +32,14 @@ class ThymeleafDocumentRenderer implements DocumentRenderer {
         if (!ctx.containsVariable("decimals")) {
             ctx.setVariable("decimals", resolveDecimals());
         }
+        ctx.setVariable("paperSize", paperSize);
 
         String html = templateEngine.process("pdf/" + request.templateName(), ctx);
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             PdfRendererBuilder builder = new PdfRendererBuilder();
             builder.useFastMode();
+            applyPaperSize(builder, paperSize);
             builder.withHtmlContent(html, null);
             builder.toStream(out);
             builder.run();
@@ -43,6 +47,20 @@ class ThymeleafDocumentRenderer implements DocumentRenderer {
         } catch (Exception e) {
             log.error("PDF rendering failed for template={}", request.templateName(), e);
             throw new RuntimeException("PDF rendering failed: " + e.getMessage(), e);
+        }
+    }
+
+    private String resolvePaperSize() {
+        return CurrentUserHolder.tryGet()
+                .map(u -> tenantSettings.getPaperSize(u.tenantId()))
+                .orElse("A4");
+    }
+
+    private void applyPaperSize(PdfRendererBuilder builder, String size) {
+        if ("A5".equals(size)) {
+            builder.useDefaultPageSize(148f, 210f, BaseRendererBuilder.PageSizeUnits.MM);
+        } else {
+            builder.useDefaultPageSize(210f, 297f, BaseRendererBuilder.PageSizeUnits.MM);
         }
     }
 

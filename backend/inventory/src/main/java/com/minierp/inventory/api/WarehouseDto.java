@@ -8,5 +8,6 @@ public record WarehouseDto(
         String name,
         String address,
         String phone,
+        String type,
         boolean defaultWarehouse,
         boolean active) {}

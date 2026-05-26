@@ -26,6 +26,9 @@ interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
     @Query("SELECT i FROM Invoice i WHERE i.partyId = :partyId AND i.status NOT IN ('PAID','CANCELLED') ORDER BY i.dueDate ASC")
     List<Invoice> findUnpaidByPartyOrderByDueDate(UUID partyId);
 
+    @Query("SELECT i FROM Invoice i WHERE i.orderId = :orderId AND i.status <> 'CANCELLED' ORDER BY i.createdAt DESC")
+    List<Invoice> findActiveByOrderId(UUID orderId);
+
     @Query("SELECT i FROM Invoice i WHERE i.partyId = :partyId " +
            "AND i.status <> 'CANCELLED' " +
            "AND i.issueDate >= :from AND i.issueDate <= :to " +

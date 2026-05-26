@@ -25,7 +25,7 @@ public class DeliveryController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('delivery:write')")
+    @PreAuthorize("hasAuthority('delivery:create')")
     public DeliveryDto.DeliveryResponse create(@Valid @RequestBody DeliveryDto.CreateDeliveryRequest req) {
         return service.create(req, currentUserId());
     }
@@ -45,20 +45,20 @@ public class DeliveryController {
     }
 
     @PostMapping("/{id}/start")
-    @PreAuthorize("hasAuthority('delivery:write')")
+    @PreAuthorize("hasAuthority('delivery:execute')")
     public DeliveryDto.DeliveryResponse start(@PathVariable UUID id) {
         return service.startDelivery(id, currentUserId());
     }
 
     @PostMapping("/{id}/record")
-    @PreAuthorize("hasAuthority('delivery:write')")
+    @PreAuthorize("hasAuthority('delivery:execute')")
     public DeliveryDto.DeliveryResponse record(@PathVariable UUID id,
                                                @Valid @RequestBody DeliveryDto.RecordDeliveryRequest req) {
         return service.recordDelivery(id, req, currentUserId());
     }
 
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("hasAuthority('delivery:write')")
+    @PreAuthorize("hasAuthority('delivery:update')")
     public DeliveryDto.DeliveryResponse cancel(@PathVariable UUID id) {
         return service.cancel(id);
     }

@@ -10,6 +10,8 @@ import java.util.UUID;
  */
 public interface InvoiceOperations {
     Optional<InvoiceSummary> findById(UUID invoiceId);
+    /** Latest non-cancelled invoice tied to the given sales order, if any. */
+    Optional<InvoiceSummary> findByOrderId(UUID orderId);
     List<InvoiceSummary> findUnpaidByCustomer(UUID customerId);
     void applyPayment(UUID invoiceId, BigDecimal amount);
     void markOverdue(UUID invoiceId);

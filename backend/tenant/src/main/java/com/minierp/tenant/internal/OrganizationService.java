@@ -44,7 +44,7 @@ public class OrganizationService implements OrganizationApi {
     }
 
     @Transactional
-    @CacheEvict(value = {"tenants:byCode", "tenants:byId"}, allEntries = true)
+    @CacheEvict(value = {"tenants:byCode", "tenants:byId", "tenants:branding"}, allEntries = true)
     public OrganizationDto create(CreateOrganizationRequest req) {
         if (orgs.existsByCode(req.code())) {
             throw new ConflictException("error.data_integrity",
@@ -85,7 +85,7 @@ public class OrganizationService implements OrganizationApi {
     }
 
     @Transactional
-    @CacheEvict(value = {"tenants:byCode", "tenants:byId"}, allEntries = true)
+    @CacheEvict(value = {"tenants:byCode", "tenants:byId", "tenants:branding"}, allEntries = true)
     public OrganizationDto update(UUID id, UpdateOrganizationRequest req) {
         Organization o = orgs.findById(id).orElseThrow(() -> NotFoundException.of("entity.organization", id));
         if (req.name() != null) o.setName(req.name());
@@ -99,7 +99,7 @@ public class OrganizationService implements OrganizationApi {
     }
 
     @Transactional
-    @CacheEvict(value = {"tenants:byCode", "tenants:byId"}, allEntries = true)
+    @CacheEvict(value = {"tenants:byCode", "tenants:byId", "tenants:branding"}, allEntries = true)
     public void suspend(UUID id, String reason) {
         Organization o = orgs.findById(id).orElseThrow(() -> NotFoundException.of("entity.organization", id));
         OrganizationStatus old = o.getStatus();
@@ -109,7 +109,7 @@ public class OrganizationService implements OrganizationApi {
     }
 
     @Transactional
-    @CacheEvict(value = {"tenants:byCode", "tenants:byId"}, allEntries = true)
+    @CacheEvict(value = {"tenants:byCode", "tenants:byId", "tenants:branding"}, allEntries = true)
     public void reactivate(UUID id) {
         Organization o = orgs.findById(id).orElseThrow(() -> NotFoundException.of("entity.organization", id));
         OrganizationStatus old = o.getStatus();

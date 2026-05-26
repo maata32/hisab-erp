@@ -26,7 +26,7 @@ public class PaymentController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('payment:write')")
+    @PreAuthorize("hasAuthority('payment:create')")
     public PaymentDto.PaymentResponse create(@Valid @RequestBody PaymentDto.CreatePaymentRequest req) {
         return service.create(req);
     }
@@ -46,19 +46,19 @@ public class PaymentController {
     }
 
     @PostMapping("/{id}/confirm")
-    @PreAuthorize("hasAuthority('payment:write')")
+    @PreAuthorize("hasAuthority('payment:update')")
     public PaymentDto.PaymentResponse confirm(@PathVariable UUID id) {
         return service.confirm(id, CurrentUserHolder.tryGet().map(u -> u.userId()).orElse(null));
     }
 
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("hasAuthority('payment:write')")
+    @PreAuthorize("hasAuthority('payment:cancel')")
     public PaymentDto.PaymentResponse cancel(@PathVariable UUID id) {
         return service.cancel(id);
     }
 
     @PostMapping("/auto-allocate")
-    @PreAuthorize("hasAuthority('payment:write')")
+    @PreAuthorize("hasAuthority('payment:update')")
     public PaymentDto.PaymentResponse autoAllocate(@Valid @RequestBody PaymentDto.AutoAllocateRequest req) {
         return service.autoAllocate(req);
     }
@@ -69,7 +69,7 @@ public class PaymentController {
      * CONFIRMED payments; the latter applies the new allocations immediately.
      */
     @PostMapping("/{id}/allocate")
-    @PreAuthorize("hasAuthority('payment:write')")
+    @PreAuthorize("hasAuthority('payment:update')")
     public PaymentDto.PaymentResponse allocate(@PathVariable UUID id,
                                                @Valid @RequestBody PaymentDto.AllocateRequest req) {
         return service.allocate(id, req);

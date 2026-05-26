@@ -51,6 +51,10 @@ interface DashboardKpis {
   aging31to60: number;
   aging61to90: number;
   aging90plus: number;
+  // Orders
+  ordersDraftCount: number;
+  ordersConfirmedNotDeliveredCount: number;
+  ordersConfirmedNotInvoicedCount: number;
   // Lists & trends
   topProductsMonth: TopProduct[];
   sales7Days: DailyAmount[];
@@ -434,6 +438,29 @@ export class DashboardPage implements OnInit {
             value: k ? this.fmt(k.expiringLots30) : '—',
             hint: 'dashboard.kpi.lots_expired_count',
             hintArgs: { count: k?.expiredLots ?? 0 },
+          },
+        ],
+      },
+      {
+        titleKey: 'dashboard.group.orders',
+        visible: this.hasFinance(),
+        cards: [
+          {
+            label: 'dashboard.kpi.orders_draft',
+            icon: 'pi pi-file-edit',
+            value: k ? this.fmt(k.ordersDraftCount) : '—',
+          },
+          {
+            label: 'dashboard.kpi.orders_confirmed_not_delivered',
+            icon: 'pi pi-truck',
+            severity: k && k.ordersConfirmedNotDeliveredCount > 0 ? 'warning' : null,
+            value: k ? this.fmt(k.ordersConfirmedNotDeliveredCount) : '—',
+          },
+          {
+            label: 'dashboard.kpi.orders_confirmed_not_invoiced',
+            icon: 'pi pi-receipt',
+            severity: k && k.ordersConfirmedNotInvoicedCount > 0 ? 'warning' : null,
+            value: k ? this.fmt(k.ordersConfirmedNotInvoicedCount) : '—',
           },
         ],
       },

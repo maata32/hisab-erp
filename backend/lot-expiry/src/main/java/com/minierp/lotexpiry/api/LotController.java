@@ -40,7 +40,7 @@ public class LotController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('lot:write')")
+    @PreAuthorize("hasAuthority('lot:create')")
     public LotDto.LotResponse create(@Valid @RequestBody LotDto.CreateLotRequest req) {
         return service.createLot(req.productId(), req.warehouseId(), req.uomId(),
                 req.lotNumber(), req.expirationDate(), req.productionDate(),
@@ -48,13 +48,13 @@ public class LotController {
     }
 
     @PostMapping("/{id}/block")
-    @PreAuthorize("hasAuthority('lot:write')")
+    @PreAuthorize("hasAuthority('lot:update')")
     public void block(@PathVariable UUID id, @RequestParam String reason) {
         service.blockLot(id, reason);
     }
 
     @PostMapping("/{id}/destroy")
-    @PreAuthorize("hasAuthority('lot:write')")
+    @PreAuthorize("hasAuthority('lot:delete')")
     public void destroy(@PathVariable UUID id, @Valid @RequestBody LotDto.DestroyLotRequest req) {
         UUID userId = CurrentUserHolder.tryGet().map(u -> u.userId()).orElse(null);
         service.destroyLot(id, req.quantity(), req.method(), req.cost(), req.notes(), userId);
@@ -94,14 +94,14 @@ public class LotController {
 
     @PostMapping("/alert-configs")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('lot:write')")
+    @PreAuthorize("hasAuthority('lot:create')")
     public LotDto.AlertConfigResponse createAlertConfig(@Valid @RequestBody LotDto.AlertConfigRequest req) {
         return service.saveAlertConfig(null, req.daysBeforeExpiry(),
                 req.severity(), req.notifyRoles(), req.enabled());
     }
 
     @PutMapping("/alert-configs/{id}")
-    @PreAuthorize("hasAuthority('lot:write')")
+    @PreAuthorize("hasAuthority('lot:update')")
     public LotDto.AlertConfigResponse updateAlertConfig(
             @PathVariable UUID id,
             @Valid @RequestBody LotDto.AlertConfigRequest req) {

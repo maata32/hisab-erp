@@ -25,14 +25,14 @@ public class PartnerController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('customer:write') or hasAuthority('supplier:write')")
+    @PreAuthorize("hasAuthority('customer:create') or hasAuthority('supplier:create')")
     public PartnerDto create(@Valid @RequestBody CreatePartnerRequest req) {
         return service.create(req);
     }
 
     /** Suggests the next partner code following P-YY-NNNN or E-YY-NNNN depending on {@code type}. */
     @GetMapping("/next-code")
-    @PreAuthorize("hasAuthority('customer:write') or hasAuthority('supplier:write')")
+    @PreAuthorize("hasAuthority('customer:create') or hasAuthority('supplier:create')")
     public NextCodeResponse nextCode(@RequestParam(required = false) String type) {
         return new NextCodeResponse(service.suggestCode(type));
     }
@@ -59,14 +59,14 @@ public class PartnerController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('customer:write') or hasAuthority('supplier:write')")
+    @PreAuthorize("hasAuthority('customer:update') or hasAuthority('supplier:update')")
     public PartnerDto update(@PathVariable UUID id, @Valid @RequestBody CreatePartnerRequest req) {
         return service.update(id, req);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasAuthority('customer:write') or hasAuthority('supplier:write')")
+    @PreAuthorize("hasAuthority('customer:delete') or hasAuthority('supplier:delete')")
     public void deactivate(@PathVariable UUID id) {
         service.deactivate(id);
     }
@@ -91,14 +91,14 @@ public class PartnerController {
 
     @PostMapping("/{id}/credits")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('customer:write')")
+    @PreAuthorize("hasAuthority('credit:grant')")
     public CustomerCreditDto createCredit(@PathVariable UUID id,
                                           @Valid @RequestBody CreateCreditRequest req) {
         return service.createCredit(id, req.amount(), req.source(), req.notes());
     }
 
     @PostMapping("/{id}/credits/{cid}/withdraw")
-    @PreAuthorize("hasAuthority('customer:write')")
+    @PreAuthorize("hasAuthority('credit:withdraw')")
     public CustomerCreditDto withdrawCredit(@PathVariable UUID id,
                                             @PathVariable UUID cid,
                                             @Valid @RequestBody WithdrawCreditRequest req) {
@@ -111,14 +111,14 @@ public class PartnerController {
             String notes) {}
 
     @PostMapping("/{id}/activate-supplier-role")
-    @PreAuthorize("hasAuthority('supplier:write')")
+    @PreAuthorize("hasAuthority('supplier:create')")
     public PartnerDto activateSupplierRole(@PathVariable UUID id,
                                            @Valid @RequestBody ActivateSupplierRoleRequest req) {
         return service.activateSupplierRole(id, req);
     }
 
     @PostMapping("/{id}/activate-customer-role")
-    @PreAuthorize("hasAuthority('customer:write')")
+    @PreAuthorize("hasAuthority('customer:create')")
     public PartnerDto activateCustomerRole(@PathVariable UUID id,
                                            @Valid @RequestBody ActivateCustomerRoleRequest req) {
         return service.activateCustomerRole(id, req);
@@ -126,14 +126,14 @@ public class PartnerController {
 
     /** Removes the supplier role from a dual-role partner (must remain a customer). */
     @PostMapping("/{id}/deactivate-supplier-role")
-    @PreAuthorize("hasAuthority('supplier:write')")
+    @PreAuthorize("hasAuthority('supplier:delete')")
     public PartnerDto deactivateSupplierRole(@PathVariable UUID id) {
         return service.deactivateSupplierRole(id);
     }
 
     /** Removes the customer role from a dual-role partner (must remain a supplier). */
     @PostMapping("/{id}/deactivate-customer-role")
-    @PreAuthorize("hasAuthority('customer:write')")
+    @PreAuthorize("hasAuthority('customer:delete')")
     public PartnerDto deactivateCustomerRole(@PathVariable UUID id) {
         return service.deactivateCustomerRole(id);
     }

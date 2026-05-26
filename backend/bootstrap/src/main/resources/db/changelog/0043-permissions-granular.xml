@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Migrate from coarse `<entity>:write` permissions to granular
+        `<entity>:create / :update / :delete` perms aligned with HTTP semantics.
+        Step 1: insert new granular perms.
+        Step 2: backfill role_permission so existing tenants keep their access.
+        Step 3: delete the deprecated `:write` perms and the dead `sale:*` family
+                (CASCADE removes role_permission rows automatically).
+    -->
+
+    <changeSet id="0043-add-granular-perms" author="mini-erp">
+        <sql splitStatements="false">
+            INSERT INTO permissions (id, code, resource, action, description) VALUES
+              (uuid_generate_v4(), 'customer:delete',  'customer', 'delete', 'Deactivate a customer / partner customer role'),
+              (uuid_generate_v4(), 'supplier:create',  'supplier', 'create', 'Create a supplier or partner supplier role'),
+              (uuid_generate_v4(), 'supplier:update',  'supplier', 'update', 'Update a supplier'),
+              (uuid_generate_v4(), 'supplier:delete',  'supplier', 'delete', 'Deactivate a supplier / partner supplier role'),
+              (uuid_generate_v4(), 'sales:create',     'sales',    'create', 'Create quotes, orders, invoices, credit notes'),
+              (uuid_generate_v4(), 'sales:update',     'sales',    'update', 'Update quote/order status'),
+              (uuid_generate_v4(), 'expense:update',   'expense',  'update', 'Update expense or expense category'),
+              (uuid_generate_v4(), 'expense:delete',   'expense',  'delete', 'Delete or deactivate expense category'),
+              (uuid_generate_v4(), 'payment:update',   'payment',  'update', 'Confirm or allocate a payment'),
+              (uuid_generate_v4(), 'delivery:create',  'delivery', 'create', 'Create a delivery'),
+              (uuid_generate_v4(), 'delivery:update',  'delivery', 'update', 'Update or cancel a delivery'),
+              (uuid_generate_v4(), 'purchase:create',  'purchase', 'create', 'Create purchase orders or purchase invoices'),
+              (uuid_generate_v4(), 'purchase:update',  'purchase', 'update', 'Confirm, cancel, or update purchase docs'),
+              (uuid_generate_v4(), 'lot:create',       'lot',      'create', 'Create a lot or lot alert config'),
+              (uuid_generate_v4(), 'lot:update',       'lot',      'update', 'Block or update a lot / alert config'),
+              (uuid_generate_v4(), 'lot:delete',       'lot',      'delete', 'Destroy a lot')
+            ON CONFLICT (code) DO NOTHING;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0043-backfill-granular-from-write" author="mini-erp">
+        <sql splitStatements="false">
+            DO $$
+            DECLARE
+                /* each entry: which roles get which granular perms in place of old :write */
+                grants jsonb := '[
+                  {"role": "TENANT_ADMIN",   "perms": ["customer:delete","supplier:create","supplier:update","supplier:delete","sales:create","sales:update","expense:update","expense:delete","payment:update","delivery:create","delivery:update","purchase:create","purchase:update","lot:create","lot:update","lot:delete"]},
+                  {"role": "MANAGER",        "perms": ["customer:delete","supplier:create","supplier:update","supplier:delete","sales:create","sales:update","expense:update","expense:delete","payment:update","delivery:create","delivery:update","purchase:create","purchase:update","lot:create","lot:update","lot:delete"]},
+                  {"role": "ACCOUNTANT",     "perms": ["supplier:create","supplier:update","supplier:delete","purchase:create","purchase:update"]},
+                  {"role": "PAYMENT_OFFICER","perms": ["customer:delete","supplier:create","supplier:update","supplier:delete","payment:update","purchase:create","purchase:update"]},
+                  {"role": "CASHIER",        "perms": ["customer:delete","sales:create","sales:update","payment:update"]},
+                  {"role": "STOCK_KEEPER",   "perms": ["delivery:create","delivery:update","lot:create","lot:update","lot:delete"]}
+                ]'::jsonb;
+                entry jsonb;
+                rcode text;
+                pcodes text[];
+            BEGIN
+                FOR entry IN SELECT * FROM jsonb_array_elements(grants) LOOP
+                    rcode := entry->>'role';
+                    SELECT ARRAY(SELECT jsonb_array_elements_text(entry->'perms')) INTO pcodes;
+                    INSERT INTO role_permission (role_id, permission_id)
+                    SELECT r.id, p.id
+                    FROM roles r
+                    JOIN permissions p ON p.code = ANY(pcodes)
+                    WHERE r.code = rcode
+                    ON CONFLICT DO NOTHING;
+                END LOOP;
+            END $$;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0043-delete-deprecated-perms" author="mini-erp">
+        <sql splitStatements="false">
+            /* CASCADE on role_permission.permission_id removes the role grants */
+            DELETE FROM permissions WHERE code IN (
+                'customer:write','supplier:write','sales:write','expense:write',
+                'payment:write','delivery:write','purchase:write','lot:write',
+                'sale:create','sale:read'
+            );
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

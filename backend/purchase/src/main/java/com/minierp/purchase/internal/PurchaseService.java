@@ -18,7 +18,9 @@ import com.minierp.sales.api.NumberingOperations;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
 import com.minierp.shared.security.CurrentUserHolder;
+import com.minierp.shared.tenant.TenantContext;
 import com.minierp.shared.util.PageResponse;
+import com.minierp.tenant.api.TenantLookup;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +31,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -51,6 +54,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     private final LotOperations lotOps;
     private final NumberingOperations numbering;
     private final DocumentRenderer renderer;
+    private final TenantLookup tenantLookup;
 
     // ────────────────────────────────────────────────────────────────────────
     // Purchase orders
@@ -446,24 +450,30 @@ public class PurchaseService implements PurchaseInvoiceOperations {
         record SupplierModel(String code, String name, String phone, String email) {}
         var linesModel = lines.stream().map(l -> new LineModel(l.getSnapshotName(), l.getSnapshotSku(),
                 l.getQuantity(), l.getUnitCost(), l.getTaxRate(), l.getLineTotal())).toList();
-        return Map.of(
-                "invoice", new InvoiceModel(inv.getNumber(), inv.getSupplierReference(),
-                        inv.getInvoiceDate(), inv.getDueDate(),
-                        inv.getStatus().name().toLowerCase(), payStatus,
-                        inv.getSubtotal(), inv.getTaxAmount(), inv.getTotal(),
-                        inv.getPaidAmount(), inv.getBalance(),
-                        inv.getCurrency(), inv.getNotes(), linesModel),
-                "supplier", new SupplierModel(
-                        supplier != null ? supplier.code() : "",
-                        supplier != null ? supplier.name() : "",
-                        supplier != null ? supplier.phone() : "",
-                        supplier != null ? supplier.email() : ""),
-                "orgName", "Mini-ERP",
-                "orgAddress", "",
-                "orgPhone", "",
-                "orgEmail", "",
-                "logoUrl", ""
-        );
+        Map<String, Object> vars = new HashMap<>(brandingVars());
+        vars.put("invoice", new InvoiceModel(inv.getNumber(), inv.getSupplierReference(),
+                inv.getInvoiceDate(), inv.getDueDate(),
+                inv.getStatus().name().toLowerCase(), payStatus,
+                inv.getSubtotal(), inv.getTaxAmount(), inv.getTotal(),
+                inv.getPaidAmount(), inv.getBalance(),
+                inv.getCurrency(), inv.getNotes(), linesModel));
+        vars.put("supplier", new SupplierModel(
+                supplier != null ? supplier.code() : "",
+                supplier != null ? supplier.name() : "",
+                supplier != null ? supplier.phone() : "",
+                supplier != null ? supplier.email() : ""));
+        return vars;
+    }
+
+    private Map<String, Object> brandingVars() {
+        var b = tenantLookup.findBrandingById(TenantContext.require()).orElse(null);
+        Map<String, Object> m = new HashMap<>();
+        m.put("orgName", b == null || b.name() == null ? "" : b.name());
+        m.put("orgAddress", b == null || b.address() == null ? "" : b.address());
+        m.put("orgPhone", b == null || b.phone() == null ? "" : b.phone());
+        m.put("orgEmail", b == null || b.email() == null ? "" : b.email());
+        m.put("logoUrl", b == null || b.logoUrl() == null ? "" : b.logoUrl());
+        return m;
     }
 
     private Map<String, Object> buildPurchaseOrderVars(PurchaseOrder po, List<PurchaseOrderLine> lines, PartnerSummary supplier) {
@@ -475,20 +485,16 @@ public class PurchaseService implements PurchaseInvoiceOperations {
         record SupplierModel(String code, String name, String phone, String email) {}
         var lm = lines.stream().map(l -> new LineModel(l.getSnapshotName(), l.getSnapshotSku(),
                 l.getQuantity(), l.getQuantityReceived(), l.getUnitCost(), l.getTaxRate(), l.getLineTotal())).toList();
-        return Map.of(
-                "order", new OrderModel(po.getNumber(), po.getOrderDate(), po.getExpectedDate(),
-                        po.getStatus().name(),
-                        po.getSubtotal(), po.getTaxAmount(), po.getTotal(),
-                        po.getCurrency(), po.getNotes(), lm),
-                "supplier", new SupplierModel(
-                        supplier != null ? supplier.code() : "",
-                        supplier != null ? supplier.name() : "",
-                        supplier != null ? supplier.phone() : "",
-                        supplier != null ? supplier.email() : ""),
-                "orgName", "Mini-ERP",
-                "orgAddress", "",
-                "orgPhone", "",
-                "logoUrl", ""
-        );
+        Map<String, Object> vars = new HashMap<>(brandingVars());
+        vars.put("order", new OrderModel(po.getNumber(), po.getOrderDate(), po.getExpectedDate(),
+                po.getStatus().name(),
+                po.getSubtotal(), po.getTaxAmount(), po.getTotal(),
+                po.getCurrency(), po.getNotes(), lm));
+        vars.put("supplier", new SupplierModel(
+                supplier != null ? supplier.code() : "",
+                supplier != null ? supplier.name() : "",
+                supplier != null ? supplier.phone() : "",
+                supplier != null ? supplier.email() : ""));
+        return vars;
     }
 }

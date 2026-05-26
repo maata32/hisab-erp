@@ -47,7 +47,7 @@ class StockTransfer extends TenantAwareEntity {
     @Column(length = 1000)
     private String notes;
 
-    @OneToMany(mappedBy = "transferId", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "transfer", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<StockTransferLine> lines = new ArrayList<>();
 }

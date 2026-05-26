@@ -31,7 +31,7 @@ public class IncomeController {
 
     @PostMapping("/api/v1/income-categories")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('expense:write')")
+    @PreAuthorize("hasAuthority('expense:create')")
     public ExpenseDto.IncomeCategoryResponse createCategory(@Valid @RequestBody ExpenseDto.CreateIncomeCategoryRequest req) {
         return service.createIncomeCategory(req.name(), req.parentId());
     }
@@ -48,7 +48,7 @@ public class IncomeController {
 
     @PostMapping("/api/v1/incomes")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('expense:write')")
+    @PreAuthorize("hasAuthority('expense:create')")
     public ExpenseDto.IncomeResponse create(@Valid @RequestBody ExpenseDto.CreateIncomeRequest req) {
         return service.createIncome(req.categoryId(), req.customerId(), req.amount(),
                 req.receivedDate(), req.description(), req.source(), req.paymentMethod());

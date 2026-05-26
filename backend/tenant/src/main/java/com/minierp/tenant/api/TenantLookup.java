@@ -13,4 +13,7 @@ public interface TenantLookup {
 
     /** Returns the subscription plan limits for the tenant, or sensible defaults when no subscription exists. */
     PlanLimits findLimitsForTenant(UUID tenantId);
+
+    /** Returns the tenant's branding info (name, address, phone, email, logo) for PDF rendering. */
+    Optional<TenantBranding> findBrandingById(UUID id);
 }

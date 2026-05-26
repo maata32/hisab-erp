@@ -44,6 +44,8 @@ class PartialDeliveryIT {
     UUID customerId;
     UUID productId;
     UUID uomId;
+    UUID invoiceId;
+    UUID warehouseId;
 
     @BeforeEach
     void setup() {
@@ -63,16 +65,37 @@ class PartialDeliveryIT {
         uomId = UUID.randomUUID();
         productId = UUID.randomUUID();
 
-        jdbc.update("INSERT INTO parties (id, tenant_id, customer_code, name, is_customer, is_supplier, active, created_at, updated_at, version) " +
+        jdbc.update("INSERT INTO parties (id, tenant_id, code, name, is_customer, is_supplier, active, created_at, updated_at, version) " +
                 "VALUES (?,?,?,?,true,false,true,now(),now(),0)",
-                customerId, tenantId, "C-DELTEST", "Delivery Test Customer");
+                customerId, tenantId, "C-DELTEST-" + customerId, "Delivery Test Customer");
+
+        // Business rule: delivery requires a non-cancelled invoice. Seed one directly.
+        invoiceId = UUID.randomUUID();
+        jdbc.update("INSERT INTO invoices (id, tenant_id, number, party_id, issue_date, status, currency, " +
+                "subtotal, discount_amount, tax_amount, total, paid_amount, balance, " +
+                "created_at, updated_at, version) " +
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,now(),now(),0)",
+                invoiceId, tenantId, "INV-DELTEST", customerId, LocalDate.now(), "ISSUED", "MRU",
+                new BigDecimal("100"), BigDecimal.ZERO, BigDecimal.ZERO,
+                new BigDecimal("100"), BigDecimal.ZERO, new BigDecimal("100"));
+
+        // Warehouse + stock seed (recordDelivery now decrements stock).
+        warehouseId = UUID.randomUUID();
+        jdbc.update("INSERT INTO warehouses (id, tenant_id, code, name, is_default, is_active, " +
+                "type, created_at, updated_at, version) " +
+                "VALUES (?,?,?,?,true,true,'MAIN',now(),now(),0)",
+                warehouseId, tenantId, "WH-DELTEST", "Delivery Test Warehouse");
+        jdbc.update("INSERT INTO stocks (id, tenant_id, warehouse_id, product_id, " +
+                "qty_on_hand, qty_reserved, average_cost, created_at, updated_at, version) " +
+                "VALUES (uuid_generate_v4(),?,?,?,?,0,?,now(),now(),0)",
+                tenantId, warehouseId, productId, new BigDecimal("100"), new BigDecimal("10"));
     }
 
     @Test
     void fivePartialDeliveriesReachDelivered() {
         // Create delivery with 1 line of 10 units
         DeliveryDto.CreateDeliveryRequest create = new DeliveryDto.CreateDeliveryRequest(
-                customerId, null, LocalDate.now(), null, null, null,
+                customerId, null, invoiceId, warehouseId, LocalDate.now(), null, null, null,
                 List.of(new DeliveryDto.LineRequest(productId, uomId, new BigDecimal("10"), "Widget", "SKU-001"))
         );
         DeliveryDto.DeliveryResponse delivery = deliveryService.create(create, null);

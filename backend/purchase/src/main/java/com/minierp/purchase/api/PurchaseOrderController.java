@@ -24,7 +24,7 @@ public class PurchaseOrderController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('purchase:write')")
+    @PreAuthorize("hasAuthority('purchase:create')")
     public PurchaseDto.PurchaseOrderDto create(@Valid @RequestBody PurchaseDto.CreatePurchaseOrderRequest req) {
         return service.createOrder(req);
     }
@@ -45,13 +45,13 @@ public class PurchaseOrderController {
     }
 
     @PostMapping("/{id}/confirm")
-    @PreAuthorize("hasAuthority('purchase:write')")
+    @PreAuthorize("hasAuthority('purchase:update')")
     public PurchaseDto.PurchaseOrderDto confirm(@PathVariable UUID id) {
         return service.confirmOrder(id);
     }
 
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("hasAuthority('purchase:write')")
+    @PreAuthorize("hasAuthority('purchase:update')")
     public PurchaseDto.PurchaseOrderDto cancel(@PathVariable UUID id) {
         return service.cancelOrder(id);
     }

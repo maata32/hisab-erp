@@ -10,4 +10,7 @@ public interface TenantSettingsLookup {
 
     /** Currency decimal places for the given tenant. Returns 0 when unset / tenant not found. */
     int getCurrencyDecimalPlaces(UUID tenantId);
+
+    /** Paper size for PDF rendering ("A4" or "A5"). Returns "A4" when unset / tenant not found. */
+    String getPaperSize(UUID tenantId);
 }

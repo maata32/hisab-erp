@@ -128,7 +128,7 @@ public class PosController {
     // ── Stats ────────────────────────────────────────────────────────────────
 
     @GetMapping("/stats/today")
-    @PreAuthorize("hasAuthority('pos:operate') or hasAuthority('admin:read')")
+    @PreAuthorize("hasAuthority('pos:operate') or hasAuthority('reporting:read')")
     public SalesTodayResponse salesToday() {
         return new SalesTodayResponse(posService.salesToday());
     }

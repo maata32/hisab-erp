@@ -8,7 +8,6 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
-import { SelectButtonModule } from 'primeng/selectbutton';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -65,7 +64,7 @@ interface PartnerForm {
   standalone: true,
   imports: [
     CommonModule, FormsModule, TranslateModule, MoneyPipe, TableModule, TagModule,
-    SelectButtonModule, InputTextModule, InputNumberModule, CheckboxModule, ButtonModule,
+    InputTextModule, InputNumberModule, CheckboxModule, ButtonModule,
     DialogModule, DropdownModule, CalendarModule, TooltipModule, ToastModule,
   ],
   providers: [MessageService],
@@ -82,17 +81,37 @@ interface PartnerForm {
       </header>
 
       <div class="bg-white rounded-lg border border-gray-200">
+        <div class="border-b border-gray-200 flex flex-wrap items-center justify-between gap-3 px-4 pt-2">
+          <nav role="tablist" class="flex -mb-px">
+            @for (opt of roleOptions; track opt.value) {
+              <button type="button" role="tab"
+                      [attr.aria-selected]="currentRole === opt.value"
+                      (click)="currentRole = opt.value; onRoleChange()"
+                      class="relative px-4 py-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-t inline-flex items-center gap-2"
+                      [class.text-primary-700]="currentRole === opt.value"
+                      [class.text-gray-500]="currentRole !== opt.value"
+                      [class.hover:text-gray-700]="currentRole !== opt.value">
+                <span>{{ opt.label }}</span>
+                <span class="text-xs px-1.5 py-0.5 rounded-full font-semibold tabular-nums"
+                      [class.bg-primary-100]="currentRole === opt.value"
+                      [class.text-primary-700]="currentRole === opt.value"
+                      [class.bg-gray-100]="currentRole !== opt.value"
+                      [class.text-gray-600]="currentRole !== opt.value">
+                  {{ counts()[opt.value] }}
+                </span>
+                <span class="absolute left-0 right-0 -bottom-px h-0.5 transition-colors"
+                      [class.bg-primary-600]="currentRole === opt.value"
+                      [class.bg-transparent]="currentRole !== opt.value"></span>
+              </button>
+            }
+          </nav>
+          <span class="relative block w-full sm:w-72 mb-2">
+            <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+            <input pInputText type="text" [placeholder]="'common.search' | translate"
+                   (input)="onSearch($event)" class="w-full !pl-9" />
+          </span>
+        </div>
         <div class="p-4">
-          <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-            <p-selectButton [options]="roleOptions" [(ngModel)]="currentRole"
-                            optionLabel="label" optionValue="value"
-                            (onChange)="onRoleChange()" />
-            <span class="relative block w-full sm:w-72">
-              <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
-              <input pInputText type="text" [placeholder]="'common.search' | translate"
-                     (input)="onSearch($event)" class="w-full !pl-9" />
-            </span>
-          </div>
 
           <p-table [value]="partners()" [loading]="loading()" stripedRows responsiveLayout="scroll"
                    [rowHover]="true" styleClass="p-datatable-sm">
@@ -188,21 +207,30 @@ interface PartnerForm {
                 [closable]="!saving()">
         <div class="space-y-3">
           @if (!editing()) {
-            <div class="flex gap-4 items-center bg-gray-50 p-3 rounded">
-              <label class="flex items-center gap-2 cursor-pointer">
-                <p-checkbox [(ngModel)]="form.isCustomer" [binary]="true"/>
-                <span class="font-medium">{{ 'partners.role_customer' | translate }}</span>
-              </label>
-              <label class="flex items-center gap-2 cursor-pointer">
-                <p-checkbox [(ngModel)]="form.isSupplier" [binary]="true"/>
-                <span class="font-medium">{{ 'partners.role_supplier' | translate }}</span>
-              </label>
+            <div>
+              <div class="flex gap-4 items-center bg-gray-50 p-3 rounded">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <p-checkbox [(ngModel)]="form.isCustomer" [binary]="true"/>
+                  <span class="font-medium">{{ 'partners.role_customer' | translate }}</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <p-checkbox [(ngModel)]="form.isSupplier" [binary]="true"/>
+                  <span class="font-medium">{{ 'partners.role_supplier' | translate }}</span>
+                </label>
+              </div>
+              @if (rolesInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'partners.errors.roleRequired' | translate }}</p>
+              }
             </div>
           }
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'partners.code' | translate }} *</label>
-              <input pInputText [(ngModel)]="form.code" [disabled]="!!editing()" class="w-full"/>
+              <input pInputText [(ngModel)]="form.code" [disabled]="!!editing()" class="w-full"
+                     [class.ng-invalid]="codeInvalid()" [class.ng-dirty]="codeInvalid()"/>
+              @if (codeInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+              }
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'partners.type' | translate }} *</label>
@@ -213,7 +241,11 @@ interface PartnerForm {
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'partners.name' | translate }} *</label>
-            <input pInputText [(ngModel)]="form.name" class="w-full"/>
+            <input pInputText [(ngModel)]="form.name" class="w-full"
+                   [class.ng-invalid]="nameInvalid()" [class.ng-dirty]="nameInvalid()"/>
+            @if (nameInvalid()) {
+              <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+            }
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
@@ -370,10 +402,18 @@ export class PartnerListPage implements OnInit {
 
   protected partners = signal<Partner[]>([]);
   protected loading = signal(true);
+  protected counts = signal<{ all: number; customer: number; supplier: number }>({ all: 0, customer: 0, supplier: 0 });
   protected saving = signal(false);
+  protected submitted = signal(false);
   protected dialogOpen = false;
   protected editing = signal<Partner | null>(null);
   protected form: PartnerForm = this.emptyForm();
+
+  protected codeInvalid(): boolean { return this.submitted() && !this.form.code?.trim(); }
+  protected nameInvalid(): boolean { return this.submitted() && !this.form.name?.trim(); }
+  protected rolesInvalid(): boolean {
+    return this.submitted() && !this.editing() && !this.form.isCustomer && !this.form.isSupplier;
+  }
   protected typeOptions: Array<{ value: string; label: string }> = [];
   protected roleOptions: Array<{ value: Role; label: string }> = [];
   protected currentRole: Role = 'all';
@@ -436,6 +476,7 @@ export class PartnerListPage implements OnInit {
     else if (this.currentRole === 'supplier') this.form.isSupplier = true;
     else this.form.isCustomer = true;
     this.codeAutoFilled = true;
+    this.submitted.set(false);
     this.dialogOpen = true;
     this.fetchSuggestedCode();
   }
@@ -472,6 +513,7 @@ export class PartnerListPage implements OnInit {
       supplierCreditLimit: p.supplierCreditLimit ?? 0,
     };
     this.codeAutoFilled = false;
+    this.submitted.set(false);
     this.dialogOpen = true;
   }
 
@@ -610,8 +652,9 @@ export class PartnerListPage implements OnInit {
   }
 
   protected async save() {
+    this.submitted.set(true);
     if (!this.form.name?.trim() || !this.form.code?.trim()) return;
-    if (!this.form.isCustomer && !this.form.isSupplier) return;
+    if (!this.editing() && !this.form.isCustomer && !this.form.isSupplier) return;
     this.saving.set(true);
     try {
       const payload = {
@@ -663,6 +706,25 @@ export class PartnerListPage implements OnInit {
     } finally {
       this.loading.set(false);
     }
+    this.loadCounts();
+  }
+
+  private async loadCounts() {
+    const search = this.lastQuery ? `&q=${encodeURIComponent(this.lastQuery)}` : '';
+    const u = (role?: string) =>
+      `/api/v1/partners?size=1${role ? `&role=${role}` : ''}${search}`;
+    try {
+      const [all, customer, supplier] = await Promise.all([
+        firstValueFrom(this.http.get<{ totalElements: number }>(u())),
+        firstValueFrom(this.http.get<{ totalElements: number }>(u('CUSTOMER'))),
+        firstValueFrom(this.http.get<{ totalElements: number }>(u('SUPPLIER'))),
+      ]);
+      this.counts.set({
+        all: all.totalElements ?? 0,
+        customer: customer.totalElements ?? 0,
+        supplier: supplier.totalElements ?? 0,
+      });
+    } catch { /* silent — tab labels just won't show counts */ }
   }
 
   private showError(err: unknown) {

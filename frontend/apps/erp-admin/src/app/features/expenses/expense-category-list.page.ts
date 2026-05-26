@@ -109,7 +109,11 @@ interface CategoryForm {
         <div class="space-y-3">
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'expenseCategories.name' | translate }} *</label>
-            <input pInputText [(ngModel)]="form.name" class="w-full" />
+            <input pInputText [(ngModel)]="form.name" class="w-full"
+                   [class.ng-invalid]="nameInvalid()" [class.ng-dirty]="nameInvalid()" />
+            @if (nameInvalid()) {
+              <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+            }
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'expenseCategories.parent' | translate }}</label>
@@ -151,10 +155,15 @@ export class ExpenseCategoryListPage implements OnInit {
   protected categories = signal<ExpenseCategory[]>([]);
   protected loading = signal(true);
   protected saving = signal(false);
+  protected submitted = signal(false);
   protected dialogOpen = false;
   protected editing = signal<ExpenseCategory | null>(null);
   protected form: CategoryForm = this.emptyForm();
   protected includeInactive = false;
+
+  protected nameInvalid(): boolean {
+    return this.submitted() && !this.form.name?.trim();
+  }
 
   ngOnInit() { this.load(); }
 
@@ -173,6 +182,7 @@ export class ExpenseCategoryListPage implements OnInit {
   protected openCreate() {
     this.editing.set(null);
     this.form = this.emptyForm();
+    this.submitted.set(false);
     this.dialogOpen = true;
   }
 
@@ -184,10 +194,12 @@ export class ExpenseCategoryListPage implements OnInit {
       color: c.color ?? '#3B82F6',
       active: c.active,
     };
+    this.submitted.set(false);
     this.dialogOpen = true;
   }
 
   protected async save() {
+    this.submitted.set(true);
     if (!this.form.name?.trim()) return;
     this.saving.set(true);
     try {

@@ -25,8 +25,8 @@ public class ReportingService {
                 SELECT sale_day, sale_month, sale_year::int, sale_count, revenue, gross_profit
                 FROM v_report_direction
                 WHERE tenant_id = ?
-                  AND (? IS NULL OR sale_day >= ?)
-                  AND (? IS NULL OR sale_day <= ?)
+                  AND (?::date IS NULL OR sale_day >= ?::date)
+                  AND (?::date IS NULL OR sale_day <= ?::date)
                 ORDER BY sale_day DESC
                 """;
         return jdbc.query(plain, (rs, i) -> new ReportingDto.DirectionRow(
@@ -47,8 +47,8 @@ public class ReportingService {
                        sale_count, total_revenue, avg_ticket
                 FROM v_report_caisse
                 WHERE tenant_id = ?
-                  AND (? IS NULL OR sale_day >= ?)
-                  AND (? IS NULL OR sale_day <= ?)
+                  AND (?::date IS NULL OR sale_day >= ?::date)
+                  AND (?::date IS NULL OR sale_day <= ?::date)
                 ORDER BY sale_day DESC, total_revenue DESC
                 """, (rs, i) -> new ReportingDto.CaisseRow(
                 rs.getObject("cashier_user_id", UUID.class),
@@ -70,7 +70,7 @@ public class ReportingService {
                        average_cost, stock_value, is_low_stock
                 FROM v_report_stock
                 WHERE tenant_id = ?
-                  AND (? IS NULL OR warehouse_id = ?)
+                  AND (?::uuid IS NULL OR warehouse_id = ?::uuid)
                 ORDER BY is_low_stock DESC, product_name
                 """, (rs, i) -> new ReportingDto.StockRow(
                 rs.getObject("warehouse_id", UUID.class),
@@ -94,7 +94,7 @@ public class ReportingService {
                        expiration_date, days_remaining, quantity_remaining, status, risk_level
                 FROM v_report_expiry
                 WHERE tenant_id = ?
-                  AND (? IS NULL OR days_remaining <= ?)
+                  AND (?::int IS NULL OR days_remaining <= ?::int)
                 ORDER BY days_remaining ASC
                 """, (rs, i) -> new ReportingDto.ExpiryRow(
                 rs.getObject("lot_id", UUID.class),
@@ -118,8 +118,8 @@ public class ReportingService {
                        payment_count, total_amount
                 FROM v_report_payments
                 WHERE tenant_id = ?
-                  AND (? IS NULL OR payment_day >= ?)
-                  AND (? IS NULL OR payment_day <= ?)
+                  AND (?::date IS NULL OR payment_day >= ?::date)
+                  AND (?::date IS NULL OR payment_day <= ?::date)
                 ORDER BY payment_day DESC
                 """, (rs, i) -> new ReportingDto.PaymentRow(
                 rs.getObject("payment_day", LocalDate.class),
@@ -161,7 +161,7 @@ public class ReportingService {
                        ON s.product_id = e.product_id
                       AND s.warehouse_id = e.warehouse_id
                 WHERE e.tenant_id = ?
-                  AND (? IS NULL OR e.warehouse_id = ?)
+                  AND (?::uuid IS NULL OR e.warehouse_id = ?::uuid)
                 GROUP BY e.risk_level
                 ORDER BY CASE e.risk_level
                             WHEN 'CRITICAL' THEN 1
@@ -183,7 +183,7 @@ public class ReportingService {
         UUID tenant = TenantContext.require();
         return jdbc.query("""
                 SELECT c.id            AS customer_id,
-                       c.customer_code AS customer_code,
+                       c.code          AS customer_code,
                        c.name          AS customer_name,
                        COALESCE(SUM(CASE WHEN i.due_date IS NULL OR i.due_date >= CURRENT_DATE
                                          THEN i.balance ELSE 0 END), 0) AS current_balance,
@@ -207,7 +207,7 @@ public class ReportingService {
                       AND i.balance > 0
                       AND i.status NOT IN ('CANCELLED','PAID')
                 WHERE c.tenant_id = ? AND c.is_customer = TRUE
-                GROUP BY c.id, c.customer_code, c.name
+                GROUP BY c.id, c.code, c.name
                 HAVING COALESCE(SUM(i.balance), 0) > 0
                 ORDER BY total_outstanding DESC
                 """, (rs, i) -> new ReportingDto.AgingRow(
@@ -230,7 +230,7 @@ public class ReportingService {
                 SELECT product_id, product_name, sku, sale_month, qty_sold, revenue
                 FROM v_report_top_products
                 WHERE tenant_id = ?
-                  AND (? IS NULL OR sale_month = ?)
+                  AND (?::date IS NULL OR sale_month = ?::date)
                 ORDER BY revenue DESC
                 LIMIT ?
                 """, (rs, i) -> new ReportingDto.TopProductRow(
@@ -363,6 +363,30 @@ public class ReportingService {
         BigDecimal aging61to90 = aging != null ? nz(aging[3]) : BigDecimal.ZERO;
         BigDecimal aging90plus = aging != null ? nz(aging[4]) : BigDecimal.ZERO;
 
+        // ── Orders (sales orders backlog) ────────────────────────────────────
+        long ordersDraftCount = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM orders WHERE tenant_id=? AND status='DRAFT'",
+                Long.class, tenant));
+        // Orders that still have undelivered quantity (regardless of invoiced/confirmed status).
+        // Total ordered vs total delivered across non-cancelled deliveries.
+        long ordersConfirmedNotDelivered = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM orders o " +
+                "WHERE o.tenant_id=? AND o.status NOT IN ('DRAFT','CANCELLED') " +
+                "  AND COALESCE((SELECT SUM(ol.quantity) FROM order_lines ol " +
+                "                WHERE ol.tenant_id=o.tenant_id AND ol.order_id=o.id), 0) > " +
+                "      COALESCE((SELECT SUM(dl.quantity_delivered) FROM delivery_lines dl " +
+                "                JOIN deliveries d ON d.id=dl.delivery_id AND d.tenant_id=dl.tenant_id " +
+                "                WHERE d.tenant_id=o.tenant_id AND d.order_id=o.id " +
+                "                  AND d.status<>'CANCELLED'), 0)",
+                Long.class, tenant));
+        // Orders still awaiting an invoice (any non-draft/cancelled order without a live invoice).
+        long ordersConfirmedNotInvoiced = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM orders o " +
+                "WHERE o.tenant_id=? AND o.status NOT IN ('DRAFT','CANCELLED') " +
+                "  AND NOT EXISTS (SELECT 1 FROM invoices i WHERE i.tenant_id=o.tenant_id " +
+                "                  AND i.order_id=o.id AND i.status<>'CANCELLED')",
+                Long.class, tenant));
+
         // ── Top 5 products (by revenue) this month ───────────────────────────
         List<ReportingDto.TopProductRow> topProducts = jdbc.query(
                 "SELECT sl.product_id, COALESCE(p.name, sl.snapshot_name) AS product_name, " +
@@ -420,6 +444,7 @@ public class ReportingService {
                 expiring30, expired,
                 activeUsers, activeCustomers, overCreditLimit, totalCustomerBalance,
                 agingCurrent, aging1to30, aging31to60, aging61to90, aging90plus,
+                ordersDraftCount, ordersConfirmedNotDelivered, ordersConfirmedNotInvoiced,
                 topProducts, sales7Days, paymentMethodsToday);
     }
 

@@ -57,17 +57,23 @@ public class PricingService {
         if (amount == null || amount.signum() < 0) {
             throw new BusinessException("error.pricing.negative_amount", Map.of());
         }
-        ProductPrice p = ProductPrice.builder()
-                .productId(productId)
-                .uomId(uomId)
-                .priceTierId(tierId)
-                .amount(amount)
-                .currency(currency == null ? "MRU" : currency)
-                .taxInclusive(Boolean.TRUE.equals(taxInclusive))
-                .validFrom(validFrom == null ? LocalDate.of(2000, 1, 1) : validFrom)
-                .validTo(validTo)
-                .minQty(minQty)
-                .build();
+        LocalDate effectiveFrom = validFrom == null ? LocalDate.of(2000, 1, 1) : validFrom;
+        String effectiveCurrency = currency == null ? "MRU" : currency;
+        boolean effectiveTaxInclusive = Boolean.TRUE.equals(taxInclusive);
+
+        ProductPrice p = prices
+                .findByProductIdAndUomIdAndPriceTierIdAndValidFrom(productId, uomId, tierId, effectiveFrom)
+                .orElseGet(() -> ProductPrice.builder()
+                        .productId(productId)
+                        .uomId(uomId)
+                        .priceTierId(tierId)
+                        .validFrom(effectiveFrom)
+                        .build());
+        p.setAmount(amount);
+        p.setCurrency(effectiveCurrency);
+        p.setTaxInclusive(effectiveTaxInclusive);
+        p.setValidTo(validTo);
+        p.setMinQty(minQty);
         prices.save(p);
         return toPriceDto(p);
     }

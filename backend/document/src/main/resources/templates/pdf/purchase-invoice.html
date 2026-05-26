@@ -25,17 +25,17 @@
   tbody td { padding: 6px 8px; border-bottom: 1px solid #e5e7eb; }
   .text-right { text-align: right; }
   .totals { float: right; width: 260px; }
-  .totals td { padding: 4px 8px; }
-  .totals .total-row { font-weight: bold; font-size: 13px; border-top: 2px solid #b45309; }
-  .totals .total-row td { padding-top: 8px; }
+  .totals td { padding: 4px 8px 12px 8px; }
+  .totals .total-row td { font-weight: bold; font-size: 13px; border-top: 2px solid #b45309; padding-top: 12px; padding-bottom: 4px; }
   .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; }
   .badge-paid { background: #dcfce7; color: #166534; }
   .badge-partial { background: #fef9c3; color: #854d0e; }
   .badge-issued, .badge-cancelled { background: #fee2e2; color: #991b1b; }
-  .footer { margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 10px; text-align: center; font-size: 9px; color: #aaa; }
+  .footer { margin-top: 16px; border-top: 1px solid #e5e7eb; padding-top: 8px; text-align: center; font-size: 9px; color: #aaa; clear: both; }
   .notes { margin-top: 16px; font-size: 10px; color: #555; }
   .clearfix::after { content: ""; display: table; clear: both; }
 </style>
+<style th:if="${paperSize == 'A5'}">.page { padding: 14px 18px; }</style>
 </head>
 <body>
 <div class="page">
@@ -45,8 +45,9 @@
       <img th:if="${!#strings.isEmpty(logoUrl)}" th:src="${logoUrl}" alt="Logo"/>
       <div th:if="${#strings.isEmpty(logoUrl)}" class="company-name" th:text="${orgName}">Mini-ERP</div>
       <div th:if="${!#strings.isEmpty(logoUrl)}" style="margin-top:4px;font-weight:bold;" th:text="${orgName}"></div>
-      <div style="color:#555;font-size:10px;" th:text="${orgAddress}"></div>
-      <div style="color:#555;font-size:10px;" th:text="${orgPhone}"></div>
+      <div th:if="${!#strings.isEmpty(orgAddress)}" style="color:#555;font-size:10px;" th:text="${orgAddress}"></div>
+      <div th:if="${!#strings.isEmpty(orgPhone)}" style="color:#555;font-size:10px;">Tél. <span th:text="${orgPhone}"></span></div>
+      <div th:if="${!#strings.isEmpty(orgEmail)}" style="color:#555;font-size:10px;" th:text="${orgEmail}"></div>
     </div>
     <div class="doc-title">
       <h1>FACTURE D'ACHAT</h1>
@@ -65,8 +66,9 @@
     <div class="party-block">
       <div class="party-label">Acheteur</div>
       <div class="party-name" th:text="${orgName}"></div>
-      <div class="party-detail" th:text="${orgAddress}"></div>
-      <div class="party-detail" th:text="${orgPhone}"></div>
+      <div class="party-detail" th:if="${!#strings.isEmpty(orgAddress)}" th:text="${orgAddress}"></div>
+      <div class="party-detail" th:if="${!#strings.isEmpty(orgPhone)}">Tél. <span th:text="${orgPhone}"></span></div>
+      <div class="party-detail" th:if="${!#strings.isEmpty(orgEmail)}" th:text="${orgEmail}"></div>
       <div class="party-detail" th:text="${orgEmail}"></div>
     </div>
     <div class="party-block" style="text-align:right;">
@@ -135,7 +137,7 @@
   </div>
 
   <div class="footer">
-    <span th:text="${orgName}"></span> — Document généré par Mini-ERP
+    <span th:text="${orgName}"></span><span th:if="${!#strings.isEmpty(orgAddress)}"> — <span th:text="${orgAddress}"></span></span><span th:if="${!#strings.isEmpty(orgPhone)}"> — Tél. <span th:text="${orgPhone}"></span></span><span th:if="${!#strings.isEmpty(orgEmail)}"> — <span th:text="${orgEmail}"></span></span>
   </div>
 </div>
 </body>

@@ -96,12 +96,20 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'stockTransfers.from' | translate }} *</label>
             <p-dropdown [(ngModel)]="form.fromWarehouseId" [options]="warehouses()"
-                        optionLabel="name" optionValue="id" styleClass="w-full" />
+                        optionLabel="name" optionValue="id"
+                        [styleClass]="'w-full' + (fromInvalid() ? ' ng-invalid ng-dirty' : '')" />
+            @if (fromInvalid()) {
+              <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+            }
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'stockTransfers.to' | translate }} *</label>
             <p-dropdown [(ngModel)]="form.toWarehouseId" [options]="warehouses()"
-                        optionLabel="name" optionValue="id" styleClass="w-full" />
+                        optionLabel="name" optionValue="id"
+                        [styleClass]="'w-full' + (toInvalid() ? ' ng-invalid ng-dirty' : '')" />
+            @if (toInvalid()) {
+              <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+            }
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'stockTransfers.scheduled' | translate }}</label>
@@ -129,9 +137,13 @@ export class StockTransferListPage implements OnInit {
   protected warehouses = signal<WarehouseLite[]>([]);
   protected loading = signal(true);
   protected saving = signal(false);
+  protected submitted = signal(false);
   protected dialogOpen = false;
 
   protected form = this.emptyForm();
+
+  protected fromInvalid(): boolean { return this.submitted() && !this.form.fromWarehouseId; }
+  protected toInvalid(): boolean { return this.submitted() && !this.form.toWarehouseId; }
 
   ngOnInit() {
     this.loadWarehouses();
@@ -152,9 +164,14 @@ export class StockTransferListPage implements OnInit {
     return w ? w.name : '—';
   }
 
-  protected openCreate() { this.form = this.emptyForm(); this.dialogOpen = true; }
+  protected openCreate() {
+    this.form = this.emptyForm();
+    this.submitted.set(false);
+    this.dialogOpen = true;
+  }
 
   protected async save() {
+    this.submitted.set(true);
     if (!this.form.fromWarehouseId || !this.form.toWarehouseId) return;
     this.saving.set(true);
     try {

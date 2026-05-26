@@ -42,6 +42,8 @@ interface Delivery {
   lines: DeliveryLine[];
 }
 
+interface WarehouseLite { id: string; code: string; name: string; defaultWarehouse: boolean; }
+
 interface OrderLite {
   id: string;
   number: string;
@@ -156,8 +158,8 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                           optionLabel="number" optionValue="id"
                           [filter]="true" filterBy="number,customerName"
                           [placeholder]="'deliveries.pickOrder' | translate"
-                          (onChange)="onOrderChange()"
-                          styleClass="w-full" appendTo="body">
+                          (onChange)="onOrderChange()" appendTo="body"
+                          [styleClass]="'w-full' + (orderInvalid() ? ' ng-invalid ng-dirty' : '')">
                 <ng-template let-o pTemplate="item">
                   <div class="flex flex-col">
                     <span class="font-mono text-sm">{{ o.number }}</span>
@@ -165,22 +167,49 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   </div>
                 </ng-template>
               </p-dropdown>
+              @if (orderInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+              }
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'deliveries.scheduledDate' | translate }} *</label>
-              <p-calendar [(ngModel)]="form.scheduledDate" dateFormat="dd/mm/yy"
-                          styleClass="w-full" appendTo="body" />
+              <p-calendar [(ngModel)]="form.scheduledDate" dateFormat="dd/mm/yy" appendTo="body"
+                          [styleClass]="'w-full' + (scheduledDateInvalid() ? ' ng-invalid ng-dirty' : '')" />
+              @if (scheduledDateInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+              }
             </div>
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-sm font-medium mb-1">{{ 'deliveries.address' | translate }}</label>
-              <input pInputText [(ngModel)]="form.address" class="w-full" />
+              <label class="block text-sm font-medium mb-1">{{ 'deliveries.warehouse' | translate }} *</label>
+              <p-dropdown [(ngModel)]="form.warehouseId" [options]="warehouses()"
+                          optionLabel="name" optionValue="id"
+                          [placeholder]="'deliveries.pickWarehouse' | translate"
+                          appendTo="body"
+                          [styleClass]="'w-full' + (warehouseInvalid() ? ' ng-invalid ng-dirty' : '')">
+                <ng-template let-w pTemplate="item">
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono text-xs text-gray-500">{{ w.code }}</span>
+                    <span>{{ w.name }}</span>
+                    @if (w.defaultWarehouse) {
+                      <span class="ml-auto text-[10px] uppercase text-primary-600 font-semibold">{{ 'common.default' | translate }}</span>
+                    }
+                  </div>
+                </ng-template>
+              </p-dropdown>
+              @if (warehouseInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+              }
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'deliveries.contactPhone' | translate }}</label>
               <input pInputText [(ngModel)]="form.contactPhone" class="w-full" />
             </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'deliveries.address' | translate }}</label>
+            <input pInputText [(ngModel)]="form.address" class="w-full" />
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'common.notes' | translate }}</label>
@@ -226,7 +255,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           <button pButton [label]="'common.cancel' | translate" class="p-button-text"
                   (click)="createOpen = false" [disabled]="saving()"></button>
           <button pButton [label]="'common.save' | translate" icon="pi pi-check"
-                  (click)="save()" [loading]="saving()" [disabled]="!canSave()"></button>
+                  (click)="save()" [loading]="saving()"></button>
         </ng-template>
       </p-dialog>
 
@@ -236,7 +265,11 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
         <div class="space-y-3">
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'deliveries.signedBy' | translate }} *</label>
-            <input pInputText [(ngModel)]="recordForm.signedBy" class="w-full" />
+            <input pInputText [(ngModel)]="recordForm.signedBy" class="w-full"
+                   [class.ng-invalid]="signedByInvalid()" [class.ng-dirty]="signedByInvalid()" />
+            @if (signedByInvalid()) {
+              <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+            }
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'common.notes' | translate }}</label>
@@ -276,7 +309,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           <button pButton [label]="'common.cancel' | translate" class="p-button-text"
                   (click)="recordOpen = false" [disabled]="saving()"></button>
           <button pButton [label]="'deliveries.confirmRecord' | translate" icon="pi pi-check-circle"
-                  (click)="saveRecord()" [loading]="saving()" [disabled]="!recordForm.signedBy?.trim()"></button>
+                  (click)="saveRecord()" [loading]="saving()"></button>
         </ng-template>
       </p-dialog>
     </div>
@@ -289,14 +322,23 @@ export class DeliveryListPage implements OnInit {
 
   protected deliveries = signal<Delivery[]>([]);
   protected orders = signal<OrderLite[]>([]);
+  protected warehouses = signal<WarehouseLite[]>([]);
   protected loading = signal(true);
   protected saving = signal(false);
+  protected submittedCreate = signal(false);
+  protected submittedRecord = signal(false);
   protected createOpen = false;
   protected recordOpen = false;
+
+  protected orderInvalid(): boolean { return this.submittedCreate() && !this.form.orderId; }
+  protected scheduledDateInvalid(): boolean { return this.submittedCreate() && !this.form.scheduledDate; }
+  protected warehouseInvalid(): boolean { return this.submittedCreate() && !this.form.warehouseId; }
+  protected signedByInvalid(): boolean { return this.submittedRecord() && !this.recordForm.signedBy?.trim(); }
   protected remainingByProduct: Record<string, number> = {};
 
   protected form: {
     orderId: string | null;
+    warehouseId: string | null;
     scheduledDate: Date;
     address: string;
     contactPhone: string;
@@ -314,14 +356,15 @@ export class DeliveryListPage implements OnInit {
   ngOnInit() {
     this.load();
     this.loadOrders();
+    this.loadWarehouses();
   }
 
   protected deliverableOrders(): OrderLite[] {
-    // A confirmed order remains deliverable until it's fully delivered or cancelled,
-    // regardless of invoicing state — a customer may be invoiced upfront yet still
-    // have remaining items to ship.
-    const excluded = new Set(['DRAFT', 'DELIVERED', 'CANCELLED']);
-    return this.orders().filter(o => o.deliveryRequired && !excluded.has(o.status));
+    // Lifecycle: DRAFT → CONFIRMED → INVOICED → PARTIALLY_DELIVERED → DELIVERED.
+    // A BL is only creatable once the order has been invoiced — business rule:
+    // no shipment without a prior non-cancelled invoice.
+    const allowed = new Set(['INVOICED', 'PARTIALLY_DELIVERED']);
+    return this.orders().filter(o => allowed.has(o.status));
   }
 
   protected totalOrdered(d: Delivery): number {
@@ -350,9 +393,11 @@ export class DeliveryListPage implements OnInit {
     }
   }
 
-  protected openCreate() {
+  protected async openCreate() {
+    if (this.warehouses().length === 0) await this.loadWarehouses();
     this.form = this.emptyForm();
     this.remainingByProduct = {};
+    this.submittedCreate.set(false);
     this.createOpen = true;
   }
 
@@ -389,7 +434,7 @@ export class DeliveryListPage implements OnInit {
       // pull customer address into the form
       try {
         const cust = await firstValueFrom(
-          this.http.get<{ address?: string; phone?: string }>(`/api/v1/customers/${order.customerId}`)
+          this.http.get<{ address?: string; phone?: string }>(`/api/v1/partners/${order.customerId}`)
         );
         if (!this.form.address) this.form.address = cust.address ?? '';
         if (!this.form.contactPhone) this.form.contactPhone = cust.phone ?? '';
@@ -399,11 +444,13 @@ export class DeliveryListPage implements OnInit {
 
   protected canSave(): boolean {
     return !!this.form.orderId
+        && !!this.form.warehouseId
         && this.form.lines.length > 0
         && this.form.lines.some(l => (l.quantityOrdered ?? 0) > 0);
   }
 
   protected async save() {
+    this.submittedCreate.set(true);
     if (!this.canSave()) return;
     this.saving.set(true);
     try {
@@ -411,6 +458,7 @@ export class DeliveryListPage implements OnInit {
       const payload = {
         customerId: order?.customerId,
         orderId: this.form.orderId,
+        warehouseId: this.form.warehouseId,
         scheduledDate: this.toIsoDate(this.form.scheduledDate),
         address: this.form.address || null,
         contactPhone: this.form.contactPhone || null,
@@ -455,10 +503,12 @@ export class DeliveryListPage implements OnInit {
         quantityDelivered: l.quantityOrdered - (l.quantityDelivered ?? 0),
       })),
     };
+    this.submittedRecord.set(false);
     this.recordOpen = true;
   }
 
   protected async saveRecord() {
+    this.submittedRecord.set(true);
     if (!this.recordForm.deliveryId || !this.recordForm.signedBy?.trim()) return;
     this.saving.set(true);
     try {
@@ -539,11 +589,25 @@ export class DeliveryListPage implements OnInit {
   private emptyForm() {
     return {
       orderId: null as string | null,
+      warehouseId: this.warehouses().find(w => w.defaultWarehouse)?.id
+                   ?? this.warehouses()[0]?.id
+                   ?? null as string | null,
       scheduledDate: new Date(),
       address: '',
       contactPhone: '',
       notes: '',
       lines: [] as DeliveryLineForm[],
     };
+  }
+
+  private async loadWarehouses() {
+    try {
+      const list = await firstValueFrom(
+        this.http.get<WarehouseLite[]>('/api/v1/inventory/warehouses')
+      );
+      this.warehouses.set(list ?? []);
+    } catch {
+      this.warehouses.set([]);
+    }
   }
 }

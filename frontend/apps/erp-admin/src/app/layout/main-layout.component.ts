@@ -125,32 +125,47 @@ export class MainLayoutComponent {
   protected readonly sidebarOpen = signal(false);
 
   protected readonly items: NavItem[] = [
+    // Overview
     { label: 'nav.dashboard', icon: 'pi pi-home', path: '/dashboard' },
-    { label: 'nav.products', icon: 'pi pi-box', path: '/products', permission: 'product:read' },
+
+    // Sales cycle (Partner → Quote → Order → Invoice → Delivery → Payment)
     { label: 'nav.partners', icon: 'pi pi-users', path: '/partners', permission: 'customer:read' },
     { label: 'nav.quotes', icon: 'pi pi-file', path: '/quotes', permission: 'sales:read' },
     { label: 'nav.orders', icon: 'pi pi-shopping-cart', path: '/orders', permission: 'sales:read' },
     { label: 'nav.invoices', icon: 'pi pi-receipt', path: '/invoices', permission: 'sales:read' },
     { label: 'nav.deliveries', icon: 'pi pi-truck', path: '/deliveries', permission: 'delivery:read' },
     { label: 'nav.payments', icon: 'pi pi-credit-card', path: '/payments', permission: 'payment:read' },
+
+    // Purchase cycle
     { label: 'nav.purchaseOrders', icon: 'pi pi-shopping-bag', path: '/purchase-orders', permission: 'purchase:read' },
     { label: 'nav.purchaseInvoices', icon: 'pi pi-file-edit', path: '/purchase-invoices', permission: 'purchase:read' },
-    { label: 'nav.warehouses', icon: 'pi pi-warehouse', path: '/warehouses', permission: 'stock:read' },
+
+    // Inventory & catalog
+    { label: 'nav.products', icon: 'pi pi-box', path: '/products', permission: 'product:read' },
     { label: 'nav.stock', icon: 'pi pi-database', path: '/stock', permission: 'stock:read' },
+    { label: 'nav.warehouses', icon: 'pi pi-warehouse', path: '/warehouses', permission: 'stock:read' },
     { label: 'nav.stockTransfers', icon: 'pi pi-arrow-right-arrow-left', path: '/stock-transfers', permission: 'inventory:transfer' },
     { label: 'nav.inventoryCounts', icon: 'pi pi-list-check', path: '/inventory-counts', permission: 'inventory:count' },
     { label: 'nav.lots', icon: 'pi pi-tag', path: '/lots', permission: 'lot:read' },
+
+    // Finance
+    { label: 'nav.treasury', icon: 'pi pi-money-bill', path: '/treasury', permission: 'treasury:read' },
     { label: 'nav.expenses', icon: 'pi pi-wallet', path: '/expenses', permission: 'expense:read' },
     { label: 'nav.expenseCategories', icon: 'pi pi-tags', path: '/expense-categories', permission: 'expense:read' },
-    { label: 'nav.treasury', icon: 'pi pi-money-bill', path: '/treasury', permission: 'treasury:read' },
+
+    // Reports
     { label: 'nav.reporting', icon: 'pi pi-chart-bar', path: '/reporting', permission: 'reporting:read' },
-    { label: 'nav.uoms', icon: 'pi pi-sliders-h', path: '/uoms', permission: 'uom:read' },
+
+    // Configuration
     { label: 'nav.priceTiers', icon: 'pi pi-percentage', path: '/price-tiers', permission: 'price:update' },
+    { label: 'nav.uoms', icon: 'pi pi-sliders-h', path: '/uoms', permission: 'uom:read' },
     { label: 'nav.notifConfig', icon: 'pi pi-bell', path: '/notifications-config', permission: 'tenant_settings:read' },
-    { label: 'nav.organizations', icon: 'pi pi-building', path: '/organizations', role: 'SUPER_ADMIN' },
+    { label: 'nav.settings', icon: 'pi pi-cog', path: '/settings', permission: 'tenant_settings:read' },
+
+    // Administration
     { label: 'nav.users', icon: 'pi pi-id-card', path: '/users', permission: 'user:read' },
     { label: 'nav.audit', icon: 'pi pi-shield', path: '/audit', permission: 'audit:read' },
-    { label: 'nav.settings', icon: 'pi pi-cog', path: '/settings', permission: 'tenant_settings:read' },
+    { label: 'nav.organizations', icon: 'pi pi-building', path: '/organizations', role: 'SUPER_ADMIN' },
   ];
 
   protected user() {

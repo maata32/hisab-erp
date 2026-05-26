@@ -24,7 +24,7 @@ public class QuoteController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('sales:write')")
+    @PreAuthorize("hasAuthority('sales:create')")
     public SalesDto.QuoteDto create(@Valid @RequestBody SalesDto.CreateQuoteRequest req) {
         return service.createQuote(req);
     }
@@ -44,13 +44,13 @@ public class QuoteController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAuthority('sales:write')")
+    @PreAuthorize("hasAuthority('sales:update')")
     public SalesDto.QuoteDto updateStatus(@PathVariable UUID id, @RequestParam String status) {
         return service.updateQuoteStatus(id, status);
     }
 
     @PostMapping("/{id}/convert-to-order")
-    @PreAuthorize("hasAuthority('sales:write')")
+    @PreAuthorize("hasAuthority('sales:create')")
     public SalesDto.OrderDto convertToOrder(@PathVariable UUID id,
                                             @RequestParam(defaultValue = "false") boolean deliveryRequired) {
         return service.convertQuoteToOrder(id, deliveryRequired);

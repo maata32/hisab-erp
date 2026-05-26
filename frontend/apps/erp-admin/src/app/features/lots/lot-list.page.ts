@@ -132,7 +132,10 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'lots.quantity' | translate }} *</label>
             <p-inputNumber [(ngModel)]="destroyForm.quantity" mode="decimal" [maxFractionDigits]="3"
-                           styleClass="w-full" />
+                           [styleClass]="'w-full' + (quantityInvalid() ? ' ng-invalid ng-dirty' : '')" />
+            @if (quantityInvalid()) {
+              <p class="text-xs text-red-600 mt-1">{{ 'common.mustBePositive' | translate }}</p>
+            }
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'lots.method' | translate }} *</label>
@@ -167,10 +170,15 @@ export class LotListPage implements OnInit {
   protected expired = signal<Lot[]>([]);
   protected loading = signal(true);
   protected saving = signal(false);
+  protected submitted = signal(false);
   protected activeTab = 0;
   protected daysWindow = 30;
   protected destroyOpen = false;
   protected destroyTarget: Lot | null = null;
+
+  protected quantityInvalid(): boolean {
+    return this.submitted() && (this.destroyForm.quantity == null || this.destroyForm.quantity <= 0);
+  }
 
   protected readonly dayOptions = [
     { value: 7, label: 'J-7' }, { value: 15, label: 'J-15' },
@@ -214,11 +222,14 @@ export class LotListPage implements OnInit {
   protected openDestroy(lot: Lot) {
     this.destroyTarget = lot;
     this.destroyForm = { quantity: lot.quantityRemaining, method: 'INCINERATION', cost: 0, notes: '' };
+    this.submitted.set(false);
     this.destroyOpen = true;
   }
 
   protected async confirmDestroy() {
+    this.submitted.set(true);
     if (!this.destroyTarget) return;
+    if (this.quantityInvalid()) return;
     this.saving.set(true);
     try {
       await firstValueFrom(this.http.post(

@@ -44,7 +44,7 @@ class InventoryCount extends TenantAwareEntity {
     @Column(length = 1000)
     private String notes;
 
-    @OneToMany(mappedBy = "countId", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "count", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<InventoryCountLine> lines = new ArrayList<>();
 }

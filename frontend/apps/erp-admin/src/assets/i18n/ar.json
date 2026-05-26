@@ -26,7 +26,12 @@
     "confirmation": "تأكيد",
     "print": "طباعة",
     "error": "خطأ",
-    "error_generic": "حدث خطأ"
+    "error_generic": "حدث خطأ",
+    "success": "نجاح",
+    "required": "هذا الحقل مطلوب",
+    "mustBePositive": "يجب أن تكون القيمة موجبة",
+    "mustBeNonNegative": "لا يمكن أن تكون القيمة سالبة",
+    "atLeastOneLine": "أضف سطراً واحداً على الأقل"
   },
   "error": {
     "partner": {
@@ -120,6 +125,7 @@
       "ventes": "المبيعات",
       "factures": "الفواتير والمصاريف",
       "activite": "نشاط الشهر",
+      "orders": "الطلبات",
       "stock": "المخزون والعمليات",
       "clients": "العملاء والفريق"
     },
@@ -155,7 +161,10 @@
       "over_credit_limit": "تجاوز حد الائتمان",
       "over_credit_limit_hint": "حد الائتمان متجاوز",
       "total_customer_balance": "مستحقات العملاء",
-      "active_users": "مستخدمون نشطون"
+      "active_users": "مستخدمون نشطون",
+      "orders_draft": "طلبات مسودة",
+      "orders_confirmed_not_delivered": "طلبات مؤكدة غير مسلمة",
+      "orders_confirmed_not_invoiced": "طلبات مؤكدة غير مفوترة"
     },
     "aging": {
       "title": "تقادم الذمم",
@@ -282,7 +291,9 @@
       "tax_rate": "معدل الضريبة الافتراضي",
       "tax_rate_hint": "مثال: 0.16 لـ 16%",
       "prices_include_tax": "الأسعار شاملة الضريبة",
-      "number_prefix": "بادئة رقم الفاتورة"
+      "number_prefix": "بادئة رقم الفاتورة",
+      "paper_size": "حجم الورق",
+      "paper_size_hint": "يُستخدم لجميع ملفات PDF (عروض الأسعار، الفواتير، إيصالات التسليم، الإيصالات)"
     },
     "payment": {
       "credit_limit_behavior": "سلوك حد الائتمان",
@@ -303,6 +314,7 @@
     "tab_suppliers": "الموردون",
     "role_customer": "عميل",
     "role_supplier": "مورّد",
+    "errors": { "roleRequired": "اختر دوراً واحداً على الأقل (عميل أو مورّد)." },
     "roles": "الأدوار",
     "code": "الرمز",
     "type": "النوع",
@@ -457,6 +469,8 @@
     "createTitle": "إذن تسليم جديد",
     "pickOrder": "اختر طلبًا…",
     "pickOrderFirst": "اختر الطلب أولاً",
+    "warehouse": "المستودع",
+    "pickWarehouse": "اختر مستودعًا…",
     "linesToShip": "البنود المراد شحنها",
     "remaining": "المتبقي",
     "quantityToShip": "الكمية المراد شحنها",
@@ -548,7 +562,21 @@
     "viewImages": "عرض الصور",
     "imagesAfterSave": "احفظ المنتج أولاً لإضافة الصور.",
     "imagesQuotaReached": "تم الوصول إلى الحد ({{max}}). قم بترقية اشتراكك لإضافة المزيد من الصور.",
-    "showInactive": "إظهار غير النشطين"
+    "showInactive": "إظهار غير النشطين",
+    "openingStock": {
+      "toggle": "إدخال المخزون الافتتاحي أيضاً",
+      "help": "سيتم تسجيل المخزون الافتتاحي عند إنشاء المنتج.",
+      "errors": {
+        "warehouseRequired": "المستودع مطلوب",
+        "qtyRequired": "الكمية مطلوبة (> 0)",
+        "costRequired": "تكلفة الوحدة مطلوبة (≥ 0)"
+      }
+    },
+    "errors": {
+      "skuRequired": "SKU مطلوب",
+      "nameRequired": "الاسم مطلوب",
+      "baseUomRequired": "الوحدة الأساسية مطلوبة"
+    }
   },
   "warehouses": {
     "title": "المستودعات",
@@ -583,7 +611,55 @@
     "value": "القيمة",
     "status": "الحالة",
     "low": "تحت الحد",
-    "ok": "جيد"
+    "ok": "جيد",
+    "adjust": "تعديل",
+    "openOpeningBalance": "إدخال المخزون الافتتاحي",
+    "searchPlaceholder": "ابحث بالاسم أو الرمز",
+    "savedOpening": "تم تسجيل المخزون الافتتاحي",
+    "savedAdjust": "تم تسجيل التعديل",
+    "fields": {
+      "product": "المنتج",
+      "warehouse": "المستودع",
+      "qty": "الكمية",
+      "unitCost": "تكلفة الوحدة",
+      "qtySigned": "التغيير (+/−)",
+      "note": "السبب / ملاحظة"
+    },
+    "openingDialog": {
+      "title": "المخزون الافتتاحي",
+      "help": "استخدمه عند افتتاح المتجر لتسجيل المخزون الفعلي. تُستخدم تكلفة الوحدة في حساب متوسط التكلفة المرجح."
+    },
+    "adjustDialog": {
+      "title": "تعديل الكمية",
+      "help": "كمية موجبة للإضافة، سالبة للخصم (كسر، فقد، تصحيح).",
+      "notePlaceholder": "مثال: كسر، سرقة، إعادة جرد"
+    },
+    "errors": {
+      "requiredFields": "يرجى تعبئة جميع الحقول المطلوبة.",
+      "qtyMustBePositive": "يجب أن تكون الكمية موجبة تماماً.",
+      "qtyMustBeNonZero": "لا يمكن أن يكون التغيير صفراً."
+    },
+    "history": "السجل",
+    "historyDialog": {
+      "title": "سجل حركات المخزون",
+      "date": "التاريخ",
+      "type": "النوع",
+      "qty": "الكمية",
+      "unitCost": "تكلفة الوحدة",
+      "reference": "المرجع",
+      "empty": "لا توجد حركات لهذا المنتج في هذا المستودع."
+    },
+    "movementType": {
+      "PURCHASE_RECEIPT": "استلام شراء",
+      "SALE": "بيع",
+      "SALE_RETURN": "إرجاع بيع",
+      "ADJUSTMENT": "تعديل",
+      "TRANSFER_OUT": "تحويل صادر",
+      "TRANSFER_IN": "تحويل وارد",
+      "INVENTORY_COUNT": "جرد المخزون",
+      "EXPIRY_DESTRUCTION": "إتلاف منتهي الصلاحية",
+      "OPENING_BALANCE": "رصيد افتتاحي"
+    }
   },
   "stockTransfers": {
     "title": "تحويلات المخزون",

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Deliveries need a source warehouse so that recordDelivery() can decrement
+        the right stock row. Column added as nullable to avoid breaking historical
+        rows; new deliveries require it at the application layer. Backfill links
+        each existing delivery to the tenant's default warehouse when possible.
+    -->
+
+    <changeSet id="0045-add-warehouse-id" author="mini-erp">
+        <addColumn tableName="deliveries">
+            <column name="warehouse_id" type="uuid"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="deliveries" baseColumnNames="warehouse_id"
+                                 referencedTableName="warehouses" referencedColumnNames="id"
+                                 constraintName="fk_deliveries_warehouse"/>
+        <createIndex tableName="deliveries" indexName="idx_deliveries_warehouse">
+            <column name="warehouse_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0045-backfill-default-warehouse" author="mini-erp">
+        <sql splitStatements="false">
+            UPDATE deliveries d
+            SET warehouse_id = (
+                SELECT w.id FROM warehouses w
+                WHERE w.tenant_id = d.tenant_id
+                  AND w.is_default = true
+                LIMIT 1
+            )
+            WHERE d.warehouse_id IS NULL;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

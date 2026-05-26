@@ -1,5 +1,8 @@
 package com.minierp.inventory.api;
 
+import com.minierp.shared.util.PageResponse;
+import org.springframework.data.domain.Pageable;
+
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -40,6 +43,14 @@ public interface StockOperations {
     java.util.List<StockDto> listByWarehouse(UUID warehouseId);
 
     /**
+     * Returns, for every product that has at least one stock row, the available
+     * quantity per active warehouse. Warehouses are listed in a stable order:
+     * the default warehouse first, then others sorted by code. Missing rows are
+     * reported as zero so callers can rely on a uniform warehouse vector.
+     */
+    java.util.List<ProductStockBreakdownDto> listStockBreakdownByProduct();
+
+    /**
      * Outflow that permits the stock to go negative — used by the POS module for offline-synced
      * sales where the spec mandates acceptance even when on-hand is zero. Logs a warning when
      * stock goes negative. Does NOT throw {@code error.inventory.insufficient_stock}.
@@ -47,4 +58,13 @@ public interface StockOperations {
     StockMovementDto issueAllowNegative(UUID warehouseId, UUID productId, BigDecimal qty,
                                         StockMovementType type, String referenceType, UUID referenceId,
                                         String referenceNumber, String note, UUID userId);
+
+    /**
+     * Append-only history of stock movements for a product, optionally scoped to a single
+     * warehouse. Ordered by occurredAt DESC.
+     */
+    PageResponse<StockMovementDto> listMovements(UUID productId, UUID warehouseId, Pageable pageable);
+
+    /** ID of the tenant's default warehouse, if one exists. */
+    java.util.Optional<UUID> findDefaultWarehouseId();
 }

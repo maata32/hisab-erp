@@ -136,11 +136,19 @@ interface UserForm {
         <div class="space-y-3">
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'users.email' | translate }} *</label>
-            <input pInputText type="email" [(ngModel)]="form.email" class="w-full" />
+            <input pInputText type="email" [(ngModel)]="form.email" class="w-full"
+                   [class.ng-invalid]="emailInvalid()" [class.ng-dirty]="emailInvalid()" />
+            @if (emailInvalid()) {
+              <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+            }
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'users.fullName' | translate }} *</label>
-            <input pInputText [(ngModel)]="form.fullName" class="w-full" />
+            <input pInputText [(ngModel)]="form.fullName" class="w-full"
+                   [class.ng-invalid]="fullNameInvalid()" [class.ng-dirty]="fullNameInvalid()" />
+            @if (fullNameInvalid()) {
+              <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+            }
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
@@ -156,15 +164,24 @@ interface UserForm {
           @if (!editing()) {
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'users.password' | translate }} *</label>
-              <input pInputText type="password" [(ngModel)]="form.password" class="w-full" />
-              <p class="text-xs text-gray-500 mt-1">{{ 'users.passwordHint' | translate }}</p>
+              <input pInputText type="password" [(ngModel)]="form.password" class="w-full"
+                     [class.ng-invalid]="passwordInvalid()" [class.ng-dirty]="passwordInvalid()" />
+              @if (passwordInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+              } @else {
+                <p class="text-xs text-gray-500 mt-1">{{ 'users.passwordHint' | translate }}</p>
+              }
             </div>
           }
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'users.roles' | translate }} *</label>
             <p-multiSelect [(ngModel)]="form.roleCodes" [options]="roles()"
-                           optionLabel="name" optionValue="code" styleClass="w-full"
+                           optionLabel="name" optionValue="code"
+                           [styleClass]="'w-full' + (rolesInvalid() ? ' ng-invalid ng-dirty' : '')"
                            [placeholder]="'users.pickRoles' | translate" display="chip" />
+            @if (rolesInvalid()) {
+              <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+            }
           </div>
           @if (editing()) {
             <div class="flex items-center gap-2">
@@ -206,9 +223,15 @@ export class UserListPage implements OnInit {
   protected roles = signal<Role[]>([]);
   protected loading = signal(true);
   protected saving = signal(false);
+  protected submitted = signal(false);
   protected dialogOpen = false;
   protected editing = signal<User | null>(null);
   protected form: UserForm = this.emptyForm();
+
+  protected emailInvalid(): boolean { return this.submitted() && !this.form.email?.trim(); }
+  protected fullNameInvalid(): boolean { return this.submitted() && !this.form.fullName?.trim(); }
+  protected passwordInvalid(): boolean { return this.submitted() && !this.editing() && !this.form.password?.trim(); }
+  protected rolesInvalid(): boolean { return this.submitted() && this.form.roleCodes.length === 0; }
   protected tempPasswordOpen = false;
   protected tempPassword = signal<string>('');
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -233,6 +256,7 @@ export class UserListPage implements OnInit {
   protected openCreate() {
     this.editing.set(null);
     this.form = this.emptyForm();
+    this.submitted.set(false);
     this.dialogOpen = true;
   }
 
@@ -247,11 +271,14 @@ export class UserListPage implements OnInit {
       roleCodes: [...u.roleCodes],
       active: u.active,
     };
+    this.submitted.set(false);
     this.dialogOpen = true;
   }
 
   protected async save() {
+    this.submitted.set(true);
     if (!this.form.email?.trim() || !this.form.fullName?.trim()) return;
+    if (!this.editing() && !this.form.password?.trim()) return;
     if (this.form.roleCodes.length === 0) return;
     this.saving.set(true);
     try {

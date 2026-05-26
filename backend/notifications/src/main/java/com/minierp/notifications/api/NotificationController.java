@@ -22,19 +22,19 @@ public class NotificationController {
     private final NotificationConfigService service;
 
     @GetMapping("/events")
-    @PreAuthorize("hasAuthority('settings:read')")
+    @PreAuthorize("hasAuthority('tenant_settings:read')")
     public List<NotificationDto.EventDefinition> events() {
         return service.listEvents();
     }
 
     @GetMapping("/config")
-    @PreAuthorize("hasAuthority('settings:read')")
+    @PreAuthorize("hasAuthority('tenant_settings:read')")
     public List<NotificationDto.TenantConfig> config() {
         return service.listTenantConfig();
     }
 
     @PutMapping("/config/{eventCode}")
-    @PreAuthorize("hasAuthority('settings:write')")
+    @PreAuthorize("hasAuthority('tenant_settings:update')")
     public NotificationDto.TenantConfig putConfig(
             @PathVariable String eventCode,
             @Valid @RequestBody NotificationDto.TenantConfigRequest req) {
@@ -44,7 +44,7 @@ public class NotificationController {
     }
 
     @PostMapping("/config/reset")
-    @PreAuthorize("hasAuthority('settings:write')")
+    @PreAuthorize("hasAuthority('tenant_settings:update')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void reset() {
         service.resetToDefaults();

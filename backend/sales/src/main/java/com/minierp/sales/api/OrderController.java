@@ -25,7 +25,7 @@ public class OrderController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('sales:write')")
+    @PreAuthorize("hasAuthority('sales:create')")
     public SalesDto.OrderDto create(@Valid @RequestBody SalesDto.CreateOrderRequest req) {
         return service.createOrder(req);
     }
@@ -45,13 +45,13 @@ public class OrderController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAuthority('sales:write')")
+    @PreAuthorize("hasAuthority('sales:update')")
     public SalesDto.OrderDto updateStatus(@PathVariable UUID id, @RequestParam String status) {
         return service.updateOrderStatus(id, status);
     }
 
     @PostMapping("/{id}/convert-to-invoice")
-    @PreAuthorize("hasAuthority('sales:write')")
+    @PreAuthorize("hasAuthority('sales:create')")
     public SalesDto.InvoiceDto convertToInvoice(
             @PathVariable UUID id,
             @RequestParam(required = false) LocalDate dueDate,

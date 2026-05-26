@@ -1,5 +1,5 @@
 @org.springframework.modulith.ApplicationModule(
         displayName = "Delivery",
-        allowedDependencies = {"shared", "customer::customer-api", "sales::sales-api", "document::document-api"}
+        allowedDependencies = {"shared", "partner::customer-api", "sales::sales-api", "inventory::api", "document::document-api", "tenant::api"}
 )
 package com.minierp.delivery;

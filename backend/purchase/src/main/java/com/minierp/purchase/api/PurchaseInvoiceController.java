@@ -24,7 +24,7 @@ public class PurchaseInvoiceController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('purchase:write')")
+    @PreAuthorize("hasAuthority('purchase:create')")
     public PurchaseDto.PurchaseInvoiceDto create(@Valid @RequestBody PurchaseDto.CreatePurchaseInvoiceRequest req) {
         return service.createInvoice(req);
     }
@@ -45,7 +45,7 @@ public class PurchaseInvoiceController {
     }
 
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("hasAuthority('purchase:write')")
+    @PreAuthorize("hasAuthority('purchase:update')")
     public PurchaseDto.PurchaseInvoiceDto cancel(@PathVariable UUID id) {
         return service.cancelInvoice(id);
     }

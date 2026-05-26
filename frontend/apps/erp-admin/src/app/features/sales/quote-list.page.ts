@@ -43,6 +43,11 @@ interface ProductOpt {
   defaultTaxRate: number;
 }
 
+interface ProductStockBreakdown {
+  productId: string;
+  warehouses: { warehouseId: string; warehouseCode: string; warehouseName: string; isDefault: boolean; qtyAvailable: number }[];
+}
+
 interface LineForm {
   productId: string | null;
   uomId: string | null;
@@ -126,12 +131,19 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <p-dropdown [(ngModel)]="form.customerId" [options]="customers()"
                           optionLabel="name" optionValue="id"
                           [filter]="true" filterBy="name,code"
-                          (onChange)="onCustomerChange()" styleClass="w-full" appendTo="body" />
+                          (onChange)="onCustomerChange()" appendTo="body"
+                          [styleClass]="'w-full' + (customerInvalid() ? ' ng-invalid ng-dirty' : '')" />
+              @if (customerInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+              }
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'sales.issueDate' | translate }} *</label>
-              <p-calendar [(ngModel)]="form.issueDate" dateFormat="dd/mm/yy"
-                          styleClass="w-full" appendTo="body" />
+              <p-calendar [(ngModel)]="form.issueDate" dateFormat="dd/mm/yy" appendTo="body"
+                          [styleClass]="'w-full' + (issueDateInvalid() ? ' ng-invalid ng-dirty' : '')" />
+              @if (issueDateInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+              }
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'sales.validUntil' | translate }}</label>
@@ -174,12 +186,26 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                       <p-dropdown [(ngModel)]="line.productId" [options]="products()"
                                   optionLabel="name" optionValue="id"
                                   [filter]="true" filterBy="name,sku"
-                                  (onChange)="onProductChange(line)"
-                                  styleClass="w-full" appendTo="body" />
+                                  (onChange)="onProductChange(line)" appendTo="body"
+                                  [styleClass]="'w-full' + (lineProductInvalid(line) ? ' ng-invalid ng-dirty' : '')">
+                        <ng-template let-product pTemplate="item">
+                          <div class="flex items-center justify-between gap-3 w-full">
+                            <span>{{ product.name }} <span class="text-gray-400">({{ product.sku }})</span></span>
+                            @if (stockLabel(product.id); as s) {
+                              <span class="text-xs whitespace-nowrap"
+                                    [class.text-red-600]="isOutOfStock(product.id)"
+                                    [class.text-gray-500]="!isOutOfStock(product.id)">
+                                Stock: {{ s }}
+                              </span>
+                            }
+                          </div>
+                        </ng-template>
+                      </p-dropdown>
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.quantity" [minFractionDigits]="0" [maxFractionDigits]="3"
-                                     inputStyleClass="w-full text-right" styleClass="w-full" />
+                                     inputStyleClass="w-full text-right"
+                                     [styleClass]="'w-full' + (lineQtyInvalid(line) ? ' ng-invalid ng-dirty' : '')" />
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.unitPrice" [minFractionDigits]="0" [maxFractionDigits]="2"
@@ -198,7 +224,14 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   </tr>
                 }
                 @if (form.lines.length === 0) {
-                  <tr><td colspan="6" class="p-4 text-center text-gray-400">{{ 'sales.noLines' | translate }}</td></tr>
+                  <tr><td colspan="6" class="p-4 text-center"
+                          [class.text-gray-400]="!noLinesInvalid()" [class.text-red-600]="noLinesInvalid()">
+                    @if (noLinesInvalid()) {
+                      {{ 'common.atLeastOneLine' | translate }}
+                    } @else {
+                      {{ 'sales.noLines' | translate }}
+                    }
+                  </td></tr>
                 }
               </tbody>
               <tfoot class="bg-gray-50 border-t">
@@ -215,7 +248,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           <button pButton [label]="'common.cancel' | translate" class="p-button-text"
                   (click)="dialogOpen = false" [disabled]="saving()"></button>
           <button pButton [label]="'common.save' | translate" icon="pi pi-check"
-                  (click)="save()" [loading]="saving()" [disabled]="!canSave()"></button>
+                  (click)="save()" [loading]="saving()"></button>
         </ng-template>
       </p-dialog>
     </div>
@@ -229,10 +262,32 @@ export class QuoteListPage implements OnInit {
   protected quotes = signal<Quote[]>([]);
   protected customers = signal<CustomerOpt[]>([]);
   protected products = signal<ProductOpt[]>([]);
+  protected stockBreakdown = signal<Record<string, number[]>>({});
+
+  protected stockLabel(productId: string): string {
+    const arr = this.stockBreakdown()[productId];
+    if (!arr || arr.length === 0) return '';
+    return arr.map(n => String(n)).join(',');
+  }
+
+  protected isOutOfStock(productId: string): boolean {
+    const arr = this.stockBreakdown()[productId];
+    if (!arr || arr.length === 0) return false;
+    return arr.every(n => n <= 0);
+  }
   protected loading = signal(true);
   protected saving = signal(false);
+  protected submitted = signal(false);
   protected dialogOpen = false;
   protected form: { customerId: string | null; issueDate: Date; validUntil: Date; currency: string; notes: string; lines: LineForm[] } = this.emptyForm();
+
+  protected customerInvalid(): boolean { return this.submitted() && !this.form.customerId; }
+  protected issueDateInvalid(): boolean { return this.submitted() && !this.form.issueDate; }
+  protected noLinesInvalid(): boolean { return this.submitted() && this.form.lines.length === 0; }
+  protected lineProductInvalid(line: LineForm): boolean { return this.submitted() && !line.productId; }
+  protected lineQtyInvalid(line: LineForm): boolean {
+    return this.submitted() && (line.quantity == null || line.quantity <= 0);
+  }
 
   private static readonly TRANSITIONS: Record<string, string[]> = {
     DRAFT: ['SENT', 'CANCELLED'],
@@ -313,6 +368,7 @@ export class QuoteListPage implements OnInit {
 
   protected openCreate() {
     this.form = this.emptyForm();
+    this.submitted.set(false);
     this.dialogOpen = true;
   }
 
@@ -375,6 +431,7 @@ export class QuoteListPage implements OnInit {
   }
 
   protected async save() {
+    this.submitted.set(true);
     if (!this.canSave()) return;
     this.saving.set(true);
     try {
@@ -422,7 +479,7 @@ export class QuoteListPage implements OnInit {
   private async loadCustomers() {
     try {
       const res = await firstValueFrom(
-        this.http.get<{ content: CustomerOpt[] }>('/api/v1/customers?size=200')
+        this.http.get<{ content: CustomerOpt[] }>('/api/v1/partners?role=CUSTOMER&size=200')
       );
       this.customers.set(res.content ?? []);
     } catch {
@@ -438,6 +495,22 @@ export class QuoteListPage implements OnInit {
       this.products.set((res.content ?? []).filter((p: any) => p.active !== false && p.sellable !== false));
     } catch {
       this.products.set([]);
+    }
+    this.loadStockBreakdown();
+  }
+
+  private async loadStockBreakdown() {
+    try {
+      const res = await firstValueFrom(
+        this.http.get<ProductStockBreakdown[]>('/api/v1/inventory/stocks/by-product')
+      );
+      const map: Record<string, number[]> = {};
+      for (const it of res ?? []) {
+        map[it.productId] = it.warehouses.map(w => Number(w.qtyAvailable));
+      }
+      this.stockBreakdown.set(map);
+    } catch {
+      this.stockBreakdown.set({});
     }
   }
 

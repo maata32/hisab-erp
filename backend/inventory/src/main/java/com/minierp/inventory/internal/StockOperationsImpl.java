@@ -1,21 +1,30 @@
 package com.minierp.inventory.internal;
 
+import com.minierp.inventory.api.ProductStockBreakdownDto;
+import com.minierp.inventory.api.ProductStockBreakdownDto.WarehouseStockEntry;
 import com.minierp.inventory.api.StockDto;
 import com.minierp.inventory.api.StockMovementDto;
 import com.minierp.inventory.api.StockMovementType;
 import com.minierp.inventory.api.StockOperations;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.util.PageResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -150,6 +159,54 @@ class StockOperationsImpl implements StockOperations {
                         s.getQtyOnHand(), s.getQtyReserved(),
                         s.getQtyOnHand().subtract(s.getQtyReserved()), s.getAverageCost()))
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductStockBreakdownDto> listStockBreakdownByProduct() {
+        List<Warehouse> ordered = warehouses.findByActiveTrue().stream()
+                .sorted(Comparator.comparing((Warehouse w) -> w.isDefaultWarehouse() ? 0 : 1)
+                        .thenComparing(Warehouse::getCode))
+                .toList();
+        Set<UUID> activeWarehouseIds = ordered.stream().map(Warehouse::getId).collect(Collectors.toSet());
+
+        Map<UUID, Map<UUID, BigDecimal>> availableByProduct = new HashMap<>();
+        for (Stock s : stocks.findAll()) {
+            if (!activeWarehouseIds.contains(s.getWarehouseId())) continue;
+            availableByProduct
+                    .computeIfAbsent(s.getProductId(), k -> new HashMap<>())
+                    .put(s.getWarehouseId(), s.getQtyOnHand().subtract(s.getQtyReserved()));
+        }
+
+        return availableByProduct.entrySet().stream()
+                .map(e -> new ProductStockBreakdownDto(
+                        e.getKey(),
+                        ordered.stream()
+                                .map(w -> new WarehouseStockEntry(
+                                        w.getId(), w.getCode(), w.getName(),
+                                        w.isDefaultWarehouse(),
+                                        e.getValue().getOrDefault(w.getId(), BigDecimal.ZERO)))
+                                .toList()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Optional<UUID> findDefaultWarehouseId() {
+        return warehouses.findFirstByDefaultWarehouseTrue().map(Warehouse::getId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<StockMovementDto> listMovements(UUID productId, UUID warehouseId, Pageable pageable) {
+        var page = warehouseId == null
+                ? movements.findByProductIdOrderByOccurredAtDesc(productId, pageable)
+                : movements.findByProductIdAndWarehouseIdOrderByOccurredAtDesc(productId, warehouseId, pageable);
+        return PageResponse.of(page.map(m -> new StockMovementDto(
+                m.getId(), m.getWarehouseId(), m.getProductId(), m.getType(),
+                m.getQtySigned(), m.getUnitCost(),
+                m.getReferenceType(), m.getReferenceId(), m.getReferenceNumber(),
+                m.getNote(), m.getOccurredAt(), m.getUserId())));
     }
 
     private Stock lockOrCreate(UUID warehouseId, UUID productId) {

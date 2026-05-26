@@ -170,18 +170,28 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             <p-dropdown [(ngModel)]="form.partyId" [options]="customers()"
                         optionLabel="name" optionValue="id" [filter]="true" filterBy="name,code"
                         (onChange)="onPartyChange()"
-                        styleClass="w-full" />
+                        [styleClass]="'w-full' + (partyInvalid() ? ' ng-invalid ng-dirty' : '')" />
+            @if (partyInvalid()) {
+              <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+            }
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'payments.date' | translate }} *</label>
-              <input pInputText type="date" [(ngModel)]="form.paymentDate" class="w-full" />
+              <input pInputText type="date" [(ngModel)]="form.paymentDate" class="w-full"
+                     [class.ng-invalid]="paymentDateInvalid()" [class.ng-dirty]="paymentDateInvalid()" />
+              @if (paymentDateInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+              }
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'payments.amount' | translate }} *</label>
               <p-inputNumber [(ngModel)]="form.amount" mode="decimal" [maxFractionDigits]="2"
                              (onInput)="onAmountChange()"
-                             styleClass="w-full" />
+                             [styleClass]="'w-full' + (amountInvalid() ? ' ng-invalid ng-dirty' : '')" />
+              @if (amountInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.mustBePositive' | translate }}</p>
+              }
             </div>
           </div>
           <div>
@@ -250,7 +260,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           <button pButton [label]="'common.cancel' | translate" class="p-button-text"
                   (click)="dialogOpen = false" [disabled]="saving()"></button>
           <button pButton [label]="'common.save' | translate" icon="pi pi-check"
-                  (click)="save()" [loading]="saving()" [disabled]="!canSave()"></button>
+                  (click)="save()" [loading]="saving()"></button>
         </ng-template>
       </p-dialog>
 
@@ -349,8 +359,15 @@ export class PaymentListPage implements OnInit {
   protected openInvoices = signal<OpenInvoice[]>([]);
   protected loading = signal(true);
   protected saving = signal(false);
+  protected submitted = signal(false);
   protected dialogOpen = false;
   protected filterPartyId: string | null = null;
+
+  protected partyInvalid(): boolean { return this.submitted() && !this.form.partyId; }
+  protected paymentDateInvalid(): boolean { return this.submitted() && !this.form.paymentDate; }
+  protected amountInvalid(): boolean {
+    return this.submitted() && (this.form.amount == null || this.form.amount <= 0);
+  }
 
   // Post-hoc allocation dialog state
   protected allocateOpen = false;
@@ -363,7 +380,7 @@ export class PaymentListPage implements OnInit {
 
   protected readonly typeOptions = [
     { value: 'CUSTOMER_PAYMENT', label: 'Encaissement client' },
-    { value: 'CUSTOMER_REFUND', label: 'Remboursement client' },
+    { value: 'CUSTOMER_REFUND', label: 'Retrait client' },
   ];
 
   protected readonly methodOptions = [
@@ -393,6 +410,7 @@ export class PaymentListPage implements OnInit {
     this.form.paymentDate = new Date().toISOString().slice(0, 10);
     this.openInvoices.set([]);
     this.allocationsUserEdited = false;
+    this.submitted.set(false);
     this.dialogOpen = true;
   }
 
@@ -491,6 +509,7 @@ export class PaymentListPage implements OnInit {
   }
 
   protected async save() {
+    this.submitted.set(true);
     if (!this.canSave()) return;
     this.saving.set(true);
     try {
@@ -690,7 +709,7 @@ export class PaymentListPage implements OnInit {
   private async loadCustomers() {
     try {
       const res = await firstValueFrom(
-        this.http.get<{ content: CustomerLite[] }>('/api/v1/customers?size=500')
+        this.http.get<{ content: CustomerLite[] }>('/api/v1/partners?role=CUSTOMER&size=500')
       );
       this.customers.set(res.content ?? []);
     } catch {

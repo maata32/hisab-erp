@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ConfirmationService } from 'primeng/api';
+import { AUTH_SERVICE } from '@minierp/shared-auth';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -41,6 +42,7 @@ interface Product {
 }
 
 interface UomLite { id: string; code: string; name: string; }
+interface WarehouseLite { id: string; code: string; name: string; defaultWarehouse: boolean; }
 interface PriceTier { id: string; code: string; name: string; defaultTier: boolean; active: boolean; }
 interface ProductPrice {
   id: string;
@@ -194,7 +196,11 @@ const CURRENCY = 'MRU';
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'products.sku' | translate }} *</label>
-              <input pInputText [(ngModel)]="form.sku" [disabled]="!!editingId()" class="w-full" />
+              <input pInputText [(ngModel)]="form.sku" [disabled]="!!editingId()"
+                     class="w-full" [class.ng-invalid]="skuInvalid()" [class.ng-dirty]="skuInvalid()" />
+              @if (skuInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'products.errors.skuRequired' | translate }}</p>
+              }
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'products.barcode' | translate }}</label>
@@ -203,15 +209,23 @@ const CURRENCY = 'MRU';
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'products.name' | translate }} *</label>
-            <input pInputText [(ngModel)]="form.name" class="w-full" />
+            <input pInputText [(ngModel)]="form.name" class="w-full"
+                   [class.ng-invalid]="nameInvalid()" [class.ng-dirty]="nameInvalid()" />
+            @if (nameInvalid()) {
+              <p class="text-xs text-red-600 mt-1">{{ 'products.errors.nameRequired' | translate }}</p>
+            }
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'products.baseUom' | translate }} *</label>
             <p-dropdown [(ngModel)]="form.baseUomId" [options]="uoms()" optionLabel="name"
                         optionValue="id" [filter]="true" filterBy="name,code"
-                        [placeholder]="'common.select' | translate" styleClass="w-full" />
+                        [placeholder]="'common.select' | translate"
+                        [styleClass]="'w-full' + (baseUomInvalid() ? ' ng-invalid ng-dirty' : '')" />
+            @if (baseUomInvalid()) {
+              <p class="text-xs text-red-600 mt-1">{{ 'products.errors.baseUomRequired' | translate }}</p>
+            }
           </div>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid gap-3" [ngClass]="taxEnabled() ? 'grid-cols-3' : 'grid-cols-2'">
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'products.price' | translate }}</label>
               <p-inputNumber [(ngModel)]="form.sellingPrice" mode="decimal" [minFractionDigits]="0"
@@ -229,10 +243,10 @@ const CURRENCY = 'MRU';
                                suffix=" %" styleClass="w-full" />
               </div>
             }
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">{{ 'products.shelfLifeDays' | translate }}</label>
-            <p-inputNumber [(ngModel)]="form.shelfLifeDays" styleClass="w-full" />
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'products.shelfLifeDays' | translate }}</label>
+              <p-inputNumber [(ngModel)]="form.shelfLifeDays" styleClass="w-full" />
+            </div>
           </div>
           <div class="flex items-center gap-4 pt-1 flex-wrap">
             <p-checkbox [(ngModel)]="form.trackExpiry" [binary]="true"
@@ -242,6 +256,45 @@ const CURRENCY = 'MRU';
             <p-checkbox [(ngModel)]="form.purchasable" [binary]="true"
                         [label]="'products.purchasable' | translate" />
           </div>
+
+          @if (!editingId() && canAdjustStock) {
+            <div class="pt-2 border-t border-gray-100">
+              <p-checkbox [(ngModel)]="form.openingStockEnabled" [binary]="true"
+                          [label]="'products.openingStock.toggle' | translate" />
+              @if (form.openingStockEnabled) {
+                <p class="text-xs text-gray-500 mt-2 mb-2">{{ 'products.openingStock.help' | translate }}</p>
+                <div class="grid grid-cols-3 gap-3">
+                  <div>
+                    <label class="block text-xs text-gray-600 mb-1">{{ 'stock.fields.warehouse' | translate }} *</label>
+                    <p-dropdown [(ngModel)]="form.openingWarehouseId" [options]="warehouses()"
+                                optionLabel="name" optionValue="id" appendTo="body"
+                                [styleClass]="'w-full' + (openingWarehouseInvalid() ? ' ng-invalid ng-dirty' : '')" />
+                    @if (openingWarehouseInvalid()) {
+                      <p class="text-xs text-red-600 mt-1">{{ 'products.openingStock.errors.warehouseRequired' | translate }}</p>
+                    }
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-600 mb-1">{{ 'stock.fields.qty' | translate }} *</label>
+                    <p-inputNumber [(ngModel)]="form.openingQty" mode="decimal" [minFractionDigits]="0"
+                                   [maxFractionDigits]="3" [min]="0"
+                                   [styleClass]="'w-full' + (openingQtyInvalid() ? ' ng-invalid ng-dirty' : '')" />
+                    @if (openingQtyInvalid()) {
+                      <p class="text-xs text-red-600 mt-1">{{ 'products.openingStock.errors.qtyRequired' | translate }}</p>
+                    }
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-600 mb-1">{{ 'stock.fields.unitCost' | translate }} *</label>
+                    <p-inputNumber [(ngModel)]="form.openingUnitCost" mode="decimal" [minFractionDigits]="0"
+                                   [maxFractionDigits]="2" [min]="0"
+                                   [styleClass]="'w-full' + (openingCostInvalid() ? ' ng-invalid ng-dirty' : '')" />
+                    @if (openingCostInvalid()) {
+                      <p class="text-xs text-red-600 mt-1">{{ 'products.openingStock.errors.costRequired' | translate }}</p>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
 
           <div class="pt-2 border-t border-gray-100">
             <div class="flex items-center justify-between mb-2">
@@ -312,9 +365,14 @@ export class ProductListPage implements OnInit {
   private http = inject(HttpClient);
   private i18n = inject(TranslateService);
   private confirmation = inject(ConfirmationService);
+  private auth = inject(AUTH_SERVICE);
+
+  protected readonly canAdjustStock = this.auth.hasPermission('stock:adjust');
 
   protected products = signal<Product[]>([]);
   protected uoms = signal<UomLite[]>([]);
+  protected warehouses = signal<WarehouseLite[]>([]);
+  protected submitted = signal(false);
   protected loading = signal(true);
   protected saving = signal(false);
   protected uploading = signal(false);
@@ -346,6 +404,10 @@ export class ProductListPage implements OnInit {
     trackExpiry: boolean;
     sellable: boolean;
     purchasable: boolean;
+    openingStockEnabled: boolean;
+    openingWarehouseId: string | null;
+    openingQty: number | null;
+    openingUnitCost: number | null;
   } = this.emptyForm();
 
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -356,6 +418,7 @@ export class ProductListPage implements OnInit {
     this.loadSettings();
     this.loadDefaultTier();
     this.loadLimits();
+    if (this.canAdjustStock) this.loadWarehouses();
   }
 
   protected canAddMoreImages(): boolean {
@@ -377,12 +440,18 @@ export class ProductListPage implements OnInit {
     this.searchTimer = setTimeout(() => this.load(q), 300);
   }
 
-  protected openCreate() {
+  protected async openCreate() {
     this.editingId.set(null);
     this.form = this.emptyForm();
+    this.submitted.set(false);
     this.dialogImages.set([]);
     this.clearPendingImages();
     this.dialogOpen = true;
+    if (this.canAdjustStock) {
+      if (this.warehouses().length === 0) await this.loadWarehouses();
+      this.form.openingWarehouseId =
+        (this.warehouses().find((w) => w.defaultWarehouse) ?? this.warehouses()[0])?.id ?? null;
+    }
   }
 
   protected async openEdit(p: Product) {
@@ -398,7 +467,12 @@ export class ProductListPage implements OnInit {
       trackExpiry: p.trackExpiry,
       sellable: p.sellable,
       purchasable: p.purchasable,
+      openingStockEnabled: false,
+      openingWarehouseId: null,
+      openingQty: null,
+      openingUnitCost: null,
     };
+    this.submitted.set(false);
     this.dialogImages.set(p.images ?? []);
     this.clearPendingImages();
     this.dialogOpen = true;
@@ -425,7 +499,9 @@ export class ProductListPage implements OnInit {
   }
 
   protected async save() {
+    this.submitted.set(true);
     if (!this.form.sku || !this.form.name || !this.form.baseUomId) return;
+    if (!this.editingId() && this.form.openingStockEnabled && !this.validateOpeningStockFields()) return;
     this.saving.set(true);
     try {
       const taxRate = this.taxEnabled() ? (this.form.taxRatePercent ?? 0) / 100 : 0;
@@ -458,6 +534,7 @@ export class ProductListPage implements OnInit {
         productId = created.id;
       }
       await this.savePriceIfChanged(productId);
+      if (!id) await this.saveOpeningStockIfProvided(productId);
       await this.uploadPendingImages(productId);
       this.dialogOpen = false;
       this.clearPendingImages();
@@ -639,6 +716,62 @@ export class ProductListPage implements OnInit {
       sku: '', name: '', barcode: '', baseUomId: null,
       taxRatePercent: 16, shelfLifeDays: null, sellingPrice: null,
       trackExpiry: false, sellable: true, purchasable: true,
+      openingStockEnabled: false,
+      openingWarehouseId: null, openingQty: null, openingUnitCost: null,
     };
   }
+
+  private async loadWarehouses() {
+    try {
+      const list = await firstValueFrom(
+        this.http.get<WarehouseLite[]>('/api/v1/inventory/warehouses')
+      );
+      this.warehouses.set(list ?? []);
+    } catch {
+      this.warehouses.set([]);
+    }
+  }
+
+  private async saveOpeningStockIfProvided(productId: string) {
+    if (!this.form.openingStockEnabled) return;
+    await firstValueFrom(this.http.post('/api/v1/inventory/stocks/receive', {
+      warehouseId: this.form.openingWarehouseId,
+      productId,
+      qty: this.form.openingQty,
+      unitCost: this.form.openingUnitCost,
+      type: 'OPENING_BALANCE',
+      note: 'Stock initial saisi à la création du produit',
+    }));
+  }
+
+  private validateOpeningStockFields(): boolean {
+    return !this.openingWarehouseInvalid() && !this.openingQtyInvalid() && !this.openingCostInvalid();
+  }
+
+  protected skuInvalid(): boolean {
+    return this.submitted() && !this.form.sku;
+  }
+
+  protected nameInvalid(): boolean {
+    return this.submitted() && !this.form.name;
+  }
+
+  protected baseUomInvalid(): boolean {
+    return this.submitted() && !this.form.baseUomId;
+  }
+
+  protected openingWarehouseInvalid(): boolean {
+    return this.submitted() && this.form.openingStockEnabled && !this.form.openingWarehouseId;
+  }
+
+  protected openingQtyInvalid(): boolean {
+    if (!this.submitted() || !this.form.openingStockEnabled) return false;
+    return this.form.openingQty == null || this.form.openingQty <= 0;
+  }
+
+  protected openingCostInvalid(): boolean {
+    if (!this.submitted() || !this.form.openingStockEnabled) return false;
+    return this.form.openingUnitCost == null || this.form.openingUnitCost < 0;
+  }
+
 }

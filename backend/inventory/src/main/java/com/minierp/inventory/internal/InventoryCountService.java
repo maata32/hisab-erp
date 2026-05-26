@@ -1,5 +1,7 @@
 package com.minierp.inventory.internal;
 
+import com.minierp.catalog.api.CatalogLookup;
+import com.minierp.catalog.api.ProductSnapshot;
 import com.minierp.inventory.api.InventoryCountDto;
 import com.minierp.inventory.api.StockMovementType;
 import com.minierp.inventory.api.StockOperations;
@@ -19,6 +21,7 @@ import java.time.Year;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +31,7 @@ public class InventoryCountService {
     private final WarehouseRepository warehouses;
     private final StockRepository stocks;
     private final StockOperations stockOps;
+    private final CatalogLookup catalog;
 
     @Transactional(readOnly = true)
     public Page<InventoryCountDto.CountResponse> list(Pageable pageable) {
@@ -57,13 +61,25 @@ public class InventoryCountService {
                 .status(InventoryCountStatus.DRAFT)
                 .build();
 
-        stocks.findByWarehouseId(warehouseId).forEach(s ->
-                count.getLines().add(InventoryCountLine.builder()
-                        .productId(s.getProductId())
-                        .uomId(s.getProductId()) // placeholder — base UoM resolved by catalog at display time
-                        .theoreticalQty(s.getQtyOnHand())
-                        .unitCost(s.getAverageCost())
-                        .build()));
+        List<Stock> stockRows = stocks.findByWarehouseId(warehouseId);
+        Map<UUID, UUID> baseUomByProduct = catalog.findProductsByIds(
+                        stockRows.stream().map(Stock::getProductId).toList())
+                .stream()
+                .collect(Collectors.toMap(ProductSnapshot::id, ProductSnapshot::baseUomId));
+
+        stockRows.forEach(s -> {
+            UUID uomId = baseUomByProduct.get(s.getProductId());
+            if (uomId == null) {
+                throw NotFoundException.of("entity.product", s.getProductId());
+            }
+            count.getLines().add(InventoryCountLine.builder()
+                    .count(count)
+                    .productId(s.getProductId())
+                    .uomId(uomId)
+                    .theoreticalQty(s.getQtyOnHand())
+                    .unitCost(s.getAverageCost())
+                    .build());
+        });
 
         return toDto(counts.save(count));
     }

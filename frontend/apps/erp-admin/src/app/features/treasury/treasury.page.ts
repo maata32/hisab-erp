@@ -360,8 +360,12 @@ interface CashSessionDto {
               [header]="(editingBankId() ? 'treasury.editBank' : 'treasury.newBank') | translate">
       <div class="space-y-3 pt-2">
         <div>
-          <label class="block text-sm font-medium mb-1">{{ 'treasury.bankAccount.name' | translate }}</label>
-          <input pInputText [(ngModel)]="bankForm.name" class="w-full" />
+          <label class="block text-sm font-medium mb-1">{{ 'treasury.bankAccount.name' | translate }} *</label>
+          <input pInputText [(ngModel)]="bankForm.name" class="w-full"
+                 [class.ng-invalid]="bankNameInvalid()" [class.ng-dirty]="bankNameInvalid()" />
+          @if (bankNameInvalid()) {
+            <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+          }
         </div>
         <div>
           <label class="block text-sm font-medium mb-1">{{ 'treasury.bankAccount.bank' | translate }}</label>
@@ -385,7 +389,7 @@ interface CashSessionDto {
       </div>
       <ng-template pTemplate="footer">
         <button pButton [label]="'common.cancel' | translate" severity="secondary" text (click)="bankDialogOpen = false"></button>
-        <button pButton [label]="'common.save' | translate" [loading]="saving()" (click)="saveBank()" [disabled]="!bankForm.name"></button>
+        <button pButton [label]="'common.save' | translate" [loading]="saving()" (click)="saveBank()"></button>
       </ng-template>
     </p-dialog>
 
@@ -395,13 +399,21 @@ interface CashSessionDto {
       <div class="space-y-3 pt-2">
         <p class="text-sm text-gray-600">{{ 'treasury.depositHint' | translate }}</p>
         <div>
-          <label class="block text-sm font-medium mb-1">{{ 'treasury.bankAccount.label' | translate }}</label>
+          <label class="block text-sm font-medium mb-1">{{ 'treasury.bankAccount.label' | translate }} *</label>
           <p-dropdown [options]="activeBanks()" [(ngModel)]="transferForm.bankAccountId"
-                      optionLabel="name" optionValue="id" styleClass="w-full" />
+                      optionLabel="name" optionValue="id"
+                      [styleClass]="'w-full' + (transferBankInvalid() ? ' ng-invalid ng-dirty' : '')" />
+          @if (transferBankInvalid()) {
+            <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+          }
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">{{ 'treasury.amount' | translate }}</label>
-          <p-inputNumber [(ngModel)]="transferForm.amount" [min]="0.01" [maxFractionDigits]="2" styleClass="w-full" />
+          <label class="block text-sm font-medium mb-1">{{ 'treasury.amount' | translate }} *</label>
+          <p-inputNumber [(ngModel)]="transferForm.amount" [min]="0.01" [maxFractionDigits]="2"
+                         [styleClass]="'w-full' + (transferAmountInvalid() ? ' ng-invalid ng-dirty' : '')" />
+          @if (transferAmountInvalid()) {
+            <p class="text-xs text-red-600 mt-1">{{ 'common.mustBePositive' | translate }}</p>
+          }
         </div>
         <div>
           <label class="block text-sm font-medium mb-1">{{ 'treasury.reference' | translate }}</label>
@@ -415,7 +427,7 @@ interface CashSessionDto {
       <ng-template pTemplate="footer">
         <button pButton [label]="'common.cancel' | translate" severity="secondary" text (click)="depositDialogOpen = false"></button>
         <button pButton [label]="'common.confirm' | translate" severity="success" [loading]="saving()" (click)="confirmDeposit()"
-                [disabled]="!transferForm.bankAccountId || !transferForm.amount"></button>
+                ></button>
       </ng-template>
     </p-dialog>
 
@@ -425,13 +437,21 @@ interface CashSessionDto {
       <div class="space-y-3 pt-2">
         <p class="text-sm text-gray-600">{{ 'treasury.withdrawHint' | translate }}</p>
         <div>
-          <label class="block text-sm font-medium mb-1">{{ 'treasury.bankAccount.label' | translate }}</label>
+          <label class="block text-sm font-medium mb-1">{{ 'treasury.bankAccount.label' | translate }} *</label>
           <p-dropdown [options]="activeBanks()" [(ngModel)]="transferForm.bankAccountId"
-                      optionLabel="name" optionValue="id" styleClass="w-full" />
+                      optionLabel="name" optionValue="id"
+                      [styleClass]="'w-full' + (transferBankInvalid() ? ' ng-invalid ng-dirty' : '')" />
+          @if (transferBankInvalid()) {
+            <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+          }
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">{{ 'treasury.amount' | translate }}</label>
-          <p-inputNumber [(ngModel)]="transferForm.amount" [min]="0.01" [maxFractionDigits]="2" styleClass="w-full" />
+          <label class="block text-sm font-medium mb-1">{{ 'treasury.amount' | translate }} *</label>
+          <p-inputNumber [(ngModel)]="transferForm.amount" [min]="0.01" [maxFractionDigits]="2"
+                         [styleClass]="'w-full' + (transferAmountInvalid() ? ' ng-invalid ng-dirty' : '')" />
+          @if (transferAmountInvalid()) {
+            <p class="text-xs text-red-600 mt-1">{{ 'common.mustBePositive' | translate }}</p>
+          }
         </div>
         <div>
           <label class="block text-sm font-medium mb-1">{{ 'treasury.reference' | translate }}</label>
@@ -445,7 +465,7 @@ interface CashSessionDto {
       <ng-template pTemplate="footer">
         <button pButton [label]="'common.cancel' | translate" severity="secondary" text (click)="withdrawDialogOpen = false"></button>
         <button pButton [label]="'common.confirm' | translate" severity="warning" [loading]="saving()" (click)="confirmWithdraw()"
-                [disabled]="!transferForm.bankAccountId || !transferForm.amount"></button>
+                ></button>
       </ng-template>
     </p-dialog>
 
@@ -456,10 +476,14 @@ interface CashSessionDto {
         <p class="text-sm text-gray-600">{{ 'treasury.adjustHint' | translate }}</p>
         <div>
           <label class="block text-sm font-medium mb-1">
-            {{ 'treasury.adjustAmount' | translate }}
+            {{ 'treasury.adjustAmount' | translate }} *
             <span class="text-xs text-gray-500 ml-1">({{ 'treasury.signedHint' | translate }})</span>
           </label>
-          <p-inputNumber [(ngModel)]="adjustForm.amountSigned" [maxFractionDigits]="2" styleClass="w-full" />
+          <p-inputNumber [(ngModel)]="adjustForm.amountSigned" [maxFractionDigits]="2"
+                         [styleClass]="'w-full' + (adjustAmountInvalid() ? ' ng-invalid ng-dirty' : '')" />
+          @if (adjustAmountInvalid()) {
+            <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+          }
         </div>
         <div>
           <label class="block text-sm font-medium mb-1">{{ 'treasury.note' | translate }}</label>
@@ -468,8 +492,7 @@ interface CashSessionDto {
       </div>
       <ng-template pTemplate="footer">
         <button pButton [label]="'common.cancel' | translate" severity="secondary" text (click)="adjustDialogOpen = false"></button>
-        <button pButton [label]="'common.confirm' | translate" [loading]="saving()" (click)="confirmAdjust()"
-                [disabled]="!adjustForm.amountSigned"></button>
+        <button pButton [label]="'common.confirm' | translate" [loading]="saving()" (click)="confirmAdjust()"></button>
       </ng-template>
     </p-dialog>
   `,
@@ -510,6 +533,18 @@ export class TreasuryPage implements OnInit {
   protected depositDialogOpen = false;
   protected withdrawDialogOpen = false;
   protected adjustDialogOpen = false;
+  protected submittedBank = signal(false);
+  protected submittedTransfer = signal(false);
+  protected submittedAdjust = signal(false);
+
+  protected bankNameInvalid(): boolean { return this.submittedBank() && !this.bankForm.name?.trim(); }
+  protected transferBankInvalid(): boolean { return this.submittedTransfer() && !this.transferForm.bankAccountId; }
+  protected transferAmountInvalid(): boolean {
+    return this.submittedTransfer() && (this.transferForm.amount == null || this.transferForm.amount <= 0);
+  }
+  protected adjustAmountInvalid(): boolean {
+    return this.submittedAdjust() && (this.adjustForm.amountSigned == null || this.adjustForm.amountSigned === 0);
+  }
 
   /** 'vault' = adjust the central vault; otherwise the bankAccountId of the target. */
   protected adjustTarget: 'vault' | string = 'vault';
@@ -622,6 +657,7 @@ export class TreasuryPage implements OnInit {
   protected openCreateBank(): void {
     this.editingBankId.set(null);
     this.bankForm = { name: '', bankName: '', accountNumber: '', openingBalance: 0, active: true };
+    this.submittedBank.set(false);
     this.bankDialogOpen = true;
   }
 
@@ -631,10 +667,13 @@ export class TreasuryPage implements OnInit {
       name: b.name, bankName: b.bankName ?? '', accountNumber: b.accountNumber ?? '',
       openingBalance: 0, active: b.active,
     };
+    this.submittedBank.set(false);
     this.bankDialogOpen = true;
   }
 
   protected async saveBank(): Promise<void> {
+    this.submittedBank.set(true);
+    if (this.bankNameInvalid()) return;
     this.saving.set(true);
     try {
       const id = this.editingBankId();
@@ -668,15 +707,19 @@ export class TreasuryPage implements OnInit {
 
   protected openDeposit(): void {
     this.transferForm = { bankAccountId: this.activeBanks()[0]?.id ?? null, amount: 0, reference: '', note: '' };
+    this.submittedTransfer.set(false);
     this.depositDialogOpen = true;
   }
 
   protected openWithdraw(): void {
     this.transferForm = { bankAccountId: this.activeBanks()[0]?.id ?? null, amount: 0, reference: '', note: '' };
+    this.submittedTransfer.set(false);
     this.withdrawDialogOpen = true;
   }
 
   protected async confirmDeposit(): Promise<void> {
+    this.submittedTransfer.set(true);
+    if (this.transferBankInvalid() || this.transferAmountInvalid()) return;
     this.saving.set(true);
     try {
       await firstValueFrom(this.http.post('/api/v1/treasury/deposit', this.transferForm));
@@ -691,6 +734,8 @@ export class TreasuryPage implements OnInit {
   }
 
   protected async confirmWithdraw(): Promise<void> {
+    this.submittedTransfer.set(true);
+    if (this.transferBankInvalid() || this.transferAmountInvalid()) return;
     this.saving.set(true);
     try {
       await firstValueFrom(this.http.post('/api/v1/treasury/withdraw', this.transferForm));
@@ -709,16 +754,20 @@ export class TreasuryPage implements OnInit {
   protected openAdjustVault(): void {
     this.adjustTarget = 'vault';
     this.adjustForm = { amountSigned: 0, note: '' };
+    this.submittedAdjust.set(false);
     this.adjustDialogOpen = true;
   }
 
   protected openAdjustBank(b: BankAccountDto): void {
     this.adjustTarget = b.id;
     this.adjustForm = { amountSigned: 0, note: '' };
+    this.submittedAdjust.set(false);
     this.adjustDialogOpen = true;
   }
 
   protected async confirmAdjust(): Promise<void> {
+    this.submittedAdjust.set(true);
+    if (this.adjustAmountInvalid()) return;
     this.saving.set(true);
     try {
       if (this.adjustTarget === 'vault') {

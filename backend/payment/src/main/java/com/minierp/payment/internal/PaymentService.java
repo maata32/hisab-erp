@@ -17,7 +17,9 @@ import com.minierp.sales.api.InvoiceSummary;
 import com.minierp.sales.api.NumberingOperations;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.tenant.TenantContext;
 import com.minierp.shared.util.PageResponse;
+import com.minierp.tenant.api.TenantLookup;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +31,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -48,6 +51,7 @@ public class PaymentService implements PaymentLookup {
     private final PurchaseInvoiceOperations purchaseInvoiceOps;
     private final NumberingOperations numbering;
     private final DocumentRenderer renderer;
+    private final TenantLookup tenantLookup;
 
     // ── PaymentLookup (used by the customer-statement aggregator) ──────────
 
@@ -298,11 +302,21 @@ public class PaymentService implements PaymentLookup {
         var allocModels = allocs.stream().map(a -> new AllocModel(
                 a.getTargetType().name() + " " + a.getTargetId().toString().substring(0, 8),
                 a.getAllocatedAmount())).toList();
-        return Map.of(
-                "payment", new PayModel(p.getNumber(), p.getPaymentDate(), p.getAmount(), p.getCurrency(),
-                        p.getMethod().name(), methodLabel, p.getReference(), "CONFIRMÉ", p.getNotes(), allocModels),
-                "customer", new CustModel(customer != null ? customer.name() : ""),
-                "orgName", "Mini-ERP", "orgAddress", "", "logoUrl", ""
-        );
+        Map<String, Object> vars = new HashMap<>(brandingVars());
+        vars.put("payment", new PayModel(p.getNumber(), p.getPaymentDate(), p.getAmount(), p.getCurrency(),
+                p.getMethod().name(), methodLabel, p.getReference(), "CONFIRMÉ", p.getNotes(), allocModels));
+        vars.put("customer", new CustModel(customer != null ? customer.name() : ""));
+        return vars;
+    }
+
+    private Map<String, Object> brandingVars() {
+        var b = tenantLookup.findBrandingById(TenantContext.require()).orElse(null);
+        Map<String, Object> m = new HashMap<>();
+        m.put("orgName", b == null || b.name() == null ? "" : b.name());
+        m.put("orgAddress", b == null || b.address() == null ? "" : b.address());
+        m.put("orgPhone", b == null || b.phone() == null ? "" : b.phone());
+        m.put("orgEmail", b == null || b.email() == null ? "" : b.email());
+        m.put("logoUrl", b == null || b.logoUrl() == null ? "" : b.logoUrl());
+        return m;
     }
 }

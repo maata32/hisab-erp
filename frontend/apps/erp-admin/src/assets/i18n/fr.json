@@ -27,7 +27,12 @@
     "confirmation": "Confirmation",
     "print": "Imprimer",
     "error": "Erreur",
-    "error_generic": "Une erreur s'est produite"
+    "error_generic": "Une erreur s'est produite",
+    "success": "Succès",
+    "required": "Ce champ est requis",
+    "mustBePositive": "La valeur doit être positive",
+    "mustBeNonNegative": "La valeur ne peut pas être négative",
+    "atLeastOneLine": "Ajoutez au moins une ligne"
   },
   "error": {
     "partner": {
@@ -121,6 +126,7 @@
       "ventes": "Ventes",
       "factures": "Factures & dépenses",
       "activite": "Activité du mois",
+      "orders": "Commandes",
       "stock": "Stock & opérations",
       "clients": "Clients & équipe"
     },
@@ -156,7 +162,10 @@
       "over_credit_limit": "Au-dessus de la limite",
       "over_credit_limit_hint": "Limite de crédit dépassée",
       "total_customer_balance": "Créances clients",
-      "active_users": "Utilisateurs actifs"
+      "active_users": "Utilisateurs actifs",
+      "orders_draft": "Commandes en brouillon",
+      "orders_confirmed_not_delivered": "Commandes confirmées non livrées",
+      "orders_confirmed_not_invoiced": "Commandes confirmées non facturées"
     },
     "aging": {
       "title": "Vieillissement des créances",
@@ -283,7 +292,9 @@
       "tax_rate": "Taux de TVA par défaut",
       "tax_rate_hint": "ex: 0.16 pour 16%",
       "prices_include_tax": "Prix TTC (TVA incluse)",
-      "number_prefix": "Préfixe numéro de facture"
+      "number_prefix": "Préfixe numéro de facture",
+      "paper_size": "Format d'impression",
+      "paper_size_hint": "Format utilisé pour tous les PDF (devis, factures, bons de livraison, reçus)"
     },
     "payment": {
       "credit_limit_behavior": "Comportement du plafond de crédit",
@@ -304,6 +315,7 @@
     "tab_suppliers": "Fournisseurs",
     "role_customer": "Client",
     "role_supplier": "Fournisseur",
+    "errors": { "roleRequired": "Sélectionnez au moins un rôle (client ou fournisseur)." },
     "roles": "Rôles",
     "code": "Code",
     "type": "Type",
@@ -458,6 +470,8 @@
     "createTitle": "Nouveau bon de livraison",
     "pickOrder": "Choisir une commande…",
     "pickOrderFirst": "Sélectionnez d'abord une commande",
+    "warehouse": "Dépôt",
+    "pickWarehouse": "Choisir un dépôt…",
     "linesToShip": "Lignes à expédier",
     "remaining": "Reste à livrer",
     "quantityToShip": "Quantité à livrer",
@@ -549,7 +563,21 @@
     "viewImages": "Voir les images",
     "imagesAfterSave": "Enregistrez d'abord le produit pour pouvoir ajouter des images.",
     "imagesQuotaReached": "Limite atteinte ({{max}}). Mettez à niveau votre abonnement pour ajouter plus d'images.",
-    "showInactive": "Afficher les inactifs"
+    "showInactive": "Afficher les inactifs",
+    "openingStock": {
+      "toggle": "Saisir aussi le stock initial",
+      "help": "Le stock d'ouverture sera enregistré lors de la création du produit.",
+      "errors": {
+        "warehouseRequired": "Entrepôt requis",
+        "qtyRequired": "Quantité requise (> 0)",
+        "costRequired": "Coût unitaire requis (≥ 0)"
+      }
+    },
+    "errors": {
+      "skuRequired": "SKU requis",
+      "nameRequired": "Nom requis",
+      "baseUomRequired": "Unité de base requise"
+    }
   },
   "warehouses": {
     "title": "Entrepôts",
@@ -584,7 +612,55 @@
     "value": "Valeur",
     "status": "Statut",
     "low": "Sous seuil",
-    "ok": "OK"
+    "ok": "OK",
+    "adjust": "Ajuster",
+    "openOpeningBalance": "Saisir stock initial",
+    "searchPlaceholder": "Rechercher par nom ou SKU",
+    "savedOpening": "Stock initial enregistré",
+    "savedAdjust": "Ajustement enregistré",
+    "fields": {
+      "product": "Produit",
+      "warehouse": "Entrepôt",
+      "qty": "Quantité",
+      "unitCost": "Coût unitaire",
+      "qtySigned": "Variation (+/−)",
+      "note": "Motif / note"
+    },
+    "openingDialog": {
+      "title": "Stock initial",
+      "help": "À utiliser à l'ouverture de la boutique pour saisir le stock physique constaté. Le coût unitaire sert au calcul du coût moyen pondéré."
+    },
+    "adjustDialog": {
+      "title": "Ajustement de quantité",
+      "help": "Quantité positive pour ajouter, négative pour retirer (casse, perte, correction).",
+      "notePlaceholder": "Ex : casse, vol, recompté"
+    },
+    "errors": {
+      "requiredFields": "Veuillez remplir tous les champs obligatoires.",
+      "qtyMustBePositive": "La quantité doit être strictement positive.",
+      "qtyMustBeNonZero": "La variation ne peut pas être nulle."
+    },
+    "history": "Historique",
+    "historyDialog": {
+      "title": "Historique des mouvements",
+      "date": "Date",
+      "type": "Type",
+      "qty": "Quantité",
+      "unitCost": "Coût unitaire",
+      "reference": "Référence",
+      "empty": "Aucun mouvement pour ce produit dans cet entrepôt."
+    },
+    "movementType": {
+      "PURCHASE_RECEIPT": "Réception achat",
+      "SALE": "Vente",
+      "SALE_RETURN": "Retour vente",
+      "ADJUSTMENT": "Ajustement",
+      "TRANSFER_OUT": "Transfert sortant",
+      "TRANSFER_IN": "Transfert entrant",
+      "INVENTORY_COUNT": "Comptage inventaire",
+      "EXPIRY_DESTRUCTION": "Destruction péremption",
+      "OPENING_BALANCE": "Stock initial"
+    }
   },
   "stockTransfers": {
     "title": "Transferts de stock",

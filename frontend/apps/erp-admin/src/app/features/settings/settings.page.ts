@@ -40,6 +40,7 @@ interface InvoiceSettings {
   defaultTaxRate: number;
   pricesIncludeTax: boolean;
   numberPrefix: string;
+  paperSize: 'A4' | 'A5';
 }
 
 interface PaymentSettings {
@@ -220,6 +221,12 @@ interface PaymentSettings {
               <label class="block text-sm font-medium text-gray-700 mb-1">{{ 'settings.invoice.number_prefix' | translate }}</label>
               <input pInputText [(ngModel)]="invoiceSettings.numberPrefix" class="w-32" maxlength="10" />
             </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">{{ 'settings.invoice.paper_size' | translate }}</label>
+              <p-dropdown [(ngModel)]="invoiceSettings.paperSize" [options]="paperSizeOptions"
+                          optionLabel="label" optionValue="value" styleClass="w-64" />
+              <span class="text-xs text-gray-500 ms-2 block mt-1">{{ 'settings.invoice.paper_size_hint' | translate }}</span>
+            </div>
             <div class="flex justify-end pt-2">
               <button pButton [label]="'common.save' | translate" icon="pi pi-check"
                 [loading]="saving()" (click)="saveSettings()"></button>
@@ -291,7 +298,13 @@ export class SettingsPage implements OnInit {
     defaultTaxRate: 0.16,
     pricesIncludeTax: false,
     numberPrefix: 'FAC',
+    paperSize: 'A4',
   };
+
+  protected readonly paperSizeOptions = [
+    { label: 'A4 (210 × 297 mm)', value: 'A4' },
+    { label: 'A5 (148 × 210 mm)', value: 'A5' },
+  ];
 
   protected paymentSettings: PaymentSettings = {
     creditLimitBehavior: 'WARN',

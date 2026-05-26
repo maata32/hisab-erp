@@ -1,10 +1,13 @@
 package com.minierp.inventory.api;
 
 import com.minierp.inventory.internal.WarehouseService;
+import com.minierp.shared.util.PageResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -53,6 +56,12 @@ public class InventoryController {
         return stockOps.listByWarehouse(warehouseId);
     }
 
+    @GetMapping("/stocks/by-product")
+    @PreAuthorize("hasAuthority('stock:read')")
+    public List<ProductStockBreakdownDto> listStockBreakdownByProduct() {
+        return stockOps.listStockBreakdownByProduct();
+    }
+
     @PostMapping("/stocks/receive")
     @PreAuthorize("hasAuthority('stock:adjust')")
     @ResponseStatus(HttpStatus.CREATED)
@@ -81,6 +90,15 @@ public class InventoryController {
                 req.unitCost(),
                 req.type() == null ? StockMovementType.ADJUSTMENT : req.type(),
                 req.note(), null);
+    }
+
+    @GetMapping("/stocks/movements")
+    @PreAuthorize("hasAuthority('stock:read')")
+    public PageResponse<StockMovementDto> listMovements(
+            @RequestParam UUID productId,
+            @RequestParam(required = false) UUID warehouseId,
+            @PageableDefault(size = 50) Pageable pageable) {
+        return stockOps.listMovements(productId, warehouseId, pageable);
     }
 
     public record CreateWarehouseRequest(

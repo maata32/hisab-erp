@@ -85,11 +85,19 @@ interface Warehouse {
         <div class="space-y-3">
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'warehouses.code' | translate }} *</label>
-            <input pInputText [(ngModel)]="form.code" class="w-full" />
+            <input pInputText [(ngModel)]="form.code" class="w-full"
+                   [class.ng-invalid]="codeInvalid()" [class.ng-dirty]="codeInvalid()" />
+            @if (codeInvalid()) {
+              <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+            }
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'warehouses.name' | translate }} *</label>
-            <input pInputText [(ngModel)]="form.name" class="w-full" />
+            <input pInputText [(ngModel)]="form.name" class="w-full"
+                   [class.ng-invalid]="nameInvalid()" [class.ng-dirty]="nameInvalid()" />
+            @if (nameInvalid()) {
+              <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+            }
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'warehouses.type' | translate }}</label>
@@ -121,7 +129,11 @@ export class WarehouseListPage implements OnInit {
   protected warehouses = signal<Warehouse[]>([]);
   protected loading = signal(true);
   protected saving = signal(false);
+  protected submitted = signal(false);
   protected dialogOpen = false;
+
+  protected codeInvalid(): boolean { return this.submitted() && !this.form.code?.trim(); }
+  protected nameInvalid(): boolean { return this.submitted() && !this.form.name?.trim(); }
 
   protected readonly typeOptions = [
     { value: 'MAIN', label: 'Principal' },
@@ -134,10 +146,15 @@ export class WarehouseListPage implements OnInit {
 
   ngOnInit() { this.load(); }
 
-  protected openCreate() { this.form = this.emptyForm(); this.dialogOpen = true; }
+  protected openCreate() {
+    this.form = this.emptyForm();
+    this.submitted.set(false);
+    this.dialogOpen = true;
+  }
 
   protected async save() {
-    if (!this.form.code || !this.form.name) return;
+    this.submitted.set(true);
+    if (!this.form.code?.trim() || !this.form.name?.trim()) return;
     this.saving.set(true);
     try {
       await firstValueFrom(this.http.post('/api/v1/inventory/warehouses', this.form));

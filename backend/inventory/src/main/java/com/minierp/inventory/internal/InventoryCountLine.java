@@ -16,8 +16,9 @@ class InventoryCountLine extends TenantAwareEntity {
     @Id @GeneratedValue @Column(columnDefinition = "uuid")
     private UUID id;
 
-    @Column(name = "count_id", nullable = false, columnDefinition = "uuid")
-    private UUID countId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "count_id", nullable = false, columnDefinition = "uuid")
+    private InventoryCount count;
 
     @Column(name = "product_id", nullable = false, columnDefinition = "uuid")
     private UUID productId;

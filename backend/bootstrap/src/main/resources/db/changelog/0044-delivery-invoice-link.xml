@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Business rule: a delivery MUST originate from an invoice (no shipping before billing).
+        Column is added as nullable to avoid breaking existing rows; the constraint is enforced
+        at the application layer (DeliveryService rejects POST /deliveries without invoiceId).
+        Backfill: link deliveries with an order_id to that order's first non-cancelled invoice.
+    -->
+
+    <changeSet id="0044-add-invoice-id" author="mini-erp">
+        <addColumn tableName="deliveries">
+            <column name="invoice_id" type="uuid"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="deliveries" baseColumnNames="invoice_id"
+                                 referencedTableName="invoices" referencedColumnNames="id"
+                                 constraintName="fk_deliveries_invoice"/>
+        <createIndex tableName="deliveries" indexName="idx_deliveries_invoice">
+            <column name="invoice_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0044-backfill-invoice-id-from-order" author="mini-erp">
+        <sql splitStatements="false">
+            UPDATE deliveries d
+            SET invoice_id = (
+                SELECT i.id FROM invoices i
+                WHERE i.order_id = d.order_id
+                  AND i.tenant_id = d.tenant_id
+                  AND i.status &lt;&gt; 'CANCELLED'
+                ORDER BY i.issue_date ASC
+                LIMIT 1
+            )
+            WHERE d.order_id IS NOT NULL
+              AND d.invoice_id IS NULL;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

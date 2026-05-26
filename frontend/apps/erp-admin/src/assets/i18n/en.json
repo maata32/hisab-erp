@@ -26,7 +26,12 @@
     "confirmation": "Confirmation",
     "print": "Print",
     "error": "Error",
-    "error_generic": "An error occurred"
+    "error_generic": "An error occurred",
+    "success": "Success",
+    "required": "This field is required",
+    "mustBePositive": "Value must be positive",
+    "mustBeNonNegative": "Value cannot be negative",
+    "atLeastOneLine": "Add at least one line"
   },
   "error": {
     "partner": {
@@ -120,6 +125,7 @@
       "ventes": "Sales",
       "factures": "Invoices & expenses",
       "activite": "Monthly activity",
+      "orders": "Orders",
       "stock": "Stock & operations",
       "clients": "Customers & team"
     },
@@ -155,7 +161,10 @@
       "over_credit_limit": "Over credit limit",
       "over_credit_limit_hint": "Credit limit exceeded",
       "total_customer_balance": "Customer receivables",
-      "active_users": "Active users"
+      "active_users": "Active users",
+      "orders_draft": "Draft orders",
+      "orders_confirmed_not_delivered": "Confirmed orders not delivered",
+      "orders_confirmed_not_invoiced": "Confirmed orders not invoiced"
     },
     "aging": {
       "title": "Receivables aging",
@@ -282,7 +291,9 @@
       "tax_rate": "Default tax rate",
       "tax_rate_hint": "e.g. 0.16 for 16%",
       "prices_include_tax": "Prices include tax",
-      "number_prefix": "Invoice number prefix"
+      "number_prefix": "Invoice number prefix",
+      "paper_size": "Paper size",
+      "paper_size_hint": "Used for all PDFs (quotes, invoices, delivery notes, receipts)"
     },
     "payment": {
       "credit_limit_behavior": "Credit limit behavior",
@@ -303,6 +314,7 @@
     "tab_suppliers": "Suppliers",
     "role_customer": "Customer",
     "role_supplier": "Supplier",
+    "errors": { "roleRequired": "Select at least one role (customer or supplier)." },
     "roles": "Roles",
     "code": "Code",
     "type": "Type",
@@ -457,6 +469,8 @@
     "createTitle": "New delivery note",
     "pickOrder": "Pick an order…",
     "pickOrderFirst": "Pick an order first",
+    "warehouse": "Warehouse",
+    "pickWarehouse": "Pick a warehouse…",
     "linesToShip": "Lines to ship",
     "remaining": "Remaining",
     "quantityToShip": "Quantity to ship",
@@ -548,7 +562,21 @@
     "viewImages": "View images",
     "imagesAfterSave": "Save the product first to attach images.",
     "imagesQuotaReached": "Limit reached ({{max}}). Upgrade your subscription to add more images.",
-    "showInactive": "Show inactive"
+    "showInactive": "Show inactive",
+    "openingStock": {
+      "toggle": "Also enter opening stock",
+      "help": "The opening stock will be recorded when the product is created.",
+      "errors": {
+        "warehouseRequired": "Warehouse required",
+        "qtyRequired": "Quantity required (> 0)",
+        "costRequired": "Unit cost required (≥ 0)"
+      }
+    },
+    "errors": {
+      "skuRequired": "SKU required",
+      "nameRequired": "Name required",
+      "baseUomRequired": "Base UoM required"
+    }
   },
   "warehouses": {
     "title": "Warehouses",
@@ -583,7 +611,55 @@
     "value": "Value",
     "status": "Status",
     "low": "Low",
-    "ok": "OK"
+    "ok": "OK",
+    "adjust": "Adjust",
+    "openOpeningBalance": "Enter opening stock",
+    "searchPlaceholder": "Search by name or SKU",
+    "savedOpening": "Opening stock recorded",
+    "savedAdjust": "Adjustment recorded",
+    "fields": {
+      "product": "Product",
+      "warehouse": "Warehouse",
+      "qty": "Quantity",
+      "unitCost": "Unit cost",
+      "qtySigned": "Change (+/−)",
+      "note": "Reason / note"
+    },
+    "openingDialog": {
+      "title": "Opening stock",
+      "help": "Use when opening the shop to record the physical stock count. Unit cost feeds the weighted-average cost calculation."
+    },
+    "adjustDialog": {
+      "title": "Quantity adjustment",
+      "help": "Positive quantity to add, negative to remove (breakage, loss, correction).",
+      "notePlaceholder": "e.g. breakage, theft, recount"
+    },
+    "errors": {
+      "requiredFields": "Please fill in all required fields.",
+      "qtyMustBePositive": "Quantity must be strictly positive.",
+      "qtyMustBeNonZero": "Change cannot be zero."
+    },
+    "history": "History",
+    "historyDialog": {
+      "title": "Stock movements",
+      "date": "Date",
+      "type": "Type",
+      "qty": "Quantity",
+      "unitCost": "Unit cost",
+      "reference": "Reference",
+      "empty": "No movements for this product in this warehouse."
+    },
+    "movementType": {
+      "PURCHASE_RECEIPT": "Purchase receipt",
+      "SALE": "Sale",
+      "SALE_RETURN": "Sale return",
+      "ADJUSTMENT": "Adjustment",
+      "TRANSFER_OUT": "Transfer out",
+      "TRANSFER_IN": "Transfer in",
+      "INVENTORY_COUNT": "Inventory count",
+      "EXPIRY_DESTRUCTION": "Expiry destruction",
+      "OPENING_BALANCE": "Opening balance"
+    }
   },
   "stockTransfers": {
     "title": "Stock transfers",

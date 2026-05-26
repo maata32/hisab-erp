@@ -6,11 +6,15 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 interface ProductPriceRepository extends JpaRepository<ProductPrice, UUID> {
 
     List<ProductPrice> findByProductId(UUID productId);
+
+    Optional<ProductPrice> findByProductIdAndUomIdAndPriceTierIdAndValidFrom(
+            UUID productId, UUID uomId, UUID priceTierId, LocalDate validFrom);
 
     @Query("""
             SELECT p FROM ProductPrice p

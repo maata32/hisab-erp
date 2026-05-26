@@ -31,6 +31,12 @@ class Delivery extends TenantAwareEntity {
     @Column(name = "order_id", columnDefinition = "uuid")
     private UUID orderId;
 
+    @Column(name = "invoice_id", columnDefinition = "uuid")
+    private UUID invoiceId;
+
+    @Column(name = "warehouse_id", columnDefinition = "uuid")
+    private UUID warehouseId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default

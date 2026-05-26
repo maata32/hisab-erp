@@ -35,13 +35,13 @@ public class ExpenseController {
 
     @PostMapping("/api/v1/expense-categories")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('expense:write')")
+    @PreAuthorize("hasAuthority('expense:create')")
     public ExpenseDto.CategoryResponse createCategory(@Valid @RequestBody ExpenseDto.CreateCategoryRequest req) {
         return service.createCategory(req.name(), req.parentId(), req.color());
     }
 
     @PutMapping("/api/v1/expense-categories/{id}")
-    @PreAuthorize("hasAuthority('expense:write')")
+    @PreAuthorize("hasAuthority('expense:update')")
     public ExpenseDto.CategoryResponse updateCategory(@PathVariable UUID id,
                                                      @Valid @RequestBody ExpenseDto.UpdateCategoryRequest req) {
         return service.updateCategory(id, req);
@@ -49,7 +49,7 @@ public class ExpenseController {
 
     @DeleteMapping("/api/v1/expense-categories/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasAuthority('expense:write')")
+    @PreAuthorize("hasAuthority('expense:delete')")
     public void deactivateCategory(@PathVariable UUID id) {
         service.deactivateCategory(id);
     }
@@ -72,7 +72,7 @@ public class ExpenseController {
 
     @PostMapping("/api/v1/expenses")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('expense:write')")
+    @PreAuthorize("hasAuthority('expense:create')")
     public ExpenseDto.ExpenseResponse create(@Valid @RequestBody ExpenseDto.CreateExpenseRequest req) {
         return service.create(req.categoryId(), req.supplierId(), req.amount(),
                 req.expenseDate(), req.description(), req.paymentMethod(),
@@ -80,7 +80,7 @@ public class ExpenseController {
     }
 
     @PostMapping(value = "/api/v1/expenses/{id}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAuthority('expense:write')")
+    @PreAuthorize("hasAuthority('expense:update')")
     public Map<String, String> uploadAttachment(@PathVariable UUID id,
                                                 @RequestParam("file") MultipartFile file) {
         String url = service.uploadAttachment(id, file);
@@ -88,13 +88,13 @@ public class ExpenseController {
     }
 
     @PostMapping("/api/v1/expenses/{id}/approve")
-    @PreAuthorize("hasAuthority('expense:write')")
+    @PreAuthorize("hasAuthority('expense:approve')")
     public ExpenseDto.ExpenseResponse approve(@PathVariable UUID id) {
         return service.approve(id);
     }
 
     @PostMapping("/api/v1/expenses/{id}/reject")
-    @PreAuthorize("hasAuthority('expense:write')")
+    @PreAuthorize("hasAuthority('expense:approve')")
     public ExpenseDto.ExpenseResponse reject(@PathVariable UUID id) {
         return service.reject(id);
     }

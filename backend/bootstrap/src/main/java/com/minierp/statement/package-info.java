@@ -6,10 +6,11 @@
 @org.springframework.modulith.ApplicationModule(
         displayName = "Statement",
         allowedDependencies = {
-                "customer::customer-api",
+                "partner::customer-api",
                 "sales::sales-api",
                 "payment::payment-api",
                 "document::document-api",
+                "tenant::api",
                 "shared"
         })
 package com.minierp.statement;

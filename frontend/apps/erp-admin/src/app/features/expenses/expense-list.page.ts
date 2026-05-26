@@ -102,17 +102,28 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'expenses.category' | translate }} *</label>
             <p-dropdown [(ngModel)]="form.categoryId" [options]="categories()"
-                        optionLabel="name" optionValue="id" styleClass="w-full" />
+                        optionLabel="name" optionValue="id"
+                        [styleClass]="'w-full' + (categoryInvalid() ? ' ng-invalid ng-dirty' : '')" />
+            @if (categoryInvalid()) {
+              <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+            }
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'expenses.date' | translate }} *</label>
-              <input pInputText type="date" [(ngModel)]="form.expenseDate" class="w-full" />
+              <input pInputText type="date" [(ngModel)]="form.expenseDate" class="w-full"
+                     [class.ng-invalid]="dateInvalid()" [class.ng-dirty]="dateInvalid()" />
+              @if (dateInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+              }
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'expenses.amount' | translate }} *</label>
               <p-inputNumber [(ngModel)]="form.amount" mode="decimal" [maxFractionDigits]="2"
-                             styleClass="w-full" />
+                             [styleClass]="'w-full' + (amountInvalid() ? ' ng-invalid ng-dirty' : '')" />
+              @if (amountInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.mustBePositive' | translate }}</p>
+              }
             </div>
           </div>
           <div>
@@ -147,7 +158,14 @@ export class ExpenseListPage implements OnInit {
   protected categories = signal<Category[]>([]);
   protected loading = signal(true);
   protected saving = signal(false);
+  protected submitted = signal(false);
   protected dialogOpen = false;
+
+  protected categoryInvalid(): boolean { return this.submitted() && !this.form.categoryId; }
+  protected dateInvalid(): boolean { return this.submitted() && !this.form.expenseDate; }
+  protected amountInvalid(): boolean {
+    return this.submitted() && (this.form.amount == null || this.form.amount <= 0);
+  }
 
   protected readonly paymentMethods = [
     { value: 'CASH', label: 'Espèces' },
@@ -177,11 +195,14 @@ export class ExpenseListPage implements OnInit {
   protected openCreate() {
     this.form = this.emptyForm();
     this.form.expenseDate = new Date().toISOString().slice(0, 10);
+    this.submitted.set(false);
     this.dialogOpen = true;
   }
 
   protected async save() {
-    if (!this.form.categoryId || !this.form.amount) return;
+    this.submitted.set(true);
+    if (!this.form.categoryId || !this.form.expenseDate) return;
+    if (this.form.amount == null || this.form.amount <= 0) return;
     this.saving.set(true);
     try {
       await firstValueFrom(this.http.post('/api/v1/expenses', {

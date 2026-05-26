@@ -23,7 +23,7 @@ public class AuditController {
     private final AuditQueryService service;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('TENANT_ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('audit:read')")
     @Operation(summary = "List audit events for the current tenant in a time window")
     public PageResponse<AuditDto> list(
             @RequestParam(required = false) Instant from,
@@ -37,7 +37,7 @@ public class AuditController {
     }
 
     @GetMapping("/entity/{type}/{id}")
-    @PreAuthorize("hasAnyRole('TENANT_ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT')")
+    @PreAuthorize("hasAuthority('audit:read')")
     @Operation(summary = "List audit events for one entity")
     public PageResponse<AuditDto> listByEntity(
             @PathVariable("type") String entityType,

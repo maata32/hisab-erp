@@ -25,6 +25,8 @@ public class DeliveryDto {
             UUID customerId,
             String customerName,
             UUID orderId,
+            UUID invoiceId,
+            UUID warehouseId,
             String status,
             LocalDate scheduledDate,
             Instant deliveredAt,
@@ -47,6 +49,8 @@ public class DeliveryDto {
     public record CreateDeliveryRequest(
             UUID customerId,
             UUID orderId,
+            UUID invoiceId,
+            UUID warehouseId,
             LocalDate scheduledDate,
             String address,
             String contactPhone,
