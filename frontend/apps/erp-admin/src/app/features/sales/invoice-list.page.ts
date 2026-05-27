@@ -13,7 +13,6 @@ import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { CalendarModule } from 'primeng/calendar';
-import { ConfirmationService } from 'primeng/api';
 import { firstValueFrom } from 'rxjs';
 
 interface Invoice {
@@ -26,6 +25,54 @@ interface Invoice {
   currency: string;
   total: number;
   balance: number;
+}
+
+interface InvoiceLine {
+  id: string;
+  lineNumber: number;
+  productId: string;
+  productName: string;
+  sku: string;
+  quantity: number;
+  unitPrice: number;
+  discountPercent: number;
+  taxRate: number;
+  lineTotal: number;
+}
+
+interface InvoiceDetail extends Invoice {
+  paidAmount: number;
+  subtotal: number;
+  taxAmount: number;
+  paymentTerms: string | null;
+  notes: string | null;
+  lines: InvoiceLine[];
+}
+
+interface CreditableLine {
+  invoiceLineId: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  uomId: string;
+  quantityInvoiced: number;
+  alreadyCredited: number;
+  maxCreditable: number;
+  unitPrice: number;
+  discountPercent: number;
+  taxRate: number;
+}
+
+interface CreditableInvoice {
+  invoiceId: string;
+  invoiceNumber: string;
+  customerId: string;
+  customerName: string;
+  currency: string;
+  subtotal: number;
+  taxAmount: number;
+  total: number;
+  lines: CreditableLine[];
 }
 
 interface CustomerOpt {
@@ -55,6 +102,17 @@ interface LineForm {
   unitPrice: number;
   discountPercent: number;
   taxRate: number;
+}
+
+interface CreditLineForm {
+  invoiceLineId: string;
+  productName: string;
+  sku: string;
+  maxCreditable: number;
+  unitPrice: number;
+  discountPercent: number;
+  taxRate: number;
+  quantity: number;
 }
 
 type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast';
@@ -106,14 +164,12 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               </td>
               <td><p-tag [value]="'sales.statuses.' + inv.status | translate" [severity]="statusSeverity(inv.status)" /></td>
               <td class="whitespace-nowrap">
-                <button pButton icon="pi pi-print" class="p-button-sm p-button-text mr-1"
+                <button pButton icon="pi pi-eye" class="p-button-sm p-button-text mr-1"
+                        [pTooltip]="'invoices.view' | translate"
+                        (click)="openDetail(inv)"></button>
+                <button pButton icon="pi pi-print" class="p-button-sm p-button-text"
                         [pTooltip]="'common.print' | translate"
                         (click)="printPdf('/api/v1/invoices/' + inv.id + '/pdf')"></button>
-                @if (canCancel(inv.status)) {
-                  <button pButton icon="pi pi-ban" class="p-button-sm p-button-text p-button-danger"
-                          [pTooltip]="'invoices.cancel' | translate"
-                          (click)="cancel(inv)"></button>
-                }
               </td>
             </tr>
           </ng-template>
@@ -123,6 +179,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
         </p-table>
       </div>
 
+      <!-- Create invoice modal -->
       <p-dialog [(visible)]="dialogOpen" [modal]="true" [style]="{ width: '900px' }"
                 [header]="'invoices.createTitle' | translate" [closable]="!saving()">
         <div class="space-y-3">
@@ -260,13 +317,171 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   (click)="save()" [loading]="saving()"></button>
         </ng-template>
       </p-dialog>
+
+      <!-- Invoice detail modal -->
+      <p-dialog [(visible)]="detailOpen" [modal]="true" [style]="{ width: '900px' }"
+                [header]="('invoices.detailTitle' | translate:{ number: detail()?.number || '' })">
+        @if (detail(); as inv) {
+          <div class="space-y-3">
+            <div class="grid grid-cols-3 gap-3 text-sm">
+              <div>
+                <span class="text-gray-500">{{ 'sales.customer' | translate }} :</span>
+                <div class="font-medium">{{ inv.customerName }}</div>
+              </div>
+              <div>
+                <span class="text-gray-500">{{ 'sales.issueDate' | translate }} :</span>
+                <div class="font-medium">{{ inv.issueDate | date:'mediumDate' }}</div>
+              </div>
+              <div>
+                <span class="text-gray-500">{{ 'invoices.dueDate' | translate }} :</span>
+                <div class="font-medium" [class.text-red-600]="isOverdue(inv)">{{ inv.dueDate | date:'mediumDate' }}</div>
+              </div>
+              <div>
+                <span class="text-gray-500">{{ 'sales.status' | translate }} :</span>
+                <div><p-tag [value]="'sales.statuses.' + inv.status | translate" [severity]="statusSeverity(inv.status)" /></div>
+              </div>
+              <div>
+                <span class="text-gray-500">{{ 'sales.total' | translate }} :</span>
+                <div class="font-bold">{{ inv.total | money }} {{ inv.currency }}</div>
+              </div>
+              <div>
+                <span class="text-gray-500">{{ 'invoices.balance' | translate }} :</span>
+                <div class="font-bold" [class.text-red-600]="inv.balance > 0" [class.text-green-700]="inv.balance === 0">
+                  {{ inv.balance | money }} {{ inv.currency }}
+                </div>
+              </div>
+            </div>
+
+            <div class="border rounded">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th class="text-left p-2">{{ 'sales.product' | translate }}</th>
+                    <th class="text-right p-2 w-24">{{ 'sales.quantity' | translate }}</th>
+                    <th class="text-right p-2 w-28">{{ 'sales.unitPrice' | translate }}</th>
+                    <th class="text-right p-2 w-20">{{ 'sales.discount' | translate }}%</th>
+                    <th class="text-right p-2 w-20">TVA</th>
+                    <th class="text-right p-2 w-28">{{ 'sales.lineTotal' | translate }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (l of inv.lines; track l.id) {
+                    <tr class="border-t">
+                      <td class="p-2">
+                        <div class="font-medium">{{ l.productName }}</div>
+                        <div class="text-xs text-gray-500 font-mono">{{ l.sku }}</div>
+                      </td>
+                      <td class="p-2 text-right">{{ l.quantity }}</td>
+                      <td class="p-2 text-right">{{ l.unitPrice | money }}</td>
+                      <td class="p-2 text-right">{{ l.discountPercent > 0 ? (l.discountPercent + '%') : '—' }}</td>
+                      <td class="p-2 text-right">{{ (l.taxRate * 100) | number:'1.0-0' }}%</td>
+                      <td class="p-2 text-right font-medium">{{ l.lineTotal | money }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+        <ng-template pTemplate="footer">
+          <button pButton [label]="'common.close' | translate" class="p-button-text"
+                  (click)="detailOpen.set(false)"></button>
+          @if (detail(); as inv) {
+            <button pButton icon="pi pi-print" [label]="'common.print' | translate"
+                    class="p-button-text"
+                    (click)="printPdf('/api/v1/invoices/' + inv.id + '/pdf')"></button>
+            @if (canCreateCreditNote(inv.status)) {
+              <button pButton icon="pi pi-undo" [label]="'invoices.createCreditNote' | translate"
+                      class="p-button-warning"
+                      (click)="openCreateCreditNote(inv)"></button>
+            }
+          }
+        </ng-template>
+      </p-dialog>
+
+      <!-- Create credit note modal -->
+      <p-dialog [(visible)]="creditOpen" [modal]="true" [style]="{ width: '1000px' }"
+                [header]="('creditNotes.createTitle' | translate:{ number: creditable()?.invoiceNumber || '' })"
+                [closable]="!savingCredit()">
+        @if (creditable(); as ci) {
+          <div class="space-y-3">
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'creditNotes.reason' | translate }}</label>
+              <input pInputText [(ngModel)]="creditForm.reason" class="w-full"
+                     [placeholder]="'creditNotes.reasonPlaceholder' | translate" />
+            </div>
+
+            <div class="border rounded">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th class="text-left p-2">{{ 'creditNotes.lineCol.product' | translate }}</th>
+                    <th class="text-right p-2 w-24">{{ 'creditNotes.lineCol.invoicedQty' | translate }}</th>
+                    <th class="text-right p-2 w-24">{{ 'creditNotes.lineCol.alreadyCredited' | translate }}</th>
+                    <th class="text-right p-2 w-24">{{ 'creditNotes.lineCol.creditableQty' | translate }}</th>
+                    <th class="text-right p-2 w-28">{{ 'creditNotes.lineCol.unitPrice' | translate }}</th>
+                    <th class="text-right p-2 w-28">{{ 'creditNotes.lineCol.quantity' | translate }}</th>
+                    <th class="text-right p-2 w-28">{{ 'creditNotes.lineCol.lineTotal' | translate }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (l of creditForm.lines; track l.invoiceLineId) {
+                    <tr class="border-t" [class.opacity-50]="l.maxCreditable === 0">
+                      <td class="p-2">
+                        <div class="font-medium">{{ l.productName }}</div>
+                        <div class="text-xs text-gray-500 font-mono">{{ l.sku }}</div>
+                      </td>
+                      <td class="p-2 text-right text-gray-500">{{ creditableInvoiced(l.invoiceLineId) }}</td>
+                      <td class="p-2 text-right text-gray-500">{{ creditableAlready(l.invoiceLineId) }}</td>
+                      <td class="p-2 text-right font-medium">{{ l.maxCreditable }}</td>
+                      <td class="p-2 text-right text-gray-500">{{ l.unitPrice | money }}</td>
+                      <td class="p-1">
+                        <p-inputNumber [(ngModel)]="l.quantity" [min]="0" [max]="l.maxCreditable"
+                                       [minFractionDigits]="0" [maxFractionDigits]="3"
+                                       [disabled]="l.maxCreditable === 0"
+                                       inputStyleClass="w-full text-right" styleClass="w-full" />
+                      </td>
+                      <td class="p-2 text-right font-medium">{{ creditLineTotal(l) | money }}</td>
+                    </tr>
+                  }
+                </tbody>
+                <tfoot class="bg-gray-50 border-t">
+                  <tr>
+                    <td colspan="6" class="p-2 text-right">{{ 'creditNotes.totals.subtotal' | translate }}</td>
+                    <td class="p-2 text-right font-medium">{{ creditSubtotal() | money }} {{ ci.currency }}</td>
+                  </tr>
+                  @if (creditTaxAmount() > 0) {
+                    <tr>
+                      <td colspan="6" class="p-2 text-right">{{ 'creditNotes.totals.tax' | translate }}</td>
+                      <td class="p-2 text-right">{{ creditTaxAmount() | money }} {{ ci.currency }}</td>
+                    </tr>
+                  }
+                  <tr>
+                    <td colspan="6" class="p-2 text-right font-bold">{{ 'creditNotes.totals.total' | translate }}</td>
+                    <td class="p-2 text-right font-bold text-red-700">{{ creditTotal() | money }} {{ ci.currency }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            @if (creditLinesInvalid()) {
+              <div class="text-xs text-red-600">{{ 'creditNotes.atLeastOneLineQty' | translate }}</div>
+            }
+          </div>
+        }
+        <ng-template pTemplate="footer">
+          <button pButton [label]="'common.cancel' | translate" class="p-button-text"
+                  (click)="creditOpen.set(false)" [disabled]="savingCredit()"></button>
+          <button pButton [label]="'common.save' | translate" icon="pi pi-check"
+                  (click)="saveCreditNote()" [loading]="savingCredit()"></button>
+        </ng-template>
+      </p-dialog>
     </div>
   `,
 })
 export class InvoiceListPage implements OnInit {
   private http = inject(HttpClient);
   private i18n = inject(TranslateService);
-  private confirmation = inject(ConfirmationService);
 
   protected invoices = signal<Invoice[]>([]);
   protected customers = signal<CustomerOpt[]>([]);
@@ -289,6 +504,15 @@ export class InvoiceListPage implements OnInit {
   protected submitted = signal(false);
   protected dialogOpen = false;
 
+  protected detailOpen = signal(false);
+  protected detail = signal<InvoiceDetail | null>(null);
+
+  protected creditOpen = signal(false);
+  protected creditable = signal<CreditableInvoice | null>(null);
+  protected savingCredit = signal(false);
+  protected creditSubmitted = signal(false);
+  protected creditForm: { reason: string; lines: CreditLineForm[] } = { reason: '', lines: [] };
+
   protected customerInvalid(): boolean { return this.submitted() && !this.form.customerId; }
   protected issueDateInvalid(): boolean { return this.submitted() && !this.form.issueDate; }
   protected dueDateInvalid(): boolean { return this.submitted() && !this.form.dueDate; }
@@ -297,6 +521,12 @@ export class InvoiceListPage implements OnInit {
   protected lineQtyInvalid(line: LineForm): boolean {
     return this.submitted() && (line.quantity == null || line.quantity <= 0);
   }
+
+  protected creditLinesInvalid(): boolean {
+    return this.creditSubmitted()
+        && !this.creditForm.lines.some(l => (l.quantity ?? 0) > 0);
+  }
+
   protected form: {
     customerId: string | null;
     issueDate: Date;
@@ -321,8 +551,8 @@ export class InvoiceListPage implements OnInit {
     return ({ DRAFT: 'secondary', ISSUED: 'info', PARTIAL: 'warning', PAID: 'success', OVERDUE: 'danger', CANCELLED: 'secondary' } as Record<string, Severity>)[status] ?? 'secondary';
   }
 
-  protected canCancel(status: string): boolean {
-    return status === 'DRAFT' || status === 'ISSUED' || status === 'OVERDUE';
+  protected canCreateCreditNote(status: string): boolean {
+    return status !== 'CANCELLED' && status !== 'DRAFT';
   }
 
   protected async printPdf(url: string) {
@@ -336,20 +566,94 @@ export class InvoiceListPage implements OnInit {
     }
   }
 
-  protected cancel(inv: Invoice) {
-    this.confirmation.confirm({
-      message: this.i18n.instant('invoices.confirmCancel', { number: inv.number }),
-      header: this.i18n.instant('common.confirmation'),
-      icon: 'pi pi-exclamation-triangle',
-      acceptButtonStyleClass: 'p-button-sm p-button-danger',
-      accept: async () => {
-        try {
-          await firstValueFrom(this.http.post(`/api/v1/invoices/${inv.id}/cancel`, {}));
-        } finally {
-          this.load();
-        }
-      },
-    });
+  protected async openDetail(inv: Invoice) {
+    this.detail.set(null);
+    this.detailOpen.set(true);
+    try {
+      const full = await firstValueFrom(this.http.get<InvoiceDetail>(`/api/v1/invoices/${inv.id}`));
+      this.detail.set(full);
+    } catch {
+      this.detail.set(null);
+    }
+  }
+
+  protected async openCreateCreditNote(inv: InvoiceDetail) {
+    this.creditable.set(null);
+    this.creditSubmitted.set(false);
+    this.creditForm = { reason: '', lines: [] };
+    this.creditOpen.set(true);
+    try {
+      const ci = await firstValueFrom(
+        this.http.get<CreditableInvoice>(`/api/v1/invoices/${inv.id}/creditable`)
+      );
+      this.creditable.set(ci);
+      this.creditForm = {
+        reason: '',
+        lines: ci.lines.map(l => ({
+          invoiceLineId: l.invoiceLineId,
+          productName: l.productName,
+          sku: l.sku,
+          maxCreditable: Number(l.maxCreditable),
+          unitPrice: Number(l.unitPrice),
+          discountPercent: Number(l.discountPercent),
+          taxRate: Number(l.taxRate),
+          quantity: 0,
+        })),
+      };
+    } catch {
+      this.creditable.set(null);
+    }
+  }
+
+  protected creditableInvoiced(lineId: string): number {
+    return Number(this.creditable()?.lines.find(x => x.invoiceLineId === lineId)?.quantityInvoiced ?? 0);
+  }
+  protected creditableAlready(lineId: string): number {
+    return Number(this.creditable()?.lines.find(x => x.invoiceLineId === lineId)?.alreadyCredited ?? 0);
+  }
+
+  protected creditLineTotal(l: CreditLineForm): number {
+    const qty = Number(l.quantity || 0);
+    const disc = Number(l.discountPercent || 0);
+    return +(qty * Number(l.unitPrice) * (1 - disc / 100)).toFixed(2);
+  }
+
+  protected creditSubtotal(): number {
+    return +this.creditForm.lines.reduce((s, l) => s + this.creditLineTotal(l), 0).toFixed(2);
+  }
+
+  protected creditTaxAmount(): number {
+    const ci = this.creditable();
+    if (!ci || ci.subtotal <= 0 || ci.taxAmount <= 0) return 0;
+    return +(this.creditSubtotal() * ci.taxAmount / ci.subtotal).toFixed(2);
+  }
+
+  protected creditTotal(): number {
+    return +(this.creditSubtotal() + this.creditTaxAmount()).toFixed(2);
+  }
+
+  protected async saveCreditNote() {
+    this.creditSubmitted.set(true);
+    if (this.creditLinesInvalid()) return;
+    const ci = this.creditable();
+    if (!ci) return;
+    this.savingCredit.set(true);
+    try {
+      const payload = {
+        reason: this.creditForm.reason || null,
+        lines: this.creditForm.lines
+            .filter(l => (l.quantity ?? 0) > 0)
+            .map(l => ({ invoiceLineId: l.invoiceLineId, quantity: l.quantity })),
+      };
+      await firstValueFrom(
+        this.http.post(`/api/v1/invoices/${ci.invoiceId}/credit-notes`, payload)
+      );
+      this.creditOpen.set(false);
+      this.detailOpen.set(false);
+      this.load();
+    } finally {
+      this.savingCredit.set(false);
+    }
   }
 
   protected openCreate() {

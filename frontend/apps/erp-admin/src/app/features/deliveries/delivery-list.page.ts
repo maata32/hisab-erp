@@ -100,7 +100,6 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <th>{{ 'sales.customer' | translate }}</th>
               <th>{{ 'deliveries.scheduledDate' | translate }}</th>
               <th>{{ 'deliveries.deliveredAt' | translate }}</th>
-              <th>{{ 'deliveries.progress' | translate }}</th>
               <th>{{ 'deliveries.address' | translate }}</th>
               <th>{{ 'sales.status' | translate }}</th>
               <th></th>
@@ -112,23 +111,13 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <td>{{ d.customerName }}</td>
               <td>{{ d.scheduledDate | date:'mediumDate' }}</td>
               <td>{{ d.deliveredAt | date:'medium' }}</td>
-              <td>
-                <span class="text-sm text-gray-600">
-                  {{ totalDelivered(d) }}/{{ totalOrdered(d) }}
-                </span>
-              </td>
               <td class="max-w-xs truncate text-sm text-gray-600">{{ d.address }}</td>
               <td><p-tag [value]="'deliveries.statuses.' + d.status | translate" [severity]="statusSeverity(d.status)" /></td>
               <td class="whitespace-nowrap">
                 <button pButton icon="pi pi-file-pdf" class="p-button-sm p-button-text mr-1"
                         [pTooltip]="'common.print' | translate"
                         (click)="printPdf('/api/v1/deliveries/' + d.id + '/pdf')"></button>
-                @if (d.status === 'PENDING') {
-                  <button pButton icon="pi pi-play" class="p-button-sm p-button-text"
-                          [pTooltip]="'deliveries.start' | translate"
-                          (click)="start(d)"></button>
-                }
-                @if (d.status === 'IN_PROGRESS' || d.status === 'PENDING') {
+                @if (d.status === 'PENDING' || d.status === 'IN_PROGRESS') {
                   <button pButton icon="pi pi-check-circle" class="p-button-sm p-button-text p-button-success"
                           [pTooltip]="'deliveries.record' | translate"
                           (click)="openRecord(d)"></button>
@@ -142,7 +131,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             </tr>
           </ng-template>
           <ng-template pTemplate="emptymessage">
-            <tr><td colspan="8" class="text-center text-gray-400 py-8">{{ 'deliveries.empty' | translate }}</td></tr>
+            <tr><td colspan="7" class="text-center text-gray-400 py-8">{{ 'deliveries.empty' | translate }}</td></tr>
           </ng-template>
         </p-table>
       </div>
@@ -240,7 +229,8 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                       <p-inputNumber [(ngModel)]="l.quantityOrdered" [min]="0"
                                      [max]="remainingByProduct[l.productId] ?? 0"
                                      [minFractionDigits]="0" [maxFractionDigits]="3"
-                                     inputStyleClass="w-full text-right" styleClass="w-full" />
+                                     inputStyleClass="w-full text-right"
+                                     [styleClass]="'w-full' + (createLinesInvalid() ? ' ng-invalid ng-dirty' : '')" />
                     </td>
                   </tr>
                 }
@@ -249,6 +239,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                 }
               </tbody>
             </table>
+            @if (createLinesInvalid()) {
+              <div class="px-2 py-2 text-xs text-red-600 border-t">{{ 'deliveries.atLeastOneLineQty' | translate }}</div>
+            }
           </div>
         </div>
         <ng-template pTemplate="footer">
@@ -280,8 +273,6 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <thead class="bg-gray-50 text-gray-600">
                 <tr>
                   <th class="text-left p-2">{{ 'sales.product' | translate }}</th>
-                  <th class="text-right p-2 w-28">{{ 'deliveries.planned' | translate }}</th>
-                  <th class="text-right p-2 w-32">{{ 'deliveries.alreadyDelivered' | translate }}</th>
                   <th class="text-right p-2 w-32">{{ 'deliveries.recordQty' | translate }}</th>
                 </tr>
               </thead>
@@ -292,13 +283,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                       <div class="font-medium">{{ l.productName }}</div>
                       <div class="text-xs text-gray-500 font-mono">{{ l.sku }}</div>
                     </td>
-                    <td class="p-2 text-right text-gray-500">{{ l.quantityPlanned }}</td>
-                    <td class="p-2 text-right text-gray-500">{{ l.quantityAlreadyDelivered }}</td>
-                    <td class="p-1">
-                      <p-inputNumber [(ngModel)]="l.quantityDelivered" [min]="0" [max]="l.quantityPlanned"
-                                     [minFractionDigits]="0" [maxFractionDigits]="3"
-                                     inputStyleClass="w-full text-right" styleClass="w-full" />
-                    </td>
+                    <td class="p-2 text-right font-medium">{{ l.quantityPlanned }}</td>
                   </tr>
                 }
               </tbody>
@@ -333,6 +318,9 @@ export class DeliveryListPage implements OnInit {
   protected orderInvalid(): boolean { return this.submittedCreate() && !this.form.orderId; }
   protected scheduledDateInvalid(): boolean { return this.submittedCreate() && !this.form.scheduledDate; }
   protected warehouseInvalid(): boolean { return this.submittedCreate() && !this.form.warehouseId; }
+  protected createLinesInvalid(): boolean {
+    return this.submittedCreate() && !this.form.lines.some(l => (l.quantityOrdered ?? 0) > 0);
+  }
   protected signedByInvalid(): boolean { return this.submittedRecord() && !this.recordForm.signedBy?.trim(); }
   protected remainingByProduct: Record<string, number> = {};
 
@@ -365,14 +353,6 @@ export class DeliveryListPage implements OnInit {
     // no shipment without a prior non-cancelled invoice.
     const allowed = new Set(['INVOICED', 'PARTIALLY_DELIVERED']);
     return this.orders().filter(o => allowed.has(o.status));
-  }
-
-  protected totalOrdered(d: Delivery): number {
-    return d.lines?.reduce((s, l) => s + l.quantityOrdered, 0) ?? 0;
-  }
-
-  protected totalDelivered(d: Delivery): number {
-    return d.lines?.reduce((s, l) => s + l.quantityDelivered, 0) ?? 0;
   }
 
   protected statusSeverity(status: string): Severity {
@@ -481,14 +461,6 @@ export class DeliveryListPage implements OnInit {
     }
   }
 
-  protected async start(d: Delivery) {
-    try {
-      await firstValueFrom(this.http.post(`/api/v1/deliveries/${d.id}/start`, {}));
-    } finally {
-      this.load();
-    }
-  }
-
   protected openRecord(d: Delivery) {
     this.recordForm = {
       deliveryId: d.id,
@@ -509,7 +481,9 @@ export class DeliveryListPage implements OnInit {
 
   protected async saveRecord() {
     this.submittedRecord.set(true);
-    if (!this.recordForm.deliveryId || !this.recordForm.signedBy?.trim()) return;
+    if (!this.recordForm.deliveryId || !this.recordForm.signedBy?.trim()) {
+      return;
+    }
     this.saving.set(true);
     try {
       await firstValueFrom(this.http.post(`/api/v1/deliveries/${this.recordForm.deliveryId}/record`, {

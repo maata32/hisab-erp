@@ -13,6 +13,8 @@ interface CreditNoteRepository extends JpaRepository<CreditNote, UUID> {
     Page<CreditNote> findByPartyId(UUID partyId, Pageable pageable);
     Page<CreditNote> findAll(Pageable pageable);
 
+    List<CreditNote> findByInvoiceIdAndStatusNot(UUID invoiceId, CreditNoteStatus status);
+
     @Query("SELECT cn FROM CreditNote cn WHERE cn.partyId = :partyId " +
            "AND cn.issueDate >= :from AND cn.issueDate <= :to " +
            "ORDER BY cn.issueDate ASC")

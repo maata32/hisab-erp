@@ -29,6 +29,10 @@
         </dependency>
         <dependency>
             <groupId>com.minierp</groupId>
+            <artifactId>inventory</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
             <artifactId>uom</artifactId>
         </dependency>
         <dependency>

@@ -35,6 +35,17 @@
     "atLeastOneLine": "Ajoutez au moins une ligne"
   },
   "error": {
+    "creditnote": {
+      "no_lines": "Aucune ligne à créditer.",
+      "line_not_found": "Ligne de facture introuvable.",
+      "line_exceeds_invoiced": "La quantité demandée dépasse le reliquat créditable de la ligne.",
+      "invoice_cancelled": "Impossible d'émettre un avoir sur une facture annulée.",
+      "invoice_fully_credited": "Cette facture est déjà entièrement créditée.",
+      "warehouse_missing": "Aucun dépôt configuré pour réintégrer la marchandise au stock."
+    },
+    "delivery": {
+      "already_shipped": "Du stock est déjà sorti pour ce BL — impossible de l'annuler."
+    },
     "partner": {
       "supplier_balance_not_zero": "Solde fournisseur non nul — impossible de retirer le rôle.",
       "customer_balance_not_zero": "Solde client non nul — impossible de retirer le rôle.",
@@ -93,7 +104,8 @@
     "expenseCategories": "Catégories de dépenses",
     "treasury": "Trésorerie",
     "purchaseOrders": "Commandes fournisseur",
-    "purchaseInvoices": "Factures d'achat"
+    "purchaseInvoices": "Factures d'achat",
+    "creditNotes": "Avoirs"
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -164,8 +176,8 @@
       "total_customer_balance": "Créances clients",
       "active_users": "Utilisateurs actifs",
       "orders_draft": "Commandes en brouillon",
-      "orders_confirmed_not_delivered": "Commandes confirmées non livrées",
-      "orders_confirmed_not_invoiced": "Commandes confirmées non facturées"
+      "orders_confirmed_not_delivered": "Commandes non livrées",
+      "orders_confirmed_not_invoiced": "Commandes non facturées"
     },
     "aging": {
       "title": "Vieillissement des créances",
@@ -451,11 +463,46 @@
     "empty": "Aucune facture trouvée",
     "paymentTerms": "Conditions de paiement",
     "paymentTermsHint": "ex. 30 jours net",
-    "cancel": "Annuler la facture",
-    "confirmCancel": "Annuler la facture {{number}} ?",
     "createDirect": "Facture directe",
     "createDirectHint": "Créer une facture sans passer par devis / commande",
-    "createTitle": "Créer une facture directe"
+    "createTitle": "Créer une facture directe",
+    "view": "Voir le détail",
+    "detailTitle": "Facture {{number}}",
+    "createCreditNote": "Créer un avoir",
+    "noCreditableLines": "Toutes les lignes sont déjà créditées."
+  },
+  "creditNotes": {
+    "title": "Avoirs",
+    "subtitle": "Notes de crédit émises sur factures clients",
+    "number": "N° avoir",
+    "invoiceNumber": "Facture d'origine",
+    "issueDate": "Date d'émission",
+    "reason": "Motif",
+    "reasonPlaceholder": "Retour marchandise, erreur facturation, geste commercial…",
+    "lines": "Lignes à créditer",
+    "lineCol": {
+      "product": "Produit",
+      "invoicedQty": "Qté facturée",
+      "alreadyCredited": "Déjà créditée",
+      "creditableQty": "Reste créditable",
+      "quantity": "Qté à créditer",
+      "unitPrice": "P.U. HT",
+      "lineTotal": "Total HT"
+    },
+    "totals": {
+      "subtotal": "Sous-total HT",
+      "tax": "TVA",
+      "total": "Total avoir TTC"
+    },
+    "empty": "Aucun avoir trouvé",
+    "createTitle": "Créer un avoir sur {{number}}",
+    "atLeastOneLineQty": "Au moins une ligne doit avoir une quantité à créditer.",
+    "statuses": {
+      "DRAFT": "Brouillon",
+      "ISSUED": "Émis",
+      "APPLIED": "Appliqué",
+      "CANCELLED": "Annulé"
+    }
   },
   "deliveries": {
     "title": "Livraisons",
@@ -475,6 +522,7 @@
     "linesToShip": "Lignes à expédier",
     "remaining": "Reste à livrer",
     "quantityToShip": "Quantité à livrer",
+    "atLeastOneLineQty": "Au moins une ligne doit avoir une quantité supérieure à 0",
     "start": "Démarrer",
     "record": "Enregistrer la livraison",
     "recordTitle": "Enregistrer la livraison",

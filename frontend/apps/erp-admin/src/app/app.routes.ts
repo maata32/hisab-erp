@@ -56,6 +56,11 @@ export const appRoutes: Routes = [
           import('./features/sales/invoice-list.page').then((m) => m.InvoiceListPage),
       },
       {
+        path: 'credit-notes',
+        loadComponent: () =>
+          import('./features/sales/credit-note-list.page').then((m) => m.CreditNoteListPage),
+      },
+      {
         path: 'deliveries',
         loadComponent: () =>
           import('./features/deliveries/delivery-list.page').then((m) => m.DeliveryListPage),

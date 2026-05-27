@@ -89,16 +89,36 @@ public class SalesDto {
             Instant createdAt
     ) {}
 
+    public record CreditNoteLineDto(
+            UUID id,
+            UUID invoiceLineId,
+            UUID productId,
+            UUID uomId,
+            BigDecimal quantity,
+            BigDecimal unitPrice,
+            BigDecimal discountPercent,
+            BigDecimal taxRate,
+            BigDecimal lineTotal,
+            BigDecimal returnedToStockQty,
+            String productName,
+            String sku
+    ) {}
+
     public record CreditNoteDto(
             UUID id,
             String number,
             UUID invoiceId,
+            String invoiceNumber,
             UUID customerId,
+            String customerName,
             LocalDate issueDate,
             String reason,
-            BigDecimal amount,
+            BigDecimal subtotal,
+            BigDecimal taxAmount,
+            BigDecimal total,
             String status,
             String currency,
+            List<CreditNoteLineDto> lines,
             Instant createdAt
     ) {}
 
@@ -132,9 +152,39 @@ public class SalesDto {
             List<LineRequest> lines
     ) {}
 
+    public record CreateCreditNoteLine(
+            UUID invoiceLineId,
+            BigDecimal quantity
+    ) {}
+
     public record CreateCreditNoteRequest(
-            UUID invoiceId,
             String reason,
-            BigDecimal amount
+            List<CreateCreditNoteLine> lines
+    ) {}
+
+    public record CreditableLineDto(
+            UUID invoiceLineId,
+            UUID productId,
+            String productName,
+            String sku,
+            UUID uomId,
+            BigDecimal quantityInvoiced,
+            BigDecimal alreadyCredited,
+            BigDecimal maxCreditable,
+            BigDecimal unitPrice,
+            BigDecimal discountPercent,
+            BigDecimal taxRate
+    ) {}
+
+    public record CreditableInvoiceDto(
+            UUID invoiceId,
+            String invoiceNumber,
+            UUID customerId,
+            String customerName,
+            String currency,
+            BigDecimal subtotal,
+            BigDecimal taxAmount,
+            BigDecimal total,
+            List<CreditableLineDto> lines
     ) {}
 }

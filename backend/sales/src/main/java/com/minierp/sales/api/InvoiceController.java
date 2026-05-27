@@ -43,12 +43,6 @@ public class InvoiceController {
         return service.getInvoice(id);
     }
 
-    @PostMapping("/{id}/cancel")
-    @PreAuthorize("hasAuthority('invoice:cancel')")
-    public SalesDto.InvoiceDto cancel(@PathVariable UUID id) {
-        return service.cancelInvoice(id);
-    }
-
     @GetMapping("/{id}/pdf")
     @PreAuthorize("hasAuthority('sales:read')")
     public ResponseEntity<byte[]> pdf(@PathVariable UUID id) {
@@ -64,7 +58,13 @@ public class InvoiceController {
     @PreAuthorize("hasAuthority('sales:create')")
     public SalesDto.CreditNoteDto createCreditNote(@PathVariable UUID id,
                                                    @Valid @RequestBody SalesDto.CreateCreditNoteRequest req) {
-        return service.createCreditNote(new SalesDto.CreateCreditNoteRequest(id, req.reason(), req.amount()));
+        return service.createCreditNote(id, req);
+    }
+
+    @GetMapping("/{id}/creditable")
+    @PreAuthorize("hasAuthority('sales:read')")
+    public SalesDto.CreditableInvoiceDto creditable(@PathVariable UUID id) {
+        return service.getCreditableInvoice(id);
     }
 
     @GetMapping("/credit-notes")

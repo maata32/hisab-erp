@@ -104,38 +104,41 @@ class OrderAutoStatusFromDeliveryIT {
     }
 
     @Test
-    void partialThenFullDeliveryDrivesOrderStatus() {
-        // Initial state guard
+    void splitDeliveryAcrossTwoBLsDrivesOrderStatus() {
+        // Initial state guard.
         assertThat(currentOrderStatus()).isEqualTo("INVOICED");
 
-        DeliveryDto.CreateDeliveryRequest create = new DeliveryDto.CreateDeliveryRequest(
-                customerId, orderId, invoiceId, warehouseId, LocalDate.now(), null, null, null,
-                List.of(new DeliveryDto.LineRequest(productId, uomId, new BigDecimal("10"), "Widget", "SKU-ORDAUTO"))
-        );
-        DeliveryDto.DeliveryResponse delivery = deliveryService.create(create, null);
-        deliveryService.startDelivery(delivery.id(), null);
-        UUID lineId = delivery.lines().get(0).id();
+        // Each BL is all-or-nothing — to model an order-level partial delivery the
+        // user creates two BLs against the same order, each covering a subset of qty.
 
-        // Partial: 4 of 10 units
+        // BL1 covers 4 of the 10 ordered units.
+        DeliveryDto.DeliveryResponse bl1 = deliveryService.create(
+                new DeliveryDto.CreateDeliveryRequest(
+                        customerId, orderId, invoiceId, warehouseId, LocalDate.now(), null, null, null,
+                        List.of(new DeliveryDto.LineRequest(productId, uomId, new BigDecimal("4"), "Widget", "SKU-ORDAUTO"))
+                ), null);
+        deliveryService.startDelivery(bl1.id(), null);
         deliveryService.recordDelivery(
-                delivery.id(),
-                new DeliveryDto.RecordDeliveryRequest(
-                        List.of(new DeliveryDto.LineDelivered(lineId, new BigDecimal("4"))),
-                        null, null),
+                bl1.id(),
+                new DeliveryDto.RecordDeliveryRequest(List.of(), "Receiver", null),
                 null);
         assertThat(currentOrderStatus())
-                .as("After partial shipment the order should be PARTIALLY_DELIVERED")
+                .as("After the first BL ships, the order should be PARTIALLY_DELIVERED")
                 .isEqualTo("PARTIALLY_DELIVERED");
 
-        // Remaining: 6 more units → 10 total
+        // BL2 covers the remaining 6 units.
+        DeliveryDto.DeliveryResponse bl2 = deliveryService.create(
+                new DeliveryDto.CreateDeliveryRequest(
+                        customerId, orderId, invoiceId, warehouseId, LocalDate.now(), null, null, null,
+                        List.of(new DeliveryDto.LineRequest(productId, uomId, new BigDecimal("6"), "Widget", "SKU-ORDAUTO"))
+                ), null);
+        deliveryService.startDelivery(bl2.id(), null);
         deliveryService.recordDelivery(
-                delivery.id(),
-                new DeliveryDto.RecordDeliveryRequest(
-                        List.of(new DeliveryDto.LineDelivered(lineId, new BigDecimal("6"))),
-                        "Receiver", null),
+                bl2.id(),
+                new DeliveryDto.RecordDeliveryRequest(List.of(), "Receiver", null),
                 null);
         assertThat(currentOrderStatus())
-                .as("After full delivery the order should be DELIVERED")
+                .as("After the second BL ships and covers the order, status should be DELIVERED")
                 .isEqualTo("DELIVERED");
     }
 

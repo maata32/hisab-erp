@@ -30,11 +30,20 @@ class CreditNote extends TenantAwareEntity {
     @Column(name = "issue_date", nullable = false)
     private LocalDate issueDate;
 
-    @Column(nullable = false, length = 500)
+    @Column(length = 500)
     private String reason;
 
     @Column(nullable = false, precision = 19, scale = 2)
-    private BigDecimal amount;
+    @Builder.Default private BigDecimal amount = BigDecimal.ZERO;
+
+    @Column(precision = 19, scale = 2, nullable = false)
+    @Builder.Default private BigDecimal subtotal = BigDecimal.ZERO;
+
+    @Column(name = "tax_amount", precision = 19, scale = 2, nullable = false)
+    @Builder.Default private BigDecimal taxAmount = BigDecimal.ZERO;
+
+    @Column(precision = 19, scale = 2, nullable = false)
+    @Builder.Default private BigDecimal total = BigDecimal.ZERO;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

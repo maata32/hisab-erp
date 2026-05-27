@@ -132,35 +132,24 @@ public class DeliveryService {
                     Map.of("deliveryId", d.getId()));
         }
 
-        for (DeliveryDto.LineDelivered ld : req.lines()) {
-            lines.stream().filter(l -> l.getId().equals(ld.lineId())).findFirst()
-                    .ifPresent(line -> {
-                        BigDecimal qty = ld.quantityDelivered();
-                        if (qty != null && qty.signum() > 0) {
-                            stockOps.issue(warehouseId, line.getProductId(), qty,
-                                    StockMovementType.SALE,
-                                    "DELIVERY", d.getId(), d.getNumber(),
-                                    "Delivery " + d.getNumber(), userId);
-                        }
-                        line.setQuantityDelivered(line.getQuantityDelivered().add(qty));
-                        if (line.getQuantityDelivered().compareTo(line.getQuantityOrdered()) >= 0) {
-                            line.setStatus(DeliveryLineStatus.COMPLETED);
-                        } else {
-                            line.setStatus(DeliveryLineStatus.PARTIAL);
-                        }
-                    });
+        // Business rule: a delivery is recorded all-or-nothing — there is no PARTIAL
+        // delivery status. Each line ships its full remaining quantity in one call.
+        // Caller-supplied per-line quantities are ignored.
+        for (DeliveryLine line : lines) {
+            BigDecimal remaining = line.getQuantityOrdered().subtract(line.getQuantityDelivered());
+            if (remaining.signum() > 0) {
+                stockOps.issue(warehouseId, line.getProductId(), remaining,
+                        StockMovementType.SALE,
+                        "DELIVERY", d.getId(), d.getNumber(),
+                        "Delivery " + d.getNumber(), userId);
+                line.setQuantityDelivered(line.getQuantityOrdered());
+            }
+            line.setStatus(DeliveryLineStatus.COMPLETED);
         }
 
-        boolean allComplete = lines.stream().allMatch(l -> l.getStatus() == DeliveryLineStatus.COMPLETED);
-        boolean anyComplete = lines.stream().anyMatch(l -> l.getStatus() != DeliveryLineStatus.PENDING);
-
-        if (allComplete) {
-            d.setStatus(DeliveryStatus.DELIVERED);
-            d.setDeliveredAt(Instant.now());
-            d.setDeliveredBy(userId);
-        } else if (anyComplete) {
-            d.setStatus(DeliveryStatus.PARTIAL);
-        }
+        d.setStatus(DeliveryStatus.DELIVERED);
+        d.setDeliveredAt(Instant.now());
+        d.setDeliveredBy(userId);
 
         if (req.signedBy() != null) d.setSignedBy(req.signedBy());
         if (req.notes() != null) d.setNotes(req.notes());
@@ -181,6 +170,16 @@ public class DeliveryService {
         Delivery d = deliveries.findById(id).orElseThrow(() -> NotFoundException.of("entity.delivery", id));
         if (d.getStatus() == DeliveryStatus.DELIVERED) {
             throw new BusinessException("error.delivery.already_delivered", Map.of());
+        }
+        // Refuse to cancel once any stock has left the warehouse — the inventory
+        // change is real and a CANCELLED label would silently hide it. Caller must
+        // post a stock adjustment / return note instead.
+        boolean anyShipped = deliveryLines.findByDeliveryId(id).stream()
+                .anyMatch(l -> l.getQuantityDelivered() != null
+                        && l.getQuantityDelivered().signum() > 0);
+        if (anyShipped) {
+            throw new BusinessException("error.delivery.already_shipped",
+                    Map.of("deliveryId", d.getId(), "deliveryNumber", d.getNumber()));
         }
         d.setStatus(DeliveryStatus.CANCELLED);
         return toDto(d);

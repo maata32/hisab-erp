@@ -34,6 +34,17 @@
     "atLeastOneLine": "Add at least one line"
   },
   "error": {
+    "creditnote": {
+      "no_lines": "No lines to credit.",
+      "line_not_found": "Invoice line not found.",
+      "line_exceeds_invoiced": "Requested quantity exceeds the remaining creditable amount of the line.",
+      "invoice_cancelled": "Cannot issue a credit note against a cancelled invoice.",
+      "invoice_fully_credited": "This invoice has already been fully credited.",
+      "warehouse_missing": "No warehouse configured to receive the returned goods."
+    },
+    "delivery": {
+      "already_shipped": "Stock has already left the warehouse for this delivery — it cannot be cancelled."
+    },
     "partner": {
       "supplier_balance_not_zero": "Non-zero AP balance — cannot remove the supplier role.",
       "customer_balance_not_zero": "Non-zero AR balance — cannot remove the customer role.",
@@ -92,7 +103,8 @@
     "expenseCategories": "Expense categories",
     "treasury": "Treasury",
     "purchaseOrders": "Purchase orders",
-    "purchaseInvoices": "Purchase invoices"
+    "purchaseInvoices": "Purchase invoices",
+    "creditNotes": "Credit notes"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -163,8 +175,8 @@
       "total_customer_balance": "Customer receivables",
       "active_users": "Active users",
       "orders_draft": "Draft orders",
-      "orders_confirmed_not_delivered": "Confirmed orders not delivered",
-      "orders_confirmed_not_invoiced": "Confirmed orders not invoiced"
+      "orders_confirmed_not_delivered": "Orders not delivered",
+      "orders_confirmed_not_invoiced": "Orders not invoiced"
     },
     "aging": {
       "title": "Receivables aging",
@@ -450,11 +462,46 @@
     "empty": "No invoices found",
     "paymentTerms": "Payment terms",
     "paymentTermsHint": "e.g. Net 30 days",
-    "cancel": "Cancel invoice",
-    "confirmCancel": "Cancel invoice {{number}}?",
     "createDirect": "Direct invoice",
     "createDirectHint": "Create an invoice without a quote or order",
-    "createTitle": "Create a direct invoice"
+    "createTitle": "Create a direct invoice",
+    "view": "View details",
+    "detailTitle": "Invoice {{number}}",
+    "createCreditNote": "Create credit note",
+    "noCreditableLines": "All lines are already fully credited."
+  },
+  "creditNotes": {
+    "title": "Credit notes",
+    "subtitle": "Credit notes issued against customer invoices",
+    "number": "Credit note #",
+    "invoiceNumber": "Original invoice",
+    "issueDate": "Issue date",
+    "reason": "Reason",
+    "reasonPlaceholder": "Goods return, billing error, goodwill gesture…",
+    "lines": "Lines to credit",
+    "lineCol": {
+      "product": "Product",
+      "invoicedQty": "Invoiced qty",
+      "alreadyCredited": "Already credited",
+      "creditableQty": "Remaining creditable",
+      "quantity": "Qty to credit",
+      "unitPrice": "Unit price",
+      "lineTotal": "Line total"
+    },
+    "totals": {
+      "subtotal": "Subtotal",
+      "tax": "VAT",
+      "total": "Credit total"
+    },
+    "empty": "No credit notes found",
+    "createTitle": "Create a credit note for {{number}}",
+    "atLeastOneLineQty": "At least one line must have a quantity to credit.",
+    "statuses": {
+      "DRAFT": "Draft",
+      "ISSUED": "Issued",
+      "APPLIED": "Applied",
+      "CANCELLED": "Cancelled"
+    }
   },
   "deliveries": {
     "title": "Deliveries",
@@ -474,6 +521,7 @@
     "linesToShip": "Lines to ship",
     "remaining": "Remaining",
     "quantityToShip": "Quantity to ship",
+    "atLeastOneLineQty": "At least one line must have a quantity greater than 0",
     "start": "Start",
     "record": "Record delivery",
     "recordTitle": "Record delivery",

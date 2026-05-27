@@ -3,6 +3,7 @@ package com.minierp.phase1b;
 import com.minierp.MiniErpApplication;
 import com.minierp.delivery.api.DeliveryDto;
 import com.minierp.delivery.internal.DeliveryService;
+import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.tenant.TenantContext;
 import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,14 +22,16 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Mandatory spec test: 5 sequential partial deliveries for a 10-unit line.
- * Verifies PARTIAL status on rounds 1-4, DELIVERED on round 5.
+ * Business rule: recording a delivery is all-or-nothing. The full remaining
+ * quantity ships on every line in one call; the delivery transitions straight
+ * to DELIVERED. There is no PARTIAL delivery status by design.
  */
 @SpringBootTest(classes = MiniErpApplication.class)
 @ActiveProfiles("test")
-@DisplayName("Partial delivery — 5 rounds of 2 units each, final status DELIVERED")
+@DisplayName("Delivery recording is all-or-nothing — straight to DELIVERED")
 class PartialDeliveryIT {
 
     @Autowired
@@ -92,40 +95,36 @@ class PartialDeliveryIT {
     }
 
     @Test
-    void fivePartialDeliveriesReachDelivered() {
-        // Create delivery with 1 line of 10 units
+    void recordingShipsFullQuantityAndMarksDelivered() {
         DeliveryDto.CreateDeliveryRequest create = new DeliveryDto.CreateDeliveryRequest(
                 customerId, null, invoiceId, warehouseId, LocalDate.now(), null, null, null,
                 List.of(new DeliveryDto.LineRequest(productId, uomId, new BigDecimal("10"), "Widget", "SKU-001"))
         );
         DeliveryDto.DeliveryResponse delivery = deliveryService.create(create, null);
-
-        // Start delivery
         deliveryService.startDelivery(delivery.id(), null);
 
         UUID lineId = delivery.lines().get(0).id();
 
-        // Rounds 1-4: deliver 2 units each → should be PARTIAL
-        for (int round = 1; round <= 4; round++) {
-            DeliveryDto.DeliveryResponse result = deliveryService.recordDelivery(
-                    delivery.id(),
-                    new DeliveryDto.RecordDeliveryRequest(
-                            List.of(new DeliveryDto.LineDelivered(lineId, new BigDecimal("2"))),
-                            null, null),
-                    null);
-            assertThat(result.status()).as("Round %d status", round).isEqualTo("PARTIAL");
-        }
-
-        // Round 5: deliver final 2 units → should be DELIVERED
-        DeliveryDto.DeliveryResponse final_ = deliveryService.recordDelivery(
+        // Even when the caller passes a partial quantity, the server ships the full
+        // remaining qty on every line and the delivery transitions directly to DELIVERED.
+        DeliveryDto.DeliveryResponse result = deliveryService.recordDelivery(
                 delivery.id(),
                 new DeliveryDto.RecordDeliveryRequest(
                         List.of(new DeliveryDto.LineDelivered(lineId, new BigDecimal("2"))),
                         "Test Receiver", null),
                 null);
 
-        assertThat(final_.status()).isEqualTo("DELIVERED");
-        assertThat(final_.lines().get(0).quantityDelivered()).isEqualByComparingTo("10");
-        assertThat(final_.lines().get(0).status()).isEqualTo("COMPLETED");
+        assertThat(result.status()).isEqualTo("DELIVERED");
+        assertThat(result.lines().get(0).quantityDelivered()).isEqualByComparingTo("10");
+        assertThat(result.lines().get(0).status()).isEqualTo("COMPLETED");
+
+        // Re-recording a DELIVERED BL is rejected.
+        assertThatThrownBy(() -> deliveryService.recordDelivery(
+                delivery.id(),
+                new DeliveryDto.RecordDeliveryRequest(
+                        List.of(new DeliveryDto.LineDelivered(lineId, new BigDecimal("1"))),
+                        null, null),
+                null))
+                .isInstanceOf(BusinessException.class);
     }
 }

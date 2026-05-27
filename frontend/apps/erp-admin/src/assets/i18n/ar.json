@@ -34,6 +34,17 @@
     "atLeastOneLine": "أضف سطراً واحداً على الأقل"
   },
   "error": {
+    "creditnote": {
+      "no_lines": "لا توجد بنود لإصدار إشعار دائن.",
+      "line_not_found": "بند الفاتورة غير موجود.",
+      "line_exceeds_invoiced": "الكمية المطلوبة تتجاوز الكمية المتبقية القابلة للائتمان.",
+      "invoice_cancelled": "لا يمكن إصدار إشعار دائن على فاتورة ملغاة.",
+      "invoice_fully_credited": "تم إصدار إشعارات دائنة كاملة على هذه الفاتورة.",
+      "warehouse_missing": "لا يوجد مستودع مكوّن لاستلام البضاعة المرتجعة."
+    },
+    "delivery": {
+      "already_shipped": "تم إخراج المخزون لهذا التسليم — لا يمكن إلغاؤه."
+    },
     "partner": {
       "supplier_balance_not_zero": "رصيد الدائنين غير صفري — لا يمكن إزالة دور المورّد.",
       "customer_balance_not_zero": "رصيد المدينين غير صفري — لا يمكن إزالة دور العميل.",
@@ -92,7 +103,8 @@
     "expenseCategories": "فئات المصاريف",
     "treasury": "الخزينة",
     "purchaseOrders": "طلبات الشراء",
-    "purchaseInvoices": "فواتير الشراء"
+    "purchaseInvoices": "فواتير الشراء",
+    "creditNotes": "إشعارات دائنة"
   },
   "dashboard": {
     "title": "لوحة القيادة",
@@ -163,8 +175,8 @@
       "total_customer_balance": "مستحقات العملاء",
       "active_users": "مستخدمون نشطون",
       "orders_draft": "طلبات مسودة",
-      "orders_confirmed_not_delivered": "طلبات مؤكدة غير مسلمة",
-      "orders_confirmed_not_invoiced": "طلبات مؤكدة غير مفوترة"
+      "orders_confirmed_not_delivered": "طلبات غير مسلمة",
+      "orders_confirmed_not_invoiced": "طلبات غير مفوترة"
     },
     "aging": {
       "title": "تقادم الذمم",
@@ -444,17 +456,52 @@
   },
   "invoices": {
     "title": "الفواتير",
-    "subtitle": "فواتير العملاء وأوامر الخصم",
+    "subtitle": "فواتير العملاء والإشعارات الدائنة",
     "dueDate": "تاريخ الاستحقاق",
     "balance": "المبلغ المتبقي",
     "empty": "لا يوجد فواتير",
     "paymentTerms": "شروط الدفع",
     "paymentTermsHint": "مثلا: 30 يومًا",
-    "cancel": "إلغاء الفاتورة",
-    "confirmCancel": "إلغاء الفاتورة {{number}}؟",
     "createDirect": "فاتورة مباشرة",
     "createDirectHint": "إنشاء فاتورة بدون عرض سعر أو طلب",
-    "createTitle": "إنشاء فاتورة مباشرة"
+    "createTitle": "إنشاء فاتورة مباشرة",
+    "view": "عرض التفاصيل",
+    "detailTitle": "الفاتورة {{number}}",
+    "createCreditNote": "إنشاء إشعار دائن",
+    "noCreditableLines": "تم ائتمان جميع البنود بالكامل."
+  },
+  "creditNotes": {
+    "title": "الإشعارات الدائنة",
+    "subtitle": "إشعارات دائنة صادرة على فواتير العملاء",
+    "number": "رقم الإشعار",
+    "invoiceNumber": "الفاتورة الأصلية",
+    "issueDate": "تاريخ الإصدار",
+    "reason": "السبب",
+    "reasonPlaceholder": "إرجاع بضاعة، خطأ في الفوترة، تخفيض تجاري…",
+    "lines": "البنود المراد ائتمانها",
+    "lineCol": {
+      "product": "المنتج",
+      "invoicedQty": "الكمية المفوترة",
+      "alreadyCredited": "تم ائتمانها",
+      "creditableQty": "المتبقي القابل للائتمان",
+      "quantity": "الكمية المراد ائتمانها",
+      "unitPrice": "سعر الوحدة",
+      "lineTotal": "إجمالي البند"
+    },
+    "totals": {
+      "subtotal": "الإجمالي قبل الضريبة",
+      "tax": "ضريبة القيمة المضافة",
+      "total": "إجمالي الإشعار"
+    },
+    "empty": "لا توجد إشعارات دائنة",
+    "createTitle": "إنشاء إشعار دائن للفاتورة {{number}}",
+    "atLeastOneLineQty": "يجب أن يحتوي بند واحد على الأقل على كمية للائتمان.",
+    "statuses": {
+      "DRAFT": "مسودة",
+      "ISSUED": "صادر",
+      "APPLIED": "مطبّق",
+      "CANCELLED": "ملغى"
+    }
   },
   "deliveries": {
     "title": "التسليمات",
@@ -474,6 +521,7 @@
     "linesToShip": "البنود المراد شحنها",
     "remaining": "المتبقي",
     "quantityToShip": "الكمية المراد شحنها",
+    "atLeastOneLineQty": "يجب أن تكون كمية سطر واحد على الأقل أكبر من 0",
     "start": "بدء",
     "record": "تسجيل التسليم",
     "recordTitle": "تسجيل التسليم",

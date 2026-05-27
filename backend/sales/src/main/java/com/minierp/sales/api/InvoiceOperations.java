@@ -14,5 +14,11 @@ public interface InvoiceOperations {
     Optional<InvoiceSummary> findByOrderId(UUID orderId);
     List<InvoiceSummary> findUnpaidByCustomer(UUID customerId);
     void applyPayment(UUID invoiceId, BigDecimal amount);
+    /**
+     * Settle part of the invoice via a credit note. Returns the amount that was
+     * actually imputed (clamped to the current outstanding balance); the caller
+     * is responsible for routing any surplus to a customer credit.
+     */
+    BigDecimal applyCredit(UUID invoiceId, BigDecimal amount);
     void markOverdue(UUID invoiceId);
 }

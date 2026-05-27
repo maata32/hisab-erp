@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
-public class PartnerService implements PartnerLookup, CustomerStatementLookup {
+public class PartnerService implements PartnerLookup, CustomerStatementLookup, CustomerCreditOperations {
 
     private final PartnerRepository partners;
     private final ArBalanceRepository arBalances;
@@ -398,6 +398,12 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup {
     public List<CustomerCreditDto> listCredits(UUID id) {
         return credits.findByPartyIdAndStatusOrderByCreatedAtAsc(id, CustomerCreditStatus.ACTIVE)
                 .stream().map(this::toCreditDto).toList();
+    }
+
+    @Override
+    @Transactional
+    public UUID grantCredit(UUID customerId, BigDecimal amount, String source, String notes) {
+        return createCredit(customerId, amount, source, notes).id();
     }
 
     @Transactional

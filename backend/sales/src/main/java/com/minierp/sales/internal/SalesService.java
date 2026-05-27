@@ -21,7 +21,11 @@ import com.minierp.shared.util.PageResponse;
 import com.minierp.tenant.api.TenantLookup;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.minierp.inventory.api.StockMovementType;
+import com.minierp.inventory.api.StockOperations;
+import com.minierp.partner.api.CustomerCreditOperations;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,10 +52,14 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
     private final InvoiceRepository invoices;
     private final InvoiceLineRepository invoiceLines;
     private final CreditNoteRepository creditNotes;
+    private final CreditNoteLineRepository creditNoteLines;
     private final NumberingService numbering;
     private final CatalogLookup catalog;
     private final PartnerLookup customerLookup;
     private final ArBalanceOperations balanceOps;
+    private final CustomerCreditOperations customerCreditOps;
+    private final StockOperations stockOps;
+    private final JdbcTemplate jdbc;
     private final DocumentRenderer renderer;
     private final TenantLookup tenantLookup;
 
@@ -127,6 +135,23 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
             inv.setStatus(InvoiceStatus.PARTIAL);
         }
         balanceOps.addToPaid(inv.getPartyId(), amount, true);
+    }
+
+    @Override
+    @Transactional
+    public BigDecimal applyCredit(UUID invoiceId, BigDecimal amount) {
+        Invoice inv = invoices.lockById(invoiceId)
+                .orElseThrow(() -> NotFoundException.of("entity.invoice", invoiceId));
+        BigDecimal imputed = amount.min(inv.getBalance()).max(BigDecimal.ZERO);
+        if (imputed.signum() == 0) return BigDecimal.ZERO;
+        inv.setBalance(inv.getBalance().subtract(imputed));
+        if (inv.getBalance().compareTo(BigDecimal.ZERO) == 0) {
+            inv.setStatus(InvoiceStatus.PAID);
+        } else if (inv.getBalance().compareTo(inv.getTotal()) < 0) {
+            inv.setStatus(InvoiceStatus.PARTIAL);
+        }
+        balanceOps.addToPaid(inv.getPartyId(), imputed, true);
+        return imputed;
     }
 
     @Override
@@ -415,47 +440,189 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
         }));
     }
 
-    /**
-     * Cancel an unpaid invoice. Reverses the invoiced amount on the customer balance
-     * so the customer is no longer expected to pay it. Refuses to cancel anything
-     * already paid (PARTIAL/PAID) — those must go through a credit note instead.
-     */
-    @Transactional
-    public SalesDto.InvoiceDto cancelInvoice(UUID id) {
-        Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));
-        if (inv.getStatus() == InvoiceStatus.CANCELLED) {
-            String name = customerLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
-            return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id), name);
-        }
-        if (inv.getStatus() == InvoiceStatus.PAID || inv.getStatus() == InvoiceStatus.PARTIAL) {
-            throw new BusinessException("error.sales.invoice_already_paid",
-                    Map.of("status", inv.getStatus().name()));
-        }
-        balanceOps.addToInvoiced(inv.getPartyId(), inv.getTotal().negate());
-        inv.setStatus(InvoiceStatus.CANCELLED);
-        String name = customerLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
-        return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id), name);
-    }
+    // Invoice cancellation has been removed: annulation now flows through a credit
+    // note covering the relevant lines. The CANCELLED enum value is kept for legacy
+    // rows already in that state.
 
     // ── Credit notes ─────────────────────────────────────────────────────────
 
     @Transactional
-    public SalesDto.CreditNoteDto createCreditNote(SalesDto.CreateCreditNoteRequest req) {
-        Invoice inv = invoices.findById(req.invoiceId())
-                .orElseThrow(() -> NotFoundException.of("entity.invoice", req.invoiceId()));
+    public SalesDto.CreditNoteDto createCreditNote(UUID invoiceId, SalesDto.CreateCreditNoteRequest req) {
+        Invoice inv = invoices.findById(invoiceId)
+                .orElseThrow(() -> NotFoundException.of("entity.invoice", invoiceId));
+        if (inv.getStatus() == InvoiceStatus.CANCELLED) {
+            throw new BusinessException("error.creditnote.invoice_cancelled",
+                    Map.of("invoiceId", inv.getId(), "invoiceNumber", inv.getNumber()));
+        }
+        if (req.lines() == null || req.lines().isEmpty()) {
+            throw new BusinessException("error.creditnote.no_lines", Map.of());
+        }
+
+        List<InvoiceLine> invLines = invoiceLines.findByInvoiceIdOrderByLineNumberAsc(invoiceId);
+        Map<UUID, InvoiceLine> invLineById = invLines.stream()
+                .collect(java.util.stream.Collectors.toMap(InvoiceLine::getId, l -> l));
+
+        Map<UUID, BigDecimal> alreadyCreditedByLine = aggregateAlreadyCreditedByLine(invoiceId);
+        Map<UUID, BigDecimal> alreadyReturnedByProduct = aggregateAlreadyReturnedByProduct(invoiceId);
+        Map<UUID, BigDecimal> deliveredByProduct = inv.getOrderId() == null
+                ? Map.of()
+                : aggregateDeliveredByProduct(inv.getOrderId());
+
+        // Guard #2 — invoice fully credited already (every line max_creditable == 0)
+        boolean anyRoom = invLines.stream().anyMatch(l ->
+                l.getQuantity()
+                        .subtract(alreadyCreditedByLine.getOrDefault(l.getId(), BigDecimal.ZERO))
+                        .signum() > 0);
+        if (!anyRoom) {
+            throw new BusinessException("error.creditnote.invoice_fully_credited",
+                    Map.of("invoiceId", inv.getId(), "invoiceNumber", inv.getNumber()));
+        }
+
         String number = numbering.next(DocumentType.CREDIT_NOTE);
         CreditNote cn = CreditNote.builder()
                 .number(number)
-                .invoiceId(req.invoiceId())
+                .invoiceId(invoiceId)
                 .partyId(inv.getPartyId())
                 .issueDate(LocalDate.now())
                 .reason(req.reason())
-                .amount(req.amount())
                 .currency(inv.getCurrency())
                 .status(CreditNoteStatus.ISSUED)
                 .build();
         creditNotes.save(cn);
+
+        UUID warehouseId = inv.getOrderId() == null ? null : resolveReturnWarehouseId(inv.getOrderId());
+
+        // Track returns per product (line-level returnedToStockQty); seed with already-returned values.
+        Map<UUID, BigDecimal> returnedThisCn = new HashMap<>();
+        BigDecimal subtotalHt = BigDecimal.ZERO;
+        int lineNo = 1;
+        for (SalesDto.CreateCreditNoteLine lr : req.lines()) {
+            if (lr.quantity() == null || lr.quantity().signum() <= 0) continue;
+            InvoiceLine il = invLineById.get(lr.invoiceLineId());
+            if (il == null) {
+                throw new BusinessException("error.creditnote.line_not_found",
+                        Map.of("invoiceLineId", lr.invoiceLineId()));
+            }
+            BigDecimal alreadyCredited = alreadyCreditedByLine.getOrDefault(il.getId(), BigDecimal.ZERO);
+            BigDecimal maxCreditable = il.getQuantity().subtract(alreadyCredited);
+            if (lr.quantity().compareTo(maxCreditable) > 0) {
+                throw new BusinessException("error.creditnote.line_exceeds_invoiced",
+                        Map.of("invoiceLineId", il.getId(),
+                                "requested", lr.quantity(), "max", maxCreditable));
+            }
+
+            BigDecimal discFactor = BigDecimal.ONE.subtract(
+                    il.getDiscountPercent().divide(BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP));
+            BigDecimal lineTotal = il.getUnitPrice().multiply(lr.quantity())
+                    .multiply(discFactor).setScale(2, RoundingMode.HALF_UP);
+
+            // Compute stock-return portion: bounded by (delivered - already-returned for this product).
+            BigDecimal alreadyReturned = alreadyReturnedByProduct.getOrDefault(il.getProductId(), BigDecimal.ZERO)
+                    .add(returnedThisCn.getOrDefault(il.getProductId(), BigDecimal.ZERO));
+            BigDecimal delivered = deliveredByProduct.getOrDefault(il.getProductId(), BigDecimal.ZERO);
+            BigDecimal remainingDeliveredCap = delivered.subtract(alreadyReturned).max(BigDecimal.ZERO);
+            BigDecimal stockReturnQty = lr.quantity().min(remainingDeliveredCap);
+
+            if (stockReturnQty.signum() > 0) {
+                if (warehouseId == null) {
+                    throw new BusinessException("error.creditnote.warehouse_missing",
+                            Map.of("creditNoteId", cn.getId()));
+                }
+                stockOps.receive(warehouseId, il.getProductId(), stockReturnQty,
+                        il.getUnitPrice(), StockMovementType.SALE_RETURN,
+                        "CREDIT_NOTE", cn.getId(), cn.getNumber(),
+                        "Credit note " + cn.getNumber(), null);
+                returnedThisCn.merge(il.getProductId(), stockReturnQty, BigDecimal::add);
+            }
+
+            CreditNoteLine cnl = CreditNoteLine.builder()
+                    .creditNoteId(cn.getId())
+                    .lineNumber(lineNo++)
+                    .invoiceLineId(il.getId())
+                    .productId(il.getProductId())
+                    .uomId(il.getUomId())
+                    .quantity(lr.quantity())
+                    .unitPrice(il.getUnitPrice())
+                    .discountPercent(il.getDiscountPercent())
+                    .taxRate(il.getTaxRate())
+                    .lineTotal(lineTotal)
+                    .returnedToStockQty(stockReturnQty)
+                    .snapshotName(il.getSnapshotName())
+                    .snapshotSku(il.getSnapshotSku())
+                    .build();
+            creditNoteLines.save(cnl);
+            subtotalHt = subtotalHt.add(lineTotal);
+        }
+
+        // Tax allocation: proportional to the original invoice's tax-on-subtotal ratio.
+        BigDecimal taxAmount = BigDecimal.ZERO;
+        if (inv.getSubtotal().signum() > 0 && inv.getTaxAmount().signum() > 0) {
+            taxAmount = subtotalHt
+                    .multiply(inv.getTaxAmount())
+                    .divide(inv.getSubtotal(), 2, RoundingMode.HALF_UP);
+        }
+        BigDecimal total = subtotalHt.add(taxAmount);
+        cn.setSubtotal(subtotalHt);
+        cn.setTaxAmount(taxAmount);
+        cn.setTotal(total);
+        cn.setAmount(total); // legacy column mirrors total
+
+        // Apply to invoice balance, surplus → customer credit.
+        BigDecimal imputed = applyCredit(inv.getId(), total);
+        BigDecimal surplus = total.subtract(imputed);
+        if (surplus.signum() > 0) {
+            customerCreditOps.grantCredit(inv.getPartyId(), surplus, "REFUND",
+                    "Credit note " + cn.getNumber());
+        }
+        cn.setAppliedToInvoiceId(inv.getId());
+        cn.setStatus(CreditNoteStatus.APPLIED);
+
         return toCreditNoteDto(cn);
+    }
+
+    private Map<UUID, BigDecimal> aggregateAlreadyCreditedByLine(UUID invoiceId) {
+        Map<UUID, BigDecimal> map = new HashMap<>();
+        for (Object[] row : creditNoteLines.sumQuantityByInvoiceLine(invoiceId)) {
+            map.put((UUID) row[0], (BigDecimal) row[1]);
+        }
+        return map;
+    }
+
+    private Map<UUID, BigDecimal> aggregateAlreadyReturnedByProduct(UUID invoiceId) {
+        Map<UUID, BigDecimal> map = new HashMap<>();
+        for (Object[] row : creditNoteLines.sumReturnedByProduct(invoiceId)) {
+            map.put((UUID) row[0], (BigDecimal) row[1]);
+        }
+        return map;
+    }
+
+    private Map<UUID, BigDecimal> aggregateDeliveredByProduct(UUID orderId) {
+        // Cross-module read: delivered quantities live in the delivery module's tables.
+        // A direct JDBC read keeps sales free of a compile-time dep on delivery.
+        UUID tenant = TenantContext.require();
+        Map<UUID, BigDecimal> map = new HashMap<>();
+        jdbc.query("""
+                SELECT dl.product_id, COALESCE(SUM(dl.quantity_delivered), 0)
+                FROM delivery_lines dl
+                JOIN deliveries d ON d.id = dl.delivery_id AND d.tenant_id = dl.tenant_id
+                WHERE d.tenant_id = ? AND d.order_id = ? AND d.status <> 'CANCELLED'
+                GROUP BY dl.product_id
+                """, rs -> {
+            map.put(rs.getObject(1, UUID.class), rs.getBigDecimal(2));
+        }, tenant, orderId);
+        return map;
+    }
+
+    private UUID resolveReturnWarehouseId(UUID orderId) {
+        UUID tenant = TenantContext.require();
+        List<UUID> ids = jdbc.query("""
+                SELECT d.warehouse_id FROM deliveries d
+                WHERE d.tenant_id = ? AND d.order_id = ? AND d.status <> 'CANCELLED'
+                  AND d.warehouse_id IS NOT NULL
+                ORDER BY d.created_at ASC LIMIT 1
+                """, (rs, i) -> rs.getObject(1, UUID.class), tenant, orderId);
+        if (!ids.isEmpty()) return ids.get(0);
+        return stockOps.findDefaultWarehouseId().orElse(null);
     }
 
     @Transactional(readOnly = true)
@@ -464,6 +631,48 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
                 ? creditNotes.findByPartyId(customerId, pageable)
                 : creditNotes.findAll(pageable);
         return PageResponse.of(page.map(this::toCreditNoteDto));
+    }
+
+    @Transactional(readOnly = true)
+    public SalesDto.CreditNoteDto getCreditNote(UUID id) {
+        CreditNote cn = creditNotes.findById(id)
+                .orElseThrow(() -> NotFoundException.of("entity.credit_note", id));
+        return toCreditNoteDto(cn);
+    }
+
+    @Transactional(readOnly = true)
+    public SalesDto.CreditableInvoiceDto getCreditableInvoice(UUID invoiceId) {
+        Invoice inv = invoices.findById(invoiceId)
+                .orElseThrow(() -> NotFoundException.of("entity.invoice", invoiceId));
+        List<InvoiceLine> lines = invoiceLines.findByInvoiceIdOrderByLineNumberAsc(invoiceId);
+        Map<UUID, BigDecimal> alreadyCredited = aggregateAlreadyCreditedByLine(invoiceId);
+        String customerName = customerLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
+        List<SalesDto.CreditableLineDto> lineDtos = lines.stream().map(l -> {
+            BigDecimal already = alreadyCredited.getOrDefault(l.getId(), BigDecimal.ZERO);
+            BigDecimal max = l.getQuantity().subtract(already).max(BigDecimal.ZERO);
+            return new SalesDto.CreditableLineDto(
+                    l.getId(), l.getProductId(),
+                    l.getSnapshotName(), l.getSnapshotSku(), l.getUomId(),
+                    l.getQuantity(), already, max,
+                    l.getUnitPrice(), l.getDiscountPercent(), l.getTaxRate());
+        }).toList();
+        return new SalesDto.CreditableInvoiceDto(
+                inv.getId(), inv.getNumber(),
+                inv.getPartyId(), customerName,
+                inv.getCurrency(),
+                inv.getSubtotal(), inv.getTaxAmount(), inv.getTotal(),
+                lineDtos);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] generateCreditNotePdf(UUID id) {
+        CreditNote cn = creditNotes.findById(id)
+                .orElseThrow(() -> NotFoundException.of("entity.credit_note", id));
+        PartnerSummary customer = customerLookup.findById(cn.getPartyId()).orElse(null);
+        List<CreditNoteLine> lines = creditNoteLines.findByCreditNoteIdOrderByLineNumberAsc(id);
+        Invoice inv = invoices.findById(cn.getInvoiceId()).orElse(null);
+        Map<String, Object> vars = buildCreditNoteVars(cn, lines, customer, inv);
+        return renderer.renderPdf(PdfRenderRequest.of("credit-note", vars));
     }
 
     // ── PDF generation ───────────────────────────────────────────────────────
@@ -638,9 +847,25 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
     }
 
     private SalesDto.CreditNoteDto toCreditNoteDto(CreditNote cn) {
-        return new SalesDto.CreditNoteDto(cn.getId(), cn.getNumber(), cn.getInvoiceId(),
-                cn.getPartyId(), cn.getIssueDate(), cn.getReason(), cn.getAmount(),
-                cn.getStatus().name(), cn.getCurrency(), cn.getCreatedAt());
+        String invoiceNumber = invoices.findById(cn.getInvoiceId())
+                .map(Invoice::getNumber).orElse("");
+        String customerName = customerLookup.findById(cn.getPartyId())
+                .map(PartnerSummary::name).orElse("");
+        List<SalesDto.CreditNoteLineDto> lineDtos = creditNoteLines
+                .findByCreditNoteIdOrderByLineNumberAsc(cn.getId()).stream()
+                .map(l -> new SalesDto.CreditNoteLineDto(
+                        l.getId(), l.getInvoiceLineId(), l.getProductId(), l.getUomId(),
+                        l.getQuantity(), l.getUnitPrice(), l.getDiscountPercent(), l.getTaxRate(),
+                        l.getLineTotal(), l.getReturnedToStockQty(),
+                        l.getSnapshotName(), l.getSnapshotSku()))
+                .toList();
+        return new SalesDto.CreditNoteDto(cn.getId(), cn.getNumber(),
+                cn.getInvoiceId(), invoiceNumber,
+                cn.getPartyId(), customerName,
+                cn.getIssueDate(), cn.getReason(),
+                cn.getSubtotal(), cn.getTaxAmount(), cn.getTotal(),
+                cn.getStatus().name(), cn.getCurrency(),
+                lineDtos, cn.getCreatedAt());
     }
 
     private InvoiceSummary toInvoiceSummary(Invoice inv) {
@@ -672,6 +897,31 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
                 inv.getSubtotal(), inv.getDiscountAmount(), inv.getTaxAmount(),
                 inv.getTotal(), inv.getPaidAmount(), inv.getBalance(),
                 inv.getCurrency(), inv.getPaymentTerms(), inv.getNotes(), linesModel));
+        vars.put("customer", new CustomerModel(
+                customer != null ? customer.name() : "",
+                customer != null ? customer.address() : "",
+                customer != null ? customer.phone() : "",
+                customer != null ? customer.email() : ""));
+        return vars;
+    }
+
+    private Map<String, Object> buildCreditNoteVars(CreditNote cn, List<CreditNoteLine> lines,
+                                                    PartnerSummary customer, Invoice originalInvoice) {
+        record LineModel(String productName, String sku, BigDecimal quantity, BigDecimal unitPrice,
+                         BigDecimal discountPercent, BigDecimal taxRate, BigDecimal lineTotal) {}
+        record CreditNoteModel(String number, LocalDate issueDate, String reason,
+                               BigDecimal subtotal, BigDecimal taxAmount, BigDecimal total,
+                               String currency, String invoiceNumber, List<LineModel> lines) {}
+        record CustomerModel(String name, String address, String phone, String email) {}
+        var lm = lines.stream().map(l -> new LineModel(l.getSnapshotName(), l.getSnapshotSku(),
+                l.getQuantity(), l.getUnitPrice(), l.getDiscountPercent(), l.getTaxRate(),
+                l.getLineTotal())).toList();
+        Map<String, Object> vars = new HashMap<>(brandingVars());
+        vars.put("creditNote", new CreditNoteModel(cn.getNumber(), cn.getIssueDate(), cn.getReason(),
+                cn.getSubtotal(), cn.getTaxAmount(), cn.getTotal(),
+                cn.getCurrency(),
+                originalInvoice != null ? originalInvoice.getNumber() : "",
+                lm));
         vars.put("customer", new CustomerModel(
                 customer != null ? customer.name() : "",
                 customer != null ? customer.address() : "",

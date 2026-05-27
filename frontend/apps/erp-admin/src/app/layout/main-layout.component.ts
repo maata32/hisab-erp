@@ -133,6 +133,7 @@ export class MainLayoutComponent {
     { label: 'nav.quotes', icon: 'pi pi-file', path: '/quotes', permission: 'sales:read' },
     { label: 'nav.orders', icon: 'pi pi-shopping-cart', path: '/orders', permission: 'sales:read' },
     { label: 'nav.invoices', icon: 'pi pi-receipt', path: '/invoices', permission: 'sales:read' },
+    { label: 'nav.creditNotes', icon: 'pi pi-replay', path: '/credit-notes', permission: 'sales:read' },
     { label: 'nav.deliveries', icon: 'pi pi-truck', path: '/deliveries', permission: 'delivery:read' },
     { label: 'nav.payments', icon: 'pi pi-credit-card', path: '/payments', permission: 'payment:read' },
 

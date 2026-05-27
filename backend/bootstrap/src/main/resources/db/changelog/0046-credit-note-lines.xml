@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Credit notes become line-based: each NC mirrors invoice lines it credits.
+        New aggregates on credit_notes (subtotal/tax/total) match invoices. The
+        legacy `amount` column is kept and mirrors `total` for new records so
+        already-issued flat NCs keep rendering.
+    -->
+
+    <changeSet id="0046-credit-notes-totals" author="mini-erp">
+        <addColumn tableName="credit_notes">
+            <column name="subtotal" type="numeric(19,2)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_amount" type="numeric(19,2)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total" type="numeric(19,2)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <sql>
+            UPDATE credit_notes SET total = amount, subtotal = amount WHERE total = 0 AND amount > 0;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0046-credit-note-lines" author="mini-erp">
+        <createTable tableName="credit_note_lines">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="credit_note_id" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="line_number" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="invoice_line_id" type="uuid"/>
+            <column name="product_id" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="uom_id" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quantity" type="numeric(19,6)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit_price" type="numeric(19,4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="discount_percent" type="numeric(5,2)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_rate" type="numeric(5,4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="line_total" type="numeric(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="returned_to_stock_qty" type="numeric(19,6)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="snapshot_name" type="varchar(250)"/>
+            <column name="snapshot_sku" type="varchar(64)"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="credit_note_lines" baseColumnNames="credit_note_id"
+                                 referencedTableName="credit_notes" referencedColumnNames="id"
+                                 onDelete="CASCADE"
+                                 constraintName="fk_credit_note_lines_note"/>
+        <createIndex tableName="credit_note_lines" indexName="idx_credit_note_lines_note">
+            <column name="credit_note_id"/>
+        </createIndex>
+        <createIndex tableName="credit_note_lines" indexName="idx_credit_note_lines_invoice_line">
+            <column name="invoice_line_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
