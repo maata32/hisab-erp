@@ -1,11 +1,12 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { TranslateModule } from '@ngx-translate/core';
-import { TableModule } from 'primeng/table';
+import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { LoadingSpinnerComponent, EmptyStateComponent } from '@minierp/shared-ui';
 import { PageResponse } from '@minierp/shared-api';
+import { firstValueFrom } from 'rxjs';
 
 interface AuditRow {
   id: string;
@@ -30,20 +31,20 @@ interface AuditRow {
       <p class="text-gray-600 mt-1">{{ 'audit.subtitle' | translate }}</p>
     </header>
 
-    @if (loading()) {
+    @if (loading() && total() === 0) {
       <me-loading-spinner [label]="'common.loading' | translate" />
-    } @else if (rows().length === 0) {
+    } @else if (total() === 0) {
       <me-empty-state
         icon="pi pi-shield"
         [title]="'audit.empty.title' | translate"
       />
     } @else {
-      <p-table
+      <p-table #table
         [value]="rows()"
-        [paginator]="true"
-        [rows]="50"
-        responsiveLayout="stack"
-        breakpoint="768px"
+        [lazy]="true" (onLazyLoad)="loadChunk($event)"
+        [totalRecords]="total()" [rows]="pageSize"
+        [scrollable]="true" scrollHeight="600px"
+        [virtualScroll]="true" [virtualScrollItemSize]="48"
         styleClass="bg-white rounded-lg border border-gray-200"
       >
         <ng-template pTemplate="header">
@@ -70,18 +71,37 @@ interface AuditRow {
 })
 export class AuditLogPage implements OnInit {
   private readonly http = inject(HttpClient);
+  @ViewChild('table') private table?: Table;
+  protected readonly pageSize = 50;
+  protected readonly total = signal(0);
   protected readonly loading = signal(true);
   protected readonly rows = signal<AuditRow[]>([]);
 
   ngOnInit(): void {
-    this.http
-      .get<PageResponse<AuditRow>>('/api/v1/audit?page=0&size=50')
-      .subscribe({
-        next: (page) => {
-          this.rows.set(page.content);
-          this.loading.set(false);
-        },
-        error: () => this.loading.set(false),
-      });
+    // Rows fetched on demand via the p-table's onLazyLoad.
+  }
+
+  protected async loadChunk(event: TableLazyLoadEvent) {
+    const first = event.first ?? 0;
+    const rows = event.rows ?? this.pageSize;
+    const page = Math.floor(first / rows);
+    this.loading.set(true);
+    try {
+      const res = await firstValueFrom(
+        this.http.get<PageResponse<AuditRow>>(`/api/v1/audit?page=${page}&size=${rows}`)
+      );
+      const items = res.content ?? [];
+      const totalElements = res.totalElements ?? items.length;
+      const arr = first === 0 ? new Array(totalElements) : [...this.rows()];
+      arr.length = totalElements;
+      for (let i = 0; i < items.length; i++) arr[first + i] = items[i];
+      this.rows.set(arr);
+      this.total.set(totalElements);
+    } catch {
+      this.rows.set([]);
+      this.total.set(0);
+    } finally {
+      this.loading.set(false);
+    }
   }
 }

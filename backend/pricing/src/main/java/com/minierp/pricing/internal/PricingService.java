@@ -6,6 +6,7 @@ import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.ConflictException;
 import com.minierp.shared.error.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +25,8 @@ public class PricingService {
 
     @Transactional(readOnly = true)
     public List<PriceTierDto> listTiers() {
-        return tiers.findAll().stream().map(this::toTierDto).toList();
+        return tiers.findAll(Sort.by(Sort.Direction.DESC, "createdAt"))
+                .stream().map(this::toTierDto).toList();
     }
 
     @Transactional

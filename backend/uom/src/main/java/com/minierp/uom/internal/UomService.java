@@ -7,6 +7,7 @@ import com.minierp.uom.api.UomCategoryDto;
 import com.minierp.uom.api.UomDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +25,7 @@ public class UomService {
 
     @Transactional(readOnly = true)
     public List<UomCategoryDto> listCategories() {
-        return categories.findAll().stream()
+        return categories.findAll(Sort.by(Sort.Direction.DESC, "createdAt")).stream()
                 .map(c -> new UomCategoryDto(c.getId(), c.getCode(), c.getName()))
                 .toList();
     }
@@ -33,7 +34,7 @@ public class UomService {
     public List<UomDto> listAll() {
         var byCategoryId = categories.findAll().stream()
                 .collect(java.util.stream.Collectors.toMap(UomCategory::getId, c -> c));
-        return uoms.findAll().stream()
+        return uoms.findAll(Sort.by(Sort.Direction.DESC, "createdAt")).stream()
                 .map(u -> {
                     var c = byCategoryId.get(u.getCategoryId());
                     return new UomDto(u.getId(), u.getCategoryId(),

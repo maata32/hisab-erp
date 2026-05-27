@@ -1,9 +1,9 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
 import { HttpClient } from '@angular/common/http';
-import { TableModule } from 'primeng/table';
+import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -46,7 +46,11 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
       </header>
 
       <div class="bg-white rounded-lg border border-gray-200 p-4">
-        <p-table [value]="transfers()" [loading]="loading()" stripedRows responsiveLayout="scroll"
+        <p-table #table [value]="transfers()" [loading]="loading()" stripedRows
+                 [lazy]="true" (onLazyLoad)="loadChunk($event)"
+                 [totalRecords]="total()" [rows]="pageSize"
+                 [scrollable]="true" scrollHeight="600px"
+                 [virtualScroll]="true" [virtualScrollItemSize]="48"
                  [rowHover]="true" styleClass="p-datatable-sm">
           <ng-template pTemplate="header">
             <tr>
@@ -135,6 +139,9 @@ export class StockTransferListPage implements OnInit {
 
   protected transfers = signal<StockTransfer[]>([]);
   protected warehouses = signal<WarehouseLite[]>([]);
+  @ViewChild('table') private table?: Table;
+  protected readonly pageSize = 50;
+  protected total = signal(0);
   protected loading = signal(true);
   protected saving = signal(false);
   protected submitted = signal(false);
@@ -147,7 +154,7 @@ export class StockTransferListPage implements OnInit {
 
   ngOnInit() {
     this.loadWarehouses();
-    this.load();
+    // Transfers are fetched on demand via the p-table's onLazyLoad.
   }
 
   protected statusSeverity(s: string): Severity {
@@ -183,29 +190,50 @@ export class StockTransferListPage implements OnInit {
         lines: [],
       }));
       this.dialogOpen = false;
-      this.load();
+      this.reload();
     } finally { this.saving.set(false); }
   }
 
   protected async execute(id: string) {
     await firstValueFrom(this.http.post(`/api/v1/inventory/stock-transfers/${id}/execute`, {}));
-    this.load();
+    this.reload();
   }
 
   protected async cancelTransfer(id: string) {
     await firstValueFrom(this.http.post(`/api/v1/inventory/stock-transfers/${id}/cancel`, {}));
-    this.load();
+    this.reload();
   }
 
-  private async load() {
+  protected async loadChunk(event: TableLazyLoadEvent) {
+    const first = event.first ?? 0;
+    const rows = event.rows ?? this.pageSize;
+    const page = Math.floor(first / rows);
     this.loading.set(true);
     try {
-      const list = await firstValueFrom(
-        this.http.get<StockTransfer[]>('/api/v1/inventory/stock-transfers')
+      const res = await firstValueFrom(
+        this.http.get<{ content: StockTransfer[]; totalElements: number }>(
+          `/api/v1/inventory/stock-transfers?page=${page}&size=${rows}`
+        )
       );
-      this.transfers.set(list ?? []);
-    } catch { this.transfers.set([]); }
-    finally { this.loading.set(false); }
+      const items = res.content ?? [];
+      const totalElements = res.totalElements ?? items.length;
+      const arr = first === 0 ? new Array(totalElements) : [...this.transfers()];
+      arr.length = totalElements;
+      for (let i = 0; i < items.length; i++) arr[first + i] = items[i];
+      this.transfers.set(arr);
+      this.total.set(totalElements);
+    } catch {
+      this.transfers.set([]);
+      this.total.set(0);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  protected reload() {
+    this.transfers.set([]);
+    this.total.set(0);
+    this.table?.reset();
   }
 
   private async loadWarehouses() {

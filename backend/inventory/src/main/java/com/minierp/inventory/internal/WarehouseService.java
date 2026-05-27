@@ -4,6 +4,7 @@ import com.minierp.inventory.api.WarehouseDto;
 import com.minierp.shared.error.ConflictException;
 import com.minierp.shared.error.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,7 +20,8 @@ public class WarehouseService {
 
     @Transactional(readOnly = true)
     public List<WarehouseDto> list() {
-        return warehouses.findAll().stream().map(this::toDto).toList();
+        return warehouses.findAll(Sort.by(Sort.Direction.DESC, "createdAt"))
+                .stream().map(this::toDto).toList();
     }
 
     @Transactional(readOnly = true)

@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -29,8 +30,9 @@ public class OrganizationController {
     @Operation(summary = "List all organizations (super-admin)")
     public PageResponse<OrganizationDto> list(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return service.list(PageRequest.of(page, Math.min(size, 100)));
+            @RequestParam(defaultValue = "50") int size) {
+        return service.list(PageRequest.of(page, Math.min(size, 100),
+                Sort.by(Sort.Direction.DESC, "createdAt")));
     }
 
     @PostMapping
