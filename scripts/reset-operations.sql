@@ -34,6 +34,7 @@ TRUNCATE TABLE
     sales,
     invoice_lines,
     invoices,
+    credit_note_lines,
     credit_notes,
     order_lines,
     orders,
