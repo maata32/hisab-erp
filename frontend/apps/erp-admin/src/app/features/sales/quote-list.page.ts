@@ -1,10 +1,10 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MoneyPipe } from '@minierp/shared-i18n';
 import { HttpClient } from '@angular/common/http';
-import { TableModule } from 'primeng/table';
+import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -81,7 +81,11 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
       </header>
 
       <div class="bg-white rounded-lg border border-gray-200 p-4">
-        <p-table [value]="quotes()" [loading]="loading()" stripedRows responsiveLayout="scroll"
+        <p-table #table [value]="quotes()" [loading]="loading()" stripedRows
+                 [lazy]="true" (onLazyLoad)="loadChunk($event)"
+                 [totalRecords]="total()" [rows]="pageSize"
+                 [scrollable]="true" scrollHeight="600px"
+                 [virtualScroll]="true" [virtualScrollItemSize]="48"
                  [rowHover]="true" styleClass="p-datatable-sm">
           <ng-template pTemplate="header">
             <tr>
@@ -289,6 +293,9 @@ export class QuoteListPage implements OnInit {
     if (!arr || arr.length === 0) return false;
     return arr.every(n => n <= 0);
   }
+  @ViewChild('table') private table?: Table;
+  protected readonly pageSize = 50;
+  protected total = signal(0);
   protected loading = signal(true);
   protected saving = signal(false);
   protected submitted = signal(false);
@@ -314,7 +321,7 @@ export class QuoteListPage implements OnInit {
   };
 
   ngOnInit() {
-    this.load();
+    // Quotes are loaded on demand by the p-table's lazy load (onLazyLoad).
     this.loadCustomers();
     this.loadProducts();
   }
@@ -365,10 +372,10 @@ export class QuoteListPage implements OnInit {
         try {
           await firstValueFrom(this.http.patch(`/api/v1/quotes/${q.id}/status?status=${status}`, {}));
         } finally {
-          this.load();
+          this.reload();
         }
       },
-      reject: () => this.load(),
+      reject: () => this.reload(),
     });
   }
 
@@ -380,7 +387,7 @@ export class QuoteListPage implements OnInit {
       accept: async () => {
         try {
           await firstValueFrom(this.http.post(`/api/v1/quotes/${q.id}/convert-to-order?deliveryRequired=false`, {}));
-          this.load();
+          this.reload();
         } catch {
           /* error reported by global handler */
         }
@@ -473,7 +480,7 @@ export class QuoteListPage implements OnInit {
       };
       await firstValueFrom(this.http.post('/api/v1/quotes', payload));
       this.dialogOpen = false;
-      this.load();
+      this.reload();
     } finally {
       this.saving.set(false);
     }
@@ -486,16 +493,37 @@ export class QuoteListPage implements OnInit {
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  private async load() {
+  protected async loadChunk(event: TableLazyLoadEvent) {
+    const first = event.first ?? 0;
+    const rows = event.rows ?? this.pageSize;
+    const page = Math.floor(first / rows);
     this.loading.set(true);
     try {
-      const res = await firstValueFrom(this.http.get<{ content: Quote[] }>('/api/v1/quotes'));
-      this.quotes.set(res.content ?? []);
+      const res = await firstValueFrom(
+        this.http.get<{ content: Quote[]; totalElements: number }>(
+          `/api/v1/quotes?page=${page}&size=${rows}`
+        )
+      );
+      const items = res.content ?? [];
+      const totalElements = res.totalElements ?? items.length;
+      const arr = first === 0 ? new Array(totalElements) : [...this.quotes()];
+      arr.length = totalElements;
+      for (let i = 0; i < items.length; i++) arr[first + i] = items[i];
+      this.quotes.set(arr);
+      this.total.set(totalElements);
     } catch {
       this.quotes.set([]);
+      this.total.set(0);
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /** Reset the list so the next onLazyLoad refetches from offset 0. */
+  protected reload() {
+    this.quotes.set([]);
+    this.total.set(0);
+    this.table?.reset();
   }
 
   private async loadCustomers() {

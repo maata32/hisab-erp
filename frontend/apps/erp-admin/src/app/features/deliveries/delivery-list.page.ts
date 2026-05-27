@@ -1,10 +1,10 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ConfirmationService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
-import { TableModule } from 'primeng/table';
+import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -92,7 +92,11 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
       </header>
 
       <div class="bg-white rounded-lg border border-gray-200 p-4">
-        <p-table [value]="deliveries()" [loading]="loading()" stripedRows responsiveLayout="scroll"
+        <p-table #table [value]="deliveries()" [loading]="loading()" stripedRows
+                 [lazy]="true" (onLazyLoad)="loadChunk($event)"
+                 [totalRecords]="total()" [rows]="pageSize"
+                 [scrollable]="true" scrollHeight="600px"
+                 [virtualScroll]="true" [virtualScrollItemSize]="48"
                  [rowHover]="true" styleClass="p-datatable-sm">
           <ng-template pTemplate="header">
             <tr>
@@ -308,6 +312,9 @@ export class DeliveryListPage implements OnInit {
   protected deliveries = signal<Delivery[]>([]);
   protected orders = signal<OrderLite[]>([]);
   protected warehouses = signal<WarehouseLite[]>([]);
+  @ViewChild('table') private table?: Table;
+  protected readonly pageSize = 50;
+  protected total = signal(0);
   protected loading = signal(true);
   protected saving = signal(false);
   protected submittedCreate = signal(false);
@@ -342,7 +349,7 @@ export class DeliveryListPage implements OnInit {
   } = { deliveryId: null, signedBy: '', notes: '', lines: [] };
 
   ngOnInit() {
-    this.load();
+    // auto-loaded by p-table lazy
     this.loadOrders();
     this.loadWarehouses();
   }
@@ -455,7 +462,7 @@ export class DeliveryListPage implements OnInit {
       };
       await firstValueFrom(this.http.post('/api/v1/deliveries', payload));
       this.createOpen = false;
-      this.load();
+      this.reload();
     } finally {
       this.saving.set(false);
     }
@@ -495,7 +502,7 @@ export class DeliveryListPage implements OnInit {
         notes: this.recordForm.notes || null,
       }));
       this.recordOpen = false;
-      this.load();
+      this.reload();
     } finally {
       this.saving.set(false);
     }
@@ -511,7 +518,7 @@ export class DeliveryListPage implements OnInit {
         try {
           await firstValueFrom(this.http.post(`/api/v1/deliveries/${d.id}/cancel`, {}));
         } finally {
-          this.load();
+          this.reload();
         }
       },
     });
@@ -524,16 +531,36 @@ export class DeliveryListPage implements OnInit {
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  private async load() {
+  protected async loadChunk(event: TableLazyLoadEvent) {
+    const first = event.first ?? 0;
+    const rows = event.rows ?? this.pageSize;
+    const page = Math.floor(first / rows);
     this.loading.set(true);
     try {
-      const res = await firstValueFrom(this.http.get<{ content: Delivery[] }>('/api/v1/deliveries?size=200'));
-      this.deliveries.set(res.content ?? []);
+      const res = await firstValueFrom(
+        this.http.get<{ content: Delivery[]; totalElements: number }>(
+          `/api/v1/deliveries?size=200&page=${page}&size=${rows}`
+        )
+      );
+      const items = res.content ?? [];
+      const totalElements = res.totalElements ?? items.length;
+      const arr = first === 0 ? new Array(totalElements) : [...this.deliveries()];
+      arr.length = totalElements;
+      for (let i = 0; i < items.length; i++) arr[first + i] = items[i];
+      this.deliveries.set(arr);
+      this.total.set(totalElements);
     } catch {
       this.deliveries.set([]);
+      this.total.set(0);
     } finally {
       this.loading.set(false);
     }
+  }
+
+  protected reload() {
+    this.deliveries.set([]);
+    this.total.set(0);
+    this.table?.reset();
   }
 
   private async loadOrders() {

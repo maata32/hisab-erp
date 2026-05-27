@@ -1,9 +1,9 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
 import { HttpClient } from '@angular/common/http';
-import { TableModule } from 'primeng/table';
+import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -51,7 +51,11 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
       </header>
 
       <div class="bg-white rounded-lg border border-gray-200 p-4">
-        <p-table [value]="expenses()" [loading]="loading()" stripedRows responsiveLayout="scroll"
+        <p-table #table [value]="expenses()" [loading]="loading()" stripedRows
+                 [lazy]="true" (onLazyLoad)="loadChunk($event)"
+                 [totalRecords]="total()" [rows]="pageSize"
+                 [scrollable]="true" scrollHeight="600px"
+                 [virtualScroll]="true" [virtualScrollItemSize]="48"
                  [rowHover]="true" styleClass="p-datatable-sm">
           <ng-template pTemplate="header">
             <tr>
@@ -156,6 +160,9 @@ export class ExpenseListPage implements OnInit {
 
   protected expenses = signal<Expense[]>([]);
   protected categories = signal<Category[]>([]);
+  @ViewChild('table') private table?: Table;
+  protected readonly pageSize = 50;
+  protected total = signal(0);
   protected loading = signal(true);
   protected saving = signal(false);
   protected submitted = signal(false);
@@ -179,7 +186,7 @@ export class ExpenseListPage implements OnInit {
 
   ngOnInit() {
     this.loadCategories();
-    this.load();
+    // auto-loaded by p-table lazy
   }
 
   protected categoryName(id: string) { return this.categories().find(c => c.id === id)?.name ?? '—'; }
@@ -215,29 +222,50 @@ export class ExpenseListPage implements OnInit {
         notes: null,
       }));
       this.dialogOpen = false;
-      this.load();
+      this.reload();
     } finally { this.saving.set(false); }
   }
 
   protected async approve(id: string) {
     await firstValueFrom(this.http.post(`/api/v1/expenses/${id}/approve`, {}));
-    this.load();
+    this.reload();
   }
 
   protected async reject(id: string) {
     await firstValueFrom(this.http.post(`/api/v1/expenses/${id}/reject`, {}));
-    this.load();
+    this.reload();
   }
 
-  private async load() {
+  protected async loadChunk(event: TableLazyLoadEvent) {
+    const first = event.first ?? 0;
+    const rows = event.rows ?? this.pageSize;
+    const page = Math.floor(first / rows);
     this.loading.set(true);
     try {
       const res = await firstValueFrom(
-        this.http.get<{ content: Expense[] }>('/api/v1/expenses')
+        this.http.get<{ content: Expense[]; totalElements: number }>(
+          `/api/v1/expenses?page=${page}&size=${rows}`
+        )
       );
-      this.expenses.set(res.content ?? []);
-    } catch { this.expenses.set([]); }
-    finally { this.loading.set(false); }
+      const items = res.content ?? [];
+      const totalElements = res.totalElements ?? items.length;
+      const arr = first === 0 ? new Array(totalElements) : [...this.expenses()];
+      arr.length = totalElements;
+      for (let i = 0; i < items.length; i++) arr[first + i] = items[i];
+      this.expenses.set(arr);
+      this.total.set(totalElements);
+    } catch {
+      this.expenses.set([]);
+      this.total.set(0);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  protected reload() {
+    this.expenses.set([]);
+    this.total.set(0);
+    this.table?.reset();
   }
 
   private async loadCategories() {

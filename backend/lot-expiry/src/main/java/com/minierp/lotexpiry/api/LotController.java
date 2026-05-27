@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -28,7 +29,7 @@ public class LotController {
     public PageResponse<LotDto.LotResponse> list(
             @RequestParam(required = false) UUID productId,
             @RequestParam(required = false) UUID warehouseId,
-            @PageableDefault(size = 20) Pageable pageable) {
+            @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return PageResponse.of(service.listLots(productId, warehouseId, pageable));
     }
 
@@ -73,7 +74,7 @@ public class LotController {
     public PageResponse<LotDto.LotResponse> expiring(
             @RequestParam(defaultValue = "30") int days,
             @RequestParam(required = false) UUID warehouseId,
-            @PageableDefault(size = 50) Pageable pageable) {
+            @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return PageResponse.of(service.listExpiringWithin(days, warehouseId, pageable));
     }
 
@@ -82,7 +83,7 @@ public class LotController {
     @PreAuthorize("hasAuthority('lot:read')")
     public PageResponse<LotDto.LotResponse> expired(
             @RequestParam(required = false) UUID warehouseId,
-            @PageableDefault(size = 50) Pageable pageable) {
+            @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return PageResponse.of(service.listExpired(warehouseId, pageable));
     }
 

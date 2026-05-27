@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -33,7 +34,7 @@ public class InvoiceController {
     @PreAuthorize("hasAuthority('sales:read')")
     public PageResponse<SalesDto.InvoiceDto> list(
             @RequestParam(required = false) UUID customerId,
-            @PageableDefault(size = 20) Pageable pageable) {
+            @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return service.listInvoices(customerId, pageable);
     }
 
@@ -71,7 +72,7 @@ public class InvoiceController {
     @PreAuthorize("hasAuthority('sales:read')")
     public PageResponse<SalesDto.CreditNoteDto> listCreditNotes(
             @RequestParam(required = false) UUID customerId,
-            @PageableDefault(size = 20) Pageable pageable) {
+            @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return service.listCreditNotes(customerId, pageable);
     }
 }

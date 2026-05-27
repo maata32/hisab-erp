@@ -1,9 +1,9 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
 import { HttpClient } from '@angular/common/http';
-import { TableModule } from 'primeng/table';
+import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -44,7 +44,11 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
       </header>
 
       <div class="bg-white rounded-lg border border-gray-200 p-4">
-        <p-table [value]="counts()" [loading]="loading()" stripedRows responsiveLayout="scroll"
+        <p-table #table [value]="counts()" [loading]="loading()" stripedRows
+                 [lazy]="true" (onLazyLoad)="loadChunk($event)"
+                 [totalRecords]="total()" [rows]="pageSize"
+                 [scrollable]="true" scrollHeight="600px"
+                 [virtualScroll]="true" [virtualScrollItemSize]="48"
                  [rowHover]="true" styleClass="p-datatable-sm">
           <ng-template pTemplate="header">
             <tr>
@@ -123,6 +127,9 @@ export class InventoryCountListPage implements OnInit {
 
   protected counts = signal<InventoryCount[]>([]);
   protected warehouses = signal<WarehouseLite[]>([]);
+  @ViewChild('table') private table?: Table;
+  protected readonly pageSize = 50;
+  protected total = signal(0);
   protected loading = signal(true);
   protected saving = signal(false);
   protected submitted = signal(false);
@@ -135,7 +142,7 @@ export class InventoryCountListPage implements OnInit {
 
   ngOnInit() {
     this.loadWarehouses();
-    this.load();
+    // auto-loaded by p-table lazy
   }
 
   protected statusSeverity(s: string): Severity {
@@ -169,24 +176,45 @@ export class InventoryCountListPage implements OnInit {
         notes: this.form.notes || null,
       }));
       this.dialogOpen = false;
-      this.load();
+      this.reload();
     } finally { this.saving.set(false); }
   }
 
   protected async validateCount(id: string) {
     await firstValueFrom(this.http.post(`/api/v1/inventory/counts/${id}/validate`, {}));
-    this.load();
+    this.reload();
   }
 
-  private async load() {
+  protected async loadChunk(event: TableLazyLoadEvent) {
+    const first = event.first ?? 0;
+    const rows = event.rows ?? this.pageSize;
+    const page = Math.floor(first / rows);
     this.loading.set(true);
     try {
       const res = await firstValueFrom(
-        this.http.get<{ content: InventoryCount[] }>('/api/v1/inventory/counts')
+        this.http.get<{ content: InventoryCount[]; totalElements: number }>(
+          `/api/v1/inventory/counts?page=${page}&size=${rows}`
+        )
       );
-      this.counts.set(res?.content ?? []);
-    } catch { this.counts.set([]); }
-    finally { this.loading.set(false); }
+      const items = res.content ?? [];
+      const totalElements = res.totalElements ?? items.length;
+      const arr = first === 0 ? new Array(totalElements) : [...this.counts()];
+      arr.length = totalElements;
+      for (let i = 0; i < items.length; i++) arr[first + i] = items[i];
+      this.counts.set(arr);
+      this.total.set(totalElements);
+    } catch {
+      this.counts.set([]);
+      this.total.set(0);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  protected reload() {
+    this.counts.set([]);
+    this.total.set(0);
+    this.table?.reset();
   }
 
   private async loadWarehouses() {

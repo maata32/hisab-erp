@@ -1,10 +1,10 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
 import { MoneyPipe } from '@minierp/shared-i18n';
 import { HttpClient } from '@angular/common/http';
-import { TableModule } from 'primeng/table';
+import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { TooltipModule } from 'primeng/tooltip';
@@ -59,7 +59,11 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
       </header>
 
       <div class="bg-white rounded-lg border border-gray-200 p-4">
-        <p-table [value]="notes()" [loading]="loading()" stripedRows responsiveLayout="scroll"
+        <p-table #table [value]="notes()" [loading]="loading()" stripedRows
+                 [lazy]="true" (onLazyLoad)="loadChunk($event)"
+                 [totalRecords]="total()" [rows]="pageSize"
+                 [scrollable]="true" scrollHeight="600px"
+                 [virtualScroll]="true" [virtualScrollItemSize]="48"
                  [rowHover]="true" styleClass="p-datatable-sm">
           <ng-template pTemplate="header">
             <tr>
@@ -187,12 +191,17 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
 export class CreditNoteListPage implements OnInit {
   private http = inject(HttpClient);
 
+  @ViewChild('table') private table?: Table;
+  protected readonly pageSize = 50;
+  protected total = signal(0);
   protected notes = signal<CreditNote[]>([]);
   protected loading = signal(true);
   protected detailOpen = signal(false);
   protected detail = signal<CreditNote | null>(null);
 
-  ngOnInit() { this.load(); }
+  ngOnInit() {
+    // List is fetched on demand via the p-table's onLazyLoad.
+  }
 
   protected statusSeverity(status: string): Severity {
     return ({ DRAFT: 'secondary', ISSUED: 'info', APPLIED: 'success', CANCELLED: 'secondary' } as Record<string, Severity>)[status] ?? 'secondary';
@@ -220,15 +229,35 @@ export class CreditNoteListPage implements OnInit {
     }
   }
 
-  private async load() {
+  protected async loadChunk(event: TableLazyLoadEvent) {
+    const first = event.first ?? 0;
+    const rows = event.rows ?? this.pageSize;
+    const page = Math.floor(first / rows);
     this.loading.set(true);
     try {
-      const res = await firstValueFrom(this.http.get<{ content: CreditNote[] }>('/api/v1/credit-notes'));
-      this.notes.set(res.content ?? []);
+      const res = await firstValueFrom(
+        this.http.get<{ content: CreditNote[]; totalElements: number }>(
+          `/api/v1/credit-notes?page=${page}&size=${rows}`
+        )
+      );
+      const items = res.content ?? [];
+      const totalElements = res.totalElements ?? items.length;
+      const arr = first === 0 ? new Array(totalElements) : [...this.notes()];
+      arr.length = totalElements;
+      for (let i = 0; i < items.length; i++) arr[first + i] = items[i];
+      this.notes.set(arr);
+      this.total.set(totalElements);
     } catch {
       this.notes.set([]);
+      this.total.set(0);
     } finally {
       this.loading.set(false);
     }
+  }
+
+  protected reload() {
+    this.notes.set([]);
+    this.total.set(0);
+    this.table?.reset();
   }
 }

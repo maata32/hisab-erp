@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -33,7 +34,7 @@ public class QuoteController {
     @PreAuthorize("hasAuthority('sales:read')")
     public PageResponse<SalesDto.QuoteDto> list(
             @RequestParam(required = false) UUID customerId,
-            @PageableDefault(size = 20) Pageable pageable) {
+            @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return service.listQuotes(customerId, pageable);
     }
 

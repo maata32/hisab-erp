@@ -1,10 +1,10 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MoneyPipe } from '@minierp/shared-i18n';
 import { HttpClient } from '@angular/common/http';
-import { TableModule } from 'primeng/table';
+import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { TooltipModule } from 'primeng/tooltip';
@@ -138,7 +138,11 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
       </header>
 
       <div class="bg-white rounded-lg border border-gray-200 p-4">
-        <p-table [value]="invoices()" [loading]="loading()" stripedRows responsiveLayout="scroll"
+        <p-table #table [value]="invoices()" [loading]="loading()" stripedRows
+                 [lazy]="true" (onLazyLoad)="loadChunk($event)"
+                 [totalRecords]="total()" [rows]="pageSize"
+                 [scrollable]="true" scrollHeight="600px"
+                 [virtualScroll]="true" [virtualScrollItemSize]="48"
                  [rowHover]="true" styleClass="p-datatable-sm">
           <ng-template pTemplate="header">
             <tr>
@@ -499,6 +503,9 @@ export class InvoiceListPage implements OnInit {
     if (!arr || arr.length === 0) return false;
     return arr.every(n => n <= 0);
   }
+  @ViewChild('table') private table?: Table;
+  protected readonly pageSize = 50;
+  protected total = signal(0);
   protected loading = signal(true);
   protected saving = signal(false);
   protected submitted = signal(false);
@@ -538,7 +545,7 @@ export class InvoiceListPage implements OnInit {
   } = this.emptyForm();
 
   ngOnInit() {
-    this.load();
+    // Invoices are fetched on demand via the p-table's onLazyLoad.
     this.loadCustomers();
     this.loadProducts();
   }
@@ -650,7 +657,7 @@ export class InvoiceListPage implements OnInit {
       );
       this.creditOpen.set(false);
       this.detailOpen.set(false);
-      this.load();
+      this.reload();
     } finally {
       this.savingCredit.set(false);
     }
@@ -743,7 +750,7 @@ export class InvoiceListPage implements OnInit {
       };
       await firstValueFrom(this.http.post('/api/v1/invoices', payload));
       this.dialogOpen = false;
-      this.load();
+      this.reload();
     } finally {
       this.saving.set(false);
     }
@@ -756,16 +763,36 @@ export class InvoiceListPage implements OnInit {
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  private async load() {
+  protected async loadChunk(event: TableLazyLoadEvent) {
+    const first = event.first ?? 0;
+    const rows = event.rows ?? this.pageSize;
+    const page = Math.floor(first / rows);
     this.loading.set(true);
     try {
-      const res = await firstValueFrom(this.http.get<{ content: Invoice[] }>('/api/v1/invoices'));
-      this.invoices.set(res.content ?? []);
+      const res = await firstValueFrom(
+        this.http.get<{ content: Invoice[]; totalElements: number }>(
+          `/api/v1/invoices?page=${page}&size=${rows}`
+        )
+      );
+      const items = res.content ?? [];
+      const totalElements = res.totalElements ?? items.length;
+      const arr = first === 0 ? new Array(totalElements) : [...this.invoices()];
+      arr.length = totalElements;
+      for (let i = 0; i < items.length; i++) arr[first + i] = items[i];
+      this.invoices.set(arr);
+      this.total.set(totalElements);
     } catch {
       this.invoices.set([]);
+      this.total.set(0);
     } finally {
       this.loading.set(false);
     }
+  }
+
+  protected reload() {
+    this.invoices.set([]);
+    this.total.set(0);
+    this.table?.reset();
   }
 
   private async loadCustomers() {

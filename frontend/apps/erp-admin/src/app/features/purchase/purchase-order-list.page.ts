@@ -1,10 +1,10 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MoneyPipe } from '@minierp/shared-i18n';
 import { HttpClient } from '@angular/common/http';
-import { TableModule } from 'primeng/table';
+import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -97,7 +97,11 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
       </header>
 
       <div class="bg-white rounded-lg border border-gray-200 p-4">
-        <p-table [value]="orders()" [loading]="loading()" stripedRows responsiveLayout="scroll"
+        <p-table #table [value]="orders()" [loading]="loading()" stripedRows
+                 [lazy]="true" (onLazyLoad)="loadChunk($event)"
+                 [totalRecords]="total()" [rows]="pageSize"
+                 [scrollable]="true" scrollHeight="600px"
+                 [virtualScroll]="true" [virtualScrollItemSize]="48"
                  [rowHover]="true" styleClass="p-datatable-sm">
           <ng-template pTemplate="header">
             <tr>
@@ -367,6 +371,9 @@ export class PurchaseOrderListPage implements OnInit {
     if (!arr || arr.length === 0) return false;
     return arr.every(n => n <= 0);
   }
+  @ViewChild('table') private table?: Table;
+  protected readonly pageSize = 50;
+  protected total = signal(0);
   protected loading = signal(true);
   protected saving = signal(false);
   protected submitted = signal(false);
@@ -400,7 +407,7 @@ export class PurchaseOrderListPage implements OnInit {
   } = this.emptyForm();
 
   ngOnInit() {
-    this.load();
+    // auto-loaded by p-table lazy
     this.loadSuppliers();
     this.loadWarehouses();
     this.loadProducts();
@@ -437,7 +444,7 @@ export class PurchaseOrderListPage implements OnInit {
       icon: 'pi pi-check',
       accept: async () => {
         await firstValueFrom(this.http.post(`/api/v1/purchase-orders/${o.id}/confirm`, {}));
-        this.load();
+        this.reload();
       },
     });
   }
@@ -450,7 +457,7 @@ export class PurchaseOrderListPage implements OnInit {
       acceptButtonStyleClass: 'p-button-sm p-button-danger',
       accept: async () => {
         await firstValueFrom(this.http.post(`/api/v1/purchase-orders/${o.id}/cancel`, {}));
-        this.load();
+        this.reload();
       },
     });
   }
@@ -520,7 +527,7 @@ export class PurchaseOrderListPage implements OnInit {
       };
       await firstValueFrom(this.http.post('/api/v1/purchase-orders', payload));
       this.createOpen = false;
-      this.load();
+      this.reload();
     } finally {
       this.saving.set(false);
     }
@@ -576,7 +583,7 @@ export class PurchaseOrderListPage implements OnInit {
       };
       await firstValueFrom(this.http.post(`/api/v1/purchase-orders/${po.id}/receive`, payload));
       this.receiveOpen = false;
-      this.load();
+      this.reload();
     } finally {
       this.receiving.set(false);
     }
@@ -589,16 +596,36 @@ export class PurchaseOrderListPage implements OnInit {
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  private async load() {
+  protected async loadChunk(event: TableLazyLoadEvent) {
+    const first = event.first ?? 0;
+    const rows = event.rows ?? this.pageSize;
+    const page = Math.floor(first / rows);
     this.loading.set(true);
     try {
-      const res = await firstValueFrom(this.http.get<{ content: PurchaseOrder[] }>('/api/v1/purchase-orders'));
-      this.orders.set(res.content ?? []);
+      const res = await firstValueFrom(
+        this.http.get<{ content: PurchaseOrder[]; totalElements: number }>(
+          `/api/v1/purchase-orders?page=${page}&size=${rows}`
+        )
+      );
+      const items = res.content ?? [];
+      const totalElements = res.totalElements ?? items.length;
+      const arr = first === 0 ? new Array(totalElements) : [...this.orders()];
+      arr.length = totalElements;
+      for (let i = 0; i < items.length; i++) arr[first + i] = items[i];
+      this.orders.set(arr);
+      this.total.set(totalElements);
     } catch {
       this.orders.set([]);
+      this.total.set(0);
     } finally {
       this.loading.set(false);
     }
+  }
+
+  protected reload() {
+    this.orders.set([]);
+    this.total.set(0);
+    this.table?.reset();
   }
 
   private async loadSuppliers() {

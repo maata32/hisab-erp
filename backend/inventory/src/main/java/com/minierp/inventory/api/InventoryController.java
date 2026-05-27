@@ -8,6 +8,7 @@ import jakarta.validation.constraints.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -97,7 +98,7 @@ public class InventoryController {
     public PageResponse<StockMovementDto> listMovements(
             @RequestParam UUID productId,
             @RequestParam(required = false) UUID warehouseId,
-            @PageableDefault(size = 50) Pageable pageable) {
+            @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return stockOps.listMovements(productId, warehouseId, pageable);
     }
 

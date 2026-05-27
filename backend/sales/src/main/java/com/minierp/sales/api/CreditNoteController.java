@@ -5,6 +5,7 @@ import com.minierp.shared.util.PageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +25,7 @@ public class CreditNoteController {
     @PreAuthorize("hasAuthority('sales:read')")
     public PageResponse<SalesDto.CreditNoteDto> list(
             @RequestParam(required = false) UUID customerId,
-            @PageableDefault(size = 20) Pageable pageable) {
+            @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return service.listCreditNotes(customerId, pageable);
     }
 

@@ -1,11 +1,11 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MoneyPipe } from '@minierp/shared-i18n';
 import { ConfirmationService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
-import { TableModule } from 'primeng/table';
+import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -89,11 +89,15 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                         optionLabel="name" optionValue="id"
                         [showClear]="true"
                         [placeholder]="'payments.allParties' | translate"
-                        (onChange)="load()" styleClass="w-64" />
+                        (onChange)="reload()" styleClass="w-64" />
           </div>
         </div>
 
-        <p-table [value]="payments()" [loading]="loading()" stripedRows responsiveLayout="scroll"
+        <p-table #table [value]="payments()" [loading]="loading()" stripedRows
+                 [lazy]="true" (onLazyLoad)="loadChunk($event)"
+                 [totalRecords]="total()" [rows]="pageSize"
+                 [scrollable]="true" scrollHeight="600px"
+                 [virtualScroll]="true" [virtualScrollItemSize]="48"
                  [rowHover]="true" styleClass="p-datatable-sm">
           <ng-template pTemplate="header">
             <tr>
@@ -357,6 +361,9 @@ export class PaymentListPage implements OnInit {
   protected payments = signal<Payment[]>([]);
   protected customers = signal<CustomerLite[]>([]);
   protected openInvoices = signal<OpenInvoice[]>([]);
+  @ViewChild('table') private table?: Table;
+  protected readonly pageSize = 50;
+  protected total = signal(0);
   protected loading = signal(true);
   protected saving = signal(false);
   protected submitted = signal(false);
@@ -396,7 +403,7 @@ export class PaymentListPage implements OnInit {
 
   ngOnInit() {
     this.loadCustomers();
-    this.load();
+    // Payments are fetched on demand via the p-table's onLazyLoad.
   }
 
   protected statusSeverity(s: string): Severity {
@@ -547,7 +554,7 @@ export class PaymentListPage implements OnInit {
         allocations,
       }));
       this.dialogOpen = false;
-      this.load();
+      this.reload();
     } finally {
       this.saving.set(false);
     }
@@ -555,7 +562,7 @@ export class PaymentListPage implements OnInit {
 
   protected async confirmPayment(p: Payment) {
     await firstValueFrom(this.http.post(`/api/v1/payments/${p.id}/confirm`, {}));
-    this.load();
+    this.reload();
   }
 
   // ── Post-hoc allocation ───────────────────────────────────────────────────
@@ -661,7 +668,7 @@ export class PaymentListPage implements OnInit {
       }
       await firstValueFrom(this.http.post(`/api/v1/payments/${p.id}/allocate`, { allocations }));
       this.allocateOpen = false;
-      this.load();
+      this.reload();
     } finally {
       this.savingAllocate.set(false);
     }
@@ -686,24 +693,42 @@ export class PaymentListPage implements OnInit {
       acceptButtonStyleClass: 'p-button-sm p-button-danger',
       accept: async () => {
         await firstValueFrom(this.http.post(`/api/v1/payments/${p.id}/cancel`, {}));
-        this.load();
+        this.reload();
       },
     });
   }
 
-  protected async load() {
+  protected async loadChunk(event: TableLazyLoadEvent) {
+    const first = event.first ?? 0;
+    const rows = event.rows ?? this.pageSize;
+    const page = Math.floor(first / rows);
+    const filter = this.filterPartyId ? `&partyId=${this.filterPartyId}` : '';
     this.loading.set(true);
     try {
-      const params = this.filterPartyId ? `?partyId=${this.filterPartyId}` : '';
       const res = await firstValueFrom(
-        this.http.get<{ content: Payment[] }>(`/api/v1/payments${params}`)
+        this.http.get<{ content: Payment[]; totalElements: number }>(
+          `/api/v1/payments?page=${page}&size=${rows}${filter}`
+        )
       );
-      this.payments.set(res.content ?? []);
+      const items = res.content ?? [];
+      const totalElements = res.totalElements ?? items.length;
+      const arr = first === 0 ? new Array(totalElements) : [...this.payments()];
+      arr.length = totalElements;
+      for (let i = 0; i < items.length; i++) arr[first + i] = items[i];
+      this.payments.set(arr);
+      this.total.set(totalElements);
     } catch {
       this.payments.set([]);
+      this.total.set(0);
     } finally {
       this.loading.set(false);
     }
+  }
+
+  protected reload() {
+    this.payments.set([]);
+    this.total.set(0);
+    this.table?.reset();
   }
 
   private async loadCustomers() {
