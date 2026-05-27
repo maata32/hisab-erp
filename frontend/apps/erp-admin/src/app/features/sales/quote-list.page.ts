@@ -26,6 +26,9 @@ interface Quote {
   status: string;
   currency: string;
   total: number;
+  linkedOrderId: string | null;
+  linkedOrderNumber: string | null;
+  linkedOrderStatus: string | null;
 }
 
 interface CustomerOpt {
@@ -98,7 +101,18 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <td>{{ q.issueDate | date:'mediumDate' }}</td>
               <td>{{ q.validUntil | date:'mediumDate' }}</td>
               <td class="text-right font-medium">{{ q.total | money }} {{ q.currency }}</td>
-              <td><p-tag [value]="'sales.statuses.' + q.status | translate" [severity]="statusSeverity(q.status)" /></td>
+              <td>
+                <p-tag [value]="'sales.statuses.' + q.status | translate" [severity]="statusSeverity(q.status)" />
+                @if (q.linkedOrderNumber) {
+                  <div class="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                    <span>&rarr;</span>
+                    <span class="font-mono">{{ q.linkedOrderNumber }}</span>
+                    <p-tag [value]="'sales.statuses.' + q.linkedOrderStatus | translate"
+                           [severity]="orderStatusSeverity(q.linkedOrderStatus!)"
+                           styleClass="text-[10px] py-0 px-1" />
+                  </div>
+                }
+              </td>
               <td class="whitespace-nowrap">
                 <button pButton icon="pi pi-print" class="p-button-sm p-button-text mr-1"
                         [pTooltip]="'common.print' | translate"
@@ -307,6 +321,14 @@ export class QuoteListPage implements OnInit {
 
   protected statusSeverity(status: string): Severity {
     return ({ DRAFT: 'secondary', SENT: 'info', ACCEPTED: 'success', REJECTED: 'danger', EXPIRED: 'warning', CONVERTED: 'success', CANCELLED: 'secondary' } as Record<string, Severity>)[status] ?? 'secondary';
+  }
+
+  protected orderStatusSeverity(status: string): Severity {
+    return ({
+      DRAFT: 'secondary', CONFIRMED: 'info', INVOICED: 'info',
+      PARTIALLY_DELIVERED: 'warning', DELIVERED: 'success',
+      PARTIALLY_INVOICED: 'warning', CANCELLED: 'danger',
+    } as Record<string, Severity>)[status] ?? 'secondary';
   }
 
   protected nextStatuses(current: string): Array<{ value: string; label: string }> {

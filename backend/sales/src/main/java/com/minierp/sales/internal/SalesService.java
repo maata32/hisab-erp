@@ -832,10 +832,14 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
     }
 
     private SalesDto.QuoteDto toQuoteDto(Quote q, List<QuoteLine> lines, String customerName) {
+        Order linked = orders.findFirstByQuoteIdOrderByCreatedAtDesc(q.getId()).orElse(null);
         return new SalesDto.QuoteDto(q.getId(), q.getNumber(), q.getPartyId(), customerName,
                 q.getIssueDate(), q.getValidUntil(), q.getStatus().name(), q.getCurrency(),
                 q.getSubtotal(), q.getDiscountAmount(), q.getTaxAmount(), q.getTotal(),
-                q.getNotes(), lines.stream().map(this::toLineDto).toList(), q.getCreatedAt());
+                q.getNotes(), lines.stream().map(this::toLineDto).toList(), q.getCreatedAt(),
+                linked != null ? linked.getId() : null,
+                linked != null ? linked.getNumber() : null,
+                linked != null ? linked.getStatus().name() : null);
     }
 
     private SalesDto.OrderDto toOrderDto(Order o, List<OrderLine> lines, String customerName) {

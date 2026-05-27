@@ -45,7 +45,10 @@ public class SalesDto {
             BigDecimal total,
             String notes,
             List<LineDto> lines,
-            Instant createdAt
+            Instant createdAt,
+            UUID linkedOrderId,
+            String linkedOrderNumber,
+            String linkedOrderStatus
     ) {}
 
     public record OrderDto(
