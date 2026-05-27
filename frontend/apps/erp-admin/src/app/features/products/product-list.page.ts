@@ -1,4 +1,5 @@
 import { Component, OnInit, ViewChild, ElementRef, inject, signal } from '@angular/core';
+import { Table, TableLazyLoadEvent } from 'primeng/table';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -97,12 +98,16 @@ const CURRENCY = 'MRU';
           </span>
           <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <p-checkbox [(ngModel)]="showInactive" [binary]="true"
-                        (onChange)="load(lastQuery)" />
+                        (onChange)="reload()" />
             {{ 'products.showInactive' | translate }}
           </label>
         </div>
 
-        <p-table [value]="products()" [loading]="loading()" stripedRows responsiveLayout="scroll"
+        <p-table #table [value]="products()" [loading]="loading()" stripedRows
+                 [lazy]="true" (onLazyLoad)="loadChunk($event)"
+                 [totalRecords]="total()" [rows]="pageSize"
+                 [scrollable]="true" scrollHeight="600px"
+                 [virtualScroll]="true" [virtualScrollItemSize]="48"
                  [rowHover]="true" styleClass="p-datatable-sm">
           <ng-template pTemplate="header">
             <tr>
@@ -373,6 +378,9 @@ export class ProductListPage implements OnInit {
   protected uoms = signal<UomLite[]>([]);
   protected warehouses = signal<WarehouseLite[]>([]);
   protected submitted = signal(false);
+  @ViewChild('table') private productTable?: Table;
+  protected readonly pageSize = 50;
+  protected total = signal(0);
   protected loading = signal(true);
   protected saving = signal(false);
   protected uploading = signal(false);
@@ -413,7 +421,7 @@ export class ProductListPage implements OnInit {
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   ngOnInit() {
-    this.load();
+    // Products are fetched on demand via the p-table's onLazyLoad.
     this.loadUoms();
     this.loadSettings();
     this.loadDefaultTier();
@@ -437,7 +445,7 @@ export class ProductListPage implements OnInit {
     const q = (e.target as HTMLInputElement).value;
     this.lastQuery = q;
     if (this.searchTimer) clearTimeout(this.searchTimer);
-    this.searchTimer = setTimeout(() => this.load(q), 300);
+    this.searchTimer = setTimeout(() => this.reload(), 300);
   }
 
   protected async openCreate() {
@@ -493,7 +501,7 @@ export class ProductListPage implements OnInit {
       acceptButtonStyleClass: p.active ? 'p-button-sm p-button-danger' : 'p-button-sm',
       accept: async () => {
         await firstValueFrom(this.http.patch(`/api/v1/products/${p.id}`, { active: !p.active }));
-        this.load(this.lastQuery);
+        this.reload();
       },
     });
   }
@@ -538,7 +546,7 @@ export class ProductListPage implements OnInit {
       await this.uploadPendingImages(productId);
       this.dialogOpen = false;
       this.clearPendingImages();
-      this.load(this.lastQuery);
+      this.reload();
     } finally {
       this.saving.set(false);
     }
@@ -574,7 +582,7 @@ export class ProductListPage implements OnInit {
         this.http.post<ProductImageDto>(`/api/v1/products/${productId}/images/upload`, fd)
       );
       this.dialogImages.update(list => [...list, img]);
-      this.load(this.lastQuery);
+      this.reload();
       return img;
     } catch {
       return null;
@@ -625,7 +633,7 @@ export class ProductListPage implements OnInit {
       accept: async () => {
         await firstValueFrom(this.http.delete(`/api/v1/products/${id}/images/${img.id}`));
         this.dialogImages.update(list => list.filter(i => i.id !== img.id));
-        this.load(this.lastQuery);
+        this.reload();
       },
     });
   }
@@ -643,17 +651,39 @@ export class ProductListPage implements OnInit {
     }));
   }
 
-  protected load(q?: string) {
-    this.lastQuery = q;
-    this.loading.set(true);
+  protected async loadChunk(event: TableLazyLoadEvent) {
+    const first = event.first ?? 0;
+    const rows = event.rows ?? this.pageSize;
+    const page = Math.floor(first / rows);
     const params = new URLSearchParams();
-    if (q) params.set('q', q);
+    params.set('page', String(page));
+    params.set('size', String(rows));
+    if (this.lastQuery) params.set('q', this.lastQuery);
     if (this.showInactive) params.set('includeInactive', 'true');
-    const qs = params.toString() ? `?${params.toString()}` : '';
-    firstValueFrom(this.http.get<{ content: Product[] }>(`/api/v1/products${qs}`))
-      .then(res => this.products.set(res.content ?? []))
-      .catch(() => this.products.set([]))
-      .finally(() => this.loading.set(false));
+    this.loading.set(true);
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ content: Product[]; totalElements: number }>(`/api/v1/products?${params}`)
+      );
+      const items = res.content ?? [];
+      const totalElements = res.totalElements ?? items.length;
+      const arr = first === 0 ? new Array(totalElements) : [...this.products()];
+      arr.length = totalElements;
+      for (let i = 0; i < items.length; i++) arr[first + i] = items[i];
+      this.products.set(arr);
+      this.total.set(totalElements);
+    } catch {
+      this.products.set([]);
+      this.total.set(0);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  protected reload() {
+    this.products.set([]);
+    this.total.set(0);
+    this.productTable?.reset();
   }
 
   private async loadUoms() {

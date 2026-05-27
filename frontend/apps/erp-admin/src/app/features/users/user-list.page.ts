@@ -1,10 +1,10 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ConfirmationService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
-import { TableModule } from 'primeng/table';
+import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -65,7 +65,11 @@ interface UserForm {
           </span>
         </div>
 
-        <p-table [value]="users()" [loading]="loading()" stripedRows responsiveLayout="scroll"
+        <p-table #table [value]="users()" [loading]="loading()" stripedRows
+                 [lazy]="true" (onLazyLoad)="loadChunk($event)"
+                 [totalRecords]="total()" [rows]="pageSize"
+                 [scrollable]="true" scrollHeight="600px"
+                 [virtualScroll]="true" [virtualScrollItemSize]="48"
                  [rowHover]="true" styleClass="p-datatable-sm">
           <ng-template pTemplate="header">
             <tr>
@@ -221,6 +225,10 @@ export class UserListPage implements OnInit {
 
   protected users = signal<User[]>([]);
   protected roles = signal<Role[]>([]);
+  @ViewChild('table') private table?: Table;
+  protected readonly pageSize = 50;
+  protected total = signal(0);
+  private searchQuery = '';
   protected loading = signal(true);
   protected saving = signal(false);
   protected submitted = signal(false);
@@ -244,13 +252,16 @@ export class UserListPage implements OnInit {
 
   ngOnInit() {
     this.loadRoles();
-    this.load();
+    // Users are fetched on demand via the p-table's onLazyLoad.
   }
 
   protected onSearch(e: Event) {
     const q = (e.target as HTMLInputElement).value;
     if (this.searchTimer) clearTimeout(this.searchTimer);
-    this.searchTimer = setTimeout(() => this.load(q), 300);
+    this.searchTimer = setTimeout(() => {
+      this.searchQuery = q;
+      this.reload();
+    }, 300);
   }
 
   protected openCreate() {
@@ -303,7 +314,7 @@ export class UserListPage implements OnInit {
         }));
       }
       this.dialogOpen = false;
-      this.load();
+      this.reload();
     } finally {
       this.saving.set(false);
     }
@@ -317,7 +328,7 @@ export class UserListPage implements OnInit {
       acceptButtonStyleClass: 'p-button-sm p-button-danger',
       accept: async () => {
         await firstValueFrom(this.http.delete(`/api/v1/users/${u.id}`));
-        this.load();
+        this.reload();
       },
     });
   }
@@ -340,22 +351,40 @@ export class UserListPage implements OnInit {
 
   protected async unlock(u: User) {
     await firstValueFrom(this.http.post(`/api/v1/users/${u.id}/unlock`, {}));
-    this.load();
+    this.reload();
   }
 
-  private async load(q?: string) {
+  protected async loadChunk(event: TableLazyLoadEvent) {
+    const first = event.first ?? 0;
+    const rows = event.rows ?? this.pageSize;
+    const page = Math.floor(first / rows);
+    const q = this.searchQuery ? `&q=${encodeURIComponent(this.searchQuery)}` : '';
     this.loading.set(true);
     try {
-      const params = q ? `?q=${encodeURIComponent(q)}` : '';
       const res = await firstValueFrom(
-        this.http.get<{ content: User[] }>(`/api/v1/users${params}`)
+        this.http.get<{ content: User[]; totalElements: number }>(
+          `/api/v1/users?page=${page}&size=${rows}${q}`
+        )
       );
-      this.users.set(res.content ?? []);
+      const items = res.content ?? [];
+      const totalElements = res.totalElements ?? items.length;
+      const arr = first === 0 ? new Array(totalElements) : [...this.users()];
+      arr.length = totalElements;
+      for (let i = 0; i < items.length; i++) arr[first + i] = items[i];
+      this.users.set(arr);
+      this.total.set(totalElements);
     } catch {
       this.users.set([]);
+      this.total.set(0);
     } finally {
       this.loading.set(false);
     }
+  }
+
+  protected reload() {
+    this.users.set([]);
+    this.total.set(0);
+    this.table?.reset();
   }
 
   private async loadRoles() {

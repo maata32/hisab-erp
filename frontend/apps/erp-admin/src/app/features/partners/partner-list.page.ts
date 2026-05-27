@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -6,7 +6,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MoneyPipe } from '@minierp/shared-i18n';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { TableModule } from 'primeng/table';
+import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -113,7 +113,11 @@ interface PartnerForm {
         </div>
         <div class="p-4">
 
-          <p-table [value]="partners()" [loading]="loading()" stripedRows responsiveLayout="scroll"
+          <p-table #table [value]="partners()" [loading]="loading()" stripedRows
+                   [lazy]="true" (onLazyLoad)="loadChunk($event)"
+                   [totalRecords]="total()" [rows]="pageSize"
+                   [scrollable]="true" scrollHeight="600px"
+                   [virtualScroll]="true" [virtualScrollItemSize]="48"
                    [rowHover]="true" styleClass="p-datatable-sm">
             <ng-template pTemplate="header">
               <tr>
@@ -401,6 +405,9 @@ export class PartnerListPage implements OnInit {
   private router = inject(Router);
 
   protected partners = signal<Partner[]>([]);
+  @ViewChild('table') private table?: Table;
+  protected readonly pageSize = 50;
+  protected total = signal(0);
   protected loading = signal(true);
   protected counts = signal<{ all: number; customer: number; supplier: number }>({ all: 0, customer: 0, supplier: 0 });
   protected saving = signal(false);
@@ -439,7 +446,7 @@ export class PartnerListPage implements OnInit {
     this.i18n.onLangChange.subscribe(() => this.refreshOptions());
     this.route.queryParamMap.subscribe(params => {
       this.currentRole = (params.get('role') ?? 'all') as Role;
-      this.load();
+      this.reload();
     });
   }
 
@@ -448,7 +455,7 @@ export class PartnerListPage implements OnInit {
       queryParams: { role: this.currentRole === 'all' ? null : this.currentRole },
       queryParamsHandling: 'merge',
     });
-    this.load();
+    this.reload();
   }
 
   private refreshOptions() {
@@ -466,7 +473,7 @@ export class PartnerListPage implements OnInit {
   protected onSearch(e: Event) {
     this.lastQuery = (e.target as HTMLInputElement).value;
     if (this.searchTimer) clearTimeout(this.searchTimer);
-    this.searchTimer = setTimeout(() => this.load(), 300);
+    this.searchTimer = setTimeout(() => this.reload(), 300);
   }
 
   protected openCreate() {
@@ -542,7 +549,7 @@ export class PartnerListPage implements OnInit {
           supplierCreditLimit: this.activateSupplierForm.supplierCreditLimit || null,
         }));
       this.activateSupplierOpen = false;
-      this.load();
+      this.reload();
     } catch (e) {
       this.showError(e);
     } finally {
@@ -559,7 +566,7 @@ export class PartnerListPage implements OnInit {
         `/api/v1/partners/${p.id}/activate-customer-role`,
         { customerCreditLimit: this.activateCustomerForm.customerCreditLimit || null }));
       this.activateCustomerOpen = false;
-      this.load();
+      this.reload();
     } catch (e) {
       this.showError(e);
     } finally {
@@ -576,7 +583,7 @@ export class PartnerListPage implements OnInit {
       accept: async () => {
         try {
           await firstValueFrom(this.http.post(`/api/v1/partners/${p.id}/deactivate-supplier-role`, {}));
-          this.load();
+          this.reload();
         } catch (e) {
           this.showError(e);
         }
@@ -593,7 +600,7 @@ export class PartnerListPage implements OnInit {
       accept: async () => {
         try {
           await firstValueFrom(this.http.post(`/api/v1/partners/${p.id}/deactivate-customer-role`, {}));
-          this.load();
+          this.reload();
         } catch (e) {
           this.showError(e);
         }
@@ -646,7 +653,7 @@ export class PartnerListPage implements OnInit {
       acceptButtonStyleClass: 'p-button-sm p-button-danger',
       accept: async () => {
         await firstValueFrom(this.http.delete(`/api/v1/partners/${p.id}`));
-        this.load();
+        this.reload();
       },
     });
   }
@@ -682,7 +689,7 @@ export class PartnerListPage implements OnInit {
         await firstValueFrom(this.http.post('/api/v1/partners', payload));
       }
       this.dialogOpen = false;
-      this.load();
+      this.reload();
     } catch (e) {
       this.showError(e);
     } finally {
@@ -690,23 +697,40 @@ export class PartnerListPage implements OnInit {
     }
   }
 
-  private async load() {
+  protected async loadChunk(event: TableLazyLoadEvent) {
+    const first = event.first ?? 0;
+    const rows = event.rows ?? this.pageSize;
+    const page = Math.floor(first / rows);
+    const params = new URLSearchParams();
+    params.set('page', String(page));
+    params.set('size', String(rows));
+    if (this.currentRole !== 'all') params.set('role', this.currentRole.toUpperCase());
+    if (this.lastQuery) params.set('q', this.lastQuery);
     this.loading.set(true);
     try {
-      const params = new URLSearchParams();
-      if (this.currentRole !== 'all') params.set('role', this.currentRole.toUpperCase());
-      if (this.lastQuery) params.set('q', this.lastQuery);
-      const qs = params.toString() ? '?' + params.toString() : '';
       const res = await firstValueFrom(
-        this.http.get<{ content: Partner[] }>(`/api/v1/partners${qs}`)
+        this.http.get<{ content: Partner[]; totalElements: number }>(`/api/v1/partners?${params}`)
       );
-      this.partners.set(res.content ?? []);
+      const items = res.content ?? [];
+      const totalElements = res.totalElements ?? items.length;
+      const arr = first === 0 ? new Array(totalElements) : [...this.partners()];
+      arr.length = totalElements;
+      for (let i = 0; i < items.length; i++) arr[first + i] = items[i];
+      this.partners.set(arr);
+      this.total.set(totalElements);
     } catch {
       this.partners.set([]);
+      this.total.set(0);
     } finally {
       this.loading.set(false);
     }
     this.loadCounts();
+  }
+
+  protected reload() {
+    this.partners.set([]);
+    this.total.set(0);
+    this.table?.reset();
   }
 
   private async loadCounts() {

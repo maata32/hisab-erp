@@ -36,12 +36,14 @@ public class ExpenseService {
 
     @Transactional(readOnly = true)
     public List<ExpenseDto.CategoryResponse> listCategories() {
-        return categories.findByActiveTrue().stream().map(this::toCategoryDto).toList();
+        return categories.findByActiveTrueOrderByCreatedAtDesc().stream().map(this::toCategoryDto).toList();
     }
 
     @Transactional(readOnly = true)
     public List<ExpenseDto.CategoryResponse> listAllCategories() {
-        return categories.findAll().stream().map(this::toCategoryDto).toList();
+        return categories.findAll(org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Direction.DESC, "createdAt"))
+                .stream().map(this::toCategoryDto).toList();
     }
 
     @Transactional
