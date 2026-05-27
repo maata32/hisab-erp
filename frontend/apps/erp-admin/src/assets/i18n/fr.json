@@ -46,6 +46,10 @@
     "delivery": {
       "already_shipped": "Du stock est déjà sorti pour ce BL — impossible de l'annuler."
     },
+    "order": {
+      "status_auto_only": "Ce statut est calculé automatiquement à partir des livraisons.",
+      "cannot_cancel": "Impossible d'annuler une commande facturée ou (partiellement) livrée — passer par un avoir."
+    },
     "partner": {
       "supplier_balance_not_zero": "Solde fournisseur non nul — impossible de retirer le rôle.",
       "customer_balance_not_zero": "Solde client non nul — impossible de retirer le rôle.",

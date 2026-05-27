@@ -306,6 +306,14 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
             throw new BusinessException("error.order.status_auto_only",
                     Map.of("status", target.name()));
         }
+        // Cancellation is only allowed before an invoice has been issued or stock
+        // has shipped. Past that, the corrective path is a credit note.
+        if (target == OrderStatus.CANCELLED
+                && o.getStatus() != OrderStatus.DRAFT
+                && o.getStatus() != OrderStatus.CONFIRMED) {
+            throw new BusinessException("error.order.cannot_cancel",
+                    Map.of("status", o.getStatus().name()));
+        }
         o.setStatus(target);
         String name = customerLookup.findById(o.getPartyId()).map(PartnerSummary::name).orElse("");
         return toOrderDto(o, orderLines.findByOrderIdOrderByLineNumberAsc(id), name);

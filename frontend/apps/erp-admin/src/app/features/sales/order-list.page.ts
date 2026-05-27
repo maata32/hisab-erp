@@ -333,7 +333,7 @@ export class OrderListPage implements OnInit {
   private static readonly TRANSITIONS: Record<string, string[]> = {
     DRAFT: ['CONFIRMED', 'CANCELLED'],
     CONFIRMED: ['CANCELLED'],
-    PARTIALLY_DELIVERED: ['CANCELLED'],
+    PARTIALLY_DELIVERED: [],
     DELIVERED: [],
     PARTIALLY_INVOICED: ['INVOICED'],
     INVOICED: [],

@@ -3,6 +3,8 @@ package com.minierp.phase1b;
 import com.minierp.MiniErpApplication;
 import com.minierp.delivery.api.DeliveryDto;
 import com.minierp.delivery.internal.DeliveryService;
+import com.minierp.sales.internal.SalesService;
+import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.tenant.TenantContext;
 import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +23,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Verifies that recording delivered quantities auto-derives the linked order's
@@ -33,6 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OrderAutoStatusFromDeliveryIT {
 
     @Autowired DeliveryService deliveryService;
+    @Autowired SalesService salesService;
     @Autowired JdbcTemplate jdbc;
     @PersistenceContext EntityManager em;
 
@@ -140,6 +144,31 @@ class OrderAutoStatusFromDeliveryIT {
         assertThat(currentOrderStatus())
                 .as("After the second BL ships and covers the order, status should be DELIVERED")
                 .isEqualTo("DELIVERED");
+    }
+
+    @Test
+    void rejectsCancelOnceInvoicedOrShipped() {
+        // INVOICED (initial seeded state) — no cancellation allowed.
+        assertThat(currentOrderStatus()).isEqualTo("INVOICED");
+        assertThatThrownBy(() -> salesService.updateOrderStatus(orderId, "CANCELLED"))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getMessageKey()).isEqualTo("error.order.cannot_cancel"));
+
+        // Ship part of the order → PARTIALLY_DELIVERED, still no cancel allowed.
+        DeliveryDto.DeliveryResponse bl = deliveryService.create(
+                new DeliveryDto.CreateDeliveryRequest(
+                        customerId, orderId, invoiceId, warehouseId, LocalDate.now(), null, null, null,
+                        List.of(new DeliveryDto.LineRequest(productId, uomId, new BigDecimal("3"), "Widget", "SKU-ORDAUTO"))
+                ), null);
+        deliveryService.startDelivery(bl.id(), null);
+        deliveryService.recordDelivery(
+                bl.id(),
+                new DeliveryDto.RecordDeliveryRequest(List.of(), "Receiver", null),
+                null);
+        assertThat(currentOrderStatus()).isEqualTo("PARTIALLY_DELIVERED");
+        assertThatThrownBy(() -> salesService.updateOrderStatus(orderId, "CANCELLED"))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getMessageKey()).isEqualTo("error.order.cannot_cancel"));
     }
 
     private String currentOrderStatus() {
