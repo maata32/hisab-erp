@@ -30,6 +30,7 @@ interface Invoice {
   quoteId: string | null;
   quoteNumber: string | null;
   quoteStatus: string | null;
+  creditNoteCount: number;
 }
 
 interface InvoiceDelivery {
@@ -180,7 +181,13 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           </ng-template>
           <ng-template pTemplate="body" let-inv>
             <tr>
-              <td><span class="font-mono text-sm">{{ inv.number }}</span></td>
+              <td>
+                <span class="font-mono text-sm">{{ inv.number }}</span>
+                @if (inv.creditNoteCount > 0) {
+                  <span class="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-600 text-white text-xs font-bold"
+                        [pTooltip]="('invoices.hasCreditNotes' | translate:{ count: inv.creditNoteCount })">A</span>
+                }
+              </td>
               <td>{{ inv.customerName }}</td>
               <td>{{ inv.issueDate | date:'mediumDate' }}</td>
               <td [class.text-red-600]="isOverdue(inv)">{{ inv.dueDate | date:'mediumDate' }}</td>

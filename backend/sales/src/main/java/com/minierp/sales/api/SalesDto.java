@@ -73,7 +73,8 @@ public class SalesDto {
             List<LineDto> lines,
             Instant createdAt,
             String quoteNumber,
-            String quoteStatus
+            String quoteStatus,
+            long creditNoteCount
     ) {}
 
     public record CreditNoteLineDto(

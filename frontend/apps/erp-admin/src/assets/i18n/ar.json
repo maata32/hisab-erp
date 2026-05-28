@@ -468,6 +468,7 @@
     "noDeliveries": "لا توجد تسليمات مرتبطة بهذه الفاتورة.",
     "creditNotes": "الإشعارات الدائنة",
     "noCreditNotes": "لا توجد إشعارات دائنة على هذه الفاتورة.",
+    "hasCreditNotes": "{{count}} إشعار(ات) دائن مرتبطة بهذه الفاتورة",
     "deliveryStatus": "حالة التسليم",
     "deliveryStatuses": {
       "NONE": "غير مسلم",

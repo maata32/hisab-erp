@@ -50,7 +50,8 @@
       <h1 th:text="${isReturn} ? 'BON DE RETOUR' : 'BON DE LIVRAISON'">BON DE LIVRAISON</h1>
       <div class="doc-number" th:text="${delivery.number}"></div>
       <div class="doc-date">Date prévue : <span th:text="${delivery.scheduledDate != null ? #temporals.format(delivery.scheduledDate,'dd/MM/yyyy') : 'N/A'}"></span></div>
-      <div class="doc-date" th:if="${delivery.deliveredAt}">
+      <div class="doc-date" th:if="${delivery.deliveredAt}"
+           th:style="${isReturn} ? 'color:#b91c1c;font-weight:bold;' : null">
         <span th:text="${isReturn} ? 'Retourné le : ' : 'Livré le : '">Livré le : </span>
         <span th:text="${#temporals.format(delivery.deliveredAt,'dd/MM/yyyy')}"></span>
       </div>

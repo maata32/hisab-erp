@@ -387,9 +387,17 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         var page = customerId != null
                 ? invoices.findByPartyId(customerId, pageable)
                 : invoices.findAll(pageable);
+        List<UUID> ids = page.getContent().stream().map(Invoice::getId).toList();
+        Map<UUID, Long> cnCountByInvoice = new HashMap<>();
+        if (!ids.isEmpty()) {
+            for (Object[] row : creditNotes.countNonDraftByInvoiceIds(ids)) {
+                cnCountByInvoice.put((UUID) row[0], (Long) row[1]);
+            }
+        }
         return PageResponse.of(page.map(inv -> {
             String name = customerLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
-            return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(inv.getId()), name);
+            long cnCount = cnCountByInvoice.getOrDefault(inv.getId(), 0L);
+            return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(inv.getId()), name, cnCount);
         }));
     }
 
@@ -755,6 +763,10 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     }
 
     private SalesDto.InvoiceDto toInvoiceDto(Invoice inv, List<InvoiceLine> lines, String customerName) {
+        return toInvoiceDto(inv, lines, customerName, 0L);
+    }
+
+    private SalesDto.InvoiceDto toInvoiceDto(Invoice inv, List<InvoiceLine> lines, String customerName, long creditNoteCount) {
         Quote linkedQuote = inv.getQuoteId() == null ? null : quotes.findById(inv.getQuoteId()).orElse(null);
         return new SalesDto.InvoiceDto(inv.getId(), inv.getNumber(), inv.getPartyId(), customerName,
                 inv.getQuoteId(), inv.getIssueDate(), inv.getDueDate(), inv.getStatus().name(),
@@ -764,7 +776,8 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
                 inv.getPaymentTerms(), inv.getNotes(),
                 lines.stream().map(this::toLineDto).toList(), inv.getCreatedAt(),
                 linkedQuote != null ? linkedQuote.getNumber() : null,
-                linkedQuote != null ? linkedQuote.getStatus().name() : null);
+                linkedQuote != null ? linkedQuote.getStatus().name() : null,
+                creditNoteCount);
     }
 
     private SalesDto.CreditNoteDto toCreditNoteDto(CreditNote cn) {
