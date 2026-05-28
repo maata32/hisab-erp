@@ -595,7 +595,11 @@
     "allocateTooltip": "Allouer le reste —",
     "alreadyAllocated": "Déjà alloué",
     "remaining": "Reste à allouer",
-    "surplusInfo": "Tout reliquat non alloué aux factures sera automatiquement conservé comme crédit client (utilisable pour une facture future ou un retrait)."
+    "surplusInfo": "Tout reliquat non alloué aux factures sera automatiquement conservé comme crédit client (utilisable pour une facture future ou un retrait).",
+    "overpaymentWarning": {
+      "header": "Surplus de paiement détecté",
+      "message": "Le montant payé dépasse les allocations de {{amount}} MRU. Cette différence sera créditée sur le compte client (crédit OVERPAYMENT), utilisable sur une future facture ou remboursable. Confirmer ?"
+    }
   },
   "errors": {
     "forbidden": "Vous n'avez pas la permission d'accéder à cette page.",

@@ -550,29 +550,42 @@ export class PaymentListPage implements OnInit {
   protected async save() {
     this.submitted.set(true);
     if (!this.canSave()) return;
+
+    const explicitAllocations: Array<{ targetType: string; targetId: string; allocatedAmount: number }> =
+      this.form.allocations
+        .filter(a => (a.allocated || 0) > 0)
+        .map(a => ({
+          targetType: 'SALE_INVOICE',
+          targetId: a.invoiceId,
+          allocatedAmount: a.allocated,
+        }));
+    const allocatedSum = explicitAllocations.reduce((s, a) => s + a.allocatedAmount, 0);
+    const surplus = +((this.form.amount || 0) - allocatedSum).toFixed(2);
+
+    // For a customer payment with surplus, warn the user explicitly: the
+    // unallocated amount will become a customer credit (OVERPAYMENT). The
+    // backend's confirm step grants the credit, so we just submit the
+    // invoice allocations and skip the (previously silent) CUSTOMER_BALANCE
+    // park, which made the surplus invisible to the user.
+    if (this.form.type === 'CUSTOMER_PAYMENT' && surplus > 0) {
+      this.confirmation.confirm({
+        message: this.i18n.instant('payments.overpaymentWarning.message', {
+          amount: surplus.toLocaleString(this.i18n.currentLang || 'fr'),
+        }),
+        header: this.i18n.instant('payments.overpaymentWarning.header'),
+        icon: 'pi pi-exclamation-triangle',
+        acceptLabel: this.i18n.instant('common.confirm'),
+        rejectLabel: this.i18n.instant('common.cancel'),
+        accept: () => this.submitPayment(explicitAllocations),
+      });
+      return;
+    }
+    await this.submitPayment(explicitAllocations);
+  }
+
+  private async submitPayment(allocations: Array<{ targetType: string; targetId: string; allocatedAmount: number }>) {
     this.saving.set(true);
     try {
-      const allocations: Array<{ targetType: string; targetId: string; allocatedAmount: number }> =
-        this.form.allocations
-          .filter(a => (a.allocated || 0) > 0)
-          .map(a => ({
-            targetType: 'SALE_INVOICE',
-            targetId: a.invoiceId,
-            allocatedAmount: a.allocated,
-          }));
-      // Any unspent portion is parked on the customer's running balance as
-      // an advance/credit, consistent with the post-hoc allocate flow.
-      if (this.form.type === 'CUSTOMER_PAYMENT' && this.form.partyId) {
-        const allocatedSum = allocations.reduce((s, a) => s + a.allocatedAmount, 0);
-        const surplus = +((this.form.amount || 0) - allocatedSum).toFixed(2);
-        if (surplus > 0) {
-          allocations.push({
-            targetType: 'CUSTOMER_BALANCE',
-            targetId: this.form.partyId,
-            allocatedAmount: surplus,
-          });
-        }
-      }
       await firstValueFrom(this.http.post('/api/v1/payments', {
         type: this.form.type,
         partyId: this.form.partyId,
