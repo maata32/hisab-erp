@@ -466,9 +466,7 @@
     "noCreditableLines": "Toutes les lignes sont déjà créditées.",
     "linkedQuote": "Devis lié",
     "deliveries": "Livraisons",
-    "noDeliveries": "Aucune livraison pour cette facture.",
     "creditNotes": "Avoirs",
-    "noCreditNotes": "Aucun avoir sur cette facture.",
     "hasCreditNotes": "{{count}} avoir(s) lié(s) à cette facture",
     "deliveryStatus": "Statut livraison",
     "deliveryStatuses": {

@@ -418,35 +418,27 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             </div>
 
             @if (inv.status !== 'DRAFT' && inv.status !== 'CANCELLED') {
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-gray-500 text-sm">{{ 'invoices.deliveries' | translate }} :</span>
-                @if (deliveriesLoading()) {
-                  <span class="text-gray-400 text-sm">{{ 'common.loading' | translate }}</span>
-                } @else if (deliveries().length === 0) {
-                  <span class="text-gray-400 text-sm">{{ 'invoices.noDeliveries' | translate }}</span>
-                } @else {
+              @if (deliveries().length > 0) {
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-gray-500 text-sm">{{ 'invoices.deliveries' | translate }} :</span>
                   @for (d of deliveries(); track d.id) {
                     <button pButton icon="pi pi-file-pdf" class="p-button-sm p-button-text"
                             [pTooltip]="d.number"
                             (click)="printPdf('/api/v1/deliveries/' + d.id + '/pdf')"></button>
                   }
-                }
-              </div>
+                </div>
+              }
 
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-gray-500 text-sm">{{ 'invoices.creditNotes' | translate }} :</span>
-                @if (creditNotesLoading()) {
-                  <span class="text-gray-400 text-sm">{{ 'common.loading' | translate }}</span>
-                } @else if (creditNotes().length === 0) {
-                  <span class="text-gray-400 text-sm">{{ 'invoices.noCreditNotes' | translate }}</span>
-                } @else {
+              @if (creditNotes().length > 0) {
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-gray-500 text-sm">{{ 'invoices.creditNotes' | translate }} :</span>
                   @for (c of creditNotes(); track c.id) {
                     <button pButton icon="pi pi-file-pdf" class="p-button-sm p-button-text text-red-700"
                             [label]="c.number + ' (' + (c.total | money) + ' ' + c.currency + ')'"
                             (click)="printPdf('/api/v1/credit-notes/' + c.id + '/pdf')"></button>
                   }
-                }
-              </div>
+                </div>
+              }
             }
 
             <div class="border rounded">
@@ -614,9 +606,7 @@ export class InvoiceListPage implements OnInit {
   protected detailOpen = signal(false);
   protected detail = signal<InvoiceDetail | null>(null);
   protected deliveries = signal<InvoiceDelivery[]>([]);
-  protected deliveriesLoading = signal(false);
   protected creditNotes = signal<InvoiceCreditNote[]>([]);
-  protected creditNotesLoading = signal(false);
   protected taxEnabled = signal(true);
 
   protected creditOpen = signal(false);
@@ -705,8 +695,6 @@ export class InvoiceListPage implements OnInit {
     this.deliveries.set([]);
     this.creditNotes.set([]);
     this.detailOpen.set(true);
-    this.deliveriesLoading.set(true);
-    this.creditNotesLoading.set(true);
     try {
       const full = await firstValueFrom(this.http.get<InvoiceDetail>(`/api/v1/invoices/${inv.id}`));
       this.detail.set(full);
@@ -720,8 +708,6 @@ export class InvoiceListPage implements OnInit {
       this.deliveries.set(res.content ?? []);
     } catch {
       this.deliveries.set([]);
-    } finally {
-      this.deliveriesLoading.set(false);
     }
     try {
       const res = await firstValueFrom(
@@ -730,8 +716,6 @@ export class InvoiceListPage implements OnInit {
       this.creditNotes.set(res.content ?? []);
     } catch {
       this.creditNotes.set([]);
-    } finally {
-      this.creditNotesLoading.set(false);
     }
   }
 

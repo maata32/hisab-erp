@@ -465,9 +465,7 @@
     "noCreditableLines": "All lines are already fully credited.",
     "linkedQuote": "Linked quote",
     "deliveries": "Deliveries",
-    "noDeliveries": "No deliveries linked to this invoice.",
     "creditNotes": "Credit notes",
-    "noCreditNotes": "No credit notes on this invoice.",
     "hasCreditNotes": "{{count}} credit note(s) linked to this invoice",
     "deliveryStatus": "Delivery status",
     "deliveryStatuses": {
