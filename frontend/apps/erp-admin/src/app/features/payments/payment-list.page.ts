@@ -245,6 +245,16 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                         </td>
                       </tr>
                     }
+                    @if (createSurplus() > 0) {
+                      <tr class="border-t bg-amber-50">
+                        <td class="p-2 italic text-amber-800" colspan="3">
+                          {{ 'payments.surplusRowLabel' | translate }}
+                        </td>
+                        <td class="p-2 text-right font-bold text-amber-800">
+                          {{ createSurplus() | money }}
+                        </td>
+                      </tr>
+                    }
                   </tbody>
                   <tfoot class="bg-gray-50 border-t">
                     <tr>
@@ -321,6 +331,16 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                         <p-inputNumber [(ngModel)]="a.allocated" [min]="0" [max]="a.balance"
                                        [minFractionDigits]="2" [maxFractionDigits]="2"
                                        inputStyleClass="w-full text-right" styleClass="w-full" />
+                      </td>
+                    </tr>
+                  }
+                  @if (allocateSurplus() > 0) {
+                    <tr class="border-t bg-amber-50">
+                      <td class="p-2 italic text-amber-800" colspan="3">
+                        {{ 'payments.surplusRowLabel' | translate }}
+                      </td>
+                      <td class="p-2 text-right font-bold text-amber-800">
+                        {{ allocateSurplus() | money }}
                       </td>
                     </tr>
                   }
@@ -547,11 +567,19 @@ export class PaymentListPage implements OnInit {
         && this.allocationValid();
   }
 
+  protected createSurplus(): number {
+    if (this.form.type !== 'CUSTOMER_PAYMENT') return 0;
+    return Math.max(0, +((this.form.amount || 0) - this.totalAllocated()).toFixed(2));
+  }
+
   protected async save() {
     this.submitted.set(true);
     if (!this.canSave()) return;
-
-    const explicitAllocations: Array<{ targetType: string; targetId: string; allocatedAmount: number }> =
+    // Each line of the in-form allocation table maps to a persisted allocation
+    // row. The surplus (createSurplus()) is sent as an explicit CUSTOMER_CREDIT
+    // target so the eventual confirm grants a real OVERPAYMENT credit — no
+    // silent CUSTOMER_BALANCE shortcut.
+    const allocations: Array<{ targetType: string; targetId: string; allocatedAmount: number }> =
       this.form.allocations
         .filter(a => (a.allocated || 0) > 0)
         .map(a => ({
@@ -559,31 +587,14 @@ export class PaymentListPage implements OnInit {
           targetId: a.invoiceId,
           allocatedAmount: a.allocated,
         }));
-    const allocatedSum = explicitAllocations.reduce((s, a) => s + a.allocatedAmount, 0);
-    const surplus = +((this.form.amount || 0) - allocatedSum).toFixed(2);
-
-    // For a customer payment with surplus, warn the user explicitly: the
-    // unallocated amount will become a customer credit (OVERPAYMENT). The
-    // backend's confirm step grants the credit, so we just submit the
-    // invoice allocations and skip the (previously silent) CUSTOMER_BALANCE
-    // park, which made the surplus invisible to the user.
-    if (this.form.type === 'CUSTOMER_PAYMENT' && surplus > 0) {
-      this.confirmation.confirm({
-        message: this.i18n.instant('payments.overpaymentWarning.message', {
-          amount: surplus.toLocaleString(this.i18n.currentLang || 'fr'),
-        }),
-        header: this.i18n.instant('payments.overpaymentWarning.header'),
-        icon: 'pi pi-exclamation-triangle',
-        acceptLabel: this.i18n.instant('common.confirm'),
-        rejectLabel: this.i18n.instant('common.cancel'),
-        accept: () => this.submitPayment(explicitAllocations),
+    const surplus = this.createSurplus();
+    if (surplus > 0 && this.form.type === 'CUSTOMER_PAYMENT' && this.form.partyId) {
+      allocations.push({
+        targetType: 'CUSTOMER_CREDIT',
+        targetId: this.form.partyId,
+        allocatedAmount: surplus,
       });
-      return;
     }
-    await this.submitPayment(explicitAllocations);
-  }
-
-  private async submitPayment(allocations: Array<{ targetType: string; targetId: string; allocatedAmount: number }>) {
     this.saving.set(true);
     try {
       await firstValueFrom(this.http.post('/api/v1/payments', {
@@ -694,19 +705,21 @@ export class PaymentListPage implements OnInit {
     if (!p) return;
     this.savingAllocate.set(true);
     try {
-      const allocations = this.allocateForm.allocations
-        .filter(a => (a.allocated || 0) > 0)
-        .map(a => ({
-          targetType: 'SALE_INVOICE',
-          targetId: a.invoiceId,
-          allocatedAmount: a.allocated,
-        }));
-      // Any unspent portion is always parked on the customer's running balance
-      // (advance/credit). User can later use it to pay future invoices.
-      const surplus = +(this.remainingToAllocate() - this.allocateTotal()).toFixed(2);
+      // Same explicit handling as the create flow: the surplus row shown in
+      // the dialog (allocateSurplus()) becomes a real CUSTOMER_CREDIT
+      // allocation, granting an OVERPAYMENT credit when applied.
+      const allocations: Array<{ targetType: string; targetId: string; allocatedAmount: number }> =
+        this.allocateForm.allocations
+          .filter(a => (a.allocated || 0) > 0)
+          .map(a => ({
+            targetType: 'SALE_INVOICE',
+            targetId: a.invoiceId,
+            allocatedAmount: a.allocated,
+          }));
+      const surplus = this.allocateSurplus();
       if (surplus > 0) {
         allocations.push({
-          targetType: 'CUSTOMER_BALANCE',
+          targetType: 'CUSTOMER_CREDIT',
           targetId: p.partyId,
           allocatedAmount: surplus,
         });
@@ -717,6 +730,10 @@ export class PaymentListPage implements OnInit {
     } finally {
       this.savingAllocate.set(false);
     }
+  }
+
+  protected allocateSurplus(): number {
+    return Math.max(0, +(this.remainingToAllocate() - this.allocateTotal()).toFixed(2));
   }
 
   protected async printPdf(url: string) {

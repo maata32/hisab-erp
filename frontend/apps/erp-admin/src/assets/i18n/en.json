@@ -594,11 +594,8 @@
     "allocateTooltip": "Allocate remaining —",
     "alreadyAllocated": "Already allocated",
     "remaining": "Remaining",
-    "surplusInfo": "Any portion not allocated to invoices is automatically kept as customer credit (usable on a future invoice or for withdrawal).",
-    "overpaymentWarning": {
-      "header": "Overpayment detected",
-      "message": "The payment amount exceeds the allocations by {{amount}} MRU. This surplus will be credited to the customer account (OVERPAYMENT credit), usable on a future invoice or refundable. Confirm?"
-    }
+    "surplusInfo": "Any portion not allocated to invoices is recorded as an explicit customer credit (visible in the credits list, usable on a future invoice or for withdrawal).",
+    "surplusRowLabel": "Customer credit (surplus → OVERPAYMENT)"
   },
   "errors": {
     "forbidden": "You do not have permission to access this page.",

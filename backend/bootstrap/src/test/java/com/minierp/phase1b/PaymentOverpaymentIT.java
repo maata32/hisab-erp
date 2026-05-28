@@ -25,9 +25,10 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * When a customer payment exceeds the sum of its allocations, the surplus is
- * converted to a customer credit (source OVERPAYMENT) rather than silently
- * disappearing from the books.
+ * A surplus on a customer payment is recorded as an explicit allocation of
+ * type CUSTOMER_CREDIT, which on apply grants an OVERPAYMENT credit. The UI
+ * surfaces the surplus row to the user before save, so the destination of
+ * the unallocated cash is never silent.
  */
 @SpringBootTest(classes = MiniErpApplication.class)
 @ActiveProfiles("test")
@@ -78,16 +79,19 @@ class PaymentOverpaymentIT {
     }
 
     @Test
-    void surplusAfterConfirmBecomesOverpaymentCredit() {
-        // Invoice 5 000, customer hands over 8 000 cash — 3 000 surplus must
-        // land in the customer-credit ledger.
+    void explicitCustomerCreditAllocationGrantsOverpaymentCredit() {
+        // Invoice 5 000, customer hands over 8 000 cash. The UI splits the
+        // payment into a SALE_INVOICE allocation (5 000) and a CUSTOMER_CREDIT
+        // allocation (3 000) — the latter triggers the OVERPAYMENT credit.
         UUID invoiceId = createInvoice(new BigDecimal("5000"));
 
         PaymentDto.PaymentResponse payment = paymentService.create(new PaymentDto.CreatePaymentRequest(
                 "CUSTOMER_PAYMENT", customerId, new BigDecimal("8000"), "MRU",
                 LocalDate.now(), "CASH", null, null, "Overpayment test", List.of(
                         new PaymentDto.AllocationRequest(
-                                "SALE_INVOICE", invoiceId, new BigDecimal("5000"), null))));
+                                "SALE_INVOICE", invoiceId, new BigDecimal("5000"), null),
+                        new PaymentDto.AllocationRequest(
+                                "CUSTOMER_CREDIT", customerId, new BigDecimal("3000"), null))));
 
         PaymentDto.PaymentResponse confirmed = paymentService.confirm(payment.id(), null);
         assertThat(confirmed.status()).isEqualTo("CONFIRMED");
@@ -101,7 +105,7 @@ class PaymentOverpaymentIT {
     }
 
     @Test
-    void exactPaymentDoesNotGrantOverpaymentCredit() {
+    void paymentWithoutCustomerCreditAllocationDoesNotGrantOne() {
         UUID invoiceId = createInvoice(new BigDecimal("5000"));
 
         PaymentDto.PaymentResponse payment = paymentService.create(new PaymentDto.CreatePaymentRequest(

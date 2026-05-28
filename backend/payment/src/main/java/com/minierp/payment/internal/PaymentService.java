@@ -113,20 +113,8 @@ public class PaymentService implements PaymentLookup {
         }
 
         List<PaymentAllocation> allocs = allocations.findByPaymentId(id);
-        BigDecimal totalAllocated = BigDecimal.ZERO;
         for (PaymentAllocation a : allocs) {
             applyAllocation(p, a.getTargetType(), a.getTargetId(), a.getAllocatedAmount());
-            totalAllocated = totalAllocated.add(a.getAllocatedAmount());
-        }
-
-        // Surplus = received cash minus what was allocated to invoices /
-        // customer balance. For a customer payment, the surplus becomes a
-        // customer credit (OVERPAYMENT) so it can be applied to a future
-        // invoice or refunded — otherwise it would silently disappear.
-        BigDecimal surplus = p.getAmount().subtract(totalAllocated);
-        if (surplus.signum() > 0 && p.getType() == PaymentType.CUSTOMER_PAYMENT) {
-            customerCreditOps.grantCredit(p.getPartyId(), surplus, "OVERPAYMENT",
-                    "Payment " + p.getNumber());
         }
 
         p.setStatus(PaymentStatus.CONFIRMED);
@@ -207,7 +195,9 @@ public class PaymentService implements PaymentLookup {
                     balanceOps.addToPaid(targetId, amount, true);
                 }
             }
-            default -> { /* SALE, CUSTOMER_CREDIT, EXPENSE, SALARY: no-op or handled elsewhere */ }
+            case CUSTOMER_CREDIT -> customerCreditOps.grantCredit(targetId, amount, "OVERPAYMENT",
+                    "Payment " + p.getNumber());
+            default -> { /* SALE, EXPENSE, SALARY: no-op or handled elsewhere */ }
         }
     }
 
