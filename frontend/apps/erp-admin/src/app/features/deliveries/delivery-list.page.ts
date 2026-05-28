@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ConfirmationService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
@@ -315,6 +316,8 @@ export class DeliveryListPage implements OnInit {
   private http = inject(HttpClient);
   private i18n = inject(TranslateService);
   private confirmation = inject(ConfirmationService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
 
   protected deliveries = signal<Delivery[]>([]);
   protected invoicesList = signal<InvoiceLite[]>([]);
@@ -357,8 +360,17 @@ export class DeliveryListPage implements OnInit {
 
   ngOnInit() {
     // auto-loaded by p-table lazy
-    this.loadInvoices();
-    this.loadWarehouses();
+    Promise.all([this.loadInvoices(), this.loadWarehouses()]).then(() => {
+      const invoiceId = this.route.snapshot.queryParamMap.get('createForInvoice');
+      if (invoiceId && this.deliverableInvoices().some(i => i.id === invoiceId)) {
+        this.openCreate().then(() => {
+          this.form.invoiceId = invoiceId;
+          this.onInvoiceChange();
+        });
+        // Drop the query param so a page refresh doesn't re-trigger the dialog.
+        this.router.navigate([], { queryParams: {}, replaceUrl: true });
+      }
+    });
   }
 
   protected deliverableInvoices(): InvoiceLite[] {

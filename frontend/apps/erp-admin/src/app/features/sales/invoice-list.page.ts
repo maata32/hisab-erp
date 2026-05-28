@@ -14,6 +14,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { CalendarModule } from 'primeng/calendar';
 import { ConfirmationService } from 'primeng/api';
+import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 interface Invoice {
@@ -217,6 +218,11 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <button pButton icon="pi pi-send" class="p-button-sm p-button-text mr-1"
                           [pTooltip]="'invoices.issue' | translate"
                           (click)="issueInvoice(inv)"></button>
+                }
+                @if (canCreateDelivery(inv)) {
+                  <button pButton icon="pi pi-truck" class="p-button-sm p-button-text mr-1"
+                          [pTooltip]="'invoices.createDelivery' | translate"
+                          (click)="goToCreateDelivery(inv.id)"></button>
                 }
                 <button pButton icon="pi pi-print" class="p-button-sm p-button-text"
                         [pTooltip]="'common.print' | translate"
@@ -483,6 +489,11 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             <button pButton icon="pi pi-print" [label]="'common.print' | translate"
                     class="p-button-text"
                     (click)="printPdf('/api/v1/invoices/' + inv.id + '/pdf')"></button>
+            @if (canCreateDelivery(inv)) {
+              <button pButton icon="pi pi-truck" [label]="'invoices.createDelivery' | translate"
+                      class="p-button-info"
+                      (click)="goToCreateDelivery(inv.id)"></button>
+            }
             @if (canCreateCreditNote(inv.status)) {
               <button pButton icon="pi pi-undo" [label]="'invoices.createCreditNote' | translate"
                       class="p-button-warning"
@@ -578,6 +589,7 @@ export class InvoiceListPage implements OnInit {
   private http = inject(HttpClient);
   private i18n = inject(TranslateService);
   private confirmation = inject(ConfirmationService);
+  private router = inject(Router);
 
   protected invoices = signal<Invoice[]>([]);
   protected customers = signal<CustomerOpt[]>([]);
@@ -677,6 +689,14 @@ export class InvoiceListPage implements OnInit {
 
   protected canCreateCreditNote(status: string): boolean {
     return status !== 'CANCELLED' && status !== 'DRAFT';
+  }
+
+  protected canCreateDelivery(inv: { status: string; deliveryStatus: string }): boolean {
+    return inv.status !== 'DRAFT' && inv.status !== 'CANCELLED' && inv.deliveryStatus !== 'DELIVERED';
+  }
+
+  protected goToCreateDelivery(invoiceId: string) {
+    this.router.navigate(['/deliveries'], { queryParams: { createForInvoice: invoiceId } });
   }
 
   protected async printPdf(url: string) {

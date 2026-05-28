@@ -462,6 +462,7 @@
     "issue": "Issue invoice",
     "detailTitle": "Invoice {{number}}",
     "createCreditNote": "Create credit note",
+    "createDelivery": "Create delivery",
     "noCreditableLines": "All lines are already fully credited.",
     "linkedQuote": "Linked quote",
     "deliveries": "Deliveries",

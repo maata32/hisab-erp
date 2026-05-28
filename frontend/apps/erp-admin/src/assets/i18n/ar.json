@@ -462,6 +462,7 @@
     "issue": "إصدار الفاتورة",
     "detailTitle": "الفاتورة {{number}}",
     "createCreditNote": "إنشاء إشعار دائن",
+    "createDelivery": "إنشاء إذن تسليم",
     "noCreditableLines": "تم ائتمان جميع البنود بالكامل.",
     "linkedQuote": "عرض السعر المرتبط",
     "deliveries": "التسليمات",

@@ -463,6 +463,7 @@
     "issue": "Émettre la facture",
     "detailTitle": "Facture {{number}}",
     "createCreditNote": "Créer un avoir",
+    "createDelivery": "Créer un BL",
     "noCreditableLines": "Toutes les lignes sont déjà créditées.",
     "linkedQuote": "Devis lié",
     "deliveries": "Livraisons",
