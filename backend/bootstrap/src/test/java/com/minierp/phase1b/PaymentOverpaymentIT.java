@@ -1,0 +1,128 @@
+package com.minierp.phase1b;
+
+import com.minierp.MiniErpApplication;
+import com.minierp.payment.api.PaymentDto;
+import com.minierp.payment.internal.PaymentService;
+import com.minierp.sales.api.SalesDto;
+import com.minierp.sales.internal.SalesService;
+import com.minierp.shared.tenant.TenantContext;
+import org.hibernate.Session;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * When a customer payment exceeds the sum of its allocations, the surplus is
+ * converted to a customer credit (source OVERPAYMENT) rather than silently
+ * disappearing from the books.
+ */
+@SpringBootTest(classes = MiniErpApplication.class)
+@ActiveProfiles("test")
+@DisplayName("Payment overpayment — surplus becomes a customer credit")
+class PaymentOverpaymentIT {
+
+    @Autowired PaymentService paymentService;
+    @Autowired SalesService salesService;
+    @Autowired JdbcTemplate jdbc;
+
+    @PersistenceContext EntityManager em;
+
+    UUID tenantId;
+    UUID customerId;
+    UUID productId;
+    UUID uomId;
+
+    @BeforeEach
+    void setup() {
+        tenantId = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO organizations (id, code, name, type, currency, locale, timezone, status,
+                                           created_at, updated_at, version)
+                VALUES (?, ?, 'Overpayment Test Org', 'BOUTIQUE', 'MRU', 'fr', 'Africa/Nouakchott', 'ACTIVE',
+                        now(), now(), 0)
+                """, tenantId, "ovp-" + tenantId);
+        TenantContext.set(tenantId);
+        em.unwrap(Session.class).enableFilter("tenantFilter").setParameter("tenantId", tenantId);
+
+        customerId = UUID.randomUUID();
+        uomId = UUID.randomUUID();
+        productId = UUID.randomUUID();
+        UUID uomCatId = UUID.randomUUID();
+
+        jdbc.update("INSERT INTO uom_categories (id, tenant_id, code, name, created_at, updated_at, version) VALUES (?,?,?,?,now(),now(),0)",
+                uomCatId, tenantId, "COUNT-OVP", "Count");
+        jdbc.update("INSERT INTO uoms (id, tenant_id, category_id, code, name, ratio_to_base, is_base, decimal_places, created_at, updated_at, version) VALUES (?,?,?,?,?,1,true,0,now(),now(),0)",
+                uomId, tenantId, uomCatId, "PCE-OVP", "Piece");
+        jdbc.update("""
+                INSERT INTO products (id, tenant_id, sku, name, base_uom_id, default_tax_rate,
+                                      tracks_lots, tracks_serial, is_sellable, is_purchasable,
+                                      is_active, created_at, updated_at, version)
+                VALUES (?,?,?,?,?,0.00,false,false,true,true,true,now(),now(),0)
+                """, productId, tenantId, "SKU-OVP", "Overpayment Test Product", uomId);
+        jdbc.update("INSERT INTO parties (id, tenant_id, code, name, is_customer, is_supplier, active, created_at, updated_at, version) " +
+                "VALUES (?,?,?,?,true,false,true,now(),now(),0)",
+                customerId, tenantId, "C-OVP-" + customerId, "Overpayment Test Customer");
+    }
+
+    @Test
+    void surplusAfterConfirmBecomesOverpaymentCredit() {
+        // Invoice 5 000, customer hands over 8 000 cash — 3 000 surplus must
+        // land in the customer-credit ledger.
+        UUID invoiceId = createInvoice(new BigDecimal("5000"));
+
+        PaymentDto.PaymentResponse payment = paymentService.create(new PaymentDto.CreatePaymentRequest(
+                "CUSTOMER_PAYMENT", customerId, new BigDecimal("8000"), "MRU",
+                LocalDate.now(), "CASH", null, null, "Overpayment test", List.of(
+                        new PaymentDto.AllocationRequest(
+                                "SALE_INVOICE", invoiceId, new BigDecimal("5000"), null))));
+
+        PaymentDto.PaymentResponse confirmed = paymentService.confirm(payment.id(), null);
+        assertThat(confirmed.status()).isEqualTo("CONFIRMED");
+
+        BigDecimal creditBalance = jdbc.queryForObject("""
+                SELECT COALESCE(SUM(remaining_amount), 0)
+                FROM customer_credits
+                WHERE party_id = ? AND status = 'ACTIVE' AND source = 'OVERPAYMENT'
+                """, BigDecimal.class, customerId);
+        assertThat(creditBalance).isEqualByComparingTo("3000");
+    }
+
+    @Test
+    void exactPaymentDoesNotGrantOverpaymentCredit() {
+        UUID invoiceId = createInvoice(new BigDecimal("5000"));
+
+        PaymentDto.PaymentResponse payment = paymentService.create(new PaymentDto.CreatePaymentRequest(
+                "CUSTOMER_PAYMENT", customerId, new BigDecimal("5000"), "MRU",
+                LocalDate.now(), "CASH", null, null, "Exact payment", List.of(
+                        new PaymentDto.AllocationRequest(
+                                "SALE_INVOICE", invoiceId, new BigDecimal("5000"), null))));
+        paymentService.confirm(payment.id(), null);
+
+        Long count = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM customer_credits
+                WHERE party_id = ? AND source = 'OVERPAYMENT'
+                """, Long.class, customerId);
+        assertThat(count).isZero();
+    }
+
+    private UUID createInvoice(BigDecimal total) {
+        return salesService.createInvoice(new SalesDto.CreateInvoiceRequest(
+                customerId, null, LocalDate.now(), LocalDate.now().plusDays(30),
+                null, "MRU", null,
+                List.of(new SalesDto.LineRequest(productId, uomId, BigDecimal.ONE, total, BigDecimal.ZERO))
+        )).id();
+    }
+}

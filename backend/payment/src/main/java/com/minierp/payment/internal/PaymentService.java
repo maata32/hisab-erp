@@ -4,8 +4,7 @@ import com.minierp.partner.api.ArBalanceOperations;
 import com.minierp.partner.api.PartnerLookup;
 import com.minierp.partner.api.PartnerSummary;
 import com.minierp.partner.api.ApBalanceOperations;
-import com.minierp.partner.api.PartnerLookup;
-import com.minierp.partner.api.PartnerSummary;
+import com.minierp.partner.api.CustomerCreditOperations;
 import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
 import com.minierp.payment.api.PaymentDto;
@@ -47,6 +46,7 @@ public class PaymentService implements PaymentLookup {
     private final ArBalanceOperations balanceOps;
     private final PartnerLookup supplierLookup;
     private final ApBalanceOperations supplierBalanceOps;
+    private final CustomerCreditOperations customerCreditOps;
     private final InvoiceOperations invoiceOps;
     private final PurchaseInvoiceOperations purchaseInvoiceOps;
     private final NumberingOperations numbering;
@@ -113,8 +113,20 @@ public class PaymentService implements PaymentLookup {
         }
 
         List<PaymentAllocation> allocs = allocations.findByPaymentId(id);
+        BigDecimal totalAllocated = BigDecimal.ZERO;
         for (PaymentAllocation a : allocs) {
             applyAllocation(p, a.getTargetType(), a.getTargetId(), a.getAllocatedAmount());
+            totalAllocated = totalAllocated.add(a.getAllocatedAmount());
+        }
+
+        // Surplus = received cash minus what was allocated to invoices /
+        // customer balance. For a customer payment, the surplus becomes a
+        // customer credit (OVERPAYMENT) so it can be applied to a future
+        // invoice or refunded — otherwise it would silently disappear.
+        BigDecimal surplus = p.getAmount().subtract(totalAllocated);
+        if (surplus.signum() > 0 && p.getType() == PaymentType.CUSTOMER_PAYMENT) {
+            customerCreditOps.grantCredit(p.getPartyId(), surplus, "OVERPAYMENT",
+                    "Payment " + p.getNumber());
         }
 
         p.setStatus(PaymentStatus.CONFIRMED);
