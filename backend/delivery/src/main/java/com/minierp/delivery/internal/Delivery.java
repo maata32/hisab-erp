@@ -39,6 +39,11 @@ class Delivery extends TenantAwareEntity {
     @Builder.Default
     private DeliveryStatus status = DeliveryStatus.PENDING;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private DeliveryType type = DeliveryType.OUTBOUND;
+
     @Column(name = "scheduled_date")
     private LocalDate scheduledDate;
 

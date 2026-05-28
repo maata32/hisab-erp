@@ -47,17 +47,20 @@
       <div th:if="${!#strings.isEmpty(orgEmail)}" style="color:#555;font-size:10px;" th:text="${orgEmail}"></div>
     </div>
     <div class="doc-title">
-      <h1>BON DE LIVRAISON</h1>
+      <h1 th:text="${isReturn} ? 'BON DE RETOUR' : 'BON DE LIVRAISON'">BON DE LIVRAISON</h1>
       <div class="doc-number" th:text="${delivery.number}"></div>
       <div class="doc-date">Date prévue : <span th:text="${delivery.scheduledDate != null ? #temporals.format(delivery.scheduledDate,'dd/MM/yyyy') : 'N/A'}"></span></div>
-      <div class="doc-date" th:if="${delivery.deliveredAt}">Livré le : <span th:text="${#temporals.format(delivery.deliveredAt,'dd/MM/yyyy')}"></span></div>
+      <div class="doc-date" th:if="${delivery.deliveredAt}">
+        <span th:text="${isReturn} ? 'Retourné le : ' : 'Livré le : '">Livré le : </span>
+        <span th:text="${#temporals.format(delivery.deliveredAt,'dd/MM/yyyy')}"></span>
+      </div>
     </div>
   </div>
 
   <!-- Parties -->
   <div class="parties" style="margin-bottom:12px;">
     <div class="party-block" style="width:100%;text-align:right;">
-      <div class="party-label">Destinataire</div>
+      <div class="party-label" th:text="${isReturn} ? 'Expéditeur (retour)' : 'Destinataire'">Destinataire</div>
       <div class="party-name" th:text="${customer.name}"></div>
       <div class="party-detail" th:if="${!#strings.isEmpty(delivery.address)}" th:text="${delivery.address}"></div>
       <div class="party-detail" th:if="${!#strings.isEmpty(delivery.contactPhone)}" th:text="${delivery.contactPhone}"></div>
@@ -71,8 +74,8 @@
         <th>#</th>
         <th>Produit</th>
         <th>Réf.</th>
-        <th class="text-right">Qté commandée</th>
-        <th class="text-right">Qté livrée</th>
+        <th class="text-right" th:text="${isReturn} ? 'Qté à reprendre' : 'Qté commandée'">Qté commandée</th>
+        <th class="text-right" th:text="${isReturn} ? 'Qté reprise' : 'Qté livrée'">Qté livrée</th>
         <th class="text-center">Statut</th>
       </tr>
     </thead>

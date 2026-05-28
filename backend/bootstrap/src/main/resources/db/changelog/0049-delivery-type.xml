@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Deliveries gain a type discriminator: OUTBOUND (default — shipping
+        goods to a customer) vs RETURN (auto-created when a credit note
+        re-takes goods that have already shipped). RETURN BLs are issued
+        with the BR-YYYY-XXXXX numbering sequence and immediately settle
+        as DELIVERED, putting stock back on hand.
+    -->
+
+    <changeSet id="0049-delivery-type" author="mini-erp">
+        <addColumn tableName="deliveries">
+            <column name="type" type="varchar(20)" defaultValue="OUTBOUND">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <createIndex tableName="deliveries" indexName="idx_deliveries_type">
+            <column name="type"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

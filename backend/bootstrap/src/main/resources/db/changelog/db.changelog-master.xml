@@ -53,5 +53,6 @@
     <include file="db/changelog/0046-credit-note-lines.xml"/>
     <include file="db/changelog/0047-credit-note-reason-nullable.xml"/>
     <include file="db/changelog/0048-drop-orders-direct-quote-invoice.xml"/>
+    <include file="db/changelog/0049-delivery-type.xml"/>
 
 </databaseChangeLog>

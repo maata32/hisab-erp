@@ -27,6 +27,7 @@ public class DeliveryDto {
             UUID invoiceId,
             UUID warehouseId,
             String status,
+            String type,
             LocalDate scheduledDate,
             Instant deliveredAt,
             String address,

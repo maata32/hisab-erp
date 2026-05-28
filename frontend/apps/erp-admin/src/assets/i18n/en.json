@@ -485,6 +485,7 @@
     "lineCol": {
       "product": "Product",
       "invoicedQty": "Invoiced qty",
+      "deliveredQty": "Delivered qty",
       "alreadyCredited": "Already credited",
       "creditableQty": "Remaining creditable",
       "quantity": "Qty to credit",
@@ -499,6 +500,10 @@
     "empty": "No credit notes found",
     "createTitle": "Create a credit note for {{number}}",
     "atLeastOneLineQty": "At least one line must have a quantity to credit.",
+    "returnDeliveryWarning": {
+      "header": "Return delivery required",
+      "message": "This credit note covers units already shipped. A return delivery note will be created automatically to receive the goods back into stock:\n{{lines}}\n\nConfirm creating the credit note and the return delivery?"
+    },
     "statuses": {
       "DRAFT": "Draft",
       "ISSUED": "Issued",
@@ -540,6 +545,10 @@
       "PARTIAL": "Partial",
       "DELIVERED": "Delivered",
       "CANCELLED": "Cancelled"
+    },
+    "type": {
+      "outbound": "Outbound",
+      "return": "Return"
     }
   },
   "payments": {

@@ -486,6 +486,7 @@
     "lineCol": {
       "product": "Produit",
       "invoicedQty": "Qté facturée",
+      "deliveredQty": "Qté livrée",
       "alreadyCredited": "Déjà créditée",
       "creditableQty": "Reste créditable",
       "quantity": "Qté à créditer",
@@ -500,6 +501,10 @@
     "empty": "Aucun avoir trouvé",
     "createTitle": "Créer un avoir sur {{number}}",
     "atLeastOneLineQty": "Au moins une ligne doit avoir une quantité à créditer.",
+    "returnDeliveryWarning": {
+      "header": "Bon de retour requis",
+      "message": "Cet avoir crédite des unités déjà livrées. Un bon de retour sera créé automatiquement pour réintégrer la marchandise au stock :\n{{lines}}\n\nConfirmer la création de l'avoir et du bon de retour ?"
+    },
     "statuses": {
       "DRAFT": "Brouillon",
       "ISSUED": "Émis",
@@ -541,6 +546,10 @@
       "PARTIAL": "Partielle",
       "DELIVERED": "Livré",
       "CANCELLED": "Annulé"
+    },
+    "type": {
+      "outbound": "Livraison",
+      "return": "Retour"
     }
   },
   "payments": {

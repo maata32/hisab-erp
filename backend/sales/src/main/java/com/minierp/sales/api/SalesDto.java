@@ -159,6 +159,7 @@ public class SalesDto {
             String sku,
             UUID uomId,
             BigDecimal quantityInvoiced,
+            BigDecimal quantityDelivered,
             BigDecimal alreadyCredited,
             BigDecimal maxCreditable,
             BigDecimal unitPrice,

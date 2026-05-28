@@ -16,6 +16,11 @@ class NumberingFacadeImpl implements NumberingOperations {
     }
 
     @Override
+    public String nextReturnDeliveryNumber() {
+        return numbering.next(DocumentType.RETURN_DELIVERY);
+    }
+
+    @Override
     public String nextPaymentReceiptNumber() {
         return numbering.next(DocumentType.PAYMENT_RECEIPT);
     }

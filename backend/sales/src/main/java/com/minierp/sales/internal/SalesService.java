@@ -21,9 +21,9 @@ import com.minierp.tenant.api.TenantLookup;
 import com.minierp.tenant.api.TenantSettingsLookup;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import com.minierp.inventory.api.StockMovementType;
-import com.minierp.inventory.api.StockOperations;
 import com.minierp.partner.api.CustomerCreditOperations;
+import com.minierp.sales.api.CreditNoteReturnRequestedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -56,11 +56,11 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     private final PartnerLookup customerLookup;
     private final ArBalanceOperations balanceOps;
     private final CustomerCreditOperations customerCreditOps;
-    private final StockOperations stockOps;
     private final JdbcTemplate jdbc;
     private final DocumentRenderer renderer;
     private final TenantLookup tenantLookup;
     private final TenantSettingsLookup tenantSettings;
+    private final ApplicationEventPublisher events;
 
     // ── SalesStatementLookup (used by the customer-statement aggregator) ────
 
@@ -428,9 +428,11 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
                 .build();
         creditNotes.save(cn);
 
-        UUID warehouseId = resolveReturnWarehouseIdForInvoice(invoiceId);
-
-        // Track returns per product (line-level returnedToStockQty); seed with already-returned values.
+        // Collect the per-line portion that must come back to stock. The actual
+        // BR creation + stockOps.receive is handled by the delivery module via
+        // a CreditNoteReturnRequestedEvent published after all lines have been
+        // computed — one BR per credit note, not one per line.
+        List<CreditNoteReturnRequestedEvent.ReturnLine> returnLines = new ArrayList<>();
         Map<UUID, BigDecimal> returnedThisCn = new HashMap<>();
         BigDecimal subtotalHt = BigDecimal.ZERO;
         int lineNo = 1;
@@ -454,22 +456,23 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
             BigDecimal lineTotal = il.getUnitPrice().multiply(lr.quantity())
                     .multiply(discFactor).setScale(2, RoundingMode.HALF_UP);
 
-            // Compute stock-return portion: bounded by (delivered - already-returned for this product).
+            // Stock-return portion = portion of this credit that exceeds the
+            // still-not-shipped slot of the line. The not-shipped slot is
+            //   (invoiced − delivered) − (alreadyCredited − alreadyReturned)
+            // i.e. invoiced − delivered, minus prior credits that have already
+            // absorbed the never-shipped quantity without triggering a BR.
             BigDecimal alreadyReturned = alreadyReturnedByProduct.getOrDefault(il.getProductId(), BigDecimal.ZERO)
                     .add(returnedThisCn.getOrDefault(il.getProductId(), BigDecimal.ZERO));
             BigDecimal delivered = deliveredByProduct.getOrDefault(il.getProductId(), BigDecimal.ZERO);
-            BigDecimal remainingDeliveredCap = delivered.subtract(alreadyReturned).max(BigDecimal.ZERO);
-            BigDecimal stockReturnQty = lr.quantity().min(remainingDeliveredCap);
+            BigDecimal notDelivered = il.getQuantity().subtract(delivered).max(BigDecimal.ZERO);
+            BigDecimal nonDeliveredCreditedAlready = alreadyCredited.subtract(alreadyReturned).max(BigDecimal.ZERO);
+            BigDecimal notDeliveredRemaining = notDelivered.subtract(nonDeliveredCreditedAlready).max(BigDecimal.ZERO);
+            BigDecimal stockReturnQty = lr.quantity().subtract(notDeliveredRemaining).max(BigDecimal.ZERO);
 
             if (stockReturnQty.signum() > 0) {
-                if (warehouseId == null) {
-                    throw new BusinessException("error.creditnote.warehouse_missing",
-                            Map.of("creditNoteId", cn.getId()));
-                }
-                stockOps.receive(warehouseId, il.getProductId(), stockReturnQty,
-                        il.getUnitPrice(), StockMovementType.SALE_RETURN,
-                        "CREDIT_NOTE", cn.getId(), cn.getNumber(),
-                        "Credit note " + cn.getNumber(), null);
+                returnLines.add(new CreditNoteReturnRequestedEvent.ReturnLine(
+                        il.getProductId(), il.getUomId(), stockReturnQty,
+                        il.getUnitPrice(), il.getSnapshotName(), il.getSnapshotSku()));
                 returnedThisCn.merge(il.getProductId(), stockReturnQty, BigDecimal::add);
             }
 
@@ -515,6 +518,12 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         cn.setAppliedToInvoiceId(inv.getId());
         cn.setStatus(CreditNoteStatus.APPLIED);
 
+        if (!returnLines.isEmpty()) {
+            events.publishEvent(new CreditNoteReturnRequestedEvent(
+                    cn.getId(), cn.getNumber(), inv.getId(), inv.getPartyId(),
+                    List.copyOf(returnLines)));
+        }
+
         return toCreditNoteDto(cn);
     }
 
@@ -537,6 +546,8 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     private Map<UUID, BigDecimal> aggregateDeliveredByProductForInvoice(UUID invoiceId) {
         // Cross-module read: delivered quantities live in the delivery module's tables.
         // A direct JDBC read keeps sales free of a compile-time dep on delivery.
+        // Only OUTBOUND BLs count: a RETURN BL means goods coming back, not goods
+        // shipped, and would inflate the "delivered" gross total.
         UUID tenant = TenantContext.require();
         Map<UUID, BigDecimal> map = new HashMap<>();
         jdbc.query("""
@@ -544,23 +555,12 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
                 FROM delivery_lines dl
                 JOIN deliveries d ON d.id = dl.delivery_id AND d.tenant_id = dl.tenant_id
                 WHERE d.tenant_id = ? AND d.invoice_id = ? AND d.status <> 'CANCELLED'
+                  AND d.type = 'OUTBOUND'
                 GROUP BY dl.product_id
                 """, rs -> {
             map.put(rs.getObject(1, UUID.class), rs.getBigDecimal(2));
         }, tenant, invoiceId);
         return map;
-    }
-
-    private UUID resolveReturnWarehouseIdForInvoice(UUID invoiceId) {
-        UUID tenant = TenantContext.require();
-        List<UUID> ids = jdbc.query("""
-                SELECT d.warehouse_id FROM deliveries d
-                WHERE d.tenant_id = ? AND d.invoice_id = ? AND d.status <> 'CANCELLED'
-                  AND d.warehouse_id IS NOT NULL
-                ORDER BY d.created_at ASC LIMIT 1
-                """, (rs, i) -> rs.getObject(1, UUID.class), tenant, invoiceId);
-        if (!ids.isEmpty()) return ids.get(0);
-        return stockOps.findDefaultWarehouseId().orElse(null);
     }
 
     @Transactional(readOnly = true)
@@ -584,14 +584,17 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
                 .orElseThrow(() -> NotFoundException.of("entity.invoice", invoiceId));
         List<InvoiceLine> lines = invoiceLines.findByInvoiceIdOrderByLineNumberAsc(invoiceId);
         Map<UUID, BigDecimal> alreadyCredited = aggregateAlreadyCreditedByLine(invoiceId);
+        Map<UUID, BigDecimal> deliveredByProduct = aggregateDeliveredByProductForInvoice(invoiceId);
         String customerName = customerLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
         List<SalesDto.CreditableLineDto> lineDtos = lines.stream().map(l -> {
             BigDecimal already = alreadyCredited.getOrDefault(l.getId(), BigDecimal.ZERO);
             BigDecimal max = l.getQuantity().subtract(already).max(BigDecimal.ZERO);
+            BigDecimal delivered = deliveredByProduct.getOrDefault(l.getProductId(), BigDecimal.ZERO)
+                    .min(l.getQuantity());
             return new SalesDto.CreditableLineDto(
                     l.getId(), l.getProductId(),
                     l.getSnapshotName(), l.getSnapshotSku(), l.getUomId(),
-                    l.getQuantity(), already, max,
+                    l.getQuantity(), delivered, already, max,
                     l.getUnitPrice(), l.getDiscountPercent(), l.getTaxRate());
         }).toList();
         return new SalesDto.CreditableInvoiceDto(

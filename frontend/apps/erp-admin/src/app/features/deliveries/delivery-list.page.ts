@@ -33,6 +33,7 @@ interface Delivery {
   customerName: string;
   invoiceId: string;
   status: string;
+  type: string;
   scheduledDate: string;
   deliveredAt: string;
   address: string;
@@ -111,7 +112,13 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           </ng-template>
           <ng-template pTemplate="body" let-d>
             <tr>
-              <td><span class="font-mono text-sm">{{ d.number }}</span></td>
+              <td>
+                <span class="font-mono text-sm">{{ d.number }}</span>
+                @if (d.type === 'RETURN') {
+                  <p-tag [value]="'deliveries.type.return' | translate" severity="warning"
+                         styleClass="ml-2" />
+                }
+              </td>
               <td>{{ d.customerName }}</td>
               <td>{{ d.scheduledDate | date:'mediumDate' }}</td>
               <td>{{ d.deliveredAt | date:'medium' }}</td>
@@ -121,12 +128,12 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                 <button pButton icon="pi pi-file-pdf" class="p-button-sm p-button-text mr-1"
                         [pTooltip]="'common.print' | translate"
                         (click)="printPdf('/api/v1/deliveries/' + d.id + '/pdf')"></button>
-                @if (d.status === 'PENDING' || d.status === 'IN_PROGRESS') {
+                @if (d.type !== 'RETURN' && (d.status === 'PENDING' || d.status === 'IN_PROGRESS')) {
                   <button pButton icon="pi pi-check-circle" class="p-button-sm p-button-text p-button-success"
                           [pTooltip]="'deliveries.record' | translate"
                           (click)="openRecord(d)"></button>
                 }
-                @if (d.status !== 'DELIVERED' && d.status !== 'CANCELLED') {
+                @if (d.type !== 'RETURN' && d.status !== 'DELIVERED' && d.status !== 'CANCELLED') {
                   <button pButton icon="pi pi-times" class="p-button-sm p-button-text p-button-danger"
                           [pTooltip]="'common.cancel' | translate"
                           (click)="cancel(d)"></button>

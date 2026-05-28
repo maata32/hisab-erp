@@ -13,6 +13,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { CalendarModule } from 'primeng/calendar';
+import { ConfirmationService } from 'primeng/api';
 import { firstValueFrom } from 'rxjs';
 
 interface Invoice {
@@ -65,6 +66,7 @@ interface CreditableLine {
   sku: string;
   uomId: string;
   quantityInvoiced: number;
+  quantityDelivered: number;
   alreadyCredited: number;
   maxCreditable: number;
   unitPrice: number;
@@ -115,8 +117,11 @@ interface LineForm {
 
 interface CreditLineForm {
   invoiceLineId: string;
+  productId: string;
   productName: string;
   sku: string;
+  quantityInvoiced: number;
+  quantityDelivered: number;
   maxCreditable: number;
   unitPrice: number;
   discountPercent: number;
@@ -483,6 +488,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <tr>
                     <th class="text-left p-2">{{ 'creditNotes.lineCol.product' | translate }}</th>
                     <th class="text-right p-2 w-24">{{ 'creditNotes.lineCol.invoicedQty' | translate }}</th>
+                    <th class="text-right p-2 w-24">{{ 'creditNotes.lineCol.deliveredQty' | translate }}</th>
                     <th class="text-right p-2 w-24">{{ 'creditNotes.lineCol.alreadyCredited' | translate }}</th>
                     <th class="text-right p-2 w-24">{{ 'creditNotes.lineCol.creditableQty' | translate }}</th>
                     <th class="text-right p-2 w-28">{{ 'creditNotes.lineCol.unitPrice' | translate }}</th>
@@ -497,7 +503,8 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                         <div class="font-medium">{{ l.productName }}</div>
                         <div class="text-xs text-gray-500 font-mono">{{ l.sku }}</div>
                       </td>
-                      <td class="p-2 text-right text-gray-500">{{ creditableInvoiced(l.invoiceLineId) }}</td>
+                      <td class="p-2 text-right text-gray-500">{{ l.quantityInvoiced }}</td>
+                      <td class="p-2 text-right text-gray-500">{{ l.quantityDelivered }}</td>
                       <td class="p-2 text-right text-gray-500">{{ creditableAlready(l.invoiceLineId) }}</td>
                       <td class="p-2 text-right font-medium">{{ l.maxCreditable }}</td>
                       <td class="p-2 text-right text-gray-500">{{ l.unitPrice | money }}</td>
@@ -513,17 +520,17 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                 </tbody>
                 <tfoot class="bg-gray-50 border-t">
                   <tr>
-                    <td colspan="6" class="p-2 text-right">{{ 'creditNotes.totals.subtotal' | translate }}</td>
+                    <td colspan="7" class="p-2 text-right">{{ 'creditNotes.totals.subtotal' | translate }}</td>
                     <td class="p-2 text-right font-medium">{{ creditSubtotal() | money }} {{ ci.currency }}</td>
                   </tr>
                   @if (creditTaxAmount() > 0) {
                     <tr>
-                      <td colspan="6" class="p-2 text-right">{{ 'creditNotes.totals.tax' | translate }}</td>
+                      <td colspan="7" class="p-2 text-right">{{ 'creditNotes.totals.tax' | translate }}</td>
                       <td class="p-2 text-right">{{ creditTaxAmount() | money }} {{ ci.currency }}</td>
                     </tr>
                   }
                   <tr>
-                    <td colspan="6" class="p-2 text-right font-bold">{{ 'creditNotes.totals.total' | translate }}</td>
+                    <td colspan="7" class="p-2 text-right font-bold">{{ 'creditNotes.totals.total' | translate }}</td>
                     <td class="p-2 text-right font-bold text-red-700">{{ creditTotal() | money }} {{ ci.currency }}</td>
                   </tr>
                 </tfoot>
@@ -548,6 +555,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
 export class InvoiceListPage implements OnInit {
   private http = inject(HttpClient);
   private i18n = inject(TranslateService);
+  private confirmation = inject(ConfirmationService);
 
   protected invoices = signal<Invoice[]>([]);
   protected customers = signal<CustomerOpt[]>([]);
@@ -697,8 +705,11 @@ export class InvoiceListPage implements OnInit {
         reason: '',
         lines: ci.lines.map(l => ({
           invoiceLineId: l.invoiceLineId,
+          productId: l.productId,
           productName: l.productName,
           sku: l.sku,
+          quantityInvoiced: Number(l.quantityInvoiced),
+          quantityDelivered: Number(l.quantityDelivered),
           maxCreditable: Number(l.maxCreditable),
           unitPrice: Number(l.unitPrice),
           discountPercent: Number(l.discountPercent),
@@ -711,9 +722,6 @@ export class InvoiceListPage implements OnInit {
     }
   }
 
-  protected creditableInvoiced(lineId: string): number {
-    return Number(this.creditable()?.lines.find(x => x.invoiceLineId === lineId)?.quantityInvoiced ?? 0);
-  }
   protected creditableAlready(lineId: string): number {
     return Number(this.creditable()?.lines.find(x => x.invoiceLineId === lineId)?.alreadyCredited ?? 0);
   }
@@ -743,6 +751,35 @@ export class InvoiceListPage implements OnInit {
     if (this.creditLinesInvalid()) return;
     const ci = this.creditable();
     if (!ci) return;
+
+    const overflowing = this.creditForm.lines
+        .map(l => {
+          const qty = Number(l.quantity || 0);
+          const notDelivered = Math.max(0, Number(l.quantityInvoiced) - Number(l.quantityDelivered));
+          const returnQty = Math.max(0, qty - notDelivered);
+          return { line: l, returnQty };
+        })
+        .filter(r => r.returnQty > 0);
+
+    if (overflowing.length > 0) {
+      const lineList = overflowing
+          .map(r => `• ${r.line.productName} (${r.line.sku}) — ${r.returnQty}`)
+          .join('\n');
+      this.confirmation.confirm({
+        message: this.i18n.instant('creditNotes.returnDeliveryWarning.message', { lines: lineList }),
+        header: this.i18n.instant('creditNotes.returnDeliveryWarning.header'),
+        icon: 'pi pi-exclamation-triangle',
+        acceptLabel: this.i18n.instant('common.confirm'),
+        rejectLabel: this.i18n.instant('common.cancel'),
+        accept: () => this.submitCreditNote(ci),
+      });
+      return;
+    }
+
+    await this.submitCreditNote(ci);
+  }
+
+  private async submitCreditNote(ci: CreditableInvoice) {
     this.savingCredit.set(true);
     try {
       const payload = {

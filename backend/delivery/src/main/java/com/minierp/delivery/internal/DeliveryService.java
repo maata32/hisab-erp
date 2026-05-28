@@ -204,7 +204,8 @@ public class DeliveryService {
         return new DeliveryDto.DeliveryResponse(
                 d.getId(), d.getNumber(), d.getPartyId(), customerName, d.getInvoiceId(),
                 d.getWarehouseId(),
-                d.getStatus().name(), d.getScheduledDate(), d.getDeliveredAt(),
+                d.getStatus().name(), d.getType().name(),
+                d.getScheduledDate(), d.getDeliveredAt(),
                 d.getAddress(), d.getContactPhone(), d.getSignedBy(), d.getNotes(),
                 lines.stream().map(l -> new DeliveryDto.LineDto(l.getId(), l.getProductId(), l.getUomId(),
                         l.getQuantityOrdered(), l.getQuantityDelivered(), l.getStatus().name(),
@@ -224,6 +225,7 @@ public class DeliveryService {
         vars.put("delivery", new DeliveryModel(d.getNumber(), d.getScheduledDate(), d.getDeliveredAt(),
                 d.getAddress(), d.getContactPhone(), d.getSignedBy(), d.getNotes(), lm));
         vars.put("customer", new CustomerModel(customer != null ? customer.name() : "", "", customer != null ? customer.phone() : ""));
+        vars.put("isReturn", d.getType() == DeliveryType.RETURN);
         return vars;
     }
 
