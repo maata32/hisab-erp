@@ -143,6 +143,43 @@ class CreditNoteReturnDeliveryIT {
     }
 
     @Test
+    void creditCancellingUnshippedPortionFlipsInvoiceToDelivered() {
+        // Invoice 3 @ 100, ship 1 → PARTIALLY_DELIVERED.
+        SalesDto.InvoiceDto inv = createInvoice(new BigDecimal("3"), new BigDecimal("100"));
+        UUID invLineId = inv.lines().get(0).id();
+        shipInvoiceFully(inv.id(), new BigDecimal("1"));
+        assertThat(salesService.getInvoice(inv.id()).deliveryStatus())
+                .isEqualTo("PARTIALLY_DELIVERED");
+
+        // Credit the 2 unshipped units → effective_invoiced becomes 1, which is
+        // covered by the 1 already shipped → status flips to DELIVERED.
+        salesService.createCreditNote(inv.id(),
+                new SalesDto.CreateCreditNoteRequest("Cancel rest", List.of(
+                        new SalesDto.CreateCreditNoteLine(invLineId, new BigDecimal("2")))));
+
+        assertThat(salesService.getInvoice(inv.id()).deliveryStatus())
+                .as("crediting the unshipped portion closes the delivery obligation")
+                .isEqualTo("DELIVERED");
+    }
+
+    @Test
+    void fullCreditBeforeAnyShippingMarksInvoiceDelivered() {
+        // Invoice 3 @ 100, no shipping at all.
+        SalesDto.InvoiceDto inv = createInvoice(new BigDecimal("3"), new BigDecimal("100"));
+        UUID invLineId = inv.lines().get(0).id();
+        assertThat(salesService.getInvoice(inv.id()).deliveryStatus()).isEqualTo("NONE");
+
+        // Full avoir on the whole invoice → nothing to deliver anymore.
+        salesService.createCreditNote(inv.id(),
+                new SalesDto.CreateCreditNoteRequest("Wrong invoice", List.of(
+                        new SalesDto.CreateCreditNoteLine(invLineId, new BigDecimal("3")))));
+
+        assertThat(salesService.getInvoice(inv.id()).deliveryStatus())
+                .as("fully credited invoice has no outstanding delivery")
+                .isEqualTo("DELIVERED");
+    }
+
+    @Test
     void creditOverflowingNotShippedPortionCreatesBrForOverflowOnly() {
         // Invoice 3 @ 100, ship 1, credit 3 → BR for 1 (the part that's actually shipped).
         SalesDto.InvoiceDto inv = createInvoice(new BigDecimal("3"), new BigDecimal("100"));

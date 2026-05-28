@@ -39,4 +39,19 @@ interface CreditNoteLineRepository extends JpaRepository<CreditNoteLine, UUID> {
             GROUP BY cnl.productId
             """)
     List<Object[]> sumReturnedByProduct(@Param("invoiceId") UUID invoiceId);
+
+    /**
+     * Total credited quantity per product across all non-draft credit notes
+     * issued against this invoice. Used by recomputeDeliveryStatus to subtract
+     * credited amount from the invoiced amount before comparing to delivered.
+     */
+    @Query("""
+            SELECT cnl.productId, SUM(cnl.quantity)
+            FROM CreditNoteLine cnl, CreditNote cn
+            WHERE cnl.creditNoteId = cn.id
+              AND cn.invoiceId = :invoiceId
+              AND cn.status <> com.minierp.sales.internal.CreditNoteStatus.DRAFT
+            GROUP BY cnl.productId
+            """)
+    List<Object[]> sumCreditedByProduct(@Param("invoiceId") UUID invoiceId);
 }

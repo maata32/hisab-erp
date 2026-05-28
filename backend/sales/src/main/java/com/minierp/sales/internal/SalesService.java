@@ -175,12 +175,17 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
             return;
         }
         Map<UUID, BigDecimal> invoicedByProduct = getInvoicedQtyByProduct(invoiceId);
+        Map<UUID, BigDecimal> creditedByProduct = aggregateCreditedByProduct(invoiceId);
         boolean allCovered = !invoicedByProduct.isEmpty();
         boolean anyDelivered = false;
         for (Map.Entry<UUID, BigDecimal> e : invoicedByProduct.entrySet()) {
+            // Credits cancel the obligation to deliver — a fully credited line no
+            // longer leaves anything outstanding even if it was never shipped.
+            BigDecimal credited = creditedByProduct.getOrDefault(e.getKey(), BigDecimal.ZERO);
+            BigDecimal effectiveInvoiced = e.getValue().subtract(credited).max(BigDecimal.ZERO);
             BigDecimal delivered = totalDeliveredByProduct.getOrDefault(e.getKey(), BigDecimal.ZERO);
             if (delivered.signum() > 0) anyDelivered = true;
-            if (delivered.compareTo(e.getValue()) < 0) allCovered = false;
+            if (delivered.compareTo(effectiveInvoiced) < 0) allCovered = false;
         }
         InvoiceDeliveryStatus next;
         if (allCovered) {
@@ -193,6 +198,14 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         if (next != inv.getDeliveryStatus()) {
             inv.setDeliveryStatus(next);
         }
+    }
+
+    private Map<UUID, BigDecimal> aggregateCreditedByProduct(UUID invoiceId) {
+        Map<UUID, BigDecimal> map = new HashMap<>();
+        for (Object[] row : creditNoteLines.sumCreditedByProduct(invoiceId)) {
+            map.put((UUID) row[0], (BigDecimal) row[1]);
+        }
+        return map;
     }
 
     @Override
@@ -523,6 +536,13 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
                     cn.getId(), cn.getNumber(), inv.getId(), inv.getPartyId(),
                     List.copyOf(returnLines)));
         }
+
+        // Credit reduces the outstanding "still-to-deliver" amount, so the
+        // invoice may flip from PARTIALLY_DELIVERED to DELIVERED (or even
+        // straight from NONE to DELIVERED when the credit cancels an unshipped
+        // line). Refresh the status using the same gross-outbound map we read
+        // above — the BR posted by the event listener filters out as RETURN.
+        recomputeDeliveryStatus(invoiceId, deliveredByProduct);
 
         return toCreditNoteDto(cn);
     }
