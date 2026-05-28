@@ -224,6 +224,11 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                           [pTooltip]="'invoices.createDelivery' | translate"
                           (click)="goToCreateDelivery(inv.id)"></button>
                 }
+                @if (canCreatePayment(inv)) {
+                  <button pButton icon="pi pi-wallet" class="p-button-sm p-button-text p-button-success mr-1"
+                          [pTooltip]="'invoices.createPayment' | translate"
+                          (click)="goToCreatePayment(inv.id)"></button>
+                }
                 <button pButton icon="pi pi-print" class="p-button-sm p-button-text"
                         [pTooltip]="'common.print' | translate"
                         (click)="printPdf('/api/v1/invoices/' + inv.id + '/pdf')"></button>
@@ -494,6 +499,11 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                       class="p-button-info"
                       (click)="goToCreateDelivery(inv.id)"></button>
             }
+            @if (canCreatePayment(inv)) {
+              <button pButton icon="pi pi-wallet" [label]="'invoices.createPayment' | translate"
+                      class="p-button-success"
+                      (click)="goToCreatePayment(inv.id)"></button>
+            }
             @if (canCreateCreditNote(inv.status)) {
               <button pButton icon="pi pi-undo" [label]="'invoices.createCreditNote' | translate"
                       class="p-button-warning"
@@ -697,6 +707,14 @@ export class InvoiceListPage implements OnInit {
 
   protected goToCreateDelivery(invoiceId: string) {
     this.router.navigate(['/deliveries'], { queryParams: { createForInvoice: invoiceId } });
+  }
+
+  protected canCreatePayment(inv: { status: string; balance: number }): boolean {
+    return inv.status !== 'DRAFT' && inv.status !== 'CANCELLED' && Number(inv.balance) > 0;
+  }
+
+  protected goToCreatePayment(invoiceId: string) {
+    this.router.navigate(['/payments'], { queryParams: { createForInvoice: invoiceId } });
   }
 
   protected async printPdf(url: string) {

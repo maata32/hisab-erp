@@ -464,6 +464,7 @@
     "detailTitle": "Facture {{number}}",
     "createCreditNote": "Créer un avoir",
     "createDelivery": "Créer un BL",
+    "createPayment": "Encaisser",
     "noCreditableLines": "Toutes les lignes sont déjà créditées.",
     "linkedQuote": "Devis lié",
     "deliveries": "Livraisons",

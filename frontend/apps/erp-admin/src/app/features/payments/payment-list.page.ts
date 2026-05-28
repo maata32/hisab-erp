@@ -5,6 +5,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MoneyPipe } from '@minierp/shared-i18n';
 import { ConfirmationService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
@@ -357,6 +358,8 @@ export class PaymentListPage implements OnInit {
   private http = inject(HttpClient);
   private i18n = inject(TranslateService);
   private confirmation = inject(ConfirmationService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
 
   protected payments = signal<Payment[]>([]);
   protected customers = signal<CustomerLite[]>([]);
@@ -404,6 +407,35 @@ export class PaymentListPage implements OnInit {
   ngOnInit() {
     this.loadCustomers();
     // Payments are fetched on demand via the p-table's onLazyLoad.
+    const invoiceId = this.route.snapshot.queryParamMap.get('createForInvoice');
+    if (invoiceId) {
+      this.openCreateForInvoice(invoiceId);
+      this.router.navigate([], { queryParams: {}, replaceUrl: true });
+    }
+  }
+
+  private async openCreateForInvoice(invoiceId: string) {
+    try {
+      const inv = await firstValueFrom(
+        this.http.get<{ id: string; customerId: string; balance: number }>(`/api/v1/invoices/${invoiceId}`)
+      );
+      this.openCreate();
+      this.form.type = 'CUSTOMER_PAYMENT';
+      this.form.partyId = inv.customerId;
+      this.form.amount = Number(inv.balance);
+      await this.onPartyChange();
+      // Override the FIFO distribution: allocate only to the target invoice,
+      // matching the user's clear intent ("paye cette facture").
+      const target = this.form.allocations.find(a => a.invoiceId === invoiceId);
+      if (target) {
+        for (const a of this.form.allocations) a.allocated = 0;
+        target.allocated = Math.min(this.form.amount, target.balance);
+        this.allocationsUserEdited = true;
+      }
+    } catch {
+      // Fall back to a blank create dialog if the invoice fetch fails.
+      this.openCreate();
+    }
   }
 
   protected statusSeverity(s: string): Severity {

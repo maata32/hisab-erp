@@ -463,6 +463,7 @@
     "detailTitle": "Invoice {{number}}",
     "createCreditNote": "Create credit note",
     "createDelivery": "Create delivery",
+    "createPayment": "Record payment",
     "noCreditableLines": "All lines are already fully credited.",
     "linkedQuote": "Linked quote",
     "deliveries": "Deliveries",
