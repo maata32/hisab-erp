@@ -23,7 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(classes = MiniErpApplication.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@DisplayName("Sales controllers (Quote/Order/Invoice) — HTTP layer")
+@DisplayName("Sales controllers (Quote/Invoice) — HTTP layer")
 class SalesControllerIT {
 
     @Autowired MockMvc mockMvc;
@@ -53,14 +53,6 @@ class SalesControllerIT {
     @DisplayName("GET /quotes returns 200")
     void listQuotes_returns200() throws Exception {
         mockMvc.perform(get("/api/v1/quotes").header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content").isArray());
-    }
-
-    @Test
-    @DisplayName("GET /orders returns 200")
-    void listOrders_returns200() throws Exception {
-        mockMvc.perform(get("/api/v1/orders").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray());
     }

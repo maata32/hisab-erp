@@ -28,8 +28,8 @@ class Invoice extends TenantAwareEntity {
     @Column(name = "party_id", nullable = false, columnDefinition = "uuid")
     private UUID partyId;
 
-    @Column(name = "order_id", columnDefinition = "uuid")
-    private UUID orderId;
+    @Column(name = "quote_id", columnDefinition = "uuid")
+    private UUID quoteId;
 
     @Column(name = "issue_date", nullable = false)
     private LocalDate issueDate;
@@ -41,6 +41,11 @@ class Invoice extends TenantAwareEntity {
     @Column(nullable = false, length = 20)
     @Builder.Default
     private InvoiceStatus status = InvoiceStatus.DRAFT;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "delivery_status", nullable = false, length = 20)
+    @Builder.Default
+    private InvoiceDeliveryStatus deliveryStatus = InvoiceDeliveryStatus.NONE;
 
     @Column(nullable = false, length = 3)
     @Builder.Default

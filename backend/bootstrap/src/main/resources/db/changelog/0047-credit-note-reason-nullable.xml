@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Drop NOT NULL on credit_notes.reason. The reason is informational
+        and the UI / API treat it as optional; the entity already maps it
+        as nullable. Without this change, saving a credit note without
+        a reason fails with a NOT NULL violation, which aborts the
+        whole transaction and surfaces as a misleading 404 on the next
+        SELECT (e.g. warehouse lookup during stock return).
+    -->
+
+    <changeSet id="0047-credit-notes-reason-nullable" author="mini-erp">
+        <dropNotNullConstraint tableName="credit_notes" columnName="reason" columnDataType="varchar(500)"/>
+    </changeSet>
+
+</databaseChangeLog>

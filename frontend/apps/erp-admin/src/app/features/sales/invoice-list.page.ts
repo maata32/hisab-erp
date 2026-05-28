@@ -22,9 +22,18 @@ interface Invoice {
   issueDate: string;
   dueDate: string;
   status: string;
+  deliveryStatus: string;
   currency: string;
   total: number;
   balance: number;
+  quoteId: string | null;
+  quoteNumber: string | null;
+  quoteStatus: string | null;
+}
+
+interface InvoiceDelivery {
+  id: string;
+  number: string;
 }
 
 interface InvoiceLine {
@@ -166,11 +175,29 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <td class="text-right" [class.text-red-600]="inv.balance > 0">
                 {{ inv.balance | money }} {{ inv.currency }}
               </td>
-              <td><p-tag [value]="'sales.statuses.' + inv.status | translate" [severity]="statusSeverity(inv.status)" /></td>
+              <td>
+                <p-tag [value]="'sales.statuses.' + inv.status | translate" [severity]="statusSeverity(inv.status)" />
+                @if (inv.deliveryStatus && inv.deliveryStatus !== 'NONE') {
+                  <p-tag [value]="'invoices.deliveryStatuses.' + inv.deliveryStatus | translate"
+                         [severity]="deliveryStatusSeverity(inv.deliveryStatus)"
+                         styleClass="ml-1 text-[10px] py-0 px-1" />
+                }
+                @if (inv.quoteNumber) {
+                  <div class="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                    <span>&larr;</span>
+                    <span class="font-mono">{{ inv.quoteNumber }}</span>
+                  </div>
+                }
+              </td>
               <td class="whitespace-nowrap">
                 <button pButton icon="pi pi-eye" class="p-button-sm p-button-text mr-1"
                         [pTooltip]="'invoices.view' | translate"
                         (click)="openDetail(inv)"></button>
+                @if (inv.status === 'DRAFT') {
+                  <button pButton icon="pi pi-send" class="p-button-sm p-button-text mr-1"
+                          [pTooltip]="'invoices.issue' | translate"
+                          (click)="issueInvoice(inv)"></button>
+                }
                 <button pButton icon="pi pi-print" class="p-button-sm p-button-text"
                         [pTooltip]="'common.print' | translate"
                         (click)="printPdf('/api/v1/invoices/' + inv.id + '/pdf')"></button>
@@ -354,7 +381,38 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   {{ inv.balance | money }} {{ inv.currency }}
                 </div>
               </div>
+              @if (inv.quoteNumber) {
+                <div class="col-span-3">
+                  <span class="text-gray-500">{{ 'invoices.linkedQuote' | translate }} :</span>
+                  <span class="font-mono ml-1">{{ inv.quoteNumber }}</span>
+                </div>
+              }
+              @if (inv.status !== 'DRAFT' && inv.status !== 'CANCELLED') {
+                <div class="col-span-3">
+                  <span class="text-gray-500">{{ 'invoices.deliveryStatus' | translate }} :</span>
+                  <p-tag [value]="'invoices.deliveryStatuses.' + inv.deliveryStatus | translate"
+                         [severity]="deliveryStatusSeverity(inv.deliveryStatus)"
+                         styleClass="ml-2 text-xs" />
+                </div>
+              }
             </div>
+
+            @if (inv.status !== 'DRAFT' && inv.status !== 'CANCELLED') {
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-gray-500 text-sm">{{ 'invoices.deliveries' | translate }} :</span>
+                @if (deliveriesLoading()) {
+                  <span class="text-gray-400 text-sm">{{ 'common.loading' | translate }}</span>
+                } @else if (deliveries().length === 0) {
+                  <span class="text-gray-400 text-sm">{{ 'invoices.noDeliveries' | translate }}</span>
+                } @else {
+                  @for (d of deliveries(); track d.id) {
+                    <button pButton icon="pi pi-file-pdf" class="p-button-sm p-button-text"
+                            [pTooltip]="d.number"
+                            (click)="printPdf('/api/v1/deliveries/' + d.id + '/pdf')"></button>
+                  }
+                }
+              </div>
+            }
 
             <div class="border rounded">
               <table class="w-full text-sm">
@@ -364,7 +422,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                     <th class="text-right p-2 w-24">{{ 'sales.quantity' | translate }}</th>
                     <th class="text-right p-2 w-28">{{ 'sales.unitPrice' | translate }}</th>
                     <th class="text-right p-2 w-20">{{ 'sales.discount' | translate }}%</th>
-                    <th class="text-right p-2 w-20">TVA</th>
+                    @if (taxEnabled()) {
+                      <th class="text-right p-2 w-20">TVA</th>
+                    }
                     <th class="text-right p-2 w-28">{{ 'sales.lineTotal' | translate }}</th>
                   </tr>
                 </thead>
@@ -378,7 +438,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                       <td class="p-2 text-right">{{ l.quantity }}</td>
                       <td class="p-2 text-right">{{ l.unitPrice | money }}</td>
                       <td class="p-2 text-right">{{ l.discountPercent > 0 ? (l.discountPercent + '%') : '—' }}</td>
-                      <td class="p-2 text-right">{{ (l.taxRate * 100) | number:'1.0-0' }}%</td>
+                      @if (taxEnabled()) {
+                        <td class="p-2 text-right">{{ (l.taxRate * 100) | number:'1.0-0' }}%</td>
+                      }
                       <td class="p-2 text-right font-medium">{{ l.lineTotal | money }}</td>
                     </tr>
                   }
@@ -513,6 +575,9 @@ export class InvoiceListPage implements OnInit {
 
   protected detailOpen = signal(false);
   protected detail = signal<InvoiceDetail | null>(null);
+  protected deliveries = signal<InvoiceDelivery[]>([]);
+  protected deliveriesLoading = signal(false);
+  protected taxEnabled = signal(true);
 
   protected creditOpen = signal(false);
   protected creditable = signal<CreditableInvoice | null>(null);
@@ -548,6 +613,15 @@ export class InvoiceListPage implements OnInit {
     // Invoices are fetched on demand via the p-table's onLazyLoad.
     this.loadCustomers();
     this.loadProducts();
+    this.loadSettings();
+  }
+
+  private async loadSettings() {
+    try {
+      const s = await firstValueFrom(this.http.get<any>('/api/v1/settings'));
+      const enabled = s?.invoiceSettings?.taxEnabled;
+      if (typeof enabled === 'boolean') this.taxEnabled.set(enabled);
+    } catch { /* keep default true */ }
   }
 
   protected isOverdue(inv: Invoice): boolean {
@@ -556,6 +630,19 @@ export class InvoiceListPage implements OnInit {
 
   protected statusSeverity(status: string): Severity {
     return ({ DRAFT: 'secondary', ISSUED: 'info', PARTIAL: 'warning', PAID: 'success', OVERDUE: 'danger', CANCELLED: 'secondary' } as Record<string, Severity>)[status] ?? 'secondary';
+  }
+
+  protected deliveryStatusSeverity(status: string): Severity {
+    return ({
+      NONE: 'secondary', PARTIALLY_DELIVERED: 'warning', DELIVERED: 'success',
+    } as Record<string, Severity>)[status] ?? 'secondary';
+  }
+
+  protected async issueInvoice(inv: Invoice) {
+    try {
+      await firstValueFrom(this.http.post(`/api/v1/invoices/${inv.id}/issue`, {}));
+      this.reload();
+    } catch { /* global error handler */ }
   }
 
   protected canCreateCreditNote(status: string): boolean {
@@ -575,12 +662,24 @@ export class InvoiceListPage implements OnInit {
 
   protected async openDetail(inv: Invoice) {
     this.detail.set(null);
+    this.deliveries.set([]);
     this.detailOpen.set(true);
+    this.deliveriesLoading.set(true);
     try {
       const full = await firstValueFrom(this.http.get<InvoiceDetail>(`/api/v1/invoices/${inv.id}`));
       this.detail.set(full);
     } catch {
       this.detail.set(null);
+    }
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ content: InvoiceDelivery[] }>(`/api/v1/deliveries?invoiceId=${inv.id}&size=200`)
+      );
+      this.deliveries.set(res.content ?? []);
+    } catch {
+      this.deliveries.set([]);
+    } finally {
+      this.deliveriesLoading.set(false);
     }
   }
 
@@ -734,7 +833,7 @@ export class InvoiceListPage implements OnInit {
     try {
       const payload = {
         customerId: this.form.customerId,
-        orderId: null,
+        quoteId: null,
         issueDate: this.toIsoDate(this.form.issueDate),
         dueDate: this.toIsoDate(this.form.dueDate),
         paymentTerms: this.form.paymentTerms || null,

@@ -13,4 +13,7 @@ public interface TenantSettingsLookup {
 
     /** Paper size for PDF rendering ("A4" or "A5"). Returns "A4" when unset / tenant not found. */
     String getPaperSize(UUID tenantId);
+
+    /** Whether VAT/tax columns and totals should be shown. Returns true when unset / tenant not found. */
+    boolean isTaxEnabled(UUID tenantId);
 }

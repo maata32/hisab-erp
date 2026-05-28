@@ -358,16 +358,6 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
                     Map.of("partyId", id, "count", openQuotes));
         }
 
-        Long openOrders = ((Number) em.createNativeQuery(
-                "SELECT COUNT(*) FROM orders " +
-                        "WHERE party_id = :id AND status NOT IN ('CANCELLED','INVOICED')")
-                .setParameter("id", id)
-                .getSingleResult()).longValue();
-        if (openOrders > 0) {
-            throw new BusinessException("error.partner.open_orders",
-                    Map.of("partyId", id, "count", openOrders));
-        }
-
         Long openInvoices = ((Number) em.createNativeQuery(
                 "SELECT COUNT(*) FROM invoices " +
                         "WHERE party_id = :id AND status IN ('ISSUED','PARTIAL','OVERDUE')")

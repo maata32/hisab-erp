@@ -46,11 +46,6 @@ export const appRoutes: Routes = [
           import('./features/sales/quote-list.page').then((m) => m.QuoteListPage),
       },
       {
-        path: 'orders',
-        loadComponent: () =>
-          import('./features/sales/order-list.page').then((m) => m.OrderListPage),
-      },
-      {
         path: 'invoices',
         loadComponent: () =>
           import('./features/sales/invoice-list.page').then((m) => m.InvoiceListPage),

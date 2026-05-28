@@ -31,7 +31,7 @@ interface Delivery {
   number: string;
   customerId: string;
   customerName: string;
-  orderId: string;
+  invoiceId: string;
   status: string;
   scheduledDate: string;
   deliveredAt: string;
@@ -44,13 +44,13 @@ interface Delivery {
 
 interface WarehouseLite { id: string; code: string; name: string; defaultWarehouse: boolean; }
 
-interface OrderLite {
+interface InvoiceLite {
   id: string;
   number: string;
   customerId: string;
   customerName: string;
   status: string;
-  deliveryRequired: boolean;
+  deliveryStatus: string;
   lines: { id: string; productId: string; uomId: string; quantity: number; productName: string; sku: string }[];
 }
 
@@ -146,13 +146,13 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
         <div class="space-y-3">
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-sm font-medium mb-1">{{ 'orders.title' | translate }} *</label>
-              <p-dropdown [(ngModel)]="form.orderId" [options]="deliverableOrders()"
+              <label class="block text-sm font-medium mb-1">{{ 'invoices.title' | translate }} *</label>
+              <p-dropdown [(ngModel)]="form.invoiceId" [options]="deliverableInvoices()"
                           optionLabel="number" optionValue="id"
                           [filter]="true" filterBy="number,customerName"
-                          [placeholder]="'deliveries.pickOrder' | translate"
-                          (onChange)="onOrderChange()" appendTo="body"
-                          [styleClass]="'w-full' + (orderInvalid() ? ' ng-invalid ng-dirty' : '')">
+                          [placeholder]="'deliveries.pickInvoice' | translate"
+                          (onChange)="onInvoiceChange()" appendTo="body"
+                          [styleClass]="'w-full' + (invoiceInvalid() ? ' ng-invalid ng-dirty' : '')">
                 <ng-template let-o pTemplate="item">
                   <div class="flex flex-col">
                     <span class="font-mono text-sm">{{ o.number }}</span>
@@ -160,7 +160,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   </div>
                 </ng-template>
               </p-dropdown>
-              @if (orderInvalid()) {
+              @if (invoiceInvalid()) {
                 <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
               }
             </div>
@@ -239,7 +239,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   </tr>
                 }
                 @if (form.lines.length === 0) {
-                  <tr><td colspan="3" class="p-4 text-center text-gray-400">{{ 'deliveries.pickOrderFirst' | translate }}</td></tr>
+                  <tr><td colspan="3" class="p-4 text-center text-gray-400">{{ 'deliveries.pickInvoiceFirst' | translate }}</td></tr>
                 }
               </tbody>
             </table>
@@ -310,7 +310,7 @@ export class DeliveryListPage implements OnInit {
   private confirmation = inject(ConfirmationService);
 
   protected deliveries = signal<Delivery[]>([]);
-  protected orders = signal<OrderLite[]>([]);
+  protected invoicesList = signal<InvoiceLite[]>([]);
   protected warehouses = signal<WarehouseLite[]>([]);
   @ViewChild('table') private table?: Table;
   protected readonly pageSize = 50;
@@ -322,7 +322,7 @@ export class DeliveryListPage implements OnInit {
   protected createOpen = false;
   protected recordOpen = false;
 
-  protected orderInvalid(): boolean { return this.submittedCreate() && !this.form.orderId; }
+  protected invoiceInvalid(): boolean { return this.submittedCreate() && !this.form.invoiceId; }
   protected scheduledDateInvalid(): boolean { return this.submittedCreate() && !this.form.scheduledDate; }
   protected warehouseInvalid(): boolean { return this.submittedCreate() && !this.form.warehouseId; }
   protected createLinesInvalid(): boolean {
@@ -332,7 +332,7 @@ export class DeliveryListPage implements OnInit {
   protected remainingByProduct: Record<string, number> = {};
 
   protected form: {
-    orderId: string | null;
+    invoiceId: string | null;
     warehouseId: string | null;
     scheduledDate: Date;
     address: string;
@@ -350,16 +350,16 @@ export class DeliveryListPage implements OnInit {
 
   ngOnInit() {
     // auto-loaded by p-table lazy
-    this.loadOrders();
+    this.loadInvoices();
     this.loadWarehouses();
   }
 
-  protected deliverableOrders(): OrderLite[] {
-    // Lifecycle: DRAFT → CONFIRMED → INVOICED → PARTIALLY_DELIVERED → DELIVERED.
-    // A BL is only creatable once the order has been invoiced — business rule:
-    // no shipment without a prior non-cancelled invoice.
-    const allowed = new Set(['INVOICED', 'PARTIALLY_DELIVERED']);
-    return this.orders().filter(o => allowed.has(o.status));
+  protected deliverableInvoices(): InvoiceLite[] {
+    // BL prereq: invoice not DRAFT, not CANCELLED, not fully delivered.
+    return this.invoicesList().filter(inv =>
+      inv.status !== 'DRAFT'
+      && inv.status !== 'CANCELLED'
+      && inv.deliveryStatus !== 'DELIVERED');
   }
 
   protected statusSeverity(status: string): Severity {
@@ -388,14 +388,13 @@ export class DeliveryListPage implements OnInit {
     this.createOpen = true;
   }
 
-  protected async onOrderChange() {
-    const order = this.orders().find(o => o.id === this.form.orderId);
-    if (!order) { this.form.lines = []; return; }
-    // Fetch all deliveries for this order to compute remaining qty per product.
-    const allDeliveries = await this.fetchAllDeliveriesForCustomer(order.customerId);
+  protected async onInvoiceChange() {
+    const invoice = this.invoicesList().find(o => o.id === this.form.invoiceId);
+    if (!invoice) { this.form.lines = []; return; }
+    // Fetch all deliveries for this invoice to compute remaining qty per product.
+    const allDeliveries = await this.fetchDeliveriesForInvoice(invoice.id);
     const deliveredByProduct: Record<string, number> = {};
     for (const d of allDeliveries) {
-      if (d.orderId !== order.id) continue;
       if (d.status === 'CANCELLED') continue;
       for (const ln of d.lines ?? []) {
         deliveredByProduct[ln.productId] = (deliveredByProduct[ln.productId] ?? 0)
@@ -404,24 +403,24 @@ export class DeliveryListPage implements OnInit {
     }
     this.remainingByProduct = {};
     const lines: DeliveryLineForm[] = [];
-    for (const ol of order.lines) {
-      const remaining = ol.quantity - (deliveredByProduct[ol.productId] ?? 0);
+    for (const il of invoice.lines) {
+      const remaining = il.quantity - (deliveredByProduct[il.productId] ?? 0);
       if (remaining <= 0) continue;
-      this.remainingByProduct[ol.productId] = remaining;
+      this.remainingByProduct[il.productId] = remaining;
       lines.push({
-        productId: ol.productId,
-        uomId: ol.uomId,
-        productName: ol.productName,
-        sku: ol.sku,
+        productId: il.productId,
+        uomId: il.uomId,
+        productName: il.productName,
+        sku: il.sku,
         quantityOrdered: remaining,
       });
     }
     this.form.lines = lines;
-    if (order.customerId) {
+    if (invoice.customerId) {
       // pull customer address into the form
       try {
         const cust = await firstValueFrom(
-          this.http.get<{ address?: string; phone?: string }>(`/api/v1/partners/${order.customerId}`)
+          this.http.get<{ address?: string; phone?: string }>(`/api/v1/partners/${invoice.customerId}`)
         );
         if (!this.form.address) this.form.address = cust.address ?? '';
         if (!this.form.contactPhone) this.form.contactPhone = cust.phone ?? '';
@@ -430,7 +429,7 @@ export class DeliveryListPage implements OnInit {
   }
 
   protected canSave(): boolean {
-    return !!this.form.orderId
+    return !!this.form.invoiceId
         && !!this.form.warehouseId
         && this.form.lines.length > 0
         && this.form.lines.some(l => (l.quantityOrdered ?? 0) > 0);
@@ -441,10 +440,10 @@ export class DeliveryListPage implements OnInit {
     if (!this.canSave()) return;
     this.saving.set(true);
     try {
-      const order = this.orders().find(o => o.id === this.form.orderId);
+      const invoice = this.invoicesList().find(o => o.id === this.form.invoiceId);
       const payload = {
-        customerId: order?.customerId,
-        orderId: this.form.orderId,
+        customerId: invoice?.customerId,
+        invoiceId: this.form.invoiceId,
         warehouseId: this.form.warehouseId,
         scheduledDate: this.toIsoDate(this.form.scheduledDate),
         address: this.form.address || null,
@@ -563,22 +562,22 @@ export class DeliveryListPage implements OnInit {
     this.table?.reset();
   }
 
-  private async loadOrders() {
+  private async loadInvoices() {
     try {
       const res = await firstValueFrom(
-        this.http.get<{ content: OrderLite[] }>('/api/v1/orders?size=200')
+        this.http.get<{ content: InvoiceLite[] }>('/api/v1/invoices?size=200')
       );
-      this.orders.set(res.content ?? []);
+      this.invoicesList.set(res.content ?? []);
     } catch {
-      this.orders.set([]);
+      this.invoicesList.set([]);
     }
   }
 
-  private async fetchAllDeliveriesForCustomer(customerId: string): Promise<Delivery[]> {
+  private async fetchDeliveriesForInvoice(invoiceId: string): Promise<Delivery[]> {
     try {
       const res = await firstValueFrom(
         this.http.get<{ content: Delivery[] }>(
-          `/api/v1/deliveries?customerId=${encodeURIComponent(customerId)}&size=200`
+          `/api/v1/deliveries?invoiceId=${encodeURIComponent(invoiceId)}&size=200`
         )
       );
       return res.content ?? [];
@@ -589,7 +588,7 @@ export class DeliveryListPage implements OnInit {
 
   private emptyForm() {
     return {
-      orderId: null as string | null,
+      invoiceId: null as string | null,
       warehouseId: this.warehouses().find(w => w.defaultWarehouse)?.id
                    ?? this.warehouses()[0]?.id
                    ?? null as string | null,

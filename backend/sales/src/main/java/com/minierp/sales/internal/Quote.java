@@ -54,8 +54,8 @@ class Quote extends TenantAwareEntity {
     @Column(precision = 19, scale = 2, nullable = false)
     @Builder.Default private BigDecimal total = BigDecimal.ZERO;
 
-    @Column(name = "converted_to_order_id", columnDefinition = "uuid")
-    private UUID convertedToOrderId;
+    @Column(name = "converted_to_invoice_id", columnDefinition = "uuid")
+    private UUID convertedToInvoiceId;
 
     @Column(length = 1000)
     private String notes;

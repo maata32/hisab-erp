@@ -86,7 +86,6 @@
     "dashboard": "Tableau de bord",
     "partners": "Partenaires",
     "quotes": "Devis",
-    "orders": "Commandes",
     "invoices": "Factures",
     "deliveries": "Livraisons",
     "payments": "Paiements",
@@ -142,7 +141,7 @@
       "ventes": "Ventes",
       "factures": "Factures & dépenses",
       "activite": "Activité du mois",
-      "orders": "Commandes",
+      "invoices_backlog": "Suivi des factures",
       "stock": "Stock & opérations",
       "clients": "Clients & équipe"
     },
@@ -179,9 +178,8 @@
       "over_credit_limit_hint": "Limite de crédit dépassée",
       "total_customer_balance": "Créances clients",
       "active_users": "Utilisateurs actifs",
-      "orders_draft": "Commandes en brouillon",
-      "orders_confirmed_not_delivered": "Commandes non livrées",
-      "orders_confirmed_not_invoiced": "Commandes non facturées"
+      "invoices_draft": "Factures en brouillon",
+      "invoices_not_fully_delivered": "Factures non livrées"
     },
     "aging": {
       "title": "Vieillissement des créances",
@@ -446,18 +444,9 @@
     "empty": "Aucun devis trouvé",
     "create": "Nouveau devis",
     "createTitle": "Créer un devis",
-    "convertToOrder": "Convertir en commande",
-    "confirmConvert": "Convertir le devis {{number}} en commande ?"
-  },
-  "orders": {
-    "title": "Commandes",
-    "subtitle": "Commandes clients confirmées",
-    "empty": "Aucune commande trouvée",
-    "create": "Nouvelle commande",
-    "createTitle": "Créer une commande",
-    "deliveryRequired": "Livraison requise",
+    "editTitle": "Modifier le devis {{number}}",
     "convertToInvoice": "Convertir en facture",
-    "invoiceFromOrderHint": "Créer une facture à partir de la commande"
+    "confirmConvert": "Convertir le devis {{number}} en facture (brouillon) ?"
   },
   "invoices": {
     "title": "Factures",
@@ -468,12 +457,22 @@
     "paymentTerms": "Conditions de paiement",
     "paymentTermsHint": "ex. 30 jours net",
     "createDirect": "Facture directe",
-    "createDirectHint": "Créer une facture sans passer par devis / commande",
+    "createDirectHint": "Créer une facture sans passer par un devis",
     "createTitle": "Créer une facture directe",
     "view": "Voir le détail",
+    "issue": "Émettre la facture",
     "detailTitle": "Facture {{number}}",
     "createCreditNote": "Créer un avoir",
-    "noCreditableLines": "Toutes les lignes sont déjà créditées."
+    "noCreditableLines": "Toutes les lignes sont déjà créditées.",
+    "linkedQuote": "Devis lié",
+    "deliveries": "Livraisons",
+    "noDeliveries": "Aucune livraison pour cette facture.",
+    "deliveryStatus": "Statut livraison",
+    "deliveryStatuses": {
+      "NONE": "Non livré",
+      "PARTIALLY_DELIVERED": "Partiellement livré",
+      "DELIVERED": "Livré"
+    }
   },
   "creditNotes": {
     "title": "Avoirs",
@@ -519,8 +518,8 @@
     "empty": "Aucune livraison trouvée",
     "create": "Nouveau BL",
     "createTitle": "Nouveau bon de livraison",
-    "pickOrder": "Choisir une commande…",
-    "pickOrderFirst": "Sélectionnez d'abord une commande",
+    "pickInvoice": "Choisir une facture…",
+    "pickInvoiceFirst": "Sélectionnez d'abord une facture",
     "warehouse": "Dépôt",
     "pickWarehouse": "Choisir un dépôt…",
     "linesToShip": "Lignes à expédier",

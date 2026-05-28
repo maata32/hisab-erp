@@ -51,10 +51,9 @@ interface DashboardKpis {
   aging31to60: number;
   aging61to90: number;
   aging90plus: number;
-  // Orders
-  ordersDraftCount: number;
-  ordersConfirmedNotDeliveredCount: number;
-  ordersConfirmedNotInvoicedCount: number;
+  // Invoices backlog
+  invoicesDraftCount: number;
+  invoicesNotFullyDeliveredCount: number;
   // Lists & trends
   topProductsMonth: TopProduct[];
   sales7Days: DailyAmount[];
@@ -442,25 +441,19 @@ export class DashboardPage implements OnInit {
         ],
       },
       {
-        titleKey: 'dashboard.group.orders',
+        titleKey: 'dashboard.group.invoices_backlog',
         visible: this.hasFinance(),
         cards: [
           {
-            label: 'dashboard.kpi.orders_draft',
+            label: 'dashboard.kpi.invoices_draft',
             icon: 'pi pi-file-edit',
-            value: k ? this.fmt(k.ordersDraftCount) : '—',
+            value: k ? this.fmt(k.invoicesDraftCount) : '—',
           },
           {
-            label: 'dashboard.kpi.orders_confirmed_not_delivered',
+            label: 'dashboard.kpi.invoices_not_fully_delivered',
             icon: 'pi pi-truck',
-            severity: k && k.ordersConfirmedNotDeliveredCount > 0 ? 'warning' : null,
-            value: k ? this.fmt(k.ordersConfirmedNotDeliveredCount) : '—',
-          },
-          {
-            label: 'dashboard.kpi.orders_confirmed_not_invoiced',
-            icon: 'pi pi-receipt',
-            severity: k && k.ordersConfirmedNotInvoicedCount > 0 ? 'warning' : null,
-            value: k ? this.fmt(k.ordersConfirmedNotInvoicedCount) : '—',
+            severity: k && k.invoicesNotFullyDeliveredCount > 0 ? 'warning' : null,
+            value: k ? this.fmt(k.invoicesNotFullyDeliveredCount) : '—',
           },
         ],
       },

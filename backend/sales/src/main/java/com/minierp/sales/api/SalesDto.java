@@ -46,28 +46,9 @@ public class SalesDto {
             String notes,
             List<LineDto> lines,
             Instant createdAt,
-            UUID linkedOrderId,
-            String linkedOrderNumber,
-            String linkedOrderStatus
-    ) {}
-
-    public record OrderDto(
-            UUID id,
-            String number,
-            UUID customerId,
-            String customerName,
-            UUID quoteId,
-            LocalDate orderDate,
-            String status,
-            boolean deliveryRequired,
-            String currency,
-            BigDecimal subtotal,
-            BigDecimal discountAmount,
-            BigDecimal taxAmount,
-            BigDecimal total,
-            String notes,
-            List<LineDto> lines,
-            Instant createdAt
+            UUID linkedInvoiceId,
+            String linkedInvoiceNumber,
+            String linkedInvoiceStatus
     ) {}
 
     public record InvoiceDto(
@@ -75,10 +56,11 @@ public class SalesDto {
             String number,
             UUID customerId,
             String customerName,
-            UUID orderId,
+            UUID quoteId,
             LocalDate issueDate,
             LocalDate dueDate,
             String status,
+            String deliveryStatus,
             String currency,
             BigDecimal subtotal,
             BigDecimal discountAmount,
@@ -89,7 +71,9 @@ public class SalesDto {
             String paymentTerms,
             String notes,
             List<LineDto> lines,
-            Instant createdAt
+            Instant createdAt,
+            String quoteNumber,
+            String quoteStatus
     ) {}
 
     public record CreditNoteLineDto(
@@ -134,19 +118,22 @@ public class SalesDto {
             List<LineRequest> lines
     ) {}
 
-    public record CreateOrderRequest(
-            UUID customerId,
-            UUID quoteId,
-            LocalDate orderDate,
-            boolean deliveryRequired,
+    public record UpdateQuoteRequest(
+            LocalDate issueDate,
+            LocalDate validUntil,
             String currency,
             String notes,
             List<LineRequest> lines
     ) {}
 
+    public record ConvertQuoteToInvoiceRequest(
+            LocalDate dueDate,
+            String paymentTerms
+    ) {}
+
     public record CreateInvoiceRequest(
             UUID customerId,
-            UUID orderId,
+            UUID quoteId,
             LocalDate issueDate,
             LocalDate dueDate,
             String paymentTerms,

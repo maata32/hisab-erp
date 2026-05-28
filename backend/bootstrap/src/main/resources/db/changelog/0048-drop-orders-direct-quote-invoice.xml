@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        The sales chain becomes Quote → Invoice → Delivery. The Order (BC)
+        entity is removed entirely: quotes convert straight to a draft
+        invoice, and deliveries link to invoices.
+
+        Existing order_id references on invoices/deliveries are dropped
+        (data loss accepted per refactor scope). Invoices gain a quote_id
+        pointer and a delivery_status field auto-derived by the delivery
+        module.
+    -->
+
+    <changeSet id="0048-add-invoice-quote-id" author="mini-erp">
+        <addColumn tableName="invoices">
+            <column name="quote_id" type="uuid"/>
+            <column name="delivery_status" type="varchar(20)" defaultValue="NONE">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <createIndex tableName="invoices" indexName="idx_invoices_quote">
+            <column name="quote_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0048-rename-quote-converted-link" author="mini-erp">
+        <addColumn tableName="quotes">
+            <column name="converted_to_invoice_id" type="uuid"/>
+        </addColumn>
+        <dropColumn tableName="quotes" columnName="converted_to_order_id"/>
+    </changeSet>
+
+    <changeSet id="0048-drop-invoice-order-link" author="mini-erp">
+        <dropColumn tableName="invoices" columnName="order_id"/>
+    </changeSet>
+
+    <changeSet id="0048-drop-delivery-order-link" author="mini-erp">
+        <dropIndex tableName="deliveries" indexName="idx_deliveries_order"/>
+        <dropColumn tableName="deliveries" columnName="order_id"/>
+    </changeSet>
+
+    <changeSet id="0048-delivery-invoice-id-required" author="mini-erp">
+        <!-- After 0044, every non-cancelled delivery has an invoice. Make it the
+             only join point now that orders are gone. -->
+        <sql>DELETE FROM deliveries WHERE invoice_id IS NULL;</sql>
+        <addNotNullConstraint tableName="deliveries" columnName="invoice_id" columnDataType="uuid"/>
+    </changeSet>
+
+    <changeSet id="0048-drop-rls-policies-orders" author="mini-erp">
+        <sql splitStatements="true" endDelimiter=";">
+            DROP POLICY IF EXISTS tenant_isolation_select ON orders;
+            DROP POLICY IF EXISTS tenant_isolation_modify ON orders;
+            DROP POLICY IF EXISTS tenant_isolation_select ON order_lines;
+            DROP POLICY IF EXISTS tenant_isolation_modify ON order_lines;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0048-drop-orders-tables" author="mini-erp">
+        <dropTable tableName="order_lines"/>
+        <dropTable tableName="orders"/>
+    </changeSet>
+
+</databaseChangeLog>

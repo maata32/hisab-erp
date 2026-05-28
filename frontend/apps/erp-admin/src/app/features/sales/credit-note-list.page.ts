@@ -137,7 +137,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                     <th class="text-right p-2 w-24">{{ 'sales.quantity' | translate }}</th>
                     <th class="text-right p-2 w-28">{{ 'sales.unitPrice' | translate }}</th>
                     <th class="text-right p-2 w-20">{{ 'sales.discount' | translate }}%</th>
-                    <th class="text-right p-2 w-20">TVA</th>
+                    @if (taxEnabled()) {
+                      <th class="text-right p-2 w-20">TVA</th>
+                    }
                     <th class="text-right p-2 w-28">{{ 'sales.lineTotal' | translate }}</th>
                   </tr>
                 </thead>
@@ -151,24 +153,26 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                       <td class="p-2 text-right">{{ l.quantity }}</td>
                       <td class="p-2 text-right">{{ l.unitPrice | money }}</td>
                       <td class="p-2 text-right">{{ l.discountPercent > 0 ? (l.discountPercent + '%') : '—' }}</td>
-                      <td class="p-2 text-right">{{ (l.taxRate * 100) | number:'1.0-0' }}%</td>
+                      @if (taxEnabled()) {
+                        <td class="p-2 text-right">{{ (l.taxRate * 100) | number:'1.0-0' }}%</td>
+                      }
                       <td class="p-2 text-right font-medium">{{ l.lineTotal | money }}</td>
                     </tr>
                   }
                 </tbody>
                 <tfoot class="bg-gray-50 border-t">
                   <tr>
-                    <td colspan="5" class="p-2 text-right">{{ 'creditNotes.totals.subtotal' | translate }}</td>
+                    <td [attr.colspan]="taxEnabled() ? 5 : 4" class="p-2 text-right">{{ 'creditNotes.totals.subtotal' | translate }}</td>
                     <td class="p-2 text-right font-medium">{{ cn.subtotal | money }} {{ cn.currency }}</td>
                   </tr>
-                  @if (cn.taxAmount > 0) {
+                  @if (taxEnabled() && cn.taxAmount > 0) {
                     <tr>
                       <td colspan="5" class="p-2 text-right">{{ 'creditNotes.totals.tax' | translate }}</td>
                       <td class="p-2 text-right">{{ cn.taxAmount | money }} {{ cn.currency }}</td>
                     </tr>
                   }
                   <tr>
-                    <td colspan="5" class="p-2 text-right font-bold">{{ 'creditNotes.totals.total' | translate }}</td>
+                    <td [attr.colspan]="taxEnabled() ? 5 : 4" class="p-2 text-right font-bold">{{ 'creditNotes.totals.total' | translate }}</td>
                     <td class="p-2 text-right font-bold text-red-700">{{ cn.total | money }} {{ cn.currency }}</td>
                   </tr>
                 </tfoot>
@@ -198,9 +202,19 @@ export class CreditNoteListPage implements OnInit {
   protected loading = signal(true);
   protected detailOpen = signal(false);
   protected detail = signal<CreditNote | null>(null);
+  protected taxEnabled = signal(true);
 
   ngOnInit() {
     // List is fetched on demand via the p-table's onLazyLoad.
+    this.loadSettings();
+  }
+
+  private async loadSettings() {
+    try {
+      const s = await firstValueFrom(this.http.get<any>('/api/v1/settings'));
+      const enabled = s?.invoiceSettings?.taxEnabled;
+      if (typeof enabled === 'boolean') this.taxEnabled.set(enabled);
+    } catch { /* keep default true */ }
   }
 
   protected statusSeverity(status: string): Severity {

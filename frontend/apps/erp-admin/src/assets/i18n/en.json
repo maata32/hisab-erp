@@ -85,7 +85,6 @@
     "dashboard": "Dashboard",
     "partners": "Partners",
     "quotes": "Quotes",
-    "orders": "Orders",
     "invoices": "Invoices",
     "deliveries": "Deliveries",
     "payments": "Payments",
@@ -141,7 +140,7 @@
       "ventes": "Sales",
       "factures": "Invoices & expenses",
       "activite": "Monthly activity",
-      "orders": "Orders",
+      "invoices_backlog": "Invoice tracking",
       "stock": "Stock & operations",
       "clients": "Customers & team"
     },
@@ -178,9 +177,8 @@
       "over_credit_limit_hint": "Credit limit exceeded",
       "total_customer_balance": "Customer receivables",
       "active_users": "Active users",
-      "orders_draft": "Draft orders",
-      "orders_confirmed_not_delivered": "Orders not delivered",
-      "orders_confirmed_not_invoiced": "Orders not invoiced"
+      "invoices_draft": "Draft invoices",
+      "invoices_not_fully_delivered": "Invoices not delivered"
     },
     "aging": {
       "title": "Receivables aging",
@@ -445,18 +443,9 @@
     "empty": "No quotes found",
     "create": "New quote",
     "createTitle": "Create quote",
-    "convertToOrder": "Convert to order",
-    "confirmConvert": "Convert quote {{number}} to an order?"
-  },
-  "orders": {
-    "title": "Orders",
-    "subtitle": "Confirmed customer orders",
-    "empty": "No orders found",
-    "create": "New order",
-    "createTitle": "Create an order",
-    "deliveryRequired": "Delivery required",
+    "editTitle": "Edit quote {{number}}",
     "convertToInvoice": "Convert to invoice",
-    "invoiceFromOrderHint": "Create an invoice from the order"
+    "confirmConvert": "Convert quote {{number}} to a draft invoice?"
   },
   "invoices": {
     "title": "Invoices",
@@ -467,12 +456,22 @@
     "paymentTerms": "Payment terms",
     "paymentTermsHint": "e.g. Net 30 days",
     "createDirect": "Direct invoice",
-    "createDirectHint": "Create an invoice without a quote or order",
+    "createDirectHint": "Create an invoice without going through a quote",
     "createTitle": "Create a direct invoice",
     "view": "View details",
+    "issue": "Issue invoice",
     "detailTitle": "Invoice {{number}}",
     "createCreditNote": "Create credit note",
-    "noCreditableLines": "All lines are already fully credited."
+    "noCreditableLines": "All lines are already fully credited.",
+    "linkedQuote": "Linked quote",
+    "deliveries": "Deliveries",
+    "noDeliveries": "No deliveries linked to this invoice.",
+    "deliveryStatus": "Delivery status",
+    "deliveryStatuses": {
+      "NONE": "Not delivered",
+      "PARTIALLY_DELIVERED": "Partially delivered",
+      "DELIVERED": "Delivered"
+    }
   },
   "creditNotes": {
     "title": "Credit notes",
@@ -518,8 +517,8 @@
     "empty": "No deliveries found",
     "create": "New DN",
     "createTitle": "New delivery note",
-    "pickOrder": "Pick an order…",
-    "pickOrderFirst": "Pick an order first",
+    "pickInvoice": "Pick an invoice…",
+    "pickInvoiceFirst": "Pick an invoice first",
     "warehouse": "Warehouse",
     "pickWarehouse": "Pick a warehouse…",
     "linesToShip": "Lines to ship",

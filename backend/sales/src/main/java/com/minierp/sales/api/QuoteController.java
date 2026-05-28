@@ -50,11 +50,18 @@ public class QuoteController {
         return service.updateQuoteStatus(id, status);
     }
 
-    @PostMapping("/{id}/convert-to-order")
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('sales:update')")
+    public SalesDto.QuoteDto update(@PathVariable UUID id,
+                                    @Valid @RequestBody SalesDto.UpdateQuoteRequest req) {
+        return service.updateQuote(id, req);
+    }
+
+    @PostMapping("/{id}/convert-to-invoice")
     @PreAuthorize("hasAuthority('sales:create')")
-    public SalesDto.OrderDto convertToOrder(@PathVariable UUID id,
-                                            @RequestParam(defaultValue = "false") boolean deliveryRequired) {
-        return service.convertQuoteToOrder(id, deliveryRequired);
+    public SalesDto.InvoiceDto convertToInvoice(@PathVariable UUID id,
+                                                @Valid @RequestBody SalesDto.ConvertQuoteToInvoiceRequest req) {
+        return service.convertQuoteToInvoice(id, req.dueDate(), req.paymentTerms());
     }
 
     @GetMapping("/{id}/pdf")

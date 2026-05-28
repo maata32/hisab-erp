@@ -363,28 +363,15 @@ public class ReportingService {
         BigDecimal aging61to90 = aging != null ? nz(aging[3]) : BigDecimal.ZERO;
         BigDecimal aging90plus = aging != null ? nz(aging[4]) : BigDecimal.ZERO;
 
-        // ── Orders (sales orders backlog) ────────────────────────────────────
-        long ordersDraftCount = nz(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM orders WHERE tenant_id=? AND status='DRAFT'",
+        // ── Invoices backlog ─────────────────────────────────────────────────
+        long invoicesDraftCount = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM invoices WHERE tenant_id=? AND status='DRAFT'",
                 Long.class, tenant));
-        // Orders that still have undelivered quantity (regardless of invoiced/confirmed status).
-        // Total ordered vs total delivered across non-cancelled deliveries.
-        long ordersConfirmedNotDelivered = nz(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM orders o " +
-                "WHERE o.tenant_id=? AND o.status NOT IN ('DRAFT','CANCELLED') " +
-                "  AND COALESCE((SELECT SUM(ol.quantity) FROM order_lines ol " +
-                "                WHERE ol.tenant_id=o.tenant_id AND ol.order_id=o.id), 0) > " +
-                "      COALESCE((SELECT SUM(dl.quantity_delivered) FROM delivery_lines dl " +
-                "                JOIN deliveries d ON d.id=dl.delivery_id AND d.tenant_id=dl.tenant_id " +
-                "                WHERE d.tenant_id=o.tenant_id AND d.order_id=o.id " +
-                "                  AND d.status<>'CANCELLED'), 0)",
-                Long.class, tenant));
-        // Orders still awaiting an invoice (any non-draft/cancelled order without a live invoice).
-        long ordersConfirmedNotInvoiced = nz(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM orders o " +
-                "WHERE o.tenant_id=? AND o.status NOT IN ('DRAFT','CANCELLED') " +
-                "  AND NOT EXISTS (SELECT 1 FROM invoices i WHERE i.tenant_id=o.tenant_id " +
-                "                  AND i.order_id=o.id AND i.status<>'CANCELLED')",
+        // Non-cancelled non-draft invoices not yet fully delivered.
+        long invoicesNotFullyDeliveredCount = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM invoices " +
+                "WHERE tenant_id=? AND status NOT IN ('DRAFT','CANCELLED') " +
+                "  AND delivery_status <> 'DELIVERED'",
                 Long.class, tenant));
 
         // ── Top 5 products (by revenue) this month ───────────────────────────
@@ -444,7 +431,7 @@ public class ReportingService {
                 expiring30, expired,
                 activeUsers, activeCustomers, overCreditLimit, totalCustomerBalance,
                 agingCurrent, aging1to30, aging31to60, aging61to90, aging90plus,
-                ordersDraftCount, ordersConfirmedNotDelivered, ordersConfirmedNotInvoiced,
+                invoicesDraftCount, invoicesNotFullyDeliveredCount,
                 topProducts, sales7Days, paymentMethodsToday);
     }
 

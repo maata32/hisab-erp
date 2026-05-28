@@ -13,7 +13,7 @@ import java.util.UUID;
         uniqueConstraints = @UniqueConstraint(name = "uk_deliveries_tenant_number", columnNames = {"tenant_id", "number"}),
         indexes = {
                 @Index(name = "idx_deliveries_party", columnList = "party_id"),
-                @Index(name = "idx_deliveries_order", columnList = "order_id"),
+                @Index(name = "idx_deliveries_invoice", columnList = "invoice_id"),
                 @Index(name = "idx_deliveries_status", columnList = "status")
         })
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -28,10 +28,7 @@ class Delivery extends TenantAwareEntity {
     @Column(name = "party_id", nullable = false, columnDefinition = "uuid")
     private UUID partyId;
 
-    @Column(name = "order_id", columnDefinition = "uuid")
-    private UUID orderId;
-
-    @Column(name = "invoice_id", columnDefinition = "uuid")
+    @Column(name = "invoice_id", nullable = false, columnDefinition = "uuid")
     private UUID invoiceId;
 
     @Column(name = "warehouse_id", columnDefinition = "uuid")

@@ -10,7 +10,6 @@ import com.minierp.inventory.api.StockOperations;
 import com.minierp.sales.api.InvoiceOperations;
 import com.minierp.sales.api.InvoiceSummary;
 import com.minierp.sales.api.NumberingOperations;
-import com.minierp.sales.api.OrderOperations;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
 import com.minierp.shared.tenant.TenantContext;
@@ -38,30 +37,21 @@ public class DeliveryService {
     private final NumberingOperations numbering;
     private final DocumentRenderer renderer;
     private final InvoiceOperations invoices;
-    private final OrderOperations orderOps;
     private final StockOperations stockOps;
     private final TenantLookup tenantLookup;
 
     @Transactional
     public DeliveryDto.DeliveryResponse create(DeliveryDto.CreateDeliveryRequest req, UUID userId) {
-        // Business rule (CDC): no delivery without a prior non-cancelled invoice.
-        // Resolve the invoice from the order if it wasn't explicitly provided.
-        UUID invoiceLookupId = req.invoiceId();
-        if (invoiceLookupId == null && req.orderId() != null) {
-            invoiceLookupId = invoices.findByOrderId(req.orderId())
-                    .map(InvoiceSummary::id)
-                    .orElse(null);
+        // Business rule: a BL is anchored to an invoice. The chain is Quote → Invoice → BL.
+        if (req.invoiceId() == null) {
+            throw new BusinessException("error.delivery.invoice_required", Map.of());
         }
-        if (invoiceLookupId == null) {
-            throw new BusinessException("error.delivery.invoice_required",
-                    req.orderId() != null ? Map.of("orderId", req.orderId()) : Map.of());
-        }
-        final UUID resolvedInvoiceId = invoiceLookupId;
-        InvoiceSummary invoice = invoices.findById(resolvedInvoiceId)
-                .orElseThrow(() -> NotFoundException.of("entity.invoice", resolvedInvoiceId));
-        if ("CANCELLED".equals(invoice.status())) {
-            throw new BusinessException("error.delivery.invoice_cancelled",
-                    Map.of("invoiceId", invoice.id(), "invoiceNumber", invoice.number()));
+        InvoiceSummary invoice = invoices.findById(req.invoiceId())
+                .orElseThrow(() -> NotFoundException.of("entity.invoice", req.invoiceId()));
+        if (!invoices.canReceiveDelivery(invoice.id())) {
+            throw new BusinessException("error.delivery.invoice_not_shippable",
+                    Map.of("invoiceId", invoice.id(), "invoiceNumber", invoice.number(),
+                            "status", invoice.status()));
         }
         UUID customerId = req.customerId() != null ? req.customerId() : invoice.customerId();
         if (req.customerId() != null && !req.customerId().equals(invoice.customerId())) {
@@ -83,7 +73,6 @@ public class DeliveryService {
         Delivery delivery = Delivery.builder()
                 .number(number)
                 .partyId(customerId)
-                .orderId(req.orderId())
                 .invoiceId(invoice.id())
                 .warehouseId(warehouseId)
                 .scheduledDate(req.scheduledDate())
@@ -154,12 +143,12 @@ public class DeliveryService {
         if (req.signedBy() != null) d.setSignedBy(req.signedBy());
         if (req.notes() != null) d.setNotes(req.notes());
 
-        if (d.getOrderId() != null) {
+        if (d.getInvoiceId() != null) {
             Map<UUID, BigDecimal> totalsByProduct = new HashMap<>();
-            for (Object[] row : deliveryLines.sumDeliveredByProductForOrder(d.getOrderId())) {
+            for (Object[] row : deliveryLines.sumDeliveredByProductForInvoice(d.getInvoiceId())) {
                 totalsByProduct.put((UUID) row[0], (BigDecimal) row[1]);
             }
-            orderOps.recomputeDeliveryStatus(d.getOrderId(), totalsByProduct);
+            invoices.recomputeDeliveryStatus(d.getInvoiceId(), totalsByProduct);
         }
 
         return toDto(d);
@@ -191,10 +180,12 @@ public class DeliveryService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<DeliveryDto.DeliveryResponse> list(UUID customerId, Pageable pageable) {
-        var page = customerId != null
-                ? deliveries.findByPartyId(customerId, pageable)
-                : deliveries.findAll(pageable);
+    public PageResponse<DeliveryDto.DeliveryResponse> list(UUID customerId, UUID invoiceId, Pageable pageable) {
+        var page = invoiceId != null
+                ? deliveries.findByInvoiceId(invoiceId, pageable)
+                : customerId != null
+                    ? deliveries.findByPartyId(customerId, pageable)
+                    : deliveries.findAll(pageable);
         return PageResponse.of(page.map(this::toDto));
     }
 
@@ -211,7 +202,7 @@ public class DeliveryService {
         List<DeliveryLine> lines = deliveryLines.findByDeliveryId(d.getId());
         String customerName = customerLookup.findById(d.getPartyId()).map(PartnerSummary::name).orElse("");
         return new DeliveryDto.DeliveryResponse(
-                d.getId(), d.getNumber(), d.getPartyId(), customerName, d.getOrderId(), d.getInvoiceId(),
+                d.getId(), d.getNumber(), d.getPartyId(), customerName, d.getInvoiceId(),
                 d.getWarehouseId(),
                 d.getStatus().name(), d.getScheduledDate(), d.getDeliveredAt(),
                 d.getAddress(), d.getContactPhone(), d.getSignedBy(), d.getNotes(),

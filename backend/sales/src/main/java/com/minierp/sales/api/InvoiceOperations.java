@@ -2,16 +2,17 @@ package com.minierp.sales.api;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Invoice mutation facade used by the payment module.
+ * Invoice facade used by other modules:
+ *  - payment module: applyPayment / markOverdue / lookups
+ *  - delivery module: shipment prerequisites + auto-derived delivery status
  */
 public interface InvoiceOperations {
     Optional<InvoiceSummary> findById(UUID invoiceId);
-    /** Latest non-cancelled invoice tied to the given sales order, if any. */
-    Optional<InvoiceSummary> findByOrderId(UUID orderId);
     List<InvoiceSummary> findUnpaidByCustomer(UUID customerId);
     void applyPayment(UUID invoiceId, BigDecimal amount);
     /**
@@ -21,4 +22,22 @@ public interface InvoiceOperations {
      */
     BigDecimal applyCredit(UUID invoiceId, BigDecimal amount);
     void markOverdue(UUID invoiceId);
+
+    /**
+     * Lines (productId → ordered quantity) on the invoice — used by delivery
+     * module to detect partial-vs-full coverage when recomputing delivery status.
+     */
+    Map<UUID, java.math.BigDecimal> getInvoicedQtyByProduct(UUID invoiceId);
+
+    /**
+     * Re-derive the invoice's deliveryStatus from total quantities already
+     * shipped per product (across non-cancelled BLs).
+     */
+    void recomputeDeliveryStatus(UUID invoiceId, Map<UUID, java.math.BigDecimal> totalDeliveredByProduct);
+
+    /**
+     * True when the invoice is in a state that allows a new BL: status not
+     * DRAFT / CANCELLED and deliveryStatus not DELIVERED.
+     */
+    boolean canReceiveDelivery(UUID invoiceId);
 }

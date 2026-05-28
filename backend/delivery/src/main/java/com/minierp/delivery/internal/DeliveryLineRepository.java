@@ -12,16 +12,16 @@ interface DeliveryLineRepository extends JpaRepository<DeliveryLine, UUID> {
 
     /**
      * Aggregate total delivered quantity per product across all non-cancelled
-     * deliveries that reference the given sales order. Returns rows of
+     * BLs that reference the given invoice. Returns rows of
      * [product_id, sum_quantity_delivered].
      */
     @Query("""
             SELECT dl.productId, SUM(dl.quantityDelivered)
             FROM DeliveryLine dl, Delivery d
             WHERE dl.deliveryId = d.id
-              AND d.orderId = :orderId
+              AND d.invoiceId = :invoiceId
               AND d.status <> com.minierp.delivery.internal.DeliveryStatus.CANCELLED
             GROUP BY dl.productId
             """)
-    List<Object[]> sumDeliveredByProductForOrder(@Param("orderId") UUID orderId);
+    List<Object[]> sumDeliveredByProductForInvoice(@Param("invoiceId") UUID invoiceId);
 }

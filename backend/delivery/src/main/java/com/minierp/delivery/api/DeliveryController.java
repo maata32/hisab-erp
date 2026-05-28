@@ -35,8 +35,9 @@ public class DeliveryController {
     @PreAuthorize("hasAuthority('delivery:read')")
     public PageResponse<DeliveryDto.DeliveryResponse> list(
             @RequestParam(required = false) UUID customerId,
+            @RequestParam(required = false) UUID invoiceId,
             @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return service.list(customerId, pageable);
+        return service.list(customerId, invoiceId, pageable);
     }
 
     @GetMapping("/{id}")

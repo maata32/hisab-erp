@@ -44,6 +44,12 @@ public class InvoiceController {
         return service.getInvoice(id);
     }
 
+    @PostMapping("/{id}/issue")
+    @PreAuthorize("hasAuthority('sales:update')")
+    public SalesDto.InvoiceDto issue(@PathVariable UUID id) {
+        return service.issueInvoice(id);
+    }
+
     @GetMapping("/{id}/pdf")
     @PreAuthorize("hasAuthority('sales:read')")
     public ResponseEntity<byte[]> pdf(@PathVariable UUID id) {

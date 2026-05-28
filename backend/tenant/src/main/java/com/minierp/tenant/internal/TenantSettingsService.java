@@ -39,6 +39,16 @@ public class TenantSettingsService implements TenantSettingsLookup {
                 .orElse("A4");
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isTaxEnabled(UUID tenantId) {
+        return repo.findByOrganizationId(tenantId)
+                .map(TenantSettings::getInvoiceSettings)
+                .map(m -> m.get("taxEnabled"))
+                .map(v -> v instanceof Boolean b ? b : null)
+                .orElse(true);
+    }
+
     @Transactional(readOnly = true)
     public TenantSettingsDto getForCurrentTenant() {
         UUID tenantId = CurrentUserHolder.require().tenantId();

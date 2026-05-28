@@ -140,10 +140,9 @@ public final class ReportingDto {
             BigDecimal aging31to60,
             BigDecimal aging61to90,
             BigDecimal aging90plus,
-            // Orders
-            long ordersDraftCount,
-            long ordersConfirmedNotDeliveredCount,
-            long ordersConfirmedNotInvoicedCount,
+            // Invoices backlog
+            long invoicesDraftCount,
+            long invoicesNotFullyDeliveredCount,
             // Lists & trends
             List<TopProductRow> topProductsMonth,
             List<DailyAmount> sales7Days,

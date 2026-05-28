@@ -7,4 +7,5 @@ import java.util.UUID;
 
 interface QuoteLineRepository extends JpaRepository<QuoteLine, UUID> {
     List<QuoteLine> findByQuoteIdOrderByLineNumberAsc(UUID quoteId);
+    void deleteByQuoteId(UUID quoteId);
 }

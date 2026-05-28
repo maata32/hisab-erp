@@ -85,7 +85,6 @@
     "dashboard": "لوحة القيادة",
     "partners": "الشركاء",
     "quotes": "عروض الأسعار",
-    "orders": "الطلبات",
     "invoices": "الفواتير",
     "deliveries": "التسليمات",
     "payments": "المدفوعات",
@@ -141,7 +140,7 @@
       "ventes": "المبيعات",
       "factures": "الفواتير والمصاريف",
       "activite": "نشاط الشهر",
-      "orders": "الطلبات",
+      "invoices_backlog": "متابعة الفواتير",
       "stock": "المخزون والعمليات",
       "clients": "العملاء والفريق"
     },
@@ -178,9 +177,8 @@
       "over_credit_limit_hint": "حد الائتمان متجاوز",
       "total_customer_balance": "مستحقات العملاء",
       "active_users": "مستخدمون نشطون",
-      "orders_draft": "طلبات مسودة",
-      "orders_confirmed_not_delivered": "طلبات غير مسلمة",
-      "orders_confirmed_not_invoiced": "طلبات غير مفوترة"
+      "invoices_draft": "فواتير مسودة",
+      "invoices_not_fully_delivered": "فواتير غير مسلمة"
     },
     "aging": {
       "title": "تقادم الذمم",
@@ -445,18 +443,9 @@
     "empty": "لا يوجد عروض أسعار",
     "create": "عرض سعر جديد",
     "createTitle": "إنشاء عرض سعر",
-    "convertToOrder": "تحويل إلى طلب",
-    "confirmConvert": "تحويل عرض السعر {{number}} إلى طلب؟"
-  },
-  "orders": {
-    "title": "الطلبات",
-    "subtitle": "طلبات العملاء المؤكدة",
-    "empty": "لا يوجد طلبات",
-    "create": "طلب جديد",
-    "createTitle": "إنشاء طلب",
-    "deliveryRequired": "التسليم مطلوب",
+    "editTitle": "تعديل عرض السعر {{number}}",
     "convertToInvoice": "تحويل إلى فاتورة",
-    "invoiceFromOrderHint": "إنشاء فاتورة من الطلب"
+    "confirmConvert": "تحويل عرض السعر {{number}} إلى فاتورة (مسودة)؟"
   },
   "invoices": {
     "title": "الفواتير",
@@ -467,12 +456,22 @@
     "paymentTerms": "شروط الدفع",
     "paymentTermsHint": "مثلا: 30 يومًا",
     "createDirect": "فاتورة مباشرة",
-    "createDirectHint": "إنشاء فاتورة بدون عرض سعر أو طلب",
+    "createDirectHint": "إنشاء فاتورة بدون المرور بعرض سعر",
     "createTitle": "إنشاء فاتورة مباشرة",
     "view": "عرض التفاصيل",
+    "issue": "إصدار الفاتورة",
     "detailTitle": "الفاتورة {{number}}",
     "createCreditNote": "إنشاء إشعار دائن",
-    "noCreditableLines": "تم ائتمان جميع البنود بالكامل."
+    "noCreditableLines": "تم ائتمان جميع البنود بالكامل.",
+    "linkedQuote": "عرض السعر المرتبط",
+    "deliveries": "التسليمات",
+    "noDeliveries": "لا توجد تسليمات مرتبطة بهذه الفاتورة.",
+    "deliveryStatus": "حالة التسليم",
+    "deliveryStatuses": {
+      "NONE": "غير مسلم",
+      "PARTIALLY_DELIVERED": "تسليم جزئي",
+      "DELIVERED": "تم التسليم"
+    }
   },
   "creditNotes": {
     "title": "الإشعارات الدائنة",
@@ -518,8 +517,8 @@
     "empty": "لا يوجد تسليمات",
     "create": "إذن تسليم جديد",
     "createTitle": "إذن تسليم جديد",
-    "pickOrder": "اختر طلبًا…",
-    "pickOrderFirst": "اختر الطلب أولاً",
+    "pickInvoice": "اختر فاتورة…",
+    "pickInvoiceFirst": "اختر الفاتورة أولاً",
     "warehouse": "المستودع",
     "pickWarehouse": "اختر مستودعًا…",
     "linesToShip": "البنود المراد شحنها",

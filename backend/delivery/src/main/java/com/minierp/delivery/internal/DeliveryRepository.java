@@ -8,5 +8,6 @@ import java.util.UUID;
 
 interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
     Page<Delivery> findByPartyId(UUID partyId, Pageable pageable);
+    Page<Delivery> findByInvoiceId(UUID invoiceId, Pageable pageable);
     Page<Delivery> findAll(Pageable pageable);
 }

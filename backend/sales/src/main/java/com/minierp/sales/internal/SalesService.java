@@ -8,7 +8,6 @@ import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
 import com.minierp.sales.api.InvoiceOperations;
 import com.minierp.sales.api.InvoiceSummary;
-import com.minierp.sales.api.OrderOperations;
 import com.minierp.sales.api.SalesDto;
 import com.minierp.sales.api.SalesStatementLookup;
 import com.minierp.sales.api.StatementCreditNoteEntry;
@@ -19,6 +18,7 @@ import com.minierp.shared.error.NotFoundException;
 import com.minierp.shared.tenant.TenantContext;
 import com.minierp.shared.util.PageResponse;
 import com.minierp.tenant.api.TenantLookup;
+import com.minierp.tenant.api.TenantSettingsLookup;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.minierp.inventory.api.StockMovementType;
@@ -43,12 +43,10 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class SalesService implements InvoiceOperations, SalesStatementLookup, OrderOperations {
+public class SalesService implements InvoiceOperations, SalesStatementLookup {
 
     private final QuoteRepository quotes;
     private final QuoteLineRepository quoteLines;
-    private final OrderRepository orders;
-    private final OrderLineRepository orderLines;
     private final InvoiceRepository invoices;
     private final InvoiceLineRepository invoiceLines;
     private final CreditNoteRepository creditNotes;
@@ -62,6 +60,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
     private final JdbcTemplate jdbc;
     private final DocumentRenderer renderer;
     private final TenantLookup tenantLookup;
+    private final TenantSettingsLookup tenantSettings;
 
     // ── SalesStatementLookup (used by the customer-statement aggregator) ────
 
@@ -99,20 +98,12 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
                 .toList();
     }
 
-    // ── InvoiceOperations (used by payment module) ───────────────────────────
+    // ── InvoiceOperations ───────────────────────────────────────────────────
 
     @Override
     @Transactional(readOnly = true)
     public Optional<InvoiceSummary> findById(UUID id) {
         return invoices.findById(id).map(this::toInvoiceSummary);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Optional<InvoiceSummary> findByOrderId(UUID orderId) {
-        return invoices.findActiveByOrderId(orderId).stream()
-                .findFirst()
-                .map(this::toInvoiceSummary);
     }
 
     @Override
@@ -165,6 +156,55 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
         });
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, BigDecimal> getInvoicedQtyByProduct(UUID invoiceId) {
+        Map<UUID, BigDecimal> map = new HashMap<>();
+        for (InvoiceLine il : invoiceLines.findByInvoiceIdOrderByLineNumberAsc(invoiceId)) {
+            map.merge(il.getProductId(), il.getQuantity(), BigDecimal::add);
+        }
+        return map;
+    }
+
+    @Override
+    @Transactional
+    public void recomputeDeliveryStatus(UUID invoiceId, Map<UUID, BigDecimal> totalDeliveredByProduct) {
+        Invoice inv = invoices.findById(invoiceId).orElse(null);
+        if (inv == null) return;
+        if (inv.getStatus() == InvoiceStatus.DRAFT || inv.getStatus() == InvoiceStatus.CANCELLED) {
+            return;
+        }
+        Map<UUID, BigDecimal> invoicedByProduct = getInvoicedQtyByProduct(invoiceId);
+        boolean allCovered = !invoicedByProduct.isEmpty();
+        boolean anyDelivered = false;
+        for (Map.Entry<UUID, BigDecimal> e : invoicedByProduct.entrySet()) {
+            BigDecimal delivered = totalDeliveredByProduct.getOrDefault(e.getKey(), BigDecimal.ZERO);
+            if (delivered.signum() > 0) anyDelivered = true;
+            if (delivered.compareTo(e.getValue()) < 0) allCovered = false;
+        }
+        InvoiceDeliveryStatus next;
+        if (allCovered) {
+            next = InvoiceDeliveryStatus.DELIVERED;
+        } else if (anyDelivered) {
+            next = InvoiceDeliveryStatus.PARTIALLY_DELIVERED;
+        } else {
+            next = InvoiceDeliveryStatus.NONE;
+        }
+        if (next != inv.getDeliveryStatus()) {
+            inv.setDeliveryStatus(next);
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean canReceiveDelivery(UUID invoiceId) {
+        return invoices.findById(invoiceId)
+                .map(inv -> inv.getStatus() != InvoiceStatus.DRAFT
+                        && inv.getStatus() != InvoiceStatus.CANCELLED
+                        && inv.getDeliveryStatus() != InvoiceDeliveryStatus.DELIVERED)
+                .orElse(false);
+    }
+
     // ── Quotes ───────────────────────────────────────────────────────────────
 
     @Transactional
@@ -213,31 +253,59 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
     }
 
     @Transactional
-    public SalesDto.OrderDto convertQuoteToOrder(UUID quoteId, boolean deliveryRequired) {
+    public SalesDto.QuoteDto updateQuote(UUID id, SalesDto.UpdateQuoteRequest req) {
+        Quote q = quotes.findById(id).orElseThrow(() -> NotFoundException.of("entity.quote", id));
+        if (q.getStatus() == QuoteStatus.CONVERTED
+                || q.getStatus() == QuoteStatus.REJECTED) {
+            throw new BusinessException("error.quote.not_editable",
+                    Map.of("status", q.getStatus().name()));
+        }
+        if (req.lines() == null || req.lines().isEmpty()) {
+            throw new BusinessException("error.quote.no_lines", Map.of());
+        }
+        if (req.issueDate() != null) q.setIssueDate(req.issueDate());
+        q.setValidUntil(req.validUntil());
+        if (req.currency() != null) q.setCurrency(req.currency());
+        q.setNotes(req.notes());
+
+        quoteLines.deleteByQuoteId(id);
+        quoteLines.flush();
+        List<QuoteLine> built = buildQuoteLines(q.getId(), req.lines(), q.getCurrency());
+        computeQuoteTotals(q, built);
+
+        String name = customerLookup.findById(q.getPartyId()).map(PartnerSummary::name).orElse("");
+        return toQuoteDto(q, built, name);
+    }
+
+    @Transactional
+    public SalesDto.InvoiceDto convertQuoteToInvoice(UUID quoteId, LocalDate dueDate, String paymentTerms) {
         Quote q = quotes.findById(quoteId).orElseThrow(() -> NotFoundException.of("entity.quote", quoteId));
         if (q.getStatus() != QuoteStatus.DRAFT && q.getStatus() != QuoteStatus.SENT && q.getStatus() != QuoteStatus.ACCEPTED) {
             throw new BusinessException("error.sales.quote_not_convertible", Map.of("status", q.getStatus()));
         }
-        String orderNumber = numbering.next(DocumentType.ORDER);
-        Order order = Order.builder()
-                .number(orderNumber)
+        String invNumber = numbering.next(DocumentType.INVOICE);
+        Invoice inv = Invoice.builder()
+                .number(invNumber)
                 .partyId(q.getPartyId())
                 .quoteId(quoteId)
-                .orderDate(LocalDate.now())
-                .deliveryRequired(deliveryRequired)
+                .issueDate(LocalDate.now())
+                .dueDate(dueDate)
+                .status(InvoiceStatus.DRAFT)
                 .currency(q.getCurrency())
                 .subtotal(q.getSubtotal())
                 .discountAmount(q.getDiscountAmount())
                 .taxAmount(q.getTaxAmount())
                 .total(q.getTotal())
+                .balance(q.getTotal())
+                .paymentTerms(paymentTerms)
                 .notes(q.getNotes())
                 .build();
-        orders.save(order);
+        invoices.save(inv);
 
         List<QuoteLine> qLines = quoteLines.findByQuoteIdOrderByLineNumberAsc(quoteId);
         for (QuoteLine ql : qLines) {
-            orderLines.save(OrderLine.builder()
-                    .orderId(order.getId())
+            invoiceLines.save(InvoiceLine.builder()
+                    .invoiceId(inv.getId())
                     .lineNumber(ql.getLineNumber())
                     .productId(ql.getProductId())
                     .uomId(ql.getUomId())
@@ -251,155 +319,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
                     .build());
         }
         q.setStatus(QuoteStatus.CONVERTED);
-        q.setConvertedToOrderId(order.getId());
-
-        String name = customerLookup.findById(order.getPartyId()).map(PartnerSummary::name).orElse("");
-        return toOrderDto(order, orderLines.findByOrderIdOrderByLineNumberAsc(order.getId()), name);
-    }
-
-    // ── Orders ───────────────────────────────────────────────────────────────
-
-    @Transactional
-    public SalesDto.OrderDto createOrder(SalesDto.CreateOrderRequest req) {
-        PartnerSummary customer = customerLookup.findById(req.customerId())
-                .orElseThrow(() -> NotFoundException.of("entity.customer", req.customerId()));
-        String number = numbering.next(DocumentType.ORDER);
-        Order order = Order.builder()
-                .number(number)
-                .partyId(req.customerId())
-                .quoteId(req.quoteId())
-                .orderDate(req.orderDate() != null ? req.orderDate() : LocalDate.now())
-                .deliveryRequired(req.deliveryRequired())
-                .currency(req.currency() != null ? req.currency() : customer.currency())
-                .notes(req.notes())
-                .build();
-        orders.save(order);
-        List<OrderLine> built = buildOrderLines(order.getId(), req.lines());
-        computeOrderTotals(order, built);
-        return toOrderDto(order, built, customer.name());
-    }
-
-    @Transactional(readOnly = true)
-    public SalesDto.OrderDto getOrder(UUID id) {
-        Order o = orders.findById(id).orElseThrow(() -> NotFoundException.of("entity.order", id));
-        String name = customerLookup.findById(o.getPartyId()).map(PartnerSummary::name).orElse("");
-        return toOrderDto(o, orderLines.findByOrderIdOrderByLineNumberAsc(id), name);
-    }
-
-    @Transactional(readOnly = true)
-    public PageResponse<SalesDto.OrderDto> listOrders(UUID customerId, Pageable pageable) {
-        var page = customerId != null
-                ? orders.findByPartyId(customerId, pageable)
-                : orders.findAll(pageable);
-        return PageResponse.of(page.map(o -> {
-            String name = customerLookup.findById(o.getPartyId()).map(PartnerSummary::name).orElse("");
-            return toOrderDto(o, orderLines.findByOrderIdOrderByLineNumberAsc(o.getId()), name);
-        }));
-    }
-
-    @Transactional
-    public SalesDto.OrderDto updateOrderStatus(UUID id, String status) {
-        Order o = orders.findById(id).orElseThrow(() -> NotFoundException.of("entity.order", id));
-        OrderStatus target = OrderStatus.valueOf(status);
-        // Delivery-driven statuses are auto-derived from shipments — reject manual transitions.
-        if (target == OrderStatus.PARTIALLY_DELIVERED || target == OrderStatus.DELIVERED) {
-            throw new BusinessException("error.order.status_auto_only",
-                    Map.of("status", target.name()));
-        }
-        // Cancellation is only allowed before an invoice has been issued or stock
-        // has shipped. Past that, the corrective path is a credit note.
-        if (target == OrderStatus.CANCELLED
-                && o.getStatus() != OrderStatus.DRAFT
-                && o.getStatus() != OrderStatus.CONFIRMED) {
-            throw new BusinessException("error.order.cannot_cancel",
-                    Map.of("status", o.getStatus().name()));
-        }
-        o.setStatus(target);
-        String name = customerLookup.findById(o.getPartyId()).map(PartnerSummary::name).orElse("");
-        return toOrderDto(o, orderLines.findByOrderIdOrderByLineNumberAsc(id), name);
-    }
-
-    // ── OrderOperations (used by delivery module to auto-derive status) ─────
-
-    @Override
-    @Transactional
-    public void recomputeDeliveryStatus(UUID orderId, Map<UUID, BigDecimal> totalDeliveredByProduct) {
-        Order o = orders.findById(orderId).orElse(null);
-        if (o == null) return;
-        OrderStatus current = o.getStatus();
-        // Lifecycle: DRAFT → CONFIRMED → INVOICED → PARTIALLY_DELIVERED → DELIVERED.
-        // Recompute when the order is in any post-confirm state; leave DRAFT/CANCELLED alone.
-        if (current != OrderStatus.CONFIRMED
-                && current != OrderStatus.INVOICED
-                && current != OrderStatus.PARTIALLY_DELIVERED
-                && current != OrderStatus.DELIVERED) {
-            return;
-        }
-        Map<UUID, BigDecimal> orderedByProduct = new HashMap<>();
-        for (OrderLine ol : orderLines.findByOrderIdOrderByLineNumberAsc(orderId)) {
-            orderedByProduct.merge(ol.getProductId(), ol.getQuantity(), BigDecimal::add);
-        }
-        boolean allCovered = true;
-        boolean anyDelivered = false;
-        for (Map.Entry<UUID, BigDecimal> e : orderedByProduct.entrySet()) {
-            BigDecimal delivered = totalDeliveredByProduct.getOrDefault(e.getKey(), BigDecimal.ZERO);
-            if (delivered.signum() > 0) anyDelivered = true;
-            if (delivered.compareTo(e.getValue()) < 0) allCovered = false;
-        }
-        OrderStatus next;
-        if (allCovered && !orderedByProduct.isEmpty()) {
-            next = OrderStatus.DELIVERED;
-        } else if (anyDelivered) {
-            next = OrderStatus.PARTIALLY_DELIVERED;
-        } else {
-            // No shipment yet — keep the current pre-delivery status (CONFIRMED or INVOICED).
-            next = current;
-        }
-        if (next != current) {
-            o.setStatus(next);
-        }
-    }
-
-    @Transactional
-    public SalesDto.InvoiceDto convertOrderToInvoice(UUID orderId, LocalDate dueDate, String paymentTerms) {
-        Order o = orders.findById(orderId).orElseThrow(() -> NotFoundException.of("entity.order", orderId));
-        String invNumber = numbering.next(DocumentType.INVOICE);
-        Invoice inv = Invoice.builder()
-                .number(invNumber)
-                .partyId(o.getPartyId())
-                .orderId(orderId)
-                .issueDate(LocalDate.now())
-                .dueDate(dueDate)
-                .status(InvoiceStatus.ISSUED)
-                .currency(o.getCurrency())
-                .subtotal(o.getSubtotal())
-                .discountAmount(o.getDiscountAmount())
-                .taxAmount(o.getTaxAmount())
-                .total(o.getTotal())
-                .balance(o.getTotal())
-                .paymentTerms(paymentTerms)
-                .notes(o.getNotes())
-                .build();
-        invoices.save(inv);
-
-        List<OrderLine> oLines = orderLines.findByOrderIdOrderByLineNumberAsc(orderId);
-        for (OrderLine ol : oLines) {
-            invoiceLines.save(InvoiceLine.builder()
-                    .invoiceId(inv.getId())
-                    .lineNumber(ol.getLineNumber())
-                    .productId(ol.getProductId())
-                    .uomId(ol.getUomId())
-                    .quantity(ol.getQuantity())
-                    .unitPrice(ol.getUnitPrice())
-                    .discountPercent(ol.getDiscountPercent())
-                    .taxRate(ol.getTaxRate())
-                    .lineTotal(ol.getLineTotal())
-                    .snapshotName(ol.getSnapshotName())
-                    .snapshotSku(ol.getSnapshotSku())
-                    .build());
-        }
-        o.setStatus(OrderStatus.INVOICED);
-        balanceOps.addToInvoiced(inv.getPartyId(), inv.getTotal());
+        q.setConvertedToInvoiceId(inv.getId());
 
         String name = customerLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
         return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(inv.getId()), name);
@@ -415,7 +335,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
         Invoice inv = Invoice.builder()
                 .number(number)
                 .partyId(req.customerId())
-                .orderId(req.orderId())
+                .quoteId(req.quoteId())
                 .issueDate(req.issueDate() != null ? req.issueDate() : LocalDate.now())
                 .dueDate(req.dueDate())
                 .status(InvoiceStatus.ISSUED)
@@ -428,6 +348,18 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
         computeInvoiceTotals(inv, built);
         balanceOps.addToInvoiced(inv.getPartyId(), inv.getTotal());
         return toInvoiceDto(inv, built, customer.name());
+    }
+
+    @Transactional
+    public SalesDto.InvoiceDto issueInvoice(UUID id) {
+        Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));
+        if (inv.getStatus() != InvoiceStatus.DRAFT) {
+            throw new BusinessException("error.invoice.not_draft", Map.of("status", inv.getStatus()));
+        }
+        inv.setStatus(InvoiceStatus.ISSUED);
+        balanceOps.addToInvoiced(inv.getPartyId(), inv.getTotal());
+        String name = customerLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
+        return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id), name);
     }
 
     @Transactional(readOnly = true)
@@ -472,9 +404,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
 
         Map<UUID, BigDecimal> alreadyCreditedByLine = aggregateAlreadyCreditedByLine(invoiceId);
         Map<UUID, BigDecimal> alreadyReturnedByProduct = aggregateAlreadyReturnedByProduct(invoiceId);
-        Map<UUID, BigDecimal> deliveredByProduct = inv.getOrderId() == null
-                ? Map.of()
-                : aggregateDeliveredByProduct(inv.getOrderId());
+        Map<UUID, BigDecimal> deliveredByProduct = aggregateDeliveredByProductForInvoice(invoiceId);
 
         // Guard #2 — invoice fully credited already (every line max_creditable == 0)
         boolean anyRoom = invLines.stream().anyMatch(l ->
@@ -498,7 +428,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
                 .build();
         creditNotes.save(cn);
 
-        UUID warehouseId = inv.getOrderId() == null ? null : resolveReturnWarehouseId(inv.getOrderId());
+        UUID warehouseId = resolveReturnWarehouseIdForInvoice(invoiceId);
 
         // Track returns per product (line-level returnedToStockQty); seed with already-returned values.
         Map<UUID, BigDecimal> returnedThisCn = new HashMap<>();
@@ -604,7 +534,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
         return map;
     }
 
-    private Map<UUID, BigDecimal> aggregateDeliveredByProduct(UUID orderId) {
+    private Map<UUID, BigDecimal> aggregateDeliveredByProductForInvoice(UUID invoiceId) {
         // Cross-module read: delivered quantities live in the delivery module's tables.
         // A direct JDBC read keeps sales free of a compile-time dep on delivery.
         UUID tenant = TenantContext.require();
@@ -613,22 +543,22 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
                 SELECT dl.product_id, COALESCE(SUM(dl.quantity_delivered), 0)
                 FROM delivery_lines dl
                 JOIN deliveries d ON d.id = dl.delivery_id AND d.tenant_id = dl.tenant_id
-                WHERE d.tenant_id = ? AND d.order_id = ? AND d.status <> 'CANCELLED'
+                WHERE d.tenant_id = ? AND d.invoice_id = ? AND d.status <> 'CANCELLED'
                 GROUP BY dl.product_id
                 """, rs -> {
             map.put(rs.getObject(1, UUID.class), rs.getBigDecimal(2));
-        }, tenant, orderId);
+        }, tenant, invoiceId);
         return map;
     }
 
-    private UUID resolveReturnWarehouseId(UUID orderId) {
+    private UUID resolveReturnWarehouseIdForInvoice(UUID invoiceId) {
         UUID tenant = TenantContext.require();
         List<UUID> ids = jdbc.query("""
                 SELECT d.warehouse_id FROM deliveries d
-                WHERE d.tenant_id = ? AND d.order_id = ? AND d.status <> 'CANCELLED'
+                WHERE d.tenant_id = ? AND d.invoice_id = ? AND d.status <> 'CANCELLED'
                   AND d.warehouse_id IS NOT NULL
                 ORDER BY d.created_at ASC LIMIT 1
-                """, (rs, i) -> rs.getObject(1, UUID.class), tenant, orderId);
+                """, (rs, i) -> rs.getObject(1, UUID.class), tenant, invoiceId);
         if (!ids.isEmpty()) return ids.get(0);
         return stockOps.findDefaultWarehouseId().orElse(null);
     }
@@ -703,15 +633,6 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
         return renderer.renderPdf(PdfRenderRequest.of("quote", vars));
     }
 
-    @Transactional(readOnly = true)
-    public byte[] generateOrderPdf(UUID id) {
-        Order o = orders.findById(id).orElseThrow(() -> NotFoundException.of("entity.order", id));
-        PartnerSummary customer = customerLookup.findById(o.getPartyId()).orElse(null);
-        List<OrderLine> lines = orderLines.findByOrderIdOrderByLineNumberAsc(id);
-        Map<String, Object> vars = buildOrderVars(o, lines, customer);
-        return renderer.renderPdf(PdfRenderRequest.of("order", vars));
-    }
-
     // ── Overdue job ──────────────────────────────────────────────────────────
 
     @Scheduled(cron = "0 0 7 * * *")
@@ -748,28 +669,6 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
         return result;
     }
 
-    private List<OrderLine> buildOrderLines(UUID orderId, List<SalesDto.LineRequest> lineReqs) {
-        List<OrderLine> result = new ArrayList<>();
-        int i = 1;
-        for (SalesDto.LineRequest lr : lineReqs) {
-            var product = catalog.findProductById(lr.productId()).orElseThrow(
-                    () -> NotFoundException.of("entity.product", lr.productId()));
-            BigDecimal disc = lr.discountPercent() != null ? lr.discountPercent() : BigDecimal.ZERO;
-            BigDecimal discFactor = BigDecimal.ONE.subtract(disc.divide(BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP));
-            BigDecimal lineTotal = lr.unitPrice().multiply(lr.quantity()).multiply(discFactor).setScale(2, RoundingMode.HALF_UP);
-            OrderLine line = OrderLine.builder()
-                    .orderId(orderId).lineNumber(i++).productId(lr.productId())
-                    .uomId(lr.uomId() != null ? lr.uomId() : product.baseUomId())
-                    .quantity(lr.quantity()).unitPrice(lr.unitPrice())
-                    .discountPercent(disc).taxRate(BigDecimal.ZERO).lineTotal(lineTotal)
-                    .snapshotName(product.name()).snapshotSku(product.sku())
-                    .build();
-            orderLines.save(line);
-            result.add(line);
-        }
-        return result;
-    }
-
     private List<InvoiceLine> buildInvoiceLines(UUID invoiceId, List<SalesDto.LineRequest> lineReqs) {
         List<InvoiceLine> result = new ArrayList<>();
         int i = 1;
@@ -798,12 +697,6 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
         q.setTotal(sub.subtract(q.getDiscountAmount()).add(q.getTaxAmount()));
     }
 
-    private void computeOrderTotals(Order o, List<OrderLine> lines) {
-        BigDecimal sub = lines.stream().map(OrderLine::getLineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
-        o.setSubtotal(sub);
-        o.setTotal(sub.subtract(o.getDiscountAmount()).add(o.getTaxAmount()));
-    }
-
     private void computeInvoiceTotals(Invoice inv, List<InvoiceLine> lines) {
         BigDecimal sub = lines.stream().map(InvoiceLine::getLineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
         inv.setSubtotal(sub);
@@ -819,12 +712,6 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
                 l.getLineTotal(), l.getSnapshotName(), l.getSnapshotSku());
     }
 
-    private SalesDto.LineDto toLineDto(OrderLine l) {
-        return new SalesDto.LineDto(l.getId(), l.getLineNumber(), l.getProductId(), l.getUomId(),
-                l.getQuantity(), l.getUnitPrice(), l.getDiscountPercent(), l.getTaxRate(),
-                l.getLineTotal(), l.getSnapshotName(), l.getSnapshotSku());
-    }
-
     private SalesDto.LineDto toLineDto(InvoiceLine l) {
         return new SalesDto.LineDto(l.getId(), l.getLineNumber(), l.getProductId(), l.getUomId(),
                 l.getQuantity(), l.getUnitPrice(), l.getDiscountPercent(), l.getTaxRate(),
@@ -832,7 +719,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
     }
 
     private SalesDto.QuoteDto toQuoteDto(Quote q, List<QuoteLine> lines, String customerName) {
-        Order linked = orders.findFirstByQuoteIdOrderByCreatedAtDesc(q.getId()).orElse(null);
+        Invoice linked = invoices.findFirstByQuoteIdOrderByCreatedAtDesc(q.getId()).orElse(null);
         return new SalesDto.QuoteDto(q.getId(), q.getNumber(), q.getPartyId(), customerName,
                 q.getIssueDate(), q.getValidUntil(), q.getStatus().name(), q.getCurrency(),
                 q.getSubtotal(), q.getDiscountAmount(), q.getTaxAmount(), q.getTotal(),
@@ -842,20 +729,17 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
                 linked != null ? linked.getStatus().name() : null);
     }
 
-    private SalesDto.OrderDto toOrderDto(Order o, List<OrderLine> lines, String customerName) {
-        return new SalesDto.OrderDto(o.getId(), o.getNumber(), o.getPartyId(), customerName,
-                o.getQuoteId(), o.getOrderDate(), o.getStatus().name(), o.isDeliveryRequired(),
-                o.getCurrency(), o.getSubtotal(), o.getDiscountAmount(), o.getTaxAmount(), o.getTotal(),
-                o.getNotes(), lines.stream().map(this::toLineDto).toList(), o.getCreatedAt());
-    }
-
     private SalesDto.InvoiceDto toInvoiceDto(Invoice inv, List<InvoiceLine> lines, String customerName) {
+        Quote linkedQuote = inv.getQuoteId() == null ? null : quotes.findById(inv.getQuoteId()).orElse(null);
         return new SalesDto.InvoiceDto(inv.getId(), inv.getNumber(), inv.getPartyId(), customerName,
-                inv.getOrderId(), inv.getIssueDate(), inv.getDueDate(), inv.getStatus().name(),
+                inv.getQuoteId(), inv.getIssueDate(), inv.getDueDate(), inv.getStatus().name(),
+                inv.getDeliveryStatus().name(),
                 inv.getCurrency(), inv.getSubtotal(), inv.getDiscountAmount(), inv.getTaxAmount(),
                 inv.getTotal(), inv.getPaidAmount(), inv.getBalance(),
                 inv.getPaymentTerms(), inv.getNotes(),
-                lines.stream().map(this::toLineDto).toList(), inv.getCreatedAt());
+                lines.stream().map(this::toLineDto).toList(), inv.getCreatedAt(),
+                linkedQuote != null ? linkedQuote.getNumber() : null,
+                linkedQuote != null ? linkedQuote.getStatus().name() : null);
     }
 
     private SalesDto.CreditNoteDto toCreditNoteDto(CreditNote cn) {
@@ -914,6 +798,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
                 customer != null ? customer.address() : "",
                 customer != null ? customer.phone() : "",
                 customer != null ? customer.email() : ""));
+        vars.put("taxEnabled", tenantSettings.isTaxEnabled(TenantContext.require()));
         return vars;
     }
 
@@ -939,6 +824,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
                 customer != null ? customer.address() : "",
                 customer != null ? customer.phone() : "",
                 customer != null ? customer.email() : ""));
+        vars.put("taxEnabled", tenantSettings.isTaxEnabled(TenantContext.require()));
         return vars;
     }
 
@@ -951,26 +837,6 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
         m.put("orgEmail", b == null || b.email() == null ? "" : b.email());
         m.put("logoUrl", b == null || b.logoUrl() == null ? "" : b.logoUrl());
         return m;
-    }
-
-    private Map<String, Object> buildOrderVars(Order o, List<OrderLine> lines, PartnerSummary customer) {
-        record LineModel(String productName, String sku, BigDecimal quantity, BigDecimal unitPrice,
-                         BigDecimal discountPercent, BigDecimal taxRate, BigDecimal lineTotal) {}
-        record OrderModel(String number, LocalDate orderDate, String statusLabel,
-                          BigDecimal subtotal, BigDecimal discountAmount, BigDecimal taxAmount,
-                          BigDecimal total, String currency, String notes, List<LineModel> lines) {}
-        record CustomerModel(String name, String address, String phone) {}
-        var lm = lines.stream().map(l -> new LineModel(l.getSnapshotName(), l.getSnapshotSku(),
-                l.getQuantity(), l.getUnitPrice(), l.getDiscountPercent(), l.getTaxRate(), l.getLineTotal())).toList();
-        Map<String, Object> vars = new HashMap<>(brandingVars());
-        vars.put("order", new OrderModel(o.getNumber(), o.getOrderDate(), o.getStatus().name(),
-                o.getSubtotal(), o.getDiscountAmount(), o.getTaxAmount(), o.getTotal(),
-                o.getCurrency(), o.getNotes(), lm));
-        vars.put("customer", new CustomerModel(
-                customer != null ? customer.name() : "",
-                customer != null ? customer.address() : "",
-                customer != null ? customer.phone() : ""));
-        return vars;
     }
 
     private Map<String, Object> buildQuoteVars(Quote q, List<QuoteLine> lines, PartnerSummary customer) {
@@ -989,6 +855,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, Or
                 customer != null ? customer.name() : "",
                 customer != null ? customer.address() : "",
                 customer != null ? customer.phone() : ""));
+        vars.put("taxEnabled", tenantSettings.isTaxEnabled(TenantContext.require()));
         return vars;
     }
 }

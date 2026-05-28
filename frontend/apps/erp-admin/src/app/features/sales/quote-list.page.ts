@@ -26,9 +26,9 @@ interface Quote {
   status: string;
   currency: string;
   total: number;
-  linkedOrderId: string | null;
-  linkedOrderNumber: string | null;
-  linkedOrderStatus: string | null;
+  linkedInvoiceId: string | null;
+  linkedInvoiceNumber: string | null;
+  linkedInvoiceStatus: string | null;
 }
 
 interface CustomerOpt {
@@ -107,12 +107,12 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <td class="text-right font-medium">{{ q.total | money }} {{ q.currency }}</td>
               <td>
                 <p-tag [value]="'sales.statuses.' + q.status | translate" [severity]="statusSeverity(q.status)" />
-                @if (q.linkedOrderNumber) {
+                @if (q.linkedInvoiceNumber) {
                   <div class="text-xs text-gray-500 mt-1 flex items-center gap-1">
                     <span>&rarr;</span>
-                    <span class="font-mono">{{ q.linkedOrderNumber }}</span>
-                    <p-tag [value]="'sales.statuses.' + q.linkedOrderStatus | translate"
-                           [severity]="orderStatusSeverity(q.linkedOrderStatus!)"
+                    <span class="font-mono">{{ q.linkedInvoiceNumber }}</span>
+                    <p-tag [value]="'sales.statuses.' + q.linkedInvoiceStatus | translate"
+                           [severity]="invoiceStatusSeverity(q.linkedInvoiceStatus!)"
                            styleClass="text-[10px] py-0 px-1" />
                   </div>
                 }
@@ -121,16 +121,20 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                 <button pButton icon="pi pi-print" class="p-button-sm p-button-text mr-1"
                         [pTooltip]="'common.print' | translate"
                         (click)="printPdf('/api/v1/quotes/' + q.id + '/pdf')"></button>
+                <button pButton icon="pi pi-pencil" class="p-button-sm p-button-text mr-1"
+                        [pTooltip]="'common.edit' | translate"
+                        [disabled]="!canEdit(q.status)"
+                        (click)="openEdit(q)"></button>
                 <p-dropdown [ngModel]="q.status" [options]="nextStatuses(q.status)"
                             optionLabel="label" optionValue="value"
                             [placeholder]="'common.action' | translate"
                             [showClear]="false" [disabled]="nextStatuses(q.status).length === 0"
                             (onChange)="onStatusChange(q, $event.value)"
                             styleClass="text-xs" appendTo="body" />
-                <button pButton icon="pi pi-shopping-cart" class="p-button-sm p-button-text ml-1"
-                        [pTooltip]="'quotes.convertToOrder' | translate"
+                <button pButton icon="pi pi-receipt" class="p-button-sm p-button-text ml-1"
+                        [pTooltip]="'quotes.convertToInvoice' | translate"
                         [disabled]="!canConvert(q.status)"
-                        (click)="convertToOrder(q)"></button>
+                        (click)="convertToInvoice(q)"></button>
               </td>
             </tr>
           </ng-template>
@@ -141,7 +145,8 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
       </div>
 
       <p-dialog [(visible)]="dialogOpen" [modal]="true" [style]="{ width: '900px' }"
-                [header]="'quotes.createTitle' | translate" [closable]="!saving()">
+                [header]="(editingQuoteId() ? 'quotes.editTitle' : 'quotes.createTitle') | translate:{ number: editingNumber() }"
+                [closable]="!saving()">
         <div class="space-y-3">
           <div class="grid grid-cols-3 gap-3">
             <div class="col-span-1">
@@ -150,6 +155,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                           optionLabel="name" optionValue="id"
                           [filter]="true" filterBy="name,code"
                           (onChange)="onCustomerChange()" appendTo="body"
+                          [disabled]="!!editingQuoteId()"
                           [styleClass]="'w-full' + (customerInvalid() ? ' ng-invalid ng-dirty' : '')" />
               @if (customerInvalid()) {
                 <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
@@ -300,6 +306,8 @@ export class QuoteListPage implements OnInit {
   protected saving = signal(false);
   protected submitted = signal(false);
   protected dialogOpen = false;
+  protected editingQuoteId = signal<string | null>(null);
+  protected editingNumber = signal<string>('');
   protected form: { customerId: string | null; issueDate: Date; validUntil: Date; currency: string; notes: string; lines: LineForm[] } = this.emptyForm();
 
   protected customerInvalid(): boolean { return this.submitted() && !this.form.customerId; }
@@ -330,11 +338,10 @@ export class QuoteListPage implements OnInit {
     return ({ DRAFT: 'secondary', SENT: 'info', ACCEPTED: 'success', REJECTED: 'danger', EXPIRED: 'warning', CONVERTED: 'success', CANCELLED: 'secondary' } as Record<string, Severity>)[status] ?? 'secondary';
   }
 
-  protected orderStatusSeverity(status: string): Severity {
+  protected invoiceStatusSeverity(status: string): Severity {
     return ({
-      DRAFT: 'secondary', CONFIRMED: 'info', INVOICED: 'info',
-      PARTIALLY_DELIVERED: 'warning', DELIVERED: 'success',
-      PARTIALLY_INVOICED: 'warning', CANCELLED: 'danger',
+      DRAFT: 'secondary', ISSUED: 'info', PARTIAL: 'warning',
+      PAID: 'success', OVERDUE: 'danger', CANCELLED: 'secondary',
     } as Record<string, Severity>)[status] ?? 'secondary';
   }
 
@@ -346,6 +353,10 @@ export class QuoteListPage implements OnInit {
 
   protected canConvert(status: string): boolean {
     return status === 'DRAFT' || status === 'SENT' || status === 'ACCEPTED';
+  }
+
+  protected canEdit(status: string): boolean {
+    return status !== 'CONVERTED' && status !== 'REJECTED' && status !== 'CANCELLED';
   }
 
   protected async printPdf(url: string) {
@@ -379,14 +390,19 @@ export class QuoteListPage implements OnInit {
     });
   }
 
-  protected convertToOrder(q: Quote) {
+  protected convertToInvoice(q: Quote) {
     this.confirmation.confirm({
       message: this.i18n.instant('quotes.confirmConvert', { number: q.number }),
       header: this.i18n.instant('common.confirmation'),
       icon: 'pi pi-arrow-right',
       accept: async () => {
         try {
-          await firstValueFrom(this.http.post(`/api/v1/quotes/${q.id}/convert-to-order?deliveryRequired=false`, {}));
+          const due = new Date();
+          due.setDate(due.getDate() + 30);
+          const dueIso = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-${String(due.getDate()).padStart(2, '0')}`;
+          await firstValueFrom(this.http.post(
+              `/api/v1/quotes/${q.id}/convert-to-invoice`,
+              { dueDate: dueIso, paymentTerms: null }));
           this.reload();
         } catch {
           /* error reported by global handler */
@@ -397,8 +413,35 @@ export class QuoteListPage implements OnInit {
 
   protected openCreate() {
     this.form = this.emptyForm();
+    this.editingQuoteId.set(null);
+    this.editingNumber.set('');
     this.submitted.set(false);
     this.dialogOpen = true;
+  }
+
+  protected async openEdit(q: Quote) {
+    try {
+      const full = await firstValueFrom(this.http.get<any>(`/api/v1/quotes/${q.id}`));
+      this.form = {
+        customerId: full.customerId,
+        issueDate: full.issueDate ? new Date(full.issueDate) : new Date(),
+        validUntil: full.validUntil ? new Date(full.validUntil) : new Date(),
+        currency: full.currency ?? '',
+        notes: full.notes ?? '',
+        lines: (full.lines ?? []).map((l: any) => ({
+          productId: l.productId,
+          uomId: l.uomId,
+          quantity: Number(l.quantity),
+          unitPrice: Number(l.unitPrice),
+          discountPercent: Number(l.discountPercent),
+          taxRate: Number(l.taxRate),
+        })),
+      };
+      this.editingQuoteId.set(q.id);
+      this.editingNumber.set(q.number);
+      this.submitted.set(false);
+      this.dialogOpen = true;
+    } catch { /* error reported by global handler */ }
   }
 
   protected onCustomerChange() {
@@ -464,21 +507,32 @@ export class QuoteListPage implements OnInit {
     if (!this.canSave()) return;
     this.saving.set(true);
     try {
-      const payload = {
-        customerId: this.form.customerId,
-        issueDate: this.toIsoDate(this.form.issueDate),
-        validUntil: this.toIsoDate(this.form.validUntil),
-        currency: this.form.currency || null,
-        notes: this.form.notes || null,
-        lines: this.form.lines.map(l => ({
-          productId: l.productId,
-          uomId: l.uomId,
-          quantity: l.quantity,
-          unitPrice: l.unitPrice,
-          discountPercent: l.discountPercent,
-        })),
-      };
-      await firstValueFrom(this.http.post('/api/v1/quotes', payload));
+      const editingId = this.editingQuoteId();
+      const lines = this.form.lines.map(l => ({
+        productId: l.productId,
+        uomId: l.uomId,
+        quantity: l.quantity,
+        unitPrice: l.unitPrice,
+        discountPercent: l.discountPercent,
+      }));
+      if (editingId) {
+        await firstValueFrom(this.http.put(`/api/v1/quotes/${editingId}`, {
+          issueDate: this.toIsoDate(this.form.issueDate),
+          validUntil: this.toIsoDate(this.form.validUntil),
+          currency: this.form.currency || null,
+          notes: this.form.notes || null,
+          lines,
+        }));
+      } else {
+        await firstValueFrom(this.http.post('/api/v1/quotes', {
+          customerId: this.form.customerId,
+          issueDate: this.toIsoDate(this.form.issueDate),
+          validUntil: this.toIsoDate(this.form.validUntil),
+          currency: this.form.currency || null,
+          notes: this.form.notes || null,
+          lines,
+        }));
+      }
       this.dialogOpen = false;
       this.reload();
     } finally {

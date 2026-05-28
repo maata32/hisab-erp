@@ -84,8 +84,8 @@
         <th class="text-right">Qté</th>
         <th class="text-right">P.U. HT</th>
         <th class="text-right">Remise</th>
-        <th class="text-right">TVA</th>
-        <th class="text-right">Total TTC</th>
+        <th class="text-right" th:if="${taxEnabled}">TVA</th>
+        <th class="text-right" th:text="${taxEnabled ? 'Total TTC' : 'Total'}">Total TTC</th>
       </tr>
     </thead>
     <tbody>
@@ -96,7 +96,7 @@
         <td class="text-right" th:text="${#numbers.formatDecimal(line.quantity,1,3)}"></td>
         <td class="text-right" th:text="${#numbers.formatDecimal(line.unitPrice,1,decimals)}"></td>
         <td class="text-right" th:text="${line.discountPercent > 0 ? #numbers.formatDecimal(line.discountPercent,1,1) + '%' : '-'}"></td>
-        <td class="text-right" th:text="${#numbers.formatDecimal(line.taxRate * 100,1,0) + '%'}"></td>
+        <td class="text-right" th:if="${taxEnabled}" th:text="${#numbers.formatDecimal(line.taxRate * 100,1,0) + '%'}"></td>
         <td class="text-right" th:text="${#numbers.formatDecimal(line.lineTotal,1,decimals)}"></td>
       </tr>
     </tbody>
@@ -114,12 +114,12 @@
           <td>Remise</td>
           <td class="text-right" th:text="${'-' + #numbers.formatDecimal(invoice.discountAmount,1,decimals)}"></td>
         </tr>
-        <tr th:if="${invoice.taxAmount > 0}">
+        <tr th:if="${taxEnabled and invoice.taxAmount > 0}">
           <td>TVA</td>
           <td class="text-right" th:text="${#numbers.formatDecimal(invoice.taxAmount,1,decimals)}"></td>
         </tr>
         <tr class="total-row">
-          <td>TOTAL TTC</td>
+          <td th:text="${taxEnabled ? 'TOTAL TTC' : 'TOTAL'}">TOTAL TTC</td>
           <td class="text-right" th:text="${invoice.currency + ' ' + #numbers.formatDecimal(invoice.total,1,decimals)}"></td>
         </tr>
         <tr th:if="${invoice.paidAmount > 0}">
