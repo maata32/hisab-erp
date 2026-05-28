@@ -106,8 +106,12 @@
       <div class="value" th:text="${#numbers.formatDecimal(balance.totalInvoiced,1,decimals)} + ' ' + ${currency}"></div>
     </div>
     <div class="balance-card">
-      <div class="label">Total réglé</div>
-      <div class="value" th:text="${#numbers.formatDecimal(balance.totalPaid,1,decimals)} + ' ' + ${currency}"></div>
+      <div class="label">Total paiements</div>
+      <div class="value" th:text="${#numbers.formatDecimal(balance.totalPayments,1,decimals)} + ' ' + ${currency}"></div>
+    </div>
+    <div class="balance-card" th:if="${balance.totalCreditNotes != null and balance.totalCreditNotes > 0}">
+      <div class="label">Total avoirs</div>
+      <div class="value" th:text="${#numbers.formatDecimal(balance.totalCreditNotes,1,decimals)} + ' ' + ${currency}"></div>
     </div>
     <div class="balance-card due">
       <div class="label">Solde dû</div>

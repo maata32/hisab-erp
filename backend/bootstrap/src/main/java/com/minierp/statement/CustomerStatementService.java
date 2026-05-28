@@ -78,9 +78,16 @@ public class CustomerStatementService {
                 "phone", nullSafe(customer.phone()),
                 "email", nullSafe(customer.email())
         ));
+        BigDecimal totalPayments = payments.stream()
+                .map(p -> nz(p.amount())).reduce(ZERO, BigDecimal::add);
+        BigDecimal totalCreditNotes = creditNotes.stream()
+                .map(cn -> nz(cn.amount())).reduce(ZERO, BigDecimal::add);
+
         Map<String, Object> balanceMap = new HashMap<>();
         balanceMap.put("totalInvoiced", nz(balance.totalInvoiced()));
         balanceMap.put("totalPaid", nz(balance.totalPaid()));
+        balanceMap.put("totalPayments", totalPayments);
+        balanceMap.put("totalCreditNotes", totalCreditNotes);
         balanceMap.put("balance", nz(balance.balance()));
         balanceMap.put("overdue", nz(balance.overdueAmount()));
         balanceMap.put("lastPaymentDate", balance.lastPaymentDate());
@@ -128,6 +135,11 @@ public class CustomerStatementService {
                     ZERO, nz(p.amount()), null));
         }
         for (var c : credits) {
+            // REFUND credits are the surplus portion of a credit note that couldn't
+            // be applied to the source invoice. The credit note itself is already
+            // shown in full as a CREDIT row above, so showing the REFUND a second
+            // time would double-count it on the running balance.
+            if ("REFUND".equals(c.source())) continue;
             LocalDate date = c.createdAt() != null
                     ? c.createdAt().atZone(ZoneId.systemDefault()).toLocalDate()
                     : LocalDate.now();
@@ -136,8 +148,13 @@ public class CustomerStatementService {
                     ZERO, nz(c.initialAmount()), null));
         }
 
+        // Same-date ordering follows the business sequence: an invoice raises
+        // the debt before any payment / credit can reduce it, otherwise the
+        // running balance starts negative and is confusing to read.
+        Map<String, Integer> kindOrder = Map.of(
+                "INVOICE", 0, "PAYMENT", 1, "CREDIT_NOTE", 2, "CREDIT", 3);
         mvts.sort(Comparator.comparing(Movement::date)
-                .thenComparing(Movement::kind));
+                .thenComparingInt(m -> kindOrder.getOrDefault(m.kind(), 99)));
 
         BigDecimal running = ZERO;
         List<Map<String, Object>> rows = new ArrayList<>();
