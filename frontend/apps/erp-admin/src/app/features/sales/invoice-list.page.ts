@@ -37,6 +37,14 @@ interface InvoiceDelivery {
   number: string;
 }
 
+interface InvoiceCreditNote {
+  id: string;
+  number: string;
+  total: number;
+  currency: string;
+  issueDate: string;
+}
+
 interface InvoiceLine {
   id: string;
   lineNumber: number;
@@ -417,6 +425,21 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   }
                 }
               </div>
+
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-gray-500 text-sm">{{ 'invoices.creditNotes' | translate }} :</span>
+                @if (creditNotesLoading()) {
+                  <span class="text-gray-400 text-sm">{{ 'common.loading' | translate }}</span>
+                } @else if (creditNotes().length === 0) {
+                  <span class="text-gray-400 text-sm">{{ 'invoices.noCreditNotes' | translate }}</span>
+                } @else {
+                  @for (c of creditNotes(); track c.id) {
+                    <button pButton icon="pi pi-file-pdf" class="p-button-sm p-button-text text-red-700"
+                            [label]="c.number + ' (' + (c.total | money) + ' ' + c.currency + ')'"
+                            (click)="printPdf('/api/v1/credit-notes/' + c.id + '/pdf')"></button>
+                  }
+                }
+              </div>
             }
 
             <div class="border rounded">
@@ -585,6 +608,8 @@ export class InvoiceListPage implements OnInit {
   protected detail = signal<InvoiceDetail | null>(null);
   protected deliveries = signal<InvoiceDelivery[]>([]);
   protected deliveriesLoading = signal(false);
+  protected creditNotes = signal<InvoiceCreditNote[]>([]);
+  protected creditNotesLoading = signal(false);
   protected taxEnabled = signal(true);
 
   protected creditOpen = signal(false);
@@ -671,8 +696,10 @@ export class InvoiceListPage implements OnInit {
   protected async openDetail(inv: Invoice) {
     this.detail.set(null);
     this.deliveries.set([]);
+    this.creditNotes.set([]);
     this.detailOpen.set(true);
     this.deliveriesLoading.set(true);
+    this.creditNotesLoading.set(true);
     try {
       const full = await firstValueFrom(this.http.get<InvoiceDetail>(`/api/v1/invoices/${inv.id}`));
       this.detail.set(full);
@@ -688,6 +715,16 @@ export class InvoiceListPage implements OnInit {
       this.deliveries.set([]);
     } finally {
       this.deliveriesLoading.set(false);
+    }
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ content: InvoiceCreditNote[] }>(`/api/v1/credit-notes?invoiceId=${inv.id}&size=200`)
+      );
+      this.creditNotes.set(res.content ?? []);
+    } catch {
+      this.creditNotes.set([]);
+    } finally {
+      this.creditNotesLoading.set(false);
     }
   }
 

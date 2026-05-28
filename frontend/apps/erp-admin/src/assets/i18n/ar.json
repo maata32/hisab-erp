@@ -466,6 +466,8 @@
     "linkedQuote": "عرض السعر المرتبط",
     "deliveries": "التسليمات",
     "noDeliveries": "لا توجد تسليمات مرتبطة بهذه الفاتورة.",
+    "creditNotes": "الإشعارات الدائنة",
+    "noCreditNotes": "لا توجد إشعارات دائنة على هذه الفاتورة.",
     "deliveryStatus": "حالة التسليم",
     "deliveryStatuses": {
       "NONE": "غير مسلم",

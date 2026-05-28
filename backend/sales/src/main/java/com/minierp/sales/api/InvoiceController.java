@@ -78,7 +78,8 @@ public class InvoiceController {
     @PreAuthorize("hasAuthority('sales:read')")
     public PageResponse<SalesDto.CreditNoteDto> listCreditNotes(
             @RequestParam(required = false) UUID customerId,
+            @RequestParam(required = false) UUID invoiceId,
             @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return service.listCreditNotes(customerId, pageable);
+        return service.listCreditNotes(customerId, invoiceId, pageable);
     }
 }

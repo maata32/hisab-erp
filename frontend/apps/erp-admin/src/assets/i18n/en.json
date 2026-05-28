@@ -466,6 +466,8 @@
     "linkedQuote": "Linked quote",
     "deliveries": "Deliveries",
     "noDeliveries": "No deliveries linked to this invoice.",
+    "creditNotes": "Credit notes",
+    "noCreditNotes": "No credit notes on this invoice.",
     "deliveryStatus": "Delivery status",
     "deliveryStatuses": {
       "NONE": "Not delivered",

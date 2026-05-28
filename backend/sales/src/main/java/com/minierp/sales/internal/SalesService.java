@@ -584,10 +584,12 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<SalesDto.CreditNoteDto> listCreditNotes(UUID customerId, Pageable pageable) {
-        var page = customerId != null
-                ? creditNotes.findByPartyId(customerId, pageable)
-                : creditNotes.findAll(pageable);
+    public PageResponse<SalesDto.CreditNoteDto> listCreditNotes(UUID customerId, UUID invoiceId, Pageable pageable) {
+        var page = invoiceId != null
+                ? creditNotes.findByInvoiceId(invoiceId, pageable)
+                : customerId != null
+                    ? creditNotes.findByPartyId(customerId, pageable)
+                    : creditNotes.findAll(pageable);
         return PageResponse.of(page.map(this::toCreditNoteDto));
     }
 

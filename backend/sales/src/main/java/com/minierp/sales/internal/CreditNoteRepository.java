@@ -11,6 +11,7 @@ import java.util.UUID;
 
 interface CreditNoteRepository extends JpaRepository<CreditNote, UUID> {
     Page<CreditNote> findByPartyId(UUID partyId, Pageable pageable);
+    Page<CreditNote> findByInvoiceId(UUID invoiceId, Pageable pageable);
     Page<CreditNote> findAll(Pageable pageable);
 
     List<CreditNote> findByInvoiceIdAndStatusNot(UUID invoiceId, CreditNoteStatus status);

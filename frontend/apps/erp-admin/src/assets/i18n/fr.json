@@ -467,6 +467,8 @@
     "linkedQuote": "Devis lié",
     "deliveries": "Livraisons",
     "noDeliveries": "Aucune livraison pour cette facture.",
+    "creditNotes": "Avoirs",
+    "noCreditNotes": "Aucun avoir sur cette facture.",
     "deliveryStatus": "Statut livraison",
     "deliveryStatuses": {
       "NONE": "Non livré",
