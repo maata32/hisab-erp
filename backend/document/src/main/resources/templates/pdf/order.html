@@ -82,7 +82,7 @@
         <td th:text="${stat.index + 1}"></td>
         <td th:text="${line.productName}"></td>
         <td th:text="${line.sku}"></td>
-        <td class="text-right" th:text="${#numbers.formatDecimal(line.quantity,1,3)}"></td>
+        <td class="text-right" th:text="${qty.format(line.quantity)}"></td>
         <td class="text-right" th:text="${#numbers.formatDecimal(line.unitPrice,1,decimals)}"></td>
         <td class="text-right" th:text="${line.discountPercent > 0 ? #numbers.formatDecimal(line.discountPercent,1,1) + '%' : '-'}"></td>
         <td class="text-right" th:text="${#numbers.formatDecimal(line.lineTotal,1,decimals)}"></td>

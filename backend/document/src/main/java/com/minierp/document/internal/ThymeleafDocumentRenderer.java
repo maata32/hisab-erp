@@ -33,6 +33,7 @@ class ThymeleafDocumentRenderer implements DocumentRenderer {
             ctx.setVariable("decimals", resolveDecimals());
         }
         ctx.setVariable("paperSize", paperSize);
+        ctx.setVariable("qty", new QuantityFormatter(request.locale()));
 
         String html = templateEngine.process("pdf/" + request.templateName(), ctx);
 

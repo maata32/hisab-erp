@@ -164,7 +164,7 @@
                 <tr th:each="l : ${row.lines}">
                   <td th:text="${l.productName}"></td>
                   <td style="font-family:monospace;" th:text="${l.sku}"></td>
-                  <td class="text-right" style="width:60px;" th:text="${#numbers.formatDecimal(l.quantity,1,3)}"></td>
+                  <td class="text-right" style="width:60px;" th:text="${qty.format(l.quantity)}"></td>
                   <td class="text-right" style="width:90px;" th:text="${#numbers.formatDecimal(l.lineTotal,1,decimals)}"></td>
                 </tr>
               </tbody>
