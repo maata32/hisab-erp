@@ -43,7 +43,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class SalesService implements InvoiceOperations, SalesStatementLookup {
+public class SalesService implements InvoiceOperations, SalesStatementLookup, com.minierp.sales.api.InvoiceWriteOperations {
 
     private final QuoteRepository quotes;
     private final QuoteLineRepository quoteLines;
@@ -84,7 +84,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
             UUID customerId, LocalDate from, LocalDate to) {
         return creditNotes.findForStatement(customerId, from, to).stream()
                 .map(cn -> new StatementCreditNoteEntry(
-                        cn.getId(), cn.getNumber(), cn.getIssueDate(),
+                        cn.getId(), cn.getInvoiceId(), cn.getNumber(), cn.getIssueDate(),
                         cn.getAmount(), cn.getReason(), cn.getStatus().name()))
                 .toList();
     }
@@ -118,6 +118,10 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     public void applyPayment(UUID invoiceId, BigDecimal amount) {
         Invoice inv = invoices.lockById(invoiceId)
                 .orElseThrow(() -> NotFoundException.of("entity.invoice", invoiceId));
+        if (inv.getStatus() == InvoiceStatus.REFUNDED) {
+            throw new BusinessException("error.invoice.refunded_no_payment",
+                    Map.of("invoiceNumber", inv.getNumber()));
+        }
         inv.setPaidAmount(inv.getPaidAmount().add(amount));
         inv.setBalance(inv.getTotal().subtract(inv.getPaidAmount()).max(BigDecimal.ZERO));
         if (inv.getBalance().compareTo(BigDecimal.ZERO) == 0) {
@@ -126,6 +130,27 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
             inv.setStatus(InvoiceStatus.PARTIAL);
         }
         balanceOps.addToPaid(inv.getPartyId(), amount, true);
+    }
+
+    @Override
+    @Transactional
+    public void reversePayment(UUID invoiceId, BigDecimal amount) {
+        Invoice inv = invoices.lockById(invoiceId)
+                .orElseThrow(() -> NotFoundException.of("entity.invoice", invoiceId));
+        BigDecimal newPaid = inv.getPaidAmount().subtract(amount).max(BigDecimal.ZERO);
+        inv.setPaidAmount(newPaid);
+        inv.setBalance(inv.getTotal().subtract(newPaid).max(BigDecimal.ZERO));
+        if (newPaid.signum() == 0) {
+            // Unpay the invoice entirely: walk status back. CANCELLED stays
+            // CANCELLED (a refunded cancelled invoice is still cancelled).
+            if (inv.getStatus() == InvoiceStatus.PAID || inv.getStatus() == InvoiceStatus.PARTIAL
+                    || inv.getStatus() == InvoiceStatus.OVERDUE) {
+                inv.setStatus(InvoiceStatus.ISSUED);
+            }
+        } else if (inv.getStatus() == InvoiceStatus.PAID) {
+            inv.setStatus(InvoiceStatus.PARTIAL);
+        }
+        balanceOps.addToPaid(inv.getPartyId(), amount.negate(), false);
     }
 
     @Override
@@ -171,7 +196,8 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     public void recomputeDeliveryStatus(UUID invoiceId, Map<UUID, BigDecimal> totalDeliveredByProduct) {
         Invoice inv = invoices.findById(invoiceId).orElse(null);
         if (inv == null) return;
-        if (inv.getStatus() == InvoiceStatus.DRAFT || inv.getStatus() == InvoiceStatus.CANCELLED) {
+        if (inv.getStatus() == InvoiceStatus.DRAFT || inv.getStatus() == InvoiceStatus.CANCELLED
+                || inv.getStatus() == InvoiceStatus.REFUNDED) {
             return;
         }
         Map<UUID, BigDecimal> invoicedByProduct = getInvoicedQtyByProduct(invoiceId);
@@ -214,7 +240,9 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         return invoices.findById(invoiceId)
                 .map(inv -> inv.getStatus() != InvoiceStatus.DRAFT
                         && inv.getStatus() != InvoiceStatus.CANCELLED
-                        && inv.getDeliveryStatus() != InvoiceDeliveryStatus.DELIVERED)
+                        && inv.getStatus() != InvoiceStatus.REFUNDED
+                        && inv.getDeliveryStatus() != InvoiceDeliveryStatus.DELIVERED
+                        && inv.getDeliveryStatus() != InvoiceDeliveryStatus.RETURNED)
                 .orElse(false);
     }
 
@@ -363,6 +391,64 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         return toInvoiceDto(inv, built, customer.name());
     }
 
+    /**
+     * Clone an invoice into a brand-new ISSUED one. Lines (snapshots and all)
+     * are copied verbatim. The new invoice has no quote link and is issued today
+     * with a fresh due date offset by the same number of days as the source.
+     */
+    @Transactional
+    public SalesDto.InvoiceDto duplicateInvoice(UUID id) {
+        Invoice src = invoices.findById(id)
+                .orElseThrow(() -> NotFoundException.of("entity.invoice", id));
+        List<InvoiceLine> srcLines = invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id);
+        if (srcLines.isEmpty()) {
+            throw new BusinessException("error.invoice.no_lines", Map.of("invoiceId", id));
+        }
+
+        LocalDate today = LocalDate.now();
+        LocalDate dueDate = src.getDueDate() != null && src.getIssueDate() != null
+                ? today.plusDays(java.time.temporal.ChronoUnit.DAYS.between(src.getIssueDate(), src.getDueDate()))
+                : today.plusDays(30);
+
+        String number = numbering.next(DocumentType.INVOICE);
+        Invoice copy = Invoice.builder()
+                .number(number)
+                .partyId(src.getPartyId())
+                .quoteId(null)
+                .issueDate(today)
+                .dueDate(dueDate)
+                .status(InvoiceStatus.ISSUED)
+                .currency(src.getCurrency())
+                .paymentTerms(src.getPaymentTerms())
+                .notes(src.getNotes())
+                .build();
+        invoices.save(copy);
+
+        List<InvoiceLine> built = new ArrayList<>();
+        for (InvoiceLine sl : srcLines) {
+            InvoiceLine line = InvoiceLine.builder()
+                    .invoiceId(copy.getId())
+                    .lineNumber(sl.getLineNumber())
+                    .productId(sl.getProductId())
+                    .uomId(sl.getUomId())
+                    .quantity(sl.getQuantity())
+                    .unitPrice(sl.getUnitPrice())
+                    .discountPercent(sl.getDiscountPercent())
+                    .taxRate(sl.getTaxRate())
+                    .lineTotal(sl.getLineTotal())
+                    .snapshotName(sl.getSnapshotName())
+                    .snapshotSku(sl.getSnapshotSku())
+                    .build();
+            invoiceLines.save(line);
+            built.add(line);
+        }
+        computeInvoiceTotals(copy, built);
+        balanceOps.addToInvoiced(copy.getPartyId(), copy.getTotal());
+
+        String name = customerLookup.findById(copy.getPartyId()).map(PartnerSummary::name).orElse("");
+        return toInvoiceDto(copy, built, name);
+    }
+
     @Transactional
     public SalesDto.InvoiceDto issueInvoice(UUID id) {
         Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));
@@ -411,31 +497,14 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     public SalesDto.CreditNoteDto createCreditNote(UUID invoiceId, SalesDto.CreateCreditNoteRequest req) {
         Invoice inv = invoices.findById(invoiceId)
                 .orElseThrow(() -> NotFoundException.of("entity.invoice", invoiceId));
-        if (inv.getStatus() == InvoiceStatus.CANCELLED) {
-            throw new BusinessException("error.creditnote.invoice_cancelled",
-                    Map.of("invoiceId", inv.getId(), "invoiceNumber", inv.getNumber()));
-        }
-        if (req.lines() == null || req.lines().isEmpty()) {
-            throw new BusinessException("error.creditnote.no_lines", Map.of());
-        }
+        ensureCreditable(inv);
 
         List<InvoiceLine> invLines = invoiceLines.findByInvoiceIdOrderByLineNumberAsc(invoiceId);
-        Map<UUID, InvoiceLine> invLineById = invLines.stream()
-                .collect(java.util.stream.Collectors.toMap(InvoiceLine::getId, l -> l));
-
-        Map<UUID, BigDecimal> alreadyCreditedByLine = aggregateAlreadyCreditedByLine(invoiceId);
-        Map<UUID, BigDecimal> alreadyReturnedByProduct = aggregateAlreadyReturnedByProduct(invoiceId);
-        Map<UUID, BigDecimal> deliveredByProduct = aggregateDeliveredByProductForInvoice(invoiceId);
-
-        // Guard #2 — invoice fully credited already (every line max_creditable == 0)
-        boolean anyRoom = invLines.stream().anyMatch(l ->
-                l.getQuantity()
-                        .subtract(alreadyCreditedByLine.getOrDefault(l.getId(), BigDecimal.ZERO))
-                        .signum() > 0);
-        if (!anyRoom) {
-            throw new BusinessException("error.creditnote.invoice_fully_credited",
-                    Map.of("invoiceId", inv.getId(), "invoiceNumber", inv.getNumber()));
+        if (invLines.isEmpty()) {
+            throw new BusinessException("error.creditnote.invoice_has_no_lines",
+                    Map.of("invoiceId", inv.getId()));
         }
+        Map<UUID, BigDecimal> deliveredByProduct = aggregateDeliveredByProductForInvoice(invoiceId);
 
         String number = numbering.next(DocumentType.CREDIT_NOTE);
         CreditNote cn = CreditNote.builder()
@@ -449,52 +518,25 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
                 .build();
         creditNotes.save(cn);
 
-        // Collect the per-line portion that must come back to stock. The actual
-        // BR creation + stockOps.receive is handled by the delivery module via
-        // a CreditNoteReturnRequestedEvent published after all lines have been
-        // computed — one BR per credit note, not one per line.
+        // Total avoir: one CreditNoteLine per InvoiceLine, full quantity. Stock
+        // return is exactly what has been delivered per product — never-shipped
+        // quantities cancel without a BR.
         List<CreditNoteReturnRequestedEvent.ReturnLine> returnLines = new ArrayList<>();
-        Map<UUID, BigDecimal> returnedThisCn = new HashMap<>();
+        Map<UUID, BigDecimal> productReturnedAcc = new HashMap<>();
         BigDecimal subtotalHt = BigDecimal.ZERO;
         int lineNo = 1;
-        for (SalesDto.CreateCreditNoteLine lr : req.lines()) {
-            if (lr.quantity() == null || lr.quantity().signum() <= 0) continue;
-            InvoiceLine il = invLineById.get(lr.invoiceLineId());
-            if (il == null) {
-                throw new BusinessException("error.creditnote.line_not_found",
-                        Map.of("invoiceLineId", lr.invoiceLineId()));
-            }
-            BigDecimal alreadyCredited = alreadyCreditedByLine.getOrDefault(il.getId(), BigDecimal.ZERO);
-            BigDecimal maxCreditable = il.getQuantity().subtract(alreadyCredited);
-            if (lr.quantity().compareTo(maxCreditable) > 0) {
-                throw new BusinessException("error.creditnote.line_exceeds_invoiced",
-                        Map.of("invoiceLineId", il.getId(),
-                                "requested", lr.quantity(), "max", maxCreditable));
-            }
-
-            BigDecimal discFactor = BigDecimal.ONE.subtract(
-                    il.getDiscountPercent().divide(BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP));
-            BigDecimal lineTotal = il.getUnitPrice().multiply(lr.quantity())
-                    .multiply(discFactor).setScale(2, RoundingMode.HALF_UP);
-
-            // Stock-return portion = portion of this credit that exceeds the
-            // still-not-shipped slot of the line. The not-shipped slot is
-            //   (invoiced − delivered) − (alreadyCredited − alreadyReturned)
-            // i.e. invoiced − delivered, minus prior credits that have already
-            // absorbed the never-shipped quantity without triggering a BR.
-            BigDecimal alreadyReturned = alreadyReturnedByProduct.getOrDefault(il.getProductId(), BigDecimal.ZERO)
-                    .add(returnedThisCn.getOrDefault(il.getProductId(), BigDecimal.ZERO));
+        for (InvoiceLine il : invLines) {
+            BigDecimal lineTotal = il.getLineTotal();
             BigDecimal delivered = deliveredByProduct.getOrDefault(il.getProductId(), BigDecimal.ZERO);
-            BigDecimal notDelivered = il.getQuantity().subtract(delivered).max(BigDecimal.ZERO);
-            BigDecimal nonDeliveredCreditedAlready = alreadyCredited.subtract(alreadyReturned).max(BigDecimal.ZERO);
-            BigDecimal notDeliveredRemaining = notDelivered.subtract(nonDeliveredCreditedAlready).max(BigDecimal.ZERO);
-            BigDecimal stockReturnQty = lr.quantity().subtract(notDeliveredRemaining).max(BigDecimal.ZERO);
-
+            BigDecimal alreadyAttributed = productReturnedAcc.getOrDefault(il.getProductId(), BigDecimal.ZERO);
+            // A product may appear on several lines; the delivered-pool is
+            // global per product, so spread it across lines in order to avoid
+            // double-returning the same units.
+            BigDecimal stockReturnQty = delivered.subtract(alreadyAttributed)
+                    .max(BigDecimal.ZERO)
+                    .min(il.getQuantity());
             if (stockReturnQty.signum() > 0) {
-                returnLines.add(new CreditNoteReturnRequestedEvent.ReturnLine(
-                        il.getProductId(), il.getUomId(), stockReturnQty,
-                        il.getUnitPrice(), il.getSnapshotName(), il.getSnapshotSku()));
-                returnedThisCn.merge(il.getProductId(), stockReturnQty, BigDecimal::add);
+                productReturnedAcc.merge(il.getProductId(), stockReturnQty, BigDecimal::add);
             }
 
             CreditNoteLine cnl = CreditNoteLine.builder()
@@ -503,7 +545,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
                     .invoiceLineId(il.getId())
                     .productId(il.getProductId())
                     .uomId(il.getUomId())
-                    .quantity(lr.quantity())
+                    .quantity(il.getQuantity())
                     .unitPrice(il.getUnitPrice())
                     .discountPercent(il.getDiscountPercent())
                     .taxRate(il.getTaxRate())
@@ -516,24 +558,30 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
             subtotalHt = subtotalHt.add(lineTotal);
         }
 
-        // Tax allocation: proportional to the original invoice's tax-on-subtotal ratio.
-        BigDecimal taxAmount = BigDecimal.ZERO;
-        if (inv.getSubtotal().signum() > 0 && inv.getTaxAmount().signum() > 0) {
-            taxAmount = subtotalHt
-                    .multiply(inv.getTaxAmount())
-                    .divide(inv.getSubtotal(), 2, RoundingMode.HALF_UP);
+        // Aggregate per-product stock-return rows for the BR event.
+        for (Map.Entry<UUID, BigDecimal> e : productReturnedAcc.entrySet()) {
+            if (e.getValue().signum() <= 0) continue;
+            InvoiceLine ref = invLines.stream()
+                    .filter(l -> l.getProductId().equals(e.getKey()))
+                    .findFirst().orElseThrow();
+            returnLines.add(new CreditNoteReturnRequestedEvent.ReturnLine(
+                    ref.getProductId(), ref.getUomId(), e.getValue(),
+                    ref.getUnitPrice(), ref.getSnapshotName(), ref.getSnapshotSku()));
         }
-        BigDecimal total = subtotalHt.add(taxAmount);
-        cn.setSubtotal(subtotalHt);
+
+        // Mirror the invoice totals 1:1 — avoir total = invoice total.
+        BigDecimal taxAmount = inv.getTaxAmount();
+        BigDecimal total = inv.getTotal();
+        cn.setSubtotal(inv.getSubtotal());
         cn.setTaxAmount(taxAmount);
         cn.setTotal(total);
-        cn.setAmount(total); // legacy column mirrors total
+        cn.setAmount(total);
 
-        // Apply to invoice balance, surplus → customer credit.
+        // Apply to invoice balance, surplus → customer credit (OVERPAYMENT).
         BigDecimal imputed = applyCredit(inv.getId(), total);
         BigDecimal surplus = total.subtract(imputed);
         if (surplus.signum() > 0) {
-            customerCreditOps.grantCredit(inv.getPartyId(), surplus, "REFUND",
+            customerCreditOps.grantCredit(inv.getPartyId(), surplus, "OVERPAYMENT",
                     "Credit note " + cn.getNumber());
         }
         cn.setAppliedToInvoiceId(inv.getId());
@@ -545,30 +593,38 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
                     List.copyOf(returnLines)));
         }
 
-        // Credit reduces the outstanding "still-to-deliver" amount, so the
-        // invoice may flip from PARTIALLY_DELIVERED to DELIVERED (or even
-        // straight from NONE to DELIVERED when the credit cancels an unshipped
-        // line). Refresh the status using the same gross-outbound map we read
-        // above — the BR posted by the event listener filters out as RETURN.
-        recomputeDeliveryStatus(invoiceId, deliveredByProduct);
+        // Total avoir = invoice fully refunded. Override the PAID set by applyCredit
+        // and mark the delivery side as RETURNED if anything was actually shipped.
+        inv.setStatus(InvoiceStatus.REFUNDED);
+        inv.setDeliveryStatus(returnLines.isEmpty()
+                ? InvoiceDeliveryStatus.NONE
+                : InvoiceDeliveryStatus.RETURNED);
 
         return toCreditNoteDto(cn);
     }
 
-    private Map<UUID, BigDecimal> aggregateAlreadyCreditedByLine(UUID invoiceId) {
-        Map<UUID, BigDecimal> map = new HashMap<>();
-        for (Object[] row : creditNoteLines.sumQuantityByInvoiceLine(invoiceId)) {
-            map.put((UUID) row[0], (BigDecimal) row[1]);
+    /**
+     * Total-avoir gate: the invoice must exist in a creditable state and must
+     * not already carry a non-DRAFT credit note (one avoir per invoice).
+     */
+    private void ensureCreditable(Invoice inv) {
+        if (inv.getStatus() == InvoiceStatus.DRAFT) {
+            throw new BusinessException("error.creditnote.invoice_draft",
+                    Map.of("invoiceId", inv.getId(), "invoiceNumber", inv.getNumber()));
         }
-        return map;
-    }
-
-    private Map<UUID, BigDecimal> aggregateAlreadyReturnedByProduct(UUID invoiceId) {
-        Map<UUID, BigDecimal> map = new HashMap<>();
-        for (Object[] row : creditNoteLines.sumReturnedByProduct(invoiceId)) {
-            map.put((UUID) row[0], (BigDecimal) row[1]);
+        if (inv.getStatus() == InvoiceStatus.CANCELLED) {
+            throw new BusinessException("error.creditnote.invoice_cancelled",
+                    Map.of("invoiceId", inv.getId(), "invoiceNumber", inv.getNumber()));
         }
-        return map;
+        if (inv.getStatus() == InvoiceStatus.REFUNDED) {
+            throw new BusinessException("error.creditnote.invoice_refunded",
+                    Map.of("invoiceId", inv.getId(), "invoiceNumber", inv.getNumber()));
+        }
+        long existing = creditNotes.countNonDraftByInvoiceId(inv.getId());
+        if (existing > 0) {
+            throw new BusinessException("error.creditnote.already_credited",
+                    Map.of("invoiceId", inv.getId(), "invoiceNumber", inv.getNumber()));
+        }
     }
 
     private Map<UUID, BigDecimal> aggregateDeliveredByProductForInvoice(UUID invoiceId) {
@@ -609,30 +665,56 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
     }
 
     @Transactional(readOnly = true)
-    public SalesDto.CreditableInvoiceDto getCreditableInvoice(UUID invoiceId) {
+    public SalesDto.CreditNotePreviewDto getCreditNotePreview(UUID invoiceId) {
         Invoice inv = invoices.findById(invoiceId)
                 .orElseThrow(() -> NotFoundException.of("entity.invoice", invoiceId));
-        List<InvoiceLine> lines = invoiceLines.findByInvoiceIdOrderByLineNumberAsc(invoiceId);
-        Map<UUID, BigDecimal> alreadyCredited = aggregateAlreadyCreditedByLine(invoiceId);
-        Map<UUID, BigDecimal> deliveredByProduct = aggregateDeliveredByProductForInvoice(invoiceId);
         String customerName = customerLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
-        List<SalesDto.CreditableLineDto> lineDtos = lines.stream().map(l -> {
-            BigDecimal already = alreadyCredited.getOrDefault(l.getId(), BigDecimal.ZERO);
-            BigDecimal max = l.getQuantity().subtract(already).max(BigDecimal.ZERO);
-            BigDecimal delivered = deliveredByProduct.getOrDefault(l.getProductId(), BigDecimal.ZERO)
-                    .min(l.getQuantity());
-            return new SalesDto.CreditableLineDto(
-                    l.getId(), l.getProductId(),
-                    l.getSnapshotName(), l.getSnapshotSku(), l.getUomId(),
-                    l.getQuantity(), delivered, already, max,
-                    l.getUnitPrice(), l.getDiscountPercent(), l.getTaxRate());
-        }).toList();
-        return new SalesDto.CreditableInvoiceDto(
+
+        String blockReason = computeBlockReason(inv);
+        BigDecimal creditAmount = inv.getTotal();
+        BigDecimal alreadyPaid = inv.getPaidAmount();
+        BigDecimal balance = inv.getBalance();
+        BigDecimal toCustomerCredit = creditAmount.subtract(balance).max(BigDecimal.ZERO);
+
+        List<InvoiceLine> lines = invoiceLines.findByInvoiceIdOrderByLineNumberAsc(invoiceId);
+        Map<UUID, BigDecimal> deliveredByProduct = aggregateDeliveredByProductForInvoice(invoiceId);
+        // Same per-line product allocation rule as createCreditNote, so the
+        // preview matches the eventual BR row-for-row.
+        Map<UUID, BigDecimal> productReturnedAcc = new HashMap<>();
+        Map<UUID, InvoiceLine> firstLineByProduct = new HashMap<>();
+        for (InvoiceLine il : lines) {
+            firstLineByProduct.putIfAbsent(il.getProductId(), il);
+            BigDecimal delivered = deliveredByProduct.getOrDefault(il.getProductId(), BigDecimal.ZERO);
+            BigDecimal alreadyAttributed = productReturnedAcc.getOrDefault(il.getProductId(), BigDecimal.ZERO);
+            BigDecimal qty = delivered.subtract(alreadyAttributed).max(BigDecimal.ZERO).min(il.getQuantity());
+            if (qty.signum() > 0) {
+                productReturnedAcc.merge(il.getProductId(), qty, BigDecimal::add);
+            }
+        }
+        List<SalesDto.CreditNoteReturnLineDto> returnRows = new ArrayList<>();
+        for (Map.Entry<UUID, BigDecimal> e : productReturnedAcc.entrySet()) {
+            if (e.getValue().signum() <= 0) continue;
+            InvoiceLine ref = firstLineByProduct.get(e.getKey());
+            returnRows.add(new SalesDto.CreditNoteReturnLineDto(
+                    ref.getProductId(), ref.getSnapshotName(), ref.getSnapshotSku(),
+                    ref.getUomId(), e.getValue()));
+        }
+
+        return new SalesDto.CreditNotePreviewDto(
                 inv.getId(), inv.getNumber(),
                 inv.getPartyId(), customerName,
                 inv.getCurrency(),
-                inv.getSubtotal(), inv.getTaxAmount(), inv.getTotal(),
-                lineDtos);
+                inv.getTotal(), alreadyPaid, balance,
+                creditAmount, toCustomerCredit,
+                !returnRows.isEmpty(), returnRows,
+                blockReason);
+    }
+
+    private String computeBlockReason(Invoice inv) {
+        if (inv.getStatus() == InvoiceStatus.DRAFT) return "DRAFT";
+        if (inv.getStatus() == InvoiceStatus.CANCELLED) return "CANCELLED";
+        if (creditNotes.countNonDraftByInvoiceId(inv.getId()) > 0) return "ALREADY_CREDITED";
+        return null;
     }
 
     @Transactional(readOnly = true)
@@ -812,6 +894,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup {
         String payStatus = switch (inv.getStatus()) {
             case PAID -> "PAYÉE";
             case PARTIAL -> "PARTIELLE";
+            case REFUNDED -> "REMBOURSÉE";
             default -> "NON PAYÉE";
         };
         record LineModel(String productName, String sku, BigDecimal quantity, BigDecimal unitPrice,

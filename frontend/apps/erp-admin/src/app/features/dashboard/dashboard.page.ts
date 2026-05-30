@@ -54,6 +54,8 @@ interface DashboardKpis {
   // Invoices backlog
   invoicesDraftCount: number;
   invoicesNotFullyDeliveredCount: number;
+  invoicesRefundedCountMonth: number;
+  invoicesRefundedAmountMonth: number;
   // Lists & trends
   topProductsMonth: TopProduct[];
   sales7Days: DailyAmount[];
@@ -454,6 +456,14 @@ export class DashboardPage implements OnInit {
             icon: 'pi pi-truck',
             severity: k && k.invoicesNotFullyDeliveredCount > 0 ? 'warning' : null,
             value: k ? this.fmt(k.invoicesNotFullyDeliveredCount) : '—',
+          },
+          {
+            label: 'dashboard.kpi.invoices_refunded_month',
+            icon: 'pi pi-undo',
+            severity: k && k.invoicesRefundedCountMonth > 0 ? 'danger' : null,
+            value: k ? this.fmt(k.invoicesRefundedCountMonth) : '—',
+            hint: 'dashboard.kpi.invoices_refunded_month_hint',
+            hintArgs: { amount: k ? this.fmtM(k.invoicesRefundedAmountMonth) : '0' },
           },
         ],
       },

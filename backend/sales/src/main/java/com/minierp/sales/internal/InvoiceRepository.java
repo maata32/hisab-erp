@@ -20,10 +20,10 @@ interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
     @Query("SELECT i FROM Invoice i WHERE i.id = :id")
     Optional<Invoice> lockById(UUID id);
 
-    @Query("SELECT i FROM Invoice i WHERE i.status NOT IN ('PAID','CANCELLED') AND i.dueDate < :today")
+    @Query("SELECT i FROM Invoice i WHERE i.status NOT IN ('PAID','CANCELLED','REFUNDED') AND i.dueDate < :today")
     List<Invoice> findOverdue(LocalDate today);
 
-    @Query("SELECT i FROM Invoice i WHERE i.partyId = :partyId AND i.status NOT IN ('PAID','CANCELLED') ORDER BY i.dueDate ASC")
+    @Query("SELECT i FROM Invoice i WHERE i.partyId = :partyId AND i.status NOT IN ('PAID','CANCELLED','REFUNDED') ORDER BY i.dueDate ASC")
     List<Invoice> findUnpaidByPartyOrderByDueDate(UUID partyId);
 
     @Query("SELECT i FROM Invoice i WHERE i.quoteId = :quoteId AND i.status <> 'CANCELLED' ORDER BY i.createdAt DESC")

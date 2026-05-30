@@ -205,7 +205,7 @@ public class ReportingService {
                        ON i.party_id = c.id
                       AND i.tenant_id = c.tenant_id
                       AND i.balance > 0
-                      AND i.status NOT IN ('CANCELLED','PAID')
+                      AND i.status NOT IN ('CANCELLED','PAID','REFUNDED')
                 WHERE c.tenant_id = ? AND c.is_customer = TRUE
                 GROUP BY c.id, c.code, c.name
                 HAVING COALESCE(SUM(i.balance), 0) > 0
@@ -281,19 +281,19 @@ public class ReportingService {
 
         // ── Invoices ─────────────────────────────────────────────────────────
         long unpaidInvoicesCount = nz(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM invoices WHERE tenant_id=? AND balance>0 AND status NOT IN ('CANCELLED','PAID')",
+                "SELECT COUNT(*) FROM invoices WHERE tenant_id=? AND balance>0 AND status NOT IN ('CANCELLED','PAID','REFUNDED')",
                 Long.class, tenant));
         BigDecimal unpaidInvoicesAmount = nz(jdbc.queryForObject(
                 "SELECT COALESCE(SUM(balance),0) FROM invoices WHERE tenant_id=? AND balance>0 " +
-                "AND status NOT IN ('CANCELLED','PAID')",
+                "AND status NOT IN ('CANCELLED','PAID','REFUNDED')",
                 BigDecimal.class, tenant));
         long overdueInvoicesCount = nz(jdbc.queryForObject(
                 "SELECT COUNT(*) FROM invoices WHERE tenant_id=? AND balance>0 AND due_date < ? " +
-                "AND status NOT IN ('CANCELLED','PAID')",
+                "AND status NOT IN ('CANCELLED','PAID','REFUNDED')",
                 Long.class, tenant, today));
         BigDecimal overdueInvoicesAmount = nz(jdbc.queryForObject(
                 "SELECT COALESCE(SUM(balance),0) FROM invoices WHERE tenant_id=? AND balance>0 AND due_date < ? " +
-                "AND status NOT IN ('CANCELLED','PAID')",
+                "AND status NOT IN ('CANCELLED','PAID','REFUNDED')",
                 BigDecimal.class, tenant, today));
         BigDecimal cashReceivedToday = nz(jdbc.queryForObject(
                 "SELECT COALESCE(SUM(amount),0) FROM payments WHERE tenant_id=? AND status='CONFIRMED' " +
@@ -346,7 +346,7 @@ public class ReportingService {
                 "  COALESCE(SUM(CASE WHEN due_date BETWEEN ? AND ? THEN balance ELSE 0 END), 0), " +
                 "  COALESCE(SUM(CASE WHEN due_date BETWEEN ? AND ? THEN balance ELSE 0 END), 0), " +
                 "  COALESCE(SUM(CASE WHEN due_date < ? THEN balance ELSE 0 END), 0) " +
-                "FROM invoices WHERE tenant_id=? AND balance>0 AND status NOT IN ('CANCELLED','PAID')",
+                "FROM invoices WHERE tenant_id=? AND balance>0 AND status NOT IN ('CANCELLED','PAID','REFUNDED')",
                 (rs, i) -> new BigDecimal[]{
                         rs.getBigDecimal(1), rs.getBigDecimal(2), rs.getBigDecimal(3),
                         rs.getBigDecimal(4), rs.getBigDecimal(5)
@@ -367,12 +367,20 @@ public class ReportingService {
         long invoicesDraftCount = nz(jdbc.queryForObject(
                 "SELECT COUNT(*) FROM invoices WHERE tenant_id=? AND status='DRAFT'",
                 Long.class, tenant));
-        // Non-cancelled non-draft invoices not yet fully delivered.
+        // Non-cancelled non-draft invoices not yet fully delivered (refunded ones are out of scope).
         long invoicesNotFullyDeliveredCount = nz(jdbc.queryForObject(
                 "SELECT COUNT(*) FROM invoices " +
-                "WHERE tenant_id=? AND status NOT IN ('DRAFT','CANCELLED') " +
-                "  AND delivery_status <> 'DELIVERED'",
+                "WHERE tenant_id=? AND status NOT IN ('DRAFT','CANCELLED','REFUNDED') " +
+                "  AND delivery_status NOT IN ('DELIVERED','RETURNED')",
                 Long.class, tenant));
+
+        // Refunded invoices (this month) — count and aggregated total.
+        long invoicesRefundedCountMonth = nz(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM invoices WHERE tenant_id=? AND status='REFUNDED' AND issue_date >= ?",
+                Long.class, tenant, monthStart));
+        BigDecimal invoicesRefundedAmountMonth = nz(jdbc.queryForObject(
+                "SELECT COALESCE(SUM(total),0) FROM invoices WHERE tenant_id=? AND status='REFUNDED' AND issue_date >= ?",
+                BigDecimal.class, tenant, monthStart));
 
         // ── Top 5 products (by revenue) this month ───────────────────────────
         List<ReportingDto.TopProductRow> topProducts = jdbc.query(
@@ -432,6 +440,7 @@ public class ReportingService {
                 activeUsers, activeCustomers, overCreditLimit, totalCustomerBalance,
                 agingCurrent, aging1to30, aging31to60, aging61to90, aging90plus,
                 invoicesDraftCount, invoicesNotFullyDeliveredCount,
+                invoicesRefundedCountMonth, invoicesRefundedAmountMonth,
                 topProducts, sales7Days, paymentMethodsToday);
     }
 

@@ -82,6 +82,14 @@ public class CustomerStatementService {
                 .map(p -> nz(p.amount())).reduce(ZERO, BigDecimal::add);
         BigDecimal totalCreditNotes = creditNotes.stream()
                 .map(cn -> nz(cn.amount())).reduce(ZERO, BigDecimal::add);
+        // Sum of every still-active credit row (OVERPAYMENT, REFUND, DEPOSIT,
+        // MANUAL_ADJUSTMENT). Shown as a separate "Crédit disponible" card so
+        // a customer with surplus avoir / overpaid invoice sees Solde dû = 0
+        // alongside Crédit disponible = X instead of a misleading single number.
+        BigDecimal availableCredit = credits.stream()
+                .filter(c -> "ACTIVE".equals(c.status()))
+                .map(c -> nz(c.remainingAmount()))
+                .reduce(ZERO, BigDecimal::add);
 
         Map<String, Object> balanceMap = new HashMap<>();
         balanceMap.put("totalInvoiced", nz(balance.totalInvoiced()));
@@ -90,6 +98,7 @@ public class CustomerStatementService {
         balanceMap.put("totalCreditNotes", totalCreditNotes);
         balanceMap.put("balance", nz(balance.balance()));
         balanceMap.put("overdue", nz(balance.overdueAmount()));
+        balanceMap.put("availableCredit", availableCredit);
         balanceMap.put("lastPaymentDate", balance.lastPaymentDate());
         vars.put("balance", balanceMap);
         vars.put("currency", nullSafe(customer.currency()));
@@ -118,15 +127,28 @@ public class CustomerStatementService {
         record Movement(LocalDate date, String kind, String number, String label,
                         BigDecimal debit, BigDecimal credit, List<StatementInvoiceLine> lines) {}
 
+        // Map invoice → linked non-draft credit note number (one avoir per invoice
+        // since the total-only refactor). Used to relabel a PAID invoice whose
+        // balance was wiped out by an avoir rather than by real payments.
+        Map<UUID, String> creditNoteByInvoice = new HashMap<>();
+        for (var cn : creditNotes) {
+            if ("DRAFT".equals(cn.status())) continue;
+            creditNoteByInvoice.putIfAbsent(cn.invoiceId(), cn.number());
+        }
+
         List<Movement> mvts = new ArrayList<>();
         for (var i : invoices) {
+            String cnNumber = creditNoteByInvoice.get(i.id());
+            String label = cnNumber != null
+                    ? "Facture remboursée par avoir " + cnNumber
+                    : "Facture " + i.status().toLowerCase();
             mvts.add(new Movement(i.issueDate(), "INVOICE", i.number(),
-                    "Facture " + i.status().toLowerCase(),
-                    nz(i.total()), ZERO, detailed ? i.lines() : null));
+                    label, nz(i.total()), ZERO, detailed ? i.lines() : null));
         }
         for (var cn : creditNotes) {
+            String reason = nullSafe(cn.reason()).isBlank() ? "(sans motif)" : cn.reason();
             mvts.add(new Movement(cn.issueDate(), "CREDIT_NOTE", cn.number(),
-                    "Avoir : " + nullSafe(cn.reason()),
+                    "Avoir : " + reason,
                     ZERO, nz(cn.amount()), null));
         }
         for (var p : payments) {
@@ -135,11 +157,12 @@ public class CustomerStatementService {
                     ZERO, nz(p.amount()), null));
         }
         for (var c : credits) {
-            // REFUND credits are the surplus portion of a credit note that couldn't
-            // be applied to the source invoice. The credit note itself is already
-            // shown in full as a CREDIT row above, so showing the REFUND a second
-            // time would double-count it on the running balance.
-            if ("REFUND".equals(c.source())) continue;
+            // OVERPAYMENT and the legacy REFUND source are the surplus portion of
+            // a movement (credit note or payment) that is ALREADY shown in full as
+            // its own row above. Reading the credit as a separate row would
+            // double-count it on the running balance. DEPOSIT and MANUAL_ADJUSTMENT
+            // are standalone credits with no parent movement → kept.
+            if ("REFUND".equals(c.source()) || "OVERPAYMENT".equals(c.source())) continue;
             LocalDate date = c.createdAt() != null
                     ? c.createdAt().atZone(ZoneId.systemDefault()).toLocalDate()
                     : LocalDate.now();
@@ -194,7 +217,7 @@ public class CustomerStatementService {
         List<Map<String, Object>> rows = new ArrayList<>();
         for (var i : invoices) {
             if (nz(i.balance()).signum() <= 0) continue;
-            if ("CANCELLED".equals(i.status())) continue;
+            if ("CANCELLED".equals(i.status()) || "REFUNDED".equals(i.status())) continue;
             Map<String, Object> row = new HashMap<>();
             row.put("date", i.issueDate());
             row.put("kind", "INVOICE");
