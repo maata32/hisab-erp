@@ -40,6 +40,7 @@ interface Partner {
   active: boolean;
   customerBalance: number;
   supplierBalance: number;
+  customerCreditBalance: number;
 }
 
 interface PartnerForm {
@@ -126,8 +127,8 @@ interface PartnerForm {
                 <th>{{ 'partners.roles' | translate }}</th>
                 <th>{{ 'partners.phone' | translate }}</th>
                 <th>{{ 'partners.email' | translate }}</th>
-                <th class="text-right">{{ 'partners.ar_balance' | translate }}</th>
-                <th class="text-right">{{ 'partners.ap_balance' | translate }}</th>
+                <th class="text-right">{{ 'partners.debts_col' | translate }}</th>
+                <th class="text-right">{{ 'partners.credit_col' | translate }}</th>
                 <th>{{ 'partners.status' | translate }}</th>
                 <th></th>
               </tr>
@@ -147,15 +148,15 @@ interface PartnerForm {
                 <td>{{ p.phone || '—' }}</td>
                 <td>{{ p.email || '—' }}</td>
                 <td class="text-right font-medium"
-                    [class.text-red-600]="p.customerBalance > 0">
-                  @if (p.isCustomer) {
-                    {{ p.customerBalance | money }} {{ p.currency }}
+                    [class.text-red-600]="debts(p) > 0">
+                  @if (debts(p) > 0) {
+                    {{ debts(p) | money }} {{ p.currency }}
                   } @else { — }
                 </td>
                 <td class="text-right font-medium"
-                    [class.text-red-600]="p.supplierBalance > 0">
-                  @if (p.isSupplier) {
-                    {{ p.supplierBalance | money }} {{ p.currency }}
+                    [class.text-amber-700]="creditOwed(p) > 0">
+                  @if (creditOwed(p) > 0) {
+                    {{ creditOwed(p) | money }} {{ p.currency }}
                   } @else { — }
                 </td>
                 <td>
@@ -168,6 +169,9 @@ interface PartnerForm {
                             [pTooltip]="'partners.statement' | translate"
                             (click)="openStatementDialog(p)"></button>
                   }
+                  <button pButton icon="pi pi-wallet" class="p-button-sm p-button-text"
+                          [pTooltip]="'partners.openItems' | translate"
+                          (click)="openOpenItemsDialog(p)"></button>
                   <button pButton icon="pi pi-pencil" class="p-button-sm p-button-text"
                           [pTooltip]="'common.edit' | translate"
                           (click)="openEdit(p)"></button>
@@ -393,6 +397,48 @@ interface PartnerForm {
           </div>
         </ng-template>
       </p-dialog>
+
+      <p-dialog [(visible)]="openItemsDialogOpen" [modal]="true" [style]="{ width: '720px' }"
+                [header]="('partners.openItemsTitle' | translate) + ' — ' + (openItemsPartner()?.name ?? '')">
+        @if (openItemsLoading()) {
+          <p class="text-sm text-gray-500 p-4 text-center">{{ 'common.loading' | translate }}</p>
+        } @else if (openItems().length === 0) {
+          <p class="text-sm text-gray-500 p-4 text-center">{{ 'partners.openItemsEmpty' | translate }}</p>
+        } @else {
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-600">
+              <tr>
+                <th class="text-left p-2">{{ 'partners.openItemsCol.type' | translate }}</th>
+                <th class="text-left p-2">{{ 'partners.openItemsCol.ref' | translate }}</th>
+                <th class="text-left p-2 w-28">{{ 'partners.openItemsCol.date' | translate }}</th>
+                <th class="text-right p-2 w-28">{{ 'partners.openItemsCol.open' | translate }}</th>
+                <th class="text-center p-2 w-20">{{ 'partners.openItemsCol.sign' | translate }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of openItems(); track item.sourceId) {
+                <tr class="border-t">
+                  <td class="p-2">{{ ('partners.openItemsType.' + item.sourceType) | translate }}</td>
+                  <td class="p-2 font-mono text-xs">{{ item.label }}</td>
+                  <td class="p-2 text-gray-600">{{ item.dateRef | date:'mediumDate' }}</td>
+                  <td class="p-2 text-right font-medium">{{ item.amountOpen | money }}</td>
+                  <td class="p-2 text-center">
+                    @if (item.sign === 'POSITIVE') {
+                      <p-tag severity="success" [value]="'+'" />
+                    } @else {
+                      <p-tag severity="danger" [value]="'−'" />
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+        <ng-template pTemplate="footer">
+          <button pButton [label]="'common.close' | translate" class="p-button-text"
+                  (click)="openItemsDialogOpen = false"></button>
+        </ng-template>
+      </p-dialog>
     </div>
   `,
 })
@@ -421,6 +467,19 @@ export class PartnerListPage implements OnInit {
   protected rolesInvalid(): boolean {
     return this.submitted() && !this.editing() && !this.form.isCustomer && !this.form.isSupplier;
   }
+
+  /** Dettes = ce que le partenaire nous doit (factures clients impayées + trop-perçu fournisseur si négatif). */
+  protected debts(p: Partner): number {
+    const customerOwes = p.isCustomer ? Math.max(0, Number(p.customerBalance) || 0) : 0;
+    const supplierOwes = p.isSupplier ? Math.max(0, -(Number(p.supplierBalance) || 0)) : 0;
+    return +(customerOwes + supplierOwes).toFixed(2);
+  }
+  /** Crédit en faveur du partenaire = ce qu'on lui doit (AP fournisseur + crédits client OVERPAYMENT/DEPOSIT). */
+  protected creditOwed(p: Partner): number {
+    const supplierOwed = p.isSupplier ? Math.max(0, Number(p.supplierBalance) || 0) : 0;
+    const customerCredit = p.isCustomer ? Math.max(0, Number(p.customerCreditBalance) || 0) : 0;
+    return +(supplierOwed + customerCredit).toFixed(2);
+  }
   protected typeOptions: Array<{ value: string; label: string }> = [];
   protected roleOptions: Array<{ value: Role; label: string }> = [];
   protected currentRole: Role = 'all';
@@ -440,6 +499,20 @@ export class PartnerListPage implements OnInit {
   protected fetchingStatement = signal(false);
   protected statementFrom: Date | null = new Date(new Date().getFullYear(), 0, 1);
   protected statementTo: Date | null = new Date();
+
+  // AllocationEngine "Open items" dialog (Phase 4): a read-only window on the
+  // engine's findOpenItemsByParty output.
+  protected openItemsDialogOpen = false;
+  protected openItemsPartner = signal<Partner | null>(null);
+  protected openItemsLoading = signal(false);
+  protected openItems = signal<{
+    sourceType: string;
+    sourceId: string;
+    sign: 'POSITIVE' | 'NEGATIVE';
+    amountOpen: number;
+    dateRef: string;
+    label: string;
+  }[]>([]);
 
   ngOnInit() {
     this.refreshOptions();
@@ -613,6 +686,31 @@ export class PartnerListPage implements OnInit {
     this.statementFrom = new Date(new Date().getFullYear(), 0, 1);
     this.statementTo = new Date();
     this.statementDialogOpen = true;
+  }
+
+  protected async openOpenItemsDialog(p: Partner) {
+    this.openItemsPartner.set(p);
+    this.openItems.set([]);
+    this.openItemsDialogOpen = true;
+    this.openItemsLoading.set(true);
+    try {
+      type Row = {
+        sourceType: string;
+        sourceId: string;
+        sign: 'POSITIVE' | 'NEGATIVE';
+        amountOpen: number;
+        dateRef: string;
+        label: string;
+      };
+      const items = await firstValueFrom(
+        this.http.get<Row[]>(`/api/v1/allocations/open-items?partyId=${p.id}`)
+      );
+      this.openItems.set(items ?? []);
+    } catch {
+      this.openItems.set([]);
+    } finally {
+      this.openItemsLoading.set(false);
+    }
   }
 
   protected async downloadStatement(type: 'full' | 'detailed' | 'outstanding') {

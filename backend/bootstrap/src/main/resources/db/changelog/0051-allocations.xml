@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        AllocationEngine — unified allocations between any positive open item
+        (payment received unused, customer credit, deposit, supplier refund-in…)
+        and any negative open item (invoice issued, refund-out, supplier invoice…)
+        for the same party.
+
+        Phase 1: table + indexes + RLS only. The engine reads from this table
+        and from existing tables (payment_allocations, customer_credit_usages,
+        invoices, payments, credits) to build the open-items view. Phase 2
+        will move writes through the engine and backfill historical rows.
+    -->
+
+    <changeSet id="0051-allocations-table" author="mini-erp">
+        <sql splitStatements="false"><![CDATA[
+            CREATE TABLE allocations (
+                id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                tenant_id      UUID NOT NULL,
+                party_id       UUID NOT NULL,
+                positive_type  VARCHAR(30) NOT NULL,
+                positive_id    UUID NOT NULL,
+                negative_type  VARCHAR(30) NOT NULL,
+                negative_id    UUID NOT NULL,
+                amount         NUMERIC(19,2) NOT NULL CHECK (amount > 0),
+                allocated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+                notes          VARCHAR(500),
+                created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+                created_by     UUID,
+                updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_by     UUID,
+                version        BIGINT NOT NULL DEFAULT 0
+            );
+
+            CREATE INDEX idx_allocations_party    ON allocations(party_id);
+            CREATE INDEX idx_allocations_positive ON allocations(positive_type, positive_id);
+            CREATE INDEX idx_allocations_negative ON allocations(negative_type, negative_id);
+            CREATE INDEX idx_allocations_tenant   ON allocations(tenant_id);
+        ]]></sql>
+    </changeSet>
+
+    <changeSet id="0051-allocations-rls" author="mini-erp">
+        <sql splitStatements="false"><![CDATA[
+            ALTER TABLE allocations ENABLE ROW LEVEL SECURITY;
+            ALTER TABLE allocations FORCE ROW LEVEL SECURITY;
+
+            CREATE POLICY tenant_isolation_select ON allocations
+                FOR SELECT
+                USING (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL);
+
+            CREATE POLICY tenant_isolation_modify ON allocations
+                FOR ALL
+                USING (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL)
+                WITH CHECK (tenant_id = app_current_tenant() OR app_current_tenant() IS NULL);
+        ]]></sql>
+    </changeSet>
+
+</databaseChangeLog>

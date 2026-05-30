@@ -18,6 +18,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.Year;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -201,9 +202,16 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
                 .collect(Collectors.toMap(ArBalance::getPartyId, ArBalance::getBalance));
         Map<UUID, BigDecimal> apByParty = apBalances.findByPartyIdIn(ids).stream()
                 .collect(Collectors.toMap(ApBalance::getPartyId, ApBalance::getBalance));
+        Map<UUID, BigDecimal> creditByParty = new HashMap<>();
+        if (!ids.isEmpty()) {
+            for (Object[] row : credits.sumActiveRemainingByPartyIds(ids)) {
+                creditByParty.put((UUID) row[0], (BigDecimal) row[1]);
+            }
+        }
         return PageResponse.of(page.map(p -> toDto(p,
                 arByParty.getOrDefault(p.getId(), BigDecimal.ZERO),
-                apByParty.getOrDefault(p.getId(), BigDecimal.ZERO))));
+                apByParty.getOrDefault(p.getId(), BigDecimal.ZERO),
+                creditByParty.getOrDefault(p.getId(), BigDecimal.ZERO))));
     }
 
     @Transactional(readOnly = true)
@@ -393,11 +401,23 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
     @Override
     @Transactional
     public UUID grantCredit(UUID customerId, BigDecimal amount, String source, String notes) {
-        return createCredit(customerId, amount, source, notes).id();
+        return createCredit(customerId, amount, source, notes, null).id();
+    }
+
+    @Transactional
+    @Override
+    public UUID grantCredit(UUID customerId, BigDecimal amount, String source, String notes, UUID sourcePaymentId) {
+        return createCredit(customerId, amount, source, notes, sourcePaymentId).id();
     }
 
     @Transactional
     public CustomerCreditDto createCredit(UUID partyId, BigDecimal amount, String source, String notes) {
+        return createCredit(partyId, amount, source, notes, null);
+    }
+
+    @Transactional
+    public CustomerCreditDto createCredit(UUID partyId, BigDecimal amount, String source, String notes,
+                                          UUID sourcePaymentId) {
         Partner p = partners.findById(partyId)
                 .orElseThrow(() -> NotFoundException.of("entity.partner", partyId));
         if (!p.isCustomer()) {
@@ -408,10 +428,59 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
                 .initialAmount(amount)
                 .remainingAmount(amount)
                 .source(CreditSource.valueOf(source))
+                .sourcePaymentId(sourcePaymentId)
                 .notes(notes)
                 .build();
         credits.save(credit);
         return toCreditDto(credit);
+    }
+
+    @Override
+    @Transactional
+    public BigDecimal revokeCreditsBySourcePayment(UUID sourcePaymentId, String reason) {
+        BigDecimal totalRevoked = BigDecimal.ZERO;
+        for (CustomerCredit c : credits.findBySourcePaymentIdAndStatus(sourcePaymentId, CustomerCreditStatus.ACTIVE)) {
+            BigDecimal remaining = c.getRemainingAmount();
+            if (remaining.signum() <= 0) continue;
+            c.setStatus(CustomerCreditStatus.CANCELLED);
+            // remaining_amount left as-is on the cancelled row so the audit trail
+            // still shows what was clawed back at revocation time.
+            String prevNotes = c.getNotes() == null ? "" : c.getNotes();
+            c.setNotes((prevNotes + " [REVOKED: " + reason + "]").trim());
+            totalRevoked = totalRevoked.add(remaining);
+        }
+        return totalRevoked;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal sumRevokableCreditsBySourcePayment(UUID sourcePaymentId) {
+        return credits.findBySourcePaymentIdAndStatus(sourcePaymentId, CustomerCreditStatus.ACTIVE).stream()
+                .map(CustomerCredit::getRemainingAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    @Override
+    @Transactional
+    public BigDecimal consumeCredit(UUID creditId, BigDecimal amount, String notes) {
+        if (amount == null || amount.signum() <= 0) {
+            throw new BusinessException("error.credit.invalid_amount", Map.of("amount", amount));
+        }
+        CustomerCredit credit = credits.findById(creditId)
+                .orElseThrow(() -> NotFoundException.of("entity.customer_credit", creditId));
+        if (credit.getStatus() != CustomerCreditStatus.ACTIVE) {
+            throw new BusinessException("error.credit.not_active",
+                    Map.of("status", credit.getStatus().name()));
+        }
+        BigDecimal consumed = amount.min(credit.getRemainingAmount());
+        credit.setRemainingAmount(credit.getRemainingAmount().subtract(consumed));
+        if (credit.getRemainingAmount().signum() <= 0) {
+            credit.setStatus(CustomerCreditStatus.EXHAUSTED);
+        }
+        if (notes != null && !notes.isBlank()) {
+            credit.setNotes(notes);
+        }
+        return consumed;
     }
 
     @Transactional
@@ -462,10 +531,14 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
         BigDecimal ap = p.isSupplier()
                 ? apBalances.findByPartyId(p.getId()).map(ApBalance::getBalance).orElse(BigDecimal.ZERO)
                 : BigDecimal.ZERO;
-        return toDto(p, ar, ap);
+        BigDecimal cc = p.isCustomer()
+                ? credits.findByPartyIdAndStatusOrderByCreatedAtAsc(p.getId(), CustomerCreditStatus.ACTIVE)
+                        .stream().map(CustomerCredit::getRemainingAmount).reduce(BigDecimal.ZERO, BigDecimal::add)
+                : BigDecimal.ZERO;
+        return toDto(p, ar, ap, cc);
     }
 
-    private PartnerDto toDto(Partner p, BigDecimal arBalance, BigDecimal apBalance) {
+    private PartnerDto toDto(Partner p, BigDecimal arBalance, BigDecimal apBalance, BigDecimal customerCreditBalance) {
         return new PartnerDto(p.getId(), p.getCode(),
                 p.getType().name(), p.getName(), p.getEmail(), p.getPhone(), p.getAddress(),
                 p.getTaxId(), p.getPaymentTerms(), p.getCurrency(), p.getNotes(),
@@ -473,7 +546,8 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
                 p.getCustomerCreditLimit(), p.getSupplierCreditLimit(),
                 p.isCustomer(), p.isSupplier(), p.isActive(), p.getCreatedAt(),
                 arBalance != null ? arBalance : BigDecimal.ZERO,
-                apBalance != null ? apBalance : BigDecimal.ZERO);
+                apBalance != null ? apBalance : BigDecimal.ZERO,
+                customerCreditBalance != null ? customerCreditBalance : BigDecimal.ZERO);
     }
 
     private CustomerCreditDto toCreditDto(CustomerCredit cr) {
