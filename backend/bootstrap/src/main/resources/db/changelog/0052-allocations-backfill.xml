@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Backfill the unified allocations table from the legacy
+        payment_allocations + customer_credit_usages tables so the engine sees
+        historical pairings on day one. Phase 5 changeset.
+
+        Only invoice-side legacy rows are mirrored — CUSTOMER_BALANCE /
+        CUSTOMER_CREDIT / SALE / EXPENSE / SALARY targets don't fit the engine's
+        positive↔negative contract and are intentionally skipped, exactly as the
+        runtime listener does.
+
+        Idempotent thanks to the Liquibase changelog tracking (runs once);
+        defensive NOT EXISTS guards cover the unlikely case where a row was
+        already inserted by the runtime listener before this changeset runs.
+    -->
+
+    <changeSet id="0052-allocations-backfill-payments" author="mini-erp">
+        <sql splitStatements="false"><![CDATA[
+            INSERT INTO allocations (
+                tenant_id, party_id,
+                positive_type, positive_id,
+                negative_type, negative_id,
+                amount, allocated_at, notes
+            )
+            SELECT
+                p.tenant_id,
+                p.party_id,
+                CASE p.type
+                    WHEN 'CUSTOMER_PAYMENT' THEN 'PAYMENT'
+                    WHEN 'CUSTOMER_DEPOSIT' THEN 'PAYMENT'
+                    WHEN 'SUPPLIER_PAYMENT' THEN 'SUPPLIER_PAYMENT'
+                END,
+                p.id,
+                CASE pa.target_type
+                    WHEN 'SALE_INVOICE'    THEN 'INVOICE'
+                    WHEN 'PURCHASE_INVOICE' THEN 'PURCHASE_INVOICE'
+                END,
+                pa.target_id,
+                pa.allocated_amount,
+                COALESCE(p.confirmed_at, pa.created_at),
+                'Backfilled from payment_allocations (changeset 0052)'
+            FROM payment_allocations pa
+            JOIN payments p ON p.id = pa.payment_id
+            WHERE p.status = 'CONFIRMED'
+              AND p.type IN ('CUSTOMER_PAYMENT', 'CUSTOMER_DEPOSIT', 'SUPPLIER_PAYMENT')
+              AND pa.target_type IN ('SALE_INVOICE', 'PURCHASE_INVOICE')
+              AND NOT EXISTS (
+                  SELECT 1 FROM allocations a
+                  WHERE a.positive_id = p.id
+                    AND a.negative_id = pa.target_id
+              );
+        ]]></sql>
+    </changeSet>
+
+    <changeSet id="0052-allocations-backfill-credit-usages" author="mini-erp">
+        <sql splitStatements="false"><![CDATA[
+            INSERT INTO allocations (
+                tenant_id, party_id,
+                positive_type, positive_id,
+                negative_type, negative_id,
+                amount, allocated_at, notes
+            )
+            SELECT
+                cc.tenant_id,
+                cc.party_id,
+                'CUSTOMER_CREDIT',
+                ccu.customer_credit_id,
+                'PAYMENT',
+                ccu.payment_id,
+                ccu.amount_used,
+                ccu.created_at,
+                'Backfilled from customer_credit_usages (changeset 0052)'
+            FROM customer_credit_usages ccu
+            JOIN customer_credits cc ON cc.id = ccu.customer_credit_id
+            WHERE NOT EXISTS (
+                SELECT 1 FROM allocations a
+                WHERE a.positive_type = 'CUSTOMER_CREDIT'
+                  AND a.positive_id = ccu.customer_credit_id
+                  AND a.negative_id = ccu.payment_id
+            );
+        ]]></sql>
+    </changeSet>
+
+    <changeSet id="0052-allocations-backfill-credit-notes" author="mini-erp">
+        <sql splitStatements="false"><![CDATA[
+            -- Phase 6: mirror historical CREDIT_NOTE → INVOICE applications.
+            -- For non-DRAFT credit notes whose application carried a non-zero
+            -- imputed amount (cn.amount minus any surplus that minted a fresh
+            -- customer_credits row via the OVERPAYMENT branch of createCreditNote).
+            INSERT INTO allocations (
+                tenant_id, party_id,
+                positive_type, positive_id,
+                negative_type, negative_id,
+                amount, allocated_at, notes
+            )
+            SELECT
+                cn.tenant_id,
+                cn.party_id,
+                'CREDIT_NOTE',
+                cn.id,
+                'INVOICE',
+                cn.invoice_id,
+                cn.amount - COALESCE((
+                    SELECT SUM(cc.initial_amount)
+                    FROM customer_credits cc
+                    WHERE cc.source = 'OVERPAYMENT'
+                      AND cc.notes LIKE 'Credit note ' || cn.number
+                ), 0),
+                cn.created_at,
+                'Backfilled from credit_notes (changeset 0052)'
+            FROM credit_notes cn
+            WHERE cn.status <> 'DRAFT'
+              AND (cn.amount - COALESCE((
+                    SELECT SUM(cc.initial_amount)
+                    FROM customer_credits cc
+                    WHERE cc.source = 'OVERPAYMENT'
+                      AND cc.notes LIKE 'Credit note ' || cn.number
+                  ), 0)) > 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM allocations a
+                  WHERE a.positive_type = 'CREDIT_NOTE'
+                    AND a.positive_id = cn.id
+              );
+        ]]></sql>
+    </changeSet>
+
+</databaseChangeLog>

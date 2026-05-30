@@ -384,7 +384,8 @@
       "PAYMENT": "Payment received",
       "CUSTOMER_CREDIT": "Customer credit",
       "PURCHASE_INVOICE": "Supplier invoice",
-      "SUPPLIER_PAYMENT": "Supplier payment"
+      "SUPPLIER_PAYMENT": "Supplier payment",
+      "CREDIT_NOTE": "Credit note"
     },
     "types": {
       "INDIVIDUAL": "Individual",

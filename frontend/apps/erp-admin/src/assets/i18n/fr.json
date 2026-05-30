@@ -385,7 +385,8 @@
       "PAYMENT": "Paiement reçu",
       "CUSTOMER_CREDIT": "Crédit client",
       "PURCHASE_INVOICE": "Facture fournisseur",
-      "SUPPLIER_PAYMENT": "Paiement fournisseur"
+      "SUPPLIER_PAYMENT": "Paiement fournisseur",
+      "CREDIT_NOTE": "Avoir"
     },
     "types": {
       "INDIVIDUAL": "Particulier",

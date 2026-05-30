@@ -47,6 +47,7 @@ class AllocationEngineImpl implements AllocationEngine {
     public static final String T_CUSTOMER_CREDIT = "CUSTOMER_CREDIT";
     public static final String T_PURCHASE_INVOICE = "PURCHASE_INVOICE";
     public static final String T_SUPPLIER_PAYMENT = "SUPPLIER_PAYMENT";
+    public static final String T_CREDIT_NOTE = "CREDIT_NOTE";
 
     @Override
     @Transactional(readOnly = true)
@@ -202,17 +203,20 @@ class AllocationEngineImpl implements AllocationEngine {
 
     private List<OpenItem> openPayments(UUID tenant, UUID partyId) {
         // Customer payments that brought cash in and still have unallocated
-        // residual. Open = amount − Σ(legacy payment_allocations.allocated)
-        //                       − Σ(new allocations.amount where positive_type=PAYMENT).
+        // residual. Phase 5 double-writes every confirm allocation into BOTH
+        // payment_allocations AND allocations, so summing both would
+        // double-count. GREATEST(legacy, new) handles every transition phase:
+        // both equal during double-write, legacy only for pre-engine rows,
+        // new only for direct engine writes (e.g. applyCreditToRefund).
         List<OpenItem> out = new ArrayList<>();
         jdbc.query("""
                 SELECT p.id, p.number, p.payment_date, p.amount, p.status,
-                       p.amount
-                       - COALESCE((SELECT SUM(allocated_amount) FROM payment_allocations
-                                   WHERE payment_id = p.id), 0)
-                       - COALESCE((SELECT SUM(amount) FROM allocations
-                                   WHERE positive_type = 'PAYMENT' AND positive_id = p.id), 0)
-                       AS amount_open
+                       p.amount - GREATEST(
+                           COALESCE((SELECT SUM(allocated_amount) FROM payment_allocations
+                                     WHERE payment_id = p.id), 0),
+                           COALESCE((SELECT SUM(amount) FROM allocations
+                                     WHERE positive_type = 'PAYMENT' AND positive_id = p.id), 0)
+                       ) AS amount_open
                 FROM payments p
                 WHERE p.tenant_id = ? AND p.party_id = ?
                   AND p.status = 'CONFIRMED'
@@ -280,19 +284,19 @@ class AllocationEngineImpl implements AllocationEngine {
     }
 
     private List<OpenItem> openSupplierPayments(UUID tenant, UUID partyId) {
-        // Supplier payments / refunds-received that haven't been fully allocated
-        // yet. Compute residual the same way as customer payments: payment.amount
-        // − Σ(payment_allocations.allocated_amount) − Σ(allocations.amount on the
-        // positive side). Only CONFIRMED rows are real cash movements.
+        // Same GREATEST trick as customer payments — Phase 5 double-writes
+        // every supplier-payment confirm into both tables, so we pick the max
+        // to avoid double-counting during the transition. Only CONFIRMED rows
+        // are real cash movements.
         List<OpenItem> out = new ArrayList<>();
         jdbc.query("""
                 SELECT p.id, p.number, p.payment_date, p.amount, p.status,
-                       p.amount
-                       - COALESCE((SELECT SUM(allocated_amount) FROM payment_allocations
-                                   WHERE payment_id = p.id), 0)
-                       - COALESCE((SELECT SUM(amount) FROM allocations
-                                   WHERE positive_type = 'SUPPLIER_PAYMENT' AND positive_id = p.id), 0)
-                       AS amount_open
+                       p.amount - GREATEST(
+                           COALESCE((SELECT SUM(allocated_amount) FROM payment_allocations
+                                     WHERE payment_id = p.id), 0),
+                           COALESCE((SELECT SUM(amount) FROM allocations
+                                     WHERE positive_type = 'SUPPLIER_PAYMENT' AND positive_id = p.id), 0)
+                       ) AS amount_open
                 FROM payments p
                 WHERE p.tenant_id = ? AND p.party_id = ?
                   AND p.status = 'CONFIRMED'

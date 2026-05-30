@@ -384,7 +384,8 @@
       "PAYMENT": "دفعة مستلمة",
       "CUSTOMER_CREDIT": "رصيد عميل",
       "PURCHASE_INVOICE": "فاتورة مورّد",
-      "SUPPLIER_PAYMENT": "دفعة مورّد"
+      "SUPPLIER_PAYMENT": "دفعة مورّد",
+      "CREDIT_NOTE": "إشعار دائن"
     },
     "types": {
       "INDIVIDUAL": "فرد",

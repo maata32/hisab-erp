@@ -22,6 +22,7 @@ import com.minierp.tenant.api.TenantSettingsLookup;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.minierp.partner.api.CustomerCreditOperations;
+import com.minierp.sales.api.CreditNoteAppliedEvent;
 import com.minierp.sales.api.CreditNoteReturnRequestedEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
@@ -586,6 +587,16 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
         }
         cn.setAppliedToInvoiceId(inv.getId());
         cn.setStatus(CreditNoteStatus.APPLIED);
+
+        // Surface the CREDIT_NOTE → INVOICE pairing in the unified allocations
+        // audit table — keeps the engine's view consistent with the payment
+        // double-write introduced in Phase 5. Only published when something was
+        // actually imputed (a 100%-prepaid invoice would route the full amount
+        // to surplus and leave nothing to mirror here).
+        if (imputed.signum() > 0) {
+            events.publishEvent(new CreditNoteAppliedEvent(
+                    cn.getId(), cn.getNumber(), inv.getId(), inv.getPartyId(), imputed));
+        }
 
         if (!returnLines.isEmpty()) {
             events.publishEvent(new CreditNoteReturnRequestedEvent(

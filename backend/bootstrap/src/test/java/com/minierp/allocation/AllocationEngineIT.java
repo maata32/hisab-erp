@@ -136,6 +136,102 @@ class AllocationEngineIT {
         }
 
         @Test
+        @DisplayName("Phase 5: confirming a payment double-writes invoice allocations")
+        void doubleWriteOnConfirm() {
+            UUID inv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
+
+            PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
+                    "CUSTOMER_PAYMENT", customerId, new BigDecimal("100.00"), "MRU",
+                    LocalDate.now(), "CASH", null, null, "Double-write test",
+                    List.of(new PaymentDto.AllocationRequest("SALE_INVOICE", inv,
+                            new BigDecimal("100.00"), null))));
+
+            // Before confirm: no engine row.
+            assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM allocations WHERE positive_id = ?",
+                    Long.class, pay.id())).isZero();
+
+            paymentService.confirm(pay.id(), null);
+
+            // After confirm: one engine row pointing PAYMENT → INVOICE.
+            assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM allocations WHERE positive_type = 'PAYMENT' " +
+                    "AND positive_id = ? AND negative_type = 'INVOICE' AND negative_id = ?",
+                    Long.class, pay.id(), inv)).isEqualTo(1L);
+
+            // Legacy payment_allocations row also exists (double-write, not replace).
+            assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM payment_allocations WHERE payment_id = ?",
+                    Long.class, pay.id())).isEqualTo(1L);
+        }
+
+        @Test
+        @DisplayName("Phase 6: creating an avoir on an unpaid invoice writes CREDIT_NOTE → INVOICE allocation")
+        void creditNoteToInvoiceMirrored() {
+            UUID inv = createInvoice(new BigDecimal("250.00"), LocalDate.now());
+            // Total avoir on the invoice — applyCredit will impute the full 250.
+            var cn = salesService.createCreditNote(inv,
+                    new SalesDto.CreateCreditNoteRequest("test avoir"));
+
+            assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM allocations " +
+                    "WHERE positive_type = 'CREDIT_NOTE' AND positive_id = ? " +
+                    "  AND negative_type = 'INVOICE' AND negative_id = ?",
+                    Long.class, cn.id(), inv)).isEqualTo(1L);
+            assertThat(jdbc.queryForObject(
+                    "SELECT amount FROM allocations " +
+                    "WHERE positive_type = 'CREDIT_NOTE' AND positive_id = ?",
+                    BigDecimal.class, cn.id())).isEqualByComparingTo("250.00");
+        }
+
+        @Test
+        @DisplayName("Phase 6: avoir on a fully-prepaid invoice writes NO allocation (full surplus)")
+        void creditNoteFullSurplusSkipped() {
+            // 100 invoice, paid in full → balance 0. Avoir would route entirely
+            // to surplus credit, imputed=0 → no allocation row to write.
+            UUID inv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
+            PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
+                    "CUSTOMER_PAYMENT", customerId, new BigDecimal("100.00"), "MRU",
+                    LocalDate.now(), "CASH", null, null, "Prepay",
+                    List.of(new PaymentDto.AllocationRequest("SALE_INVOICE", inv,
+                            new BigDecimal("100.00"), null))));
+            paymentService.confirm(pay.id(), null);
+
+            var cn = salesService.createCreditNote(inv,
+                    new SalesDto.CreateCreditNoteRequest("test avoir on prepaid"));
+
+            assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM allocations WHERE positive_type = 'CREDIT_NOTE' AND positive_id = ?",
+                    Long.class, cn.id())).isZero();
+        }
+
+        @Test
+        @DisplayName("Phase 5: surplus → CUSTOMER_CREDIT allocation row is NOT mirrored")
+        void surplusCreditNotMirrored() {
+            // Surplus rows live on a different conceptual axis — they mint a
+            // credit, not pair two open items. The listener must skip them.
+            UUID inv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
+            PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
+                    "CUSTOMER_PAYMENT", customerId, new BigDecimal("500.00"), "MRU",
+                    LocalDate.now(), "CASH", null, null, "Surplus test",
+                    List.of(
+                            new PaymentDto.AllocationRequest("SALE_INVOICE", inv,
+                                    new BigDecimal("100.00"), null),
+                            new PaymentDto.AllocationRequest("CUSTOMER_CREDIT", customerId,
+                                    new BigDecimal("400.00"), null))));
+            paymentService.confirm(pay.id(), null);
+
+            // INVOICE allocation got mirrored.
+            assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM allocations WHERE positive_id = ? AND negative_type = 'INVOICE'",
+                    Long.class, pay.id())).isEqualTo(1L);
+            // CUSTOMER_CREDIT target did NOT.
+            assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM allocations WHERE positive_id = ? AND negative_type = 'CUSTOMER_CREDIT'",
+                    Long.class, pay.id())).isZero();
+        }
+
+        @Test
         @DisplayName("supplier side: purchase invoice NEGATIVE + unallocated payment POSITIVE")
         void supplierSide() {
             UUID supplierId = UUID.randomUUID();

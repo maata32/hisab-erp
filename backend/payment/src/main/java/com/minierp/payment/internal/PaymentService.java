@@ -52,6 +52,7 @@ public class PaymentService implements PaymentLookup {
     private final NumberingOperations numbering;
     private final DocumentRenderer renderer;
     private final TenantLookup tenantLookup;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     // ── PaymentLookup (used by the customer-statement aggregator) ──────────
 
@@ -120,6 +121,18 @@ public class PaymentService implements PaymentLookup {
         p.setStatus(PaymentStatus.CONFIRMED);
         p.setConfirmedAt(Instant.now());
         p.setConfirmedBy(userId);
+
+        // Phase 5: surface the just-confirmed allocations in the unified
+        // engine table. Subscribers run synchronously inside this transaction
+        // so the double-write either lands with the confirm or rolls back
+        // together.
+        events.publishEvent(new com.minierp.payment.api.PaymentConfirmedEvent(
+                p.getId(), p.getType().name(), p.getPartyId(),
+                allocs.stream()
+                        .map(a -> new com.minierp.payment.api.PaymentConfirmedEvent.AllocationLine(
+                                a.getTargetType().name(), a.getTargetId(), a.getAllocatedAmount()))
+                        .toList()));
+
         return toDto(p);
     }
 
