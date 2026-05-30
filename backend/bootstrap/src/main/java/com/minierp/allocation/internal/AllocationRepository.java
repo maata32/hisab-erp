@@ -4,6 +4,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 interface AllocationRepository extends JpaRepository<Allocation, UUID> {
@@ -12,17 +14,26 @@ interface AllocationRepository extends JpaRepository<Allocation, UUID> {
      * Sum of allocated amounts where the given (type, id) is on the positive
      * side. Used to compute the remaining open balance of a positive item
      * (e.g. an unconsumed customer payment) on top of the legacy
-     * {@code payment_allocations} table.
+     * {@code payment_allocations} table. Reversed rows (soft-void) are excluded.
      */
     @Query("SELECT COALESCE(SUM(a.amount), 0) FROM Allocation a " +
-           "WHERE a.positiveType = :type AND a.positiveId = :id")
+           "WHERE a.positiveType = :type AND a.positiveId = :id AND a.reversedAt IS NULL")
     BigDecimal sumByPositive(String type, UUID id);
 
     /**
      * Symmetric sum on the negative side. Used for invoices and refund-out
-     * type items.
+     * type items. Reversed rows (soft-void) are excluded.
      */
     @Query("SELECT COALESCE(SUM(a.amount), 0) FROM Allocation a " +
-           "WHERE a.negativeType = :type AND a.negativeId = :id")
+           "WHERE a.negativeType = :type AND a.negativeId = :id AND a.reversedAt IS NULL")
     BigDecimal sumByNegative(String type, UUID id);
+
+    /**
+     * Still-active (not yet reversed) allocation rows where the given payment
+     * sits on the positive side. Used by {@code RefundAllocationReversalListener}
+     * to soft-void the rows a refunded payment produced.
+     */
+    @Query("SELECT a FROM Allocation a " +
+           "WHERE a.positiveId = :positiveId AND a.positiveType IN :types AND a.reversedAt IS NULL")
+    List<Allocation> findActiveByPositive(UUID positiveId, Collection<String> types);
 }

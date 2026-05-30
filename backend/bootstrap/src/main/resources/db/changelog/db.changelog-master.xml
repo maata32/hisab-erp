@@ -57,5 +57,6 @@
     <include file="db/changelog/0050-payment-refund.xml"/>
     <include file="db/changelog/0051-allocations.xml"/>
     <include file="db/changelog/0052-allocations-backfill.xml"/>
+    <include file="db/changelog/0053-allocation-reversal.xml"/>
 
 </databaseChangeLog>

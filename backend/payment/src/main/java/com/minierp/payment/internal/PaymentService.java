@@ -208,6 +208,16 @@ public class PaymentService implements PaymentLookup {
         original.setRefundedAt(Instant.now());
         original.setRefundedByPaymentId(refund.getId());
 
+        // Close the loop on the unified engine: the confirm mirrored this
+        // payment's invoice allocations into the allocations audit table — now
+        // soft-void them so it stops claiming the un-paid invoices were settled
+        // by this payment. Subscriber runs synchronously inside this transaction
+        // (Propagation.MANDATORY) so the reversal commits or rolls back with the
+        // refund.
+        events.publishEvent(new com.minierp.payment.api.PaymentRefundedEvent(
+                original.getId(), original.getType().name(), original.getPartyId(),
+                refund.getId(), refund.getNumber(), userId, req.reason()));
+
         return toDto(refund);
     }
 

@@ -215,7 +215,8 @@ class AllocationEngineImpl implements AllocationEngine {
                            COALESCE((SELECT SUM(allocated_amount) FROM payment_allocations
                                      WHERE payment_id = p.id), 0),
                            COALESCE((SELECT SUM(amount) FROM allocations
-                                     WHERE positive_type = 'PAYMENT' AND positive_id = p.id), 0)
+                                     WHERE positive_type = 'PAYMENT' AND positive_id = p.id
+                                       AND reversed_at IS NULL), 0)
                        ) AS amount_open
                 FROM payments p
                 WHERE p.tenant_id = ? AND p.party_id = ?
@@ -295,7 +296,8 @@ class AllocationEngineImpl implements AllocationEngine {
                            COALESCE((SELECT SUM(allocated_amount) FROM payment_allocations
                                      WHERE payment_id = p.id), 0),
                            COALESCE((SELECT SUM(amount) FROM allocations
-                                     WHERE positive_type = 'SUPPLIER_PAYMENT' AND positive_id = p.id), 0)
+                                     WHERE positive_type = 'SUPPLIER_PAYMENT' AND positive_id = p.id
+                                       AND reversed_at IS NULL), 0)
                        ) AS amount_open
                 FROM payments p
                 WHERE p.tenant_id = ? AND p.party_id = ?

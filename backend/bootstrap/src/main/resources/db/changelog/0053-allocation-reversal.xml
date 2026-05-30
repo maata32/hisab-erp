@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Soft-void support for the unified allocations table. When a payment is
+        refunded, the allocation rows it produced (PAYMENT / SUPPLIER_PAYMENT on
+        the positive side) no longer reflect reality — the invoice was un-paid.
+        Rather than DELETE the rows (which would erase the audit trail), we mark
+        them reversed: every read of allocation sums filters reversed_at IS NULL,
+        so a reversed row contributes nothing while staying visible for audit.
+
+        The amount > 0 CHECK from changeset 0051 stays intact — soft-void never
+        touches amount, only the three reversal columns added here.
+    -->
+
+    <changeSet id="0053-allocation-reversal-columns" author="mini-erp">
+        <sql splitStatements="false"><![CDATA[
+            ALTER TABLE allocations ADD COLUMN reversed_at     TIMESTAMPTZ;
+            ALTER TABLE allocations ADD COLUMN reversed_by     UUID;
+            ALTER TABLE allocations ADD COLUMN reversal_reason VARCHAR(500);
+        ]]></sql>
+    </changeSet>
+
+    <changeSet id="0053-allocation-reversal-backfill" author="mini-erp">
+        <!--
+            Historical consistency: payments already in status REFUNDED have had
+            their legacy downstream effects reversed (PaymentService.refund →
+            reverseAllocation), but the Phase-5 mirror rows in allocations were
+            left behind. Void them now so the audit table matches reality on
+            day one — the analog of the 0052 backfill, in reverse.
+
+            reversed_by is left NULL (no user captured retroactively); reversed_at
+            uses the payment's refunded_at when known, else now().
+        -->
+        <sql splitStatements="false"><![CDATA[
+            UPDATE allocations a
+            SET reversed_at     = COALESCE(p.refunded_at, now()),
+                reversal_reason = 'Backfilled reversal — source payment refunded (changeset 0053)'
+            FROM payments p
+            WHERE a.positive_id = p.id
+              AND a.positive_type IN ('PAYMENT', 'SUPPLIER_PAYMENT')
+              AND a.reversed_at IS NULL
+              AND p.status = 'REFUNDED'
+              AND p.type IN ('CUSTOMER_PAYMENT', 'CUSTOMER_DEPOSIT', 'SUPPLIER_PAYMENT');
+        ]]></sql>
+    </changeSet>
+
+</databaseChangeLog>

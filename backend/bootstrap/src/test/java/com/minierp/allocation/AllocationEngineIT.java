@@ -166,6 +166,48 @@ class AllocationEngineIT {
         }
 
         @Test
+        @DisplayName("#1: refunding a payment soft-voids its invoice allocations and reopens the invoice")
+        void refundReversesAllocations() {
+            UUID inv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
+            PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
+                    "CUSTOMER_PAYMENT", customerId, new BigDecimal("100.00"), "MRU",
+                    LocalDate.now(), "CASH", null, null, "Refund-reversal test",
+                    List.of(new PaymentDto.AllocationRequest("SALE_INVOICE", inv,
+                            new BigDecimal("100.00"), null))));
+            paymentService.confirm(pay.id(), null);
+
+            // One active engine row PAYMENT → INVOICE; invoice fully paid → not open.
+            assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM allocations WHERE positive_id = ? AND reversed_at IS NULL",
+                    Long.class, pay.id())).isEqualTo(1L);
+            assertThat(engine.findOpenItemsByParty(customerId).stream()
+                    .anyMatch(i -> "INVOICE".equals(i.sourceType()) && inv.equals(i.sourceId())))
+                    .isFalse();
+
+            // Refund the payment.
+            paymentService.refund(pay.id(),
+                    new PaymentDto.RefundRequest(null, "CASH", null, "client annulé"), null);
+
+            // The row survives for audit but is now reversed → contributes nothing.
+            assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM allocations WHERE positive_id = ?",
+                    Long.class, pay.id())).isEqualTo(1L);
+            assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM allocations WHERE positive_id = ? AND reversed_at IS NULL",
+                    Long.class, pay.id())).isZero();
+            assertThat(jdbc.queryForObject(
+                    "SELECT reversal_reason FROM allocations WHERE positive_id = ?",
+                    String.class, pay.id())).startsWith("Refund ");
+
+            // Invoice is open again on the NEGATIVE side for its full amount.
+            OpenItem reopened = engine.findOpenItemsByParty(customerId).stream()
+                    .filter(i -> "INVOICE".equals(i.sourceType()) && inv.equals(i.sourceId()))
+                    .findFirst().orElseThrow();
+            assertThat(reopened.sign()).isEqualTo(OpenItem.Sign.NEGATIVE);
+            assertThat(reopened.amountOpen()).isEqualByComparingTo("100.00");
+        }
+
+        @Test
         @DisplayName("Phase 6: creating an avoir on an unpaid invoice writes CREDIT_NOTE → INVOICE allocation")
         void creditNoteToInvoiceMirrored() {
             UUID inv = createInvoice(new BigDecimal("250.00"), LocalDate.now());

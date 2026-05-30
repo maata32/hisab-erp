@@ -1,4 +1,4 @@
 @org.springframework.modulith.ApplicationModule(
         displayName = "Catalog",
-        allowedDependencies = {"shared", "uom", "uom::api", "tenant"})
+        allowedDependencies = {"shared", "uom", "uom::api", "tenant::api"})
 package com.minierp.catalog;

@@ -51,4 +51,18 @@ class Allocation extends TenantAwareEntity {
 
     @Column(length = 500)
     private String notes;
+
+    // ── Soft-void (changeset 0053) ─────────────────────────────────────────────
+    // A reversed row stays in the table for audit but contributes nothing to any
+    // sum — every read filters {@code reversed_at IS NULL}. Set when the source
+    // item is undone (e.g. a payment refund un-pays the invoice this row paired).
+
+    @Column(name = "reversed_at")
+    private Instant reversedAt;
+
+    @Column(name = "reversed_by", columnDefinition = "uuid")
+    private UUID reversedBy;
+
+    @Column(name = "reversal_reason", length = 500)
+    private String reversalReason;
 }
