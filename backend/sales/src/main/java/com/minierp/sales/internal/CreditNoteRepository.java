@@ -30,6 +30,14 @@ interface CreditNoteRepository extends JpaRepository<CreditNote, UUID> {
             """)
     List<Object[]> countNonDraftByInvoiceIds(@Param("ids") java.util.Collection<UUID> ids);
 
+    @Query("""
+            SELECT COUNT(cn)
+            FROM CreditNote cn
+            WHERE cn.invoiceId = :invoiceId
+              AND cn.status <> com.minierp.sales.internal.CreditNoteStatus.DRAFT
+            """)
+    long countNonDraftByInvoiceId(@Param("invoiceId") UUID invoiceId);
+
     @Query("SELECT cn FROM CreditNote cn WHERE cn.partyId = :partyId " +
            "AND cn.issueDate >= :from AND cn.issueDate <= :to " +
            "ORDER BY cn.issueDate ASC")

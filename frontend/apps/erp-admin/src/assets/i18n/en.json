@@ -39,8 +39,12 @@
       "line_not_found": "Invoice line not found.",
       "line_exceeds_invoiced": "Requested quantity exceeds the remaining creditable amount of the line.",
       "invoice_cancelled": "Cannot issue a credit note against a cancelled invoice.",
+      "invoice_refunded": "This invoice has already been refunded — a credit note was already issued.",
       "invoice_fully_credited": "This invoice has already been fully credited.",
       "warehouse_missing": "No warehouse configured to receive the returned goods."
+    },
+    "invoice": {
+      "refunded_no_payment": "Cannot allocate a payment to a refunded invoice."
     },
     "delivery": {
       "already_shipped": "Stock has already left the warehouse for this delivery — it cannot be cancelled."
@@ -178,7 +182,9 @@
       "total_customer_balance": "Customer receivables",
       "active_users": "Active users",
       "invoices_draft": "Draft invoices",
-      "invoices_not_fully_delivered": "Invoices not delivered"
+      "invoices_not_fully_delivered": "Invoices not delivered",
+      "invoices_refunded_month": "Refunded invoices (month)",
+      "invoices_refunded_month_hint": "Total amount: {{amount}}"
     },
     "aging": {
       "title": "Receivables aging",
@@ -343,6 +349,8 @@
     "supplier_credit_limit": "Supplier credit limit",
     "ar_balance": "AR balance",
     "ap_balance": "AP balance",
+    "debts_col": "Owes us",
+    "credit_col": "We owe",
     "status": "Status",
     "activate_supplier": "Activate supplier role",
     "activate_supplier_hint": "This partner will also become a supplier. Enter the 401xxx code and payment terms.",
@@ -361,6 +369,23 @@
     "statementFull": "Statement",
     "statementDetailed": "Detailed",
     "statementOutstanding": "Outstanding",
+    "openItems": "Open items (account)",
+    "openItemsTitle": "Open items",
+    "openItemsEmpty": "No open items on this account.",
+    "openItemsCol": {
+      "type": "Type",
+      "ref": "Reference",
+      "date": "Date",
+      "open": "Open amount",
+      "sign": "Sign"
+    },
+    "openItemsType": {
+      "INVOICE": "Customer invoice",
+      "PAYMENT": "Payment received",
+      "CUSTOMER_CREDIT": "Customer credit",
+      "PURCHASE_INVOICE": "Supplier invoice",
+      "SUPPLIER_PAYMENT": "Supplier payment"
+    },
     "types": {
       "INDIVIDUAL": "Individual",
       "COMPANY": "Company"
@@ -425,7 +450,8 @@
       "ISSUED": "Issued",
       "PARTIAL": "Partial",
       "PAID": "Paid",
-      "OVERDUE": "Overdue"
+      "OVERDUE": "Overdue",
+      "REFUNDED": "Refunded"
     },
     "confirmStatusChange": "Move {{number}} to status \"{{status}}\"?",
     "lines": "Lines",
@@ -455,15 +481,29 @@
     "empty": "No invoices found",
     "paymentTerms": "Payment terms",
     "paymentTermsHint": "e.g. Net 30 days",
-    "createDirect": "Direct invoice",
-    "createDirectHint": "Create an invoice without going through a quote",
-    "createTitle": "Create a direct invoice",
+    "createDirect": "New invoice",
+    "createDirectHint": "Create an invoice",
+    "createTitle": "New invoice",
+    "creditBanner": {
+      "title": "Available credit: {{amount}} {{currency}}",
+      "hint": "Check to automatically apply the customer's credit (FIFO) when this invoice is created. Unchecked leaves the credit untouched."
+    },
     "view": "View details",
     "issue": "Issue invoice",
     "detailTitle": "Invoice {{number}}",
     "createCreditNote": "Create credit note",
     "createDelivery": "Create delivery",
     "createPayment": "Record payment",
+    "duplicate": "Duplicate",
+    "deliveryChoice": {
+      "title": "Delivery",
+      "question": "Are the goods handed over to the customer right now?",
+      "deferred": "Later delivery",
+      "deferredHint": "Save the invoice only. The delivery note will be issued later.",
+      "immediate": "Immediate delivery",
+      "immediateHint": "Create the invoice and ship the goods now. The whole transaction is cancelled if stock is insufficient.",
+      "warehouse": "Source warehouse"
+    },
     "noCreditableLines": "All lines are already fully credited.",
     "linkedQuote": "Linked quote",
     "deliveries": "Deliveries",
@@ -473,7 +513,8 @@
     "deliveryStatuses": {
       "NONE": "Not delivered",
       "PARTIALLY_DELIVERED": "Partially delivered",
-      "DELIVERED": "Delivered"
+      "DELIVERED": "Delivered",
+      "RETURNED": "Returned"
     }
   },
   "creditNotes": {
@@ -501,11 +542,20 @@
       "total": "Credit total"
     },
     "empty": "No credit notes found",
-    "createTitle": "Create a credit note for {{number}}",
-    "atLeastOneLineQty": "At least one line must have a quantity to credit.",
-    "returnDeliveryWarning": {
-      "header": "Return delivery required",
-      "message": "This credit note covers units already shipped. A return delivery note will be created automatically to receive the goods back into stock:\n{{lines}}\n\nConfirm creating the credit note and the return delivery?"
+    "createTitle": "Create a total credit note for {{number}}",
+    "confirm": "Confirm credit note",
+    "preview": {
+      "invoiceTotal": "Invoice total",
+      "alreadyPaid": "Already paid",
+      "balance": "Outstanding balance",
+      "creditAmount": "Credit note amount",
+      "paidWarning": "The amount already paid ({{amount}} {{currency}}) will be turned into a customer credit (OVERPAYMENT). The customer can use it on a future invoice or be refunded separately.",
+      "brWarningHeader": "By confirming this credit note, you certify that the items listed below have been physically received back. A return delivery note (BR) will be auto-created and stock replenished:"
+    },
+    "blocked": {
+      "DRAFT": "This invoice is a draft. Issue it before creating a credit note.",
+      "CANCELLED": "This invoice is cancelled. No credit note possible.",
+      "ALREADY_CREDITED": "This invoice already has a credit note. Only one credit note per invoice is allowed."
     },
     "statuses": {
       "DRAFT": "Draft",
@@ -567,7 +617,8 @@
     "statuses": {
       "DRAFT": "Draft",
       "CONFIRMED": "Confirmed",
-      "CANCELLED": "Cancelled"
+      "CANCELLED": "Cancelled",
+      "REFUNDED": "Refunded"
     },
     "methods": {
       "CASH": "Cash",
@@ -588,6 +639,7 @@
     "allocations": "Allocate to invoices",
     "autoAllocate": "Auto-allocate",
     "noOpenInvoices": "No open invoices for this customer",
+    "enterAmountFirst": "Enter an amount first",
     "allocated": "Allocated",
     "totalAllocated": "Total allocated",
     "allocateTitle": "Allocate payment",
@@ -595,7 +647,23 @@
     "alreadyAllocated": "Already allocated",
     "remaining": "Remaining",
     "surplusInfo": "Any portion not allocated to invoices is recorded as an explicit customer credit (visible in the credits list, usable on a future invoice or for withdrawal).",
-    "surplusRowLabel": "Customer credit (surplus → OVERPAYMENT)"
+    "surplusRowLabel": "Customer credit (surplus → OVERPAYMENT)",
+    "customerHasCredit": "This customer has {{amount}} of credit on their account — auto-applied to the next invoices issued (not applicable to this payment).",
+    "refundFromCredit": {
+      "title": "Available credit: {{amount}}",
+      "hint": "Check to settle this refund from the customer's credit (FIFO). Uncheck to refund cash without touching the credit."
+    },
+    "refund": "Refund",
+    "refundTitle": "Full refund",
+    "refundAmount": "Amount to refund",
+    "refundReason": "Refund reason",
+    "refundReasonPlaceholder": "Entry mistake, customer return, failed re-collection…",
+    "refundImpactHeader": "Refund impact (all allocations will be reversed)",
+    "refundImpactTarget": "Target",
+    "refundImpactAmount": "Reversed amount",
+    "refundImpactAfter": "Status after",
+    "refundNoAllocations": "This payment has no allocations: the refund will only mirror the cash movement.",
+    "confirmRefund": "Confirm refund"
   },
   "errors": {
     "forbidden": "You do not have permission to access this page.",

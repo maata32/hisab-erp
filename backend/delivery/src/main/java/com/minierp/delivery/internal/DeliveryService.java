@@ -29,7 +29,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class DeliveryService {
+public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOperations {
 
     private final DeliveryRepository deliveries;
     private final DeliveryLineRepository deliveryLines;
@@ -37,6 +37,7 @@ public class DeliveryService {
     private final NumberingOperations numbering;
     private final DocumentRenderer renderer;
     private final InvoiceOperations invoices;
+    private final com.minierp.sales.api.InvoiceWriteOperations invoiceReader;
     private final StockOperations stockOps;
     private final TenantLookup tenantLookup;
 
@@ -152,6 +153,39 @@ public class DeliveryService {
         }
 
         return toDto(d);
+    }
+
+    @Override
+    @Transactional
+    public UUID shipInvoiceImmediately(UUID invoiceId, UUID warehouseId, UUID userId) {
+        com.minierp.sales.api.SalesDto.InvoiceDto invoice = invoiceReader.getInvoice(invoiceId);
+        if (invoice.lines() == null || invoice.lines().isEmpty()) {
+            throw new BusinessException("error.delivery.invoice_has_no_lines",
+                    Map.of("invoiceId", invoiceId));
+        }
+        // Build one BL line per invoiced line, full quantity. Carry the
+        // product snapshot through so the BL renders standalone even though
+        // it is settled in the same TX.
+        List<DeliveryDto.LineRequest> blLines = invoice.lines().stream()
+                .map(l -> new DeliveryDto.LineRequest(
+                        l.productId(), l.uomId(), l.quantity(),
+                        l.productName(), l.sku()))
+                .toList();
+        DeliveryDto.CreateDeliveryRequest createReq = new DeliveryDto.CreateDeliveryRequest(
+                invoice.customerId(), invoiceId, warehouseId,
+                java.time.LocalDate.now(), null, null,
+                "Livraison immédiate", blLines);
+        DeliveryDto.DeliveryResponse bl = create(createReq, userId);
+        startDelivery(bl.id(), userId);
+        // recordDelivery ignores per-line quantities; the stub list is required
+        // by the DTO contract only.
+        List<DeliveryDto.LineDelivered> stub = bl.lines().stream()
+                .map(l -> new DeliveryDto.LineDelivered(l.id(), l.quantityOrdered()))
+                .toList();
+        recordDelivery(bl.id(),
+                new DeliveryDto.RecordDeliveryRequest(stub, null, null),
+                userId);
+        return bl.id();
     }
 
     @Transactional

@@ -26,13 +26,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Credit notes are line-based and applied to the source invoice on creation.
- * Happy path covers two-line credit; three guards cover the most common
- * rejection paths (cancelled invoice, over-credit, double-credit).
+ * Avoirs are total-only: one credit note clears the entire invoice. Happy path
+ * checks the full credit lands on balance; guards cover (1) cancelled invoice
+ * (2) draft invoice (3) double-credit on the same invoice.
  */
 @SpringBootTest(classes = MiniErpApplication.class)
 @ActiveProfiles("test")
-@DisplayName("Credit notes — happy path + invariant guards")
+@DisplayName("Credit notes — total avoir + invariant guards")
 class CreditNoteIT {
 
     @Autowired
@@ -92,7 +92,7 @@ class CreditNoteIT {
     }
 
     @Test
-    void creditTwoLinesAppliesToBalanceAndMarksApplied() {
+    void totalAvoirClearsBalanceAndMarksApplied() {
         SalesDto.InvoiceDto inv = createInvoice(List.of(
                 line(productAId, new BigDecimal("10"), new BigDecimal("100")),  // 1000
                 line(productBId, new BigDecimal("5"),  new BigDecimal("50"))    //  250
@@ -100,23 +100,17 @@ class CreditNoteIT {
         assertThat(inv.total()).isEqualByComparingTo("1250.00");
         assertThat(inv.balance()).isEqualByComparingTo("1250.00");
 
-        UUID lineA = inv.lines().stream().filter(l -> l.productId().equals(productAId)).findFirst().orElseThrow().id();
-        UUID lineB = inv.lines().stream().filter(l -> l.productId().equals(productBId)).findFirst().orElseThrow().id();
-
         SalesDto.CreditNoteDto cn = salesService.createCreditNote(inv.id(),
-                new SalesDto.CreateCreditNoteRequest("Return", List.of(
-                        new SalesDto.CreateCreditNoteLine(lineA, new BigDecimal("3")),  // 300
-                        new SalesDto.CreateCreditNoteLine(lineB, new BigDecimal("2"))   // 100
-                )));
+                new SalesDto.CreateCreditNoteRequest("Return"));
 
         assertThat(cn.status()).isEqualTo("APPLIED");
-        assertThat(cn.subtotal()).isEqualByComparingTo("400.00");
-        assertThat(cn.total()).isEqualByComparingTo("400.00");
+        assertThat(cn.subtotal()).isEqualByComparingTo("1250.00");
+        assertThat(cn.total()).isEqualByComparingTo("1250.00");
         assertThat(cn.lines()).hasSize(2);
 
         SalesDto.InvoiceDto refreshed = salesService.getInvoice(inv.id());
-        assertThat(refreshed.balance()).isEqualByComparingTo("850.00");
-        assertThat(refreshed.status()).isEqualTo("PARTIAL");
+        assertThat(refreshed.balance()).isEqualByComparingTo("0.00");
+        assertThat(refreshed.status()).isEqualTo("PAID");
     }
 
     @Nested
@@ -131,45 +125,40 @@ class CreditNoteIT {
             // Force CANCELLED directly — there is no service method to cancel anymore.
             jdbc.update("UPDATE invoices SET status = 'CANCELLED' WHERE id = ?", inv.id());
 
-            UUID lineId = inv.lines().get(0).id();
             assertThatThrownBy(() -> salesService.createCreditNote(inv.id(),
-                    new SalesDto.CreateCreditNoteRequest("Try", List.of(
-                            new SalesDto.CreateCreditNoteLine(lineId, BigDecimal.ONE)))))
+                    new SalesDto.CreateCreditNoteRequest("Try")))
                     .isInstanceOfSatisfying(BusinessException.class, e ->
                             assertThat(e.getMessageKey()).isEqualTo("error.creditnote.invoice_cancelled"));
         }
 
         @Test
-        void rejectsLineQuantityExceedingInvoiced() {
+        void rejectsCreditOnDraftInvoice() {
             SalesDto.InvoiceDto inv = createInvoice(List.of(
                     line(productAId, new BigDecimal("5"), new BigDecimal("20"))
             ));
-            UUID lineId = inv.lines().get(0).id();
+            // Force DRAFT — DRAFT invoices are not creditable.
+            jdbc.update("UPDATE invoices SET status = 'DRAFT' WHERE id = ?", inv.id());
 
             assertThatThrownBy(() -> salesService.createCreditNote(inv.id(),
-                    new SalesDto.CreateCreditNoteRequest("Over", List.of(
-                            new SalesDto.CreateCreditNoteLine(lineId, new BigDecimal("10"))))))
+                    new SalesDto.CreateCreditNoteRequest("Too early")))
                     .isInstanceOfSatisfying(BusinessException.class, e ->
-                            assertThat(e.getMessageKey()).isEqualTo("error.creditnote.line_exceeds_invoiced"));
+                            assertThat(e.getMessageKey()).isEqualTo("error.creditnote.invoice_draft"));
         }
 
         @Test
-        void rejectsSecondCreditOnFullyCreditedInvoice() {
+        void rejectsSecondCreditOnAlreadyCreditedInvoice() {
             SalesDto.InvoiceDto inv = createInvoice(List.of(
                     line(productAId, new BigDecimal("4"), new BigDecimal("25"))
             ));
-            UUID lineId = inv.lines().get(0).id();
 
-            // First credit covers the entire line.
+            // First credit clears everything.
             salesService.createCreditNote(inv.id(),
-                    new SalesDto.CreateCreditNoteRequest("Full", List.of(
-                            new SalesDto.CreateCreditNoteLine(lineId, new BigDecimal("4")))));
+                    new SalesDto.CreateCreditNoteRequest("Full"));
 
             assertThatThrownBy(() -> salesService.createCreditNote(inv.id(),
-                    new SalesDto.CreateCreditNoteRequest("Again", List.of(
-                            new SalesDto.CreateCreditNoteLine(lineId, BigDecimal.ONE)))))
+                    new SalesDto.CreateCreditNoteRequest("Again")))
                     .isInstanceOfSatisfying(BusinessException.class, e ->
-                            assertThat(e.getMessageKey()).isEqualTo("error.creditnote.invoice_fully_credited"));
+                            assertThat(e.getMessageKey()).isEqualTo("error.creditnote.already_credited"));
         }
     }
 

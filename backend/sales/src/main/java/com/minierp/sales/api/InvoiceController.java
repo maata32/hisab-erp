@@ -50,6 +50,13 @@ public class InvoiceController {
         return service.issueInvoice(id);
     }
 
+    @PostMapping("/{id}/duplicate")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('sales:create')")
+    public SalesDto.InvoiceDto duplicate(@PathVariable UUID id) {
+        return service.duplicateInvoice(id);
+    }
+
     @GetMapping("/{id}/pdf")
     @PreAuthorize("hasAuthority('sales:read')")
     public ResponseEntity<byte[]> pdf(@PathVariable UUID id) {
@@ -68,10 +75,10 @@ public class InvoiceController {
         return service.createCreditNote(id, req);
     }
 
-    @GetMapping("/{id}/creditable")
+    @GetMapping("/{id}/credit-note-preview")
     @PreAuthorize("hasAuthority('sales:read')")
-    public SalesDto.CreditableInvoiceDto creditable(@PathVariable UUID id) {
-        return service.getCreditableInvoice(id);
+    public SalesDto.CreditNotePreviewDto creditNotePreview(@PathVariable UUID id) {
+        return service.getCreditNotePreview(id);
     }
 
     @GetMapping("/credit-notes")

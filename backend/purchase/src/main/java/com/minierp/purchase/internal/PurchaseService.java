@@ -302,6 +302,24 @@ public class PurchaseService implements PurchaseInvoiceOperations {
         supplierBalanceOps.addToPaid(inv.getPartyId(), amount, true);
     }
 
+    @Override
+    @Transactional
+    public void reversePayment(UUID purchaseInvoiceId, BigDecimal amount) {
+        PurchaseInvoice inv = purchaseInvoices.lockById(purchaseInvoiceId)
+                .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", purchaseInvoiceId));
+        BigDecimal newPaid = inv.getPaidAmount().subtract(amount).max(BigDecimal.ZERO);
+        inv.setPaidAmount(newPaid);
+        inv.setBalance(inv.getTotal().subtract(newPaid).max(BigDecimal.ZERO));
+        if (newPaid.signum() == 0) {
+            if (inv.getStatus() == PurchaseInvoiceStatus.PAID || inv.getStatus() == PurchaseInvoiceStatus.PARTIAL) {
+                inv.setStatus(PurchaseInvoiceStatus.ISSUED);
+            }
+        } else if (inv.getStatus() == PurchaseInvoiceStatus.PAID) {
+            inv.setStatus(PurchaseInvoiceStatus.PARTIAL);
+        }
+        supplierBalanceOps.addToPaid(inv.getPartyId(), amount.negate(), false);
+    }
+
     // ────────────────────────────────────────────────────────────────────────
     // PDF
     // ────────────────────────────────────────────────────────────────────────

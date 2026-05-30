@@ -39,8 +39,12 @@
       "line_not_found": "بند الفاتورة غير موجود.",
       "line_exceeds_invoiced": "الكمية المطلوبة تتجاوز الكمية المتبقية القابلة للائتمان.",
       "invoice_cancelled": "لا يمكن إصدار إشعار دائن على فاتورة ملغاة.",
+      "invoice_refunded": "هذه الفاتورة مستردة بالفعل — تم إصدار إشعار دائن مسبقًا.",
       "invoice_fully_credited": "تم إصدار إشعارات دائنة كاملة على هذه الفاتورة.",
       "warehouse_missing": "لا يوجد مستودع مكوّن لاستلام البضاعة المرتجعة."
+    },
+    "invoice": {
+      "refunded_no_payment": "لا يمكن تخصيص دفعة لفاتورة مستردة."
     },
     "delivery": {
       "already_shipped": "تم إخراج المخزون لهذا التسليم — لا يمكن إلغاؤه."
@@ -178,7 +182,9 @@
       "total_customer_balance": "مستحقات العملاء",
       "active_users": "مستخدمون نشطون",
       "invoices_draft": "فواتير مسودة",
-      "invoices_not_fully_delivered": "فواتير غير مسلمة"
+      "invoices_not_fully_delivered": "فواتير غير مسلمة",
+      "invoices_refunded_month": "فواتير مستردة (الشهر)",
+      "invoices_refunded_month_hint": "الإجمالي: {{amount}}"
     },
     "aging": {
       "title": "تقادم الذمم",
@@ -343,6 +349,8 @@
     "supplier_credit_limit": "حد ائتمان المورّد",
     "ar_balance": "رصيد العميل",
     "ap_balance": "رصيد المورّد",
+    "debts_col": "ديون",
+    "credit_col": "رصيد لصالحه",
     "status": "الحالة",
     "activate_supplier": "تفعيل دور المورّد",
     "activate_supplier_hint": "سيصبح هذا الشريك مورّدًا أيضًا. أدخل رمز 401xxx وشروط الدفع.",
@@ -361,6 +369,23 @@
     "statementFull": "كشف",
     "statementDetailed": "مفصل",
     "statementOutstanding": "المستحقات",
+    "openItems": "البنود المفتوحة (الحساب)",
+    "openItemsTitle": "البنود المفتوحة",
+    "openItemsEmpty": "لا توجد بنود مفتوحة على هذا الحساب.",
+    "openItemsCol": {
+      "type": "النوع",
+      "ref": "المرجع",
+      "date": "التاريخ",
+      "open": "المتبقي مفتوحًا",
+      "sign": "الإشارة"
+    },
+    "openItemsType": {
+      "INVOICE": "فاتورة عميل",
+      "PAYMENT": "دفعة مستلمة",
+      "CUSTOMER_CREDIT": "رصيد عميل",
+      "PURCHASE_INVOICE": "فاتورة مورّد",
+      "SUPPLIER_PAYMENT": "دفعة مورّد"
+    },
     "types": {
       "INDIVIDUAL": "فرد",
       "COMPANY": "شركة"
@@ -425,7 +450,8 @@
       "ISSUED": "مُصدر",
       "PARTIAL": "جزئي",
       "PAID": "مدفوع",
-      "OVERDUE": "متأخر"
+      "OVERDUE": "متأخر",
+      "REFUNDED": "مستردة"
     },
     "confirmStatusChange": "تغيير حالة {{number}} إلى «{{status}}»؟",
     "lines": "البنود",
@@ -455,15 +481,29 @@
     "empty": "لا يوجد فواتير",
     "paymentTerms": "شروط الدفع",
     "paymentTermsHint": "مثلا: 30 يومًا",
-    "createDirect": "فاتورة مباشرة",
-    "createDirectHint": "إنشاء فاتورة بدون المرور بعرض سعر",
-    "createTitle": "إنشاء فاتورة مباشرة",
+    "createDirect": "فاتورة جديدة",
+    "createDirectHint": "إنشاء فاتورة",
+    "createTitle": "فاتورة جديدة",
+    "creditBanner": {
+      "title": "الرصيد المتاح: {{amount}} {{currency}}",
+      "hint": "فعّل الخيار لاستخدام رصيد العميل تلقائيًا (FIFO) عند إنشاء هذه الفاتورة."
+    },
     "view": "عرض التفاصيل",
     "issue": "إصدار الفاتورة",
     "detailTitle": "الفاتورة {{number}}",
     "createCreditNote": "إنشاء إشعار دائن",
     "createDelivery": "إنشاء إذن تسليم",
     "createPayment": "تسجيل دفعة",
+    "duplicate": "تكرار",
+    "deliveryChoice": {
+      "title": "التسليم",
+      "question": "هل يتم تسليم البضاعة للعميل الآن؟",
+      "deferred": "تسليم لاحقًا",
+      "deferredHint": "تسجيل الفاتورة فقط. سيتم إصدار إذن التسليم لاحقًا.",
+      "immediate": "تسليم فوري",
+      "immediateHint": "إنشاء الفاتورة وشحن البضاعة فورًا. تُلغى العملية بالكامل إذا كان المخزون غير كافٍ.",
+      "warehouse": "المستودع المصدر"
+    },
     "noCreditableLines": "تم ائتمان جميع البنود بالكامل.",
     "linkedQuote": "عرض السعر المرتبط",
     "deliveries": "التسليمات",
@@ -473,7 +513,8 @@
     "deliveryStatuses": {
       "NONE": "غير مسلم",
       "PARTIALLY_DELIVERED": "تسليم جزئي",
-      "DELIVERED": "تم التسليم"
+      "DELIVERED": "تم التسليم",
+      "RETURNED": "مرتجعة"
     }
   },
   "creditNotes": {

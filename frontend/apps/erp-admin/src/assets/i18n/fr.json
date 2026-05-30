@@ -40,8 +40,12 @@
       "line_not_found": "Ligne de facture introuvable.",
       "line_exceeds_invoiced": "La quantité demandée dépasse le reliquat créditable de la ligne.",
       "invoice_cancelled": "Impossible d'émettre un avoir sur une facture annulée.",
+      "invoice_refunded": "Cette facture est déjà remboursée — un avoir a déjà été émis.",
       "invoice_fully_credited": "Cette facture est déjà entièrement créditée.",
       "warehouse_missing": "Aucun dépôt configuré pour réintégrer la marchandise au stock."
+    },
+    "invoice": {
+      "refunded_no_payment": "Impossible d'allouer un paiement à une facture remboursée."
     },
     "delivery": {
       "already_shipped": "Du stock est déjà sorti pour ce BL — impossible de l'annuler."
@@ -179,7 +183,9 @@
       "total_customer_balance": "Créances clients",
       "active_users": "Utilisateurs actifs",
       "invoices_draft": "Factures en brouillon",
-      "invoices_not_fully_delivered": "Factures non livrées"
+      "invoices_not_fully_delivered": "Factures non livrées",
+      "invoices_refunded_month": "Factures remboursées (mois)",
+      "invoices_refunded_month_hint": "Montant total : {{amount}}"
     },
     "aging": {
       "title": "Vieillissement des créances",
@@ -344,6 +350,8 @@
     "supplier_credit_limit": "Plafond fournisseur",
     "ar_balance": "Solde client",
     "ap_balance": "Solde fournisseur",
+    "debts_col": "Dettes",
+    "credit_col": "Crédit",
     "status": "Statut",
     "activate_supplier": "Activer rôle fournisseur",
     "activate_supplier_hint": "Ce partenaire deviendra aussi fournisseur. Renseignez le code 401xxx et les conditions de paiement.",
@@ -362,6 +370,23 @@
     "statementFull": "Relevé",
     "statementDetailed": "Relevé détaillé",
     "statementOutstanding": "Impayés",
+    "openItems": "Items ouverts (compte)",
+    "openItemsTitle": "Items ouverts",
+    "openItemsEmpty": "Aucun item ouvert sur ce compte.",
+    "openItemsCol": {
+      "type": "Type",
+      "ref": "Référence",
+      "date": "Date",
+      "open": "Reste ouvert",
+      "sign": "Signe"
+    },
+    "openItemsType": {
+      "INVOICE": "Facture client",
+      "PAYMENT": "Paiement reçu",
+      "CUSTOMER_CREDIT": "Crédit client",
+      "PURCHASE_INVOICE": "Facture fournisseur",
+      "SUPPLIER_PAYMENT": "Paiement fournisseur"
+    },
     "types": {
       "INDIVIDUAL": "Particulier",
       "COMPANY": "Entreprise"
@@ -426,7 +451,8 @@
       "ISSUED": "Émis",
       "PARTIAL": "Partiel",
       "PAID": "Payé",
-      "OVERDUE": "En retard"
+      "OVERDUE": "En retard",
+      "REFUNDED": "Remboursée"
     },
     "confirmStatusChange": "Passer {{number}} au statut « {{status}} » ?",
     "lines": "Lignes",
@@ -456,15 +482,29 @@
     "empty": "Aucune facture trouvée",
     "paymentTerms": "Conditions de paiement",
     "paymentTermsHint": "ex. 30 jours net",
-    "createDirect": "Facture directe",
-    "createDirectHint": "Créer une facture sans passer par un devis",
-    "createTitle": "Créer une facture directe",
+    "createDirect": "Nouvelle facture",
+    "createDirectHint": "Créer une facture",
+    "createTitle": "Nouvelle facture",
+    "creditBanner": {
+      "title": "Crédit disponible : {{amount}} {{currency}}",
+      "hint": "Cochez pour utiliser automatiquement le crédit du client (FIFO) à la création de cette facture. Sans coche, la facture est créée sans toucher au crédit."
+    },
     "view": "Voir le détail",
     "issue": "Émettre la facture",
     "detailTitle": "Facture {{number}}",
     "createCreditNote": "Créer un avoir",
     "createDelivery": "Créer un BL",
     "createPayment": "Encaisser",
+    "duplicate": "Dupliquer",
+    "deliveryChoice": {
+      "title": "Livraison",
+      "question": "La marchandise est-elle remise au client maintenant ?",
+      "deferred": "Livraison ultérieure",
+      "deferredHint": "Enregistrer la facture seulement. Le BL sera fait plus tard.",
+      "immediate": "Livraison immédiate",
+      "immediateHint": "Créer la facture et expédier la marchandise tout de suite. La transaction est annulée si le stock est insuffisant.",
+      "warehouse": "Entrepôt d'expédition"
+    },
     "noCreditableLines": "Toutes les lignes sont déjà créditées.",
     "linkedQuote": "Devis lié",
     "deliveries": "Livraisons",
@@ -474,7 +514,8 @@
     "deliveryStatuses": {
       "NONE": "Non livré",
       "PARTIALLY_DELIVERED": "Partiellement livré",
-      "DELIVERED": "Livré"
+      "DELIVERED": "Livré",
+      "RETURNED": "Retournée"
     }
   },
   "creditNotes": {
@@ -502,11 +543,20 @@
       "total": "Total avoir TTC"
     },
     "empty": "Aucun avoir trouvé",
-    "createTitle": "Créer un avoir sur {{number}}",
-    "atLeastOneLineQty": "Au moins une ligne doit avoir une quantité à créditer.",
-    "returnDeliveryWarning": {
-      "header": "Bon de retour requis",
-      "message": "Cet avoir crédite des unités déjà livrées. Un bon de retour sera créé automatiquement pour réintégrer la marchandise au stock :\n{{lines}}\n\nConfirmer la création de l'avoir et du bon de retour ?"
+    "createTitle": "Créer un avoir total sur {{number}}",
+    "confirm": "Confirmer l'avoir",
+    "preview": {
+      "invoiceTotal": "Total facture",
+      "alreadyPaid": "Déjà payé",
+      "balance": "Solde restant dû",
+      "creditAmount": "Montant de l'avoir",
+      "paidWarning": "Le montant déjà encaissé ({{amount}} {{currency}}) sera transformé en crédit client (OVERPAYMENT). Le client pourra l'utiliser sur une prochaine facture ou être remboursé séparément.",
+      "brWarningHeader": "En confirmant cet avoir, vous certifiez avoir physiquement réceptionné les articles ci-dessous. Un bon de retour (BR) sera créé automatiquement et le stock réintégré :"
+    },
+    "blocked": {
+      "DRAFT": "Cette facture est en brouillon. Émettez-la d'abord avant de créer un avoir.",
+      "CANCELLED": "Cette facture est annulée. Aucun avoir possible.",
+      "ALREADY_CREDITED": "Cette facture a déjà un avoir associé. Un seul avoir par facture est autorisé."
     },
     "statuses": {
       "DRAFT": "Brouillon",
@@ -568,7 +618,8 @@
     "statuses": {
       "DRAFT": "Brouillon",
       "CONFIRMED": "Confirmé",
-      "CANCELLED": "Annulé"
+      "CANCELLED": "Annulé",
+      "REFUNDED": "Remboursé"
     },
     "methods": {
       "CASH": "Espèces",
@@ -589,6 +640,7 @@
     "allocations": "Allouer aux factures",
     "autoAllocate": "Auto-allouer",
     "noOpenInvoices": "Aucune facture ouverte pour ce client",
+    "enterAmountFirst": "Saisissez d'abord un montant",
     "allocated": "À allouer",
     "totalAllocated": "Total alloué",
     "allocateTitle": "Allouer le paiement",
@@ -596,7 +648,23 @@
     "alreadyAllocated": "Déjà alloué",
     "remaining": "Reste à allouer",
     "surplusInfo": "Tout reliquat non alloué aux factures est explicitement enregistré comme crédit client (visible dans la liste des crédits, utilisable pour une facture future ou un retrait).",
-    "surplusRowLabel": "Crédit client (surplus → OVERPAYMENT)"
+    "surplusRowLabel": "Crédit client (surplus → OVERPAYMENT)",
+    "customerHasCredit": "Ce client a {{amount}} de crédit en sa faveur — utilisé automatiquement sur les prochaines factures émises (non applicable à ce paiement).",
+    "refundFromCredit": {
+      "title": "Crédit disponible : {{amount}}",
+      "hint": "Cochez pour que ce remboursement consomme le crédit client (FIFO). Décocher si vous voulez rembourser en cash sans toucher au crédit."
+    },
+    "refund": "Rembourser",
+    "refundTitle": "Remboursement intégral",
+    "refundAmount": "Montant à rembourser",
+    "refundReason": "Motif du remboursement",
+    "refundReasonPlaceholder": "Erreur de saisie, retour client, ré-encaissement échoué…",
+    "refundImpactHeader": "Effets du remboursement (toutes les allocations seront annulées)",
+    "refundImpactTarget": "Cible",
+    "refundImpactAmount": "Montant reversé",
+    "refundImpactAfter": "État après",
+    "refundNoAllocations": "Ce paiement n'a aucune allocation : le remboursement ne crée qu'un mouvement de caisse miroir.",
+    "confirmRefund": "Confirmer le remboursement"
   },
   "errors": {
     "forbidden": "Vous n'avez pas la permission d'accéder à cette page.",

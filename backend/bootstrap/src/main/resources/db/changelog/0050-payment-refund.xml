@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Refund flow for confirmed payments:
+        - payments gains refunded_at + refunded_by_payment_id (FK to a new payment
+          row of type CUSTOMER_REFUND / SUPPLIER_REFUND that materializes the
+          actual cash-out movement)
+        - new permission payment:refund, granted to TENANT_ADMIN, MANAGER,
+          ACCOUNTANT, PAYMENT_OFFICER (not CASHIER — refunds are sensitive).
+    -->
+
+    <changeSet id="0050-payment-refund-columns" author="mini-erp">
+        <addColumn tableName="payments">
+            <column name="refunded_at" type="timestamp with time zone"/>
+            <column name="refunded_by_payment_id" type="uuid"/>
+        </addColumn>
+        <createIndex tableName="payments" indexName="idx_payments_refunded_by">
+            <column name="refunded_by_payment_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0050-payment-refund-permission" author="mini-erp">
+        <sql splitStatements="false">
+            INSERT INTO permissions (id, code, resource, action, description) VALUES
+              (uuid_generate_v4(), 'payment:refund', 'payment', 'refund',
+               'Issue a full refund for a confirmed payment')
+            ON CONFLICT (code) DO NOTHING;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0050-payment-refund-backfill" author="mini-erp">
+        <sql splitStatements="false">
+            INSERT INTO role_permission (role_id, permission_id)
+            SELECT r.id, p.id
+            FROM roles r
+            JOIN permissions p ON p.code = 'payment:refund'
+            WHERE r.code IN ('TENANT_ADMIN','MANAGER','ACCOUNTANT','PAYMENT_OFFICER')
+            ON CONFLICT DO NOTHING;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

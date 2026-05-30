@@ -13,4 +13,11 @@ public interface PurchaseInvoiceOperations {
     Optional<PurchaseInvoiceSummary> findById(UUID id);
     List<PurchaseInvoiceSummary> findUnpaidBySupplier(UUID supplierId);
     void applyPayment(UUID purchaseInvoiceId, BigDecimal amount);
+    /**
+     * Reverse a previously applied payment of {@code amount} on the invoice —
+     * used by the supplier-refund flow. Decreases paid_amount, raises balance,
+     * walks status back to ISSUED/PARTIAL as appropriate, never lets paid go
+     * negative.
+     */
+    void reversePayment(UUID purchaseInvoiceId, BigDecimal amount);
 }

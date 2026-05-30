@@ -16,6 +16,13 @@ public interface InvoiceOperations {
     List<InvoiceSummary> findUnpaidByCustomer(UUID customerId);
     void applyPayment(UUID invoiceId, BigDecimal amount);
     /**
+     * Reverse a previously applied payment of {@code amount} on the invoice —
+     * used by the refund flow. Decreases paid_amount, raises balance, and walks
+     * the status back to ISSUED/PARTIAL as appropriate. Clamps so paid_amount
+     * never goes negative even if callers somehow over-reverse.
+     */
+    void reversePayment(UUID invoiceId, BigDecimal amount);
+    /**
      * Settle part of the invoice via a credit note. Returns the amount that was
      * actually imputed (clamped to the current outstanding balance); the caller
      * is responsible for routing any surplus to a customer credit.

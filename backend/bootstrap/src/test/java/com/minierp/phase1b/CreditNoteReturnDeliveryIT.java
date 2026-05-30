@@ -26,16 +26,12 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * When a credit note covers goods that have already shipped, the credit-note
- * flow publishes a {@code CreditNoteReturnRequestedEvent} that the delivery
- * module materialises as a RETURN-typed BL ("Bon de Retour", BR-YYYY-XXXXX).
- * Stock comes back through that BR, not through the credit note itself.
- *
- * Three scenarios:
- *  - Fully-shipped line credited in full → one BR, stock returned in full.
- *  - Partially-shipped line credited within the not-yet-shipped portion → no BR.
- *  - Partially-shipped line credited beyond the not-yet-shipped portion → BR
- *    only for the overflow.
+ * Avoir total + auto BR: an avoir cancels the whole invoice in one shot.
+ * Stock-return behavior:
+ *  - Fully shipped → BR for everything, stock back.
+ *  - Never shipped → no BR, status flips to DELIVERED (nothing left to ship).
+ *  - Partially shipped → BR for the delivered slice only; the never-shipped
+ *    slice cancels without a stock movement.
  */
 @SpringBootTest(classes = MiniErpApplication.class)
 @ActiveProfiles("test")
@@ -100,19 +96,13 @@ class CreditNoteReturnDeliveryIT {
     }
 
     @Test
-    void fullyShippedLineCreditedInFullCreatesBrAndReturnsStock() {
-        // Invoice 3 @ 100 = 300.
+    void fullyShippedThenTotalAvoirCreatesBrAndReturnsStock() {
         SalesDto.InvoiceDto inv = createInvoice(new BigDecimal("3"), new BigDecimal("100"));
-        UUID invLineId = inv.lines().get(0).id();
-
-        // Ship everything.
         shipInvoiceFully(inv.id(), new BigDecimal("3"));
         BigDecimal stockBefore = currentStock();
 
-        // Credit the full 3.
         salesService.createCreditNote(inv.id(),
-                new SalesDto.CreateCreditNoteRequest("Return all", List.of(
-                        new SalesDto.CreateCreditNoteLine(invLineId, new BigDecimal("3")))));
+                new SalesDto.CreateCreditNoteRequest("Return all"));
 
         Map<String, Object> br = findReturnDeliveryFor(inv.id());
         assertThat(br).as("a BR must be auto-created").isNotNull();
@@ -122,78 +112,41 @@ class CreditNoteReturnDeliveryIT {
 
         BigDecimal brQty = sumReturnQtyForDelivery((UUID) br.get("id"));
         assertThat(brQty).isEqualByComparingTo("3");
-
-        // Stock is back where it was before shipping (BR posted +3).
         assertThat(currentStock()).isEqualByComparingTo(stockBefore.add(new BigDecimal("3")));
     }
 
     @Test
-    void creditWithinNotYetShippedPortionDoesNotCreateBr() {
-        // Invoice 3 @ 100, ship only 1.
+    void totalAvoirOnNeverShippedDoesNotCreateBr() {
         SalesDto.InvoiceDto inv = createInvoice(new BigDecimal("3"), new BigDecimal("100"));
-        UUID invLineId = inv.lines().get(0).id();
-        shipInvoiceFully(inv.id(), new BigDecimal("1"));
-
-        // Credit 2 — all of it can be absorbed by the still-not-shipped portion (3-1=2).
-        salesService.createCreditNote(inv.id(),
-                new SalesDto.CreateCreditNoteRequest("Cancel rest", List.of(
-                        new SalesDto.CreateCreditNoteLine(invLineId, new BigDecimal("2")))));
-
-        assertThat(findReturnDeliveryFor(inv.id())).as("no BR should be created").isNull();
-    }
-
-    @Test
-    void creditCancellingUnshippedPortionFlipsInvoiceToDelivered() {
-        // Invoice 3 @ 100, ship 1 → PARTIALLY_DELIVERED.
-        SalesDto.InvoiceDto inv = createInvoice(new BigDecimal("3"), new BigDecimal("100"));
-        UUID invLineId = inv.lines().get(0).id();
-        shipInvoiceFully(inv.id(), new BigDecimal("1"));
-        assertThat(salesService.getInvoice(inv.id()).deliveryStatus())
-                .isEqualTo("PARTIALLY_DELIVERED");
-
-        // Credit the 2 unshipped units → effective_invoiced becomes 1, which is
-        // covered by the 1 already shipped → status flips to DELIVERED.
-        salesService.createCreditNote(inv.id(),
-                new SalesDto.CreateCreditNoteRequest("Cancel rest", List.of(
-                        new SalesDto.CreateCreditNoteLine(invLineId, new BigDecimal("2")))));
-
-        assertThat(salesService.getInvoice(inv.id()).deliveryStatus())
-                .as("crediting the unshipped portion closes the delivery obligation")
-                .isEqualTo("DELIVERED");
-    }
-
-    @Test
-    void fullCreditBeforeAnyShippingMarksInvoiceDelivered() {
-        // Invoice 3 @ 100, no shipping at all.
-        SalesDto.InvoiceDto inv = createInvoice(new BigDecimal("3"), new BigDecimal("100"));
-        UUID invLineId = inv.lines().get(0).id();
         assertThat(salesService.getInvoice(inv.id()).deliveryStatus()).isEqualTo("NONE");
 
-        // Full avoir on the whole invoice → nothing to deliver anymore.
         salesService.createCreditNote(inv.id(),
-                new SalesDto.CreateCreditNoteRequest("Wrong invoice", List.of(
-                        new SalesDto.CreateCreditNoteLine(invLineId, new BigDecimal("3")))));
+                new SalesDto.CreateCreditNoteRequest("Wrong invoice"));
 
+        assertThat(findReturnDeliveryFor(inv.id())).as("nothing shipped → no BR").isNull();
         assertThat(salesService.getInvoice(inv.id()).deliveryStatus())
                 .as("fully credited invoice has no outstanding delivery")
                 .isEqualTo("DELIVERED");
     }
 
     @Test
-    void creditOverflowingNotShippedPortionCreatesBrForOverflowOnly() {
-        // Invoice 3 @ 100, ship 1, credit 3 → BR for 1 (the part that's actually shipped).
+    void totalAvoirOnPartiallyShippedCreatesBrForShippedSliceOnly() {
         SalesDto.InvoiceDto inv = createInvoice(new BigDecimal("3"), new BigDecimal("100"));
-        UUID invLineId = inv.lines().get(0).id();
         shipInvoiceFully(inv.id(), new BigDecimal("1"));
+        assertThat(salesService.getInvoice(inv.id()).deliveryStatus())
+                .isEqualTo("PARTIALLY_DELIVERED");
 
         salesService.createCreditNote(inv.id(),
-                new SalesDto.CreateCreditNoteRequest("Take back", List.of(
-                        new SalesDto.CreateCreditNoteLine(invLineId, new BigDecimal("3")))));
+                new SalesDto.CreateCreditNoteRequest("Take back"));
 
         Map<String, Object> br = findReturnDeliveryFor(inv.id());
         assertThat(br).as("BR expected for the shipped portion").isNotNull();
         assertThat(sumReturnQtyForDelivery((UUID) br.get("id")))
                 .isEqualByComparingTo("1");
+
+        assertThat(salesService.getInvoice(inv.id()).deliveryStatus())
+                .as("once the unshipped portion is cancelled and the shipped portion returned, everything is settled")
+                .isEqualTo("DELIVERED");
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

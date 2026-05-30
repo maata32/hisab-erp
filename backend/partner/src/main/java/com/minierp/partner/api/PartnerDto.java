@@ -25,5 +25,6 @@ public record PartnerDto(
         boolean active,
         Instant createdAt,
         BigDecimal customerBalance,
-        BigDecimal supplierBalance
+        BigDecimal supplierBalance,
+        BigDecimal customerCreditBalance
 ) {}

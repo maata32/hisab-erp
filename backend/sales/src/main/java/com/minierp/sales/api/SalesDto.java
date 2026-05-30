@@ -143,40 +143,42 @@ public class SalesDto {
             List<LineRequest> lines
     ) {}
 
-    public record CreateCreditNoteLine(
-            UUID invoiceLineId,
-            BigDecimal quantity
-    ) {}
-
     public record CreateCreditNoteRequest(
-            String reason,
-            List<CreateCreditNoteLine> lines
+            String reason
     ) {}
 
-    public record CreditableLineDto(
-            UUID invoiceLineId,
+    /**
+     * One product row that will appear on the auto-generated BR if a credit
+     * note is issued now. Only products with delivered_qty > 0 show up here:
+     * never-shipped lines cancel without a stock movement.
+     */
+    public record CreditNoteReturnLineDto(
             UUID productId,
             String productName,
             String sku,
             UUID uomId,
-            BigDecimal quantityInvoiced,
-            BigDecimal quantityDelivered,
-            BigDecimal alreadyCredited,
-            BigDecimal maxCreditable,
-            BigDecimal unitPrice,
-            BigDecimal discountPercent,
-            BigDecimal taxRate
+            BigDecimal quantityToReturn
     ) {}
 
-    public record CreditableInvoiceDto(
+    /**
+     * Impact preview shown before validating an avoir total. The UI uses this
+     * to warn the user about (1) how much of the invoice will end up as
+     * customer credit (OVERPAYMENT) because it was already paid, and (2) which
+     * BR will be auto-created for delivered items.
+     */
+    public record CreditNotePreviewDto(
             UUID invoiceId,
             String invoiceNumber,
             UUID customerId,
             String customerName,
             String currency,
-            BigDecimal subtotal,
-            BigDecimal taxAmount,
-            BigDecimal total,
-            List<CreditableLineDto> lines
+            BigDecimal invoiceTotal,
+            BigDecimal alreadyPaidAmount,
+            BigDecimal invoiceBalance,
+            BigDecimal creditNoteAmount,
+            BigDecimal amountToCustomerCredit,
+            boolean willCreateReturnBl,
+            List<CreditNoteReturnLineDto> returnLines,
+            String blockReason
     ) {}
 }

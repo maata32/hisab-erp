@@ -6,6 +6,7 @@ import java.util.UUID;
 
 public record StatementCreditNoteEntry(
         UUID id,
+        UUID invoiceId,
         String number,
         LocalDate issueDate,
         BigDecimal amount,

@@ -1,7 +1,7 @@
 import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { TranslateModule } from '@ngx-translate/core';
 import { MoneyPipe } from '@minierp/shared-i18n';
 import { HttpClient } from '@angular/common/http';
 import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
@@ -13,7 +13,6 @@ import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { CalendarModule } from 'primeng/calendar';
-import { ConfirmationService } from 'primeng/api';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
@@ -69,31 +68,28 @@ interface InvoiceDetail extends Invoice {
   lines: InvoiceLine[];
 }
 
-interface CreditableLine {
-  invoiceLineId: string;
+interface CreditNoteReturnLine {
   productId: string;
   productName: string;
   sku: string;
   uomId: string;
-  quantityInvoiced: number;
-  quantityDelivered: number;
-  alreadyCredited: number;
-  maxCreditable: number;
-  unitPrice: number;
-  discountPercent: number;
-  taxRate: number;
+  quantityToReturn: number;
 }
 
-interface CreditableInvoice {
+interface CreditNotePreview {
   invoiceId: string;
   invoiceNumber: string;
   customerId: string;
   customerName: string;
   currency: string;
-  subtotal: number;
-  taxAmount: number;
-  total: number;
-  lines: CreditableLine[];
+  invoiceTotal: number;
+  alreadyPaidAmount: number;
+  invoiceBalance: number;
+  creditNoteAmount: number;
+  amountToCustomerCredit: number;
+  willCreateReturnBl: boolean;
+  returnLines: CreditNoteReturnLine[];
+  blockReason: string | null;
 }
 
 interface CustomerOpt {
@@ -116,6 +112,13 @@ interface ProductStockBreakdown {
   warehouses: { warehouseId: string; warehouseCode: string; warehouseName: string; isDefault: boolean; qtyAvailable: number }[];
 }
 
+interface WarehouseOpt {
+  id: string;
+  code: string;
+  name: string;
+  defaultWarehouse: boolean;
+}
+
 interface LineForm {
   productId: string | null;
   uomId: string | null;
@@ -123,20 +126,6 @@ interface LineForm {
   unitPrice: number;
   discountPercent: number;
   taxRate: number;
-}
-
-interface CreditLineForm {
-  invoiceLineId: string;
-  productId: string;
-  productName: string;
-  sku: string;
-  quantityInvoiced: number;
-  quantityDelivered: number;
-  maxCreditable: number;
-  unitPrice: number;
-  discountPercent: number;
-  taxRate: number;
-  quantity: number;
 }
 
 type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast';
@@ -197,7 +186,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                 {{ inv.balance | money }} {{ inv.currency }}
               </td>
               <td>
-                <p-tag [value]="'sales.statuses.' + inv.status | translate" [severity]="statusSeverity(inv.status)" />
+                @if (inv.status === 'DRAFT' || inv.status === 'CANCELLED' || inv.status === 'REFUNDED') {
+                  <p-tag [value]="'sales.statuses.' + inv.status | translate" [severity]="statusSeverity(inv.status)" />
+                }
                 @if (inv.deliveryStatus && inv.deliveryStatus !== 'NONE') {
                   <p-tag [value]="'invoices.deliveryStatuses.' + inv.deliveryStatus | translate"
                          [severity]="deliveryStatusSeverity(inv.deliveryStatus)"
@@ -285,6 +276,23 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                      [placeholder]="'invoices.paymentTermsHint' | translate" />
             </div>
           </div>
+
+          @if (totalAvailableCredit() > 0) {
+            <div class="p-3 rounded border border-sky-300 bg-sky-50 text-sm text-sky-900 flex items-start gap-2">
+              <i class="pi pi-info-circle mt-0.5"></i>
+              <div class="flex-1">
+                <label class="flex items-start gap-2 cursor-pointer">
+                  <input type="checkbox" [(ngModel)]="applyCreditModel" class="mt-1" />
+                  <span>
+                    <strong>{{ 'invoices.creditBanner.title' | translate:{
+                      amount: totalAvailableCredit(), currency: form.currency
+                    } }}</strong>
+                    <span class="block text-xs text-sky-700 mt-0.5">{{ 'invoices.creditBanner.hint' | translate }}</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+          }
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'common.notes' | translate }}</label>
             <input pInputText [(ngModel)]="form.notes" class="w-full" />
@@ -377,6 +385,47 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   (click)="dialogOpen = false" [disabled]="saving()"></button>
           <button pButton [label]="'common.save' | translate" icon="pi pi-check"
                   (click)="save()" [loading]="saving()"></button>
+        </ng-template>
+      </p-dialog>
+
+      <!-- Delivery choice dialog (opens after Enregistrer) -->
+      <p-dialog [(visible)]="deliveryDialogOpen" [modal]="true" [style]="{ width: '480px' }"
+                [header]="'invoices.deliveryChoice.title' | translate" [closable]="!saving()">
+        <div class="space-y-3">
+          <p class="text-sm text-gray-700">{{ 'invoices.deliveryChoice.question' | translate }}</p>
+          <div class="space-y-2">
+            <label class="flex items-start gap-2 cursor-pointer">
+              <input type="radio" name="deliveryMode" [(ngModel)]="deliveryMode" value="immediate"
+                     class="mt-1" />
+              <span>
+                <span class="font-medium">{{ 'invoices.deliveryChoice.immediate' | translate }}</span>
+                <span class="block text-xs text-gray-500">{{ 'invoices.deliveryChoice.immediateHint' | translate }}</span>
+              </span>
+            </label>
+            <label class="flex items-start gap-2 cursor-pointer">
+              <input type="radio" name="deliveryMode" [(ngModel)]="deliveryMode" value="deferred"
+                     class="mt-1" />
+              <span>
+                <span class="font-medium">{{ 'invoices.deliveryChoice.deferred' | translate }}</span>
+                <span class="block text-xs text-gray-500">{{ 'invoices.deliveryChoice.deferredHint' | translate }}</span>
+              </span>
+            </label>
+          </div>
+          @if (deliveryMode === 'immediate' && warehouses().length > 1) {
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'invoices.deliveryChoice.warehouse' | translate }} *</label>
+              <p-dropdown [(ngModel)]="deliveryWarehouseId" [options]="warehouses()"
+                          optionLabel="name" optionValue="id" appendTo="body"
+                          styleClass="w-full" />
+            </div>
+          }
+        </div>
+        <ng-template pTemplate="footer">
+          <button pButton [label]="'common.cancel' | translate" class="p-button-text"
+                  (click)="cancelDeliveryDialog()" [disabled]="saving()"></button>
+          <button pButton [label]="'common.confirm' | translate" icon="pi pi-check"
+                  (click)="confirmDeliveryChoice()" [loading]="saving()"
+                  [disabled]="deliveryMode === 'immediate' && !deliveryWarehouseId"></button>
         </ng-template>
       </p-dialog>
 
@@ -488,108 +537,102 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           </div>
         }
         <ng-template pTemplate="footer">
-          <button pButton [label]="'common.close' | translate" class="p-button-text"
-                  (click)="detailOpen.set(false)"></button>
-          @if (detail(); as inv) {
-            <button pButton icon="pi pi-print" [label]="'common.print' | translate"
-                    class="p-button-text"
-                    (click)="printPdf('/api/v1/invoices/' + inv.id + '/pdf')"></button>
-            @if (canCreateDelivery(inv)) {
-              <button pButton icon="pi pi-truck" [label]="'invoices.createDelivery' | translate"
-                      class="p-button-info"
-                      (click)="goToCreateDelivery(inv.id)"></button>
+          <div class="flex justify-between items-center gap-3 w-full">
+            <button pButton [label]="'common.close' | translate" class="p-button-text"
+                    (click)="detailOpen.set(false)"></button>
+            @if (detail(); as inv) {
+              <div class="flex items-center gap-2 flex-wrap justify-end">
+                <button pButton icon="pi pi-print" [label]="'common.print' | translate"
+                        class="p-button-text"
+                        (click)="printPdf('/api/v1/invoices/' + inv.id + '/pdf')"></button>
+                <button pButton icon="pi pi-copy" [label]="'invoices.duplicate' | translate"
+                        class="p-button-text"
+                        [loading]="duplicating()"
+                        (click)="duplicateInvoice(inv)"></button>
+                @if (canCreateDelivery(inv)) {
+                  <button pButton icon="pi pi-truck" [label]="'invoices.createDelivery' | translate"
+                          class="p-button-info"
+                          (click)="goToCreateDelivery(inv.id)"></button>
+                }
+                @if (canCreatePayment(inv)) {
+                  <button pButton icon="pi pi-wallet" [label]="'invoices.createPayment' | translate"
+                          class="p-button-success"
+                          (click)="goToCreatePayment(inv.id)"></button>
+                }
+                @if (canCreateCreditNote(inv.status)) {
+                  <button pButton icon="pi pi-undo" [label]="'invoices.createCreditNote' | translate"
+                          class="p-button-warning"
+                          (click)="openCreateCreditNote(inv)"></button>
+                }
+              </div>
             }
-            @if (canCreatePayment(inv)) {
-              <button pButton icon="pi pi-wallet" [label]="'invoices.createPayment' | translate"
-                      class="p-button-success"
-                      (click)="goToCreatePayment(inv.id)"></button>
-            }
-            @if (canCreateCreditNote(inv.status)) {
-              <button pButton icon="pi pi-undo" [label]="'invoices.createCreditNote' | translate"
-                      class="p-button-warning"
-                      (click)="openCreateCreditNote(inv)"></button>
-            }
-          }
+          </div>
         </ng-template>
       </p-dialog>
 
-      <!-- Create credit note modal -->
-      <p-dialog [(visible)]="creditOpen" [modal]="true" [style]="{ width: '1000px' }"
-                [header]="('creditNotes.createTitle' | translate:{ number: creditable()?.invoiceNumber || '' })"
+      <!-- Create credit note modal (total avoir, preview-only) -->
+      <p-dialog [(visible)]="creditOpen" [modal]="true" [style]="{ width: '640px' }"
+                [header]="('creditNotes.createTitle' | translate:{ number: creditPreview()?.invoiceNumber || '' })"
                 [closable]="!savingCredit()">
-        @if (creditable(); as ci) {
+        @if (creditPreview(); as cp) {
           <div class="space-y-3">
-            <div>
-              <label class="block text-sm font-medium mb-1">{{ 'creditNotes.reason' | translate }}</label>
-              <input pInputText [(ngModel)]="creditForm.reason" class="w-full"
-                     [placeholder]="'creditNotes.reasonPlaceholder' | translate" />
-            </div>
+            @if (cp.blockReason) {
+              <div class="p-3 rounded border border-red-300 bg-red-50 text-sm text-red-800">
+                <i class="pi pi-ban mr-1"></i>
+                {{ ('creditNotes.blocked.' + cp.blockReason) | translate }}
+              </div>
+            } @else {
+              <div class="text-sm space-y-1">
+                <div class="flex justify-between"><span class="text-gray-500">{{ 'creditNotes.preview.invoiceTotal' | translate }}</span>
+                  <span class="font-medium">{{ cp.invoiceTotal | money }} {{ cp.currency }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">{{ 'creditNotes.preview.alreadyPaid' | translate }}</span>
+                  <span>{{ cp.alreadyPaidAmount | money }} {{ cp.currency }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">{{ 'creditNotes.preview.balance' | translate }}</span>
+                  <span>{{ cp.invoiceBalance | money }} {{ cp.currency }}</span></div>
+                <div class="flex justify-between border-t pt-2 mt-1">
+                  <span class="font-medium">{{ 'creditNotes.preview.creditAmount' | translate }}</span>
+                  <span class="font-bold text-red-700">{{ cp.creditNoteAmount | money }} {{ cp.currency }}</span></div>
+              </div>
 
-            <div class="border rounded">
-              <table class="w-full text-sm">
-                <thead class="bg-gray-50 text-gray-600">
-                  <tr>
-                    <th class="text-left p-2">{{ 'creditNotes.lineCol.product' | translate }}</th>
-                    <th class="text-right p-2 w-24">{{ 'creditNotes.lineCol.invoicedQty' | translate }}</th>
-                    <th class="text-right p-2 w-24">{{ 'creditNotes.lineCol.deliveredQty' | translate }}</th>
-                    <th class="text-right p-2 w-24">{{ 'creditNotes.lineCol.alreadyCredited' | translate }}</th>
-                    <th class="text-right p-2 w-24">{{ 'creditNotes.lineCol.creditableQty' | translate }}</th>
-                    <th class="text-right p-2 w-28">{{ 'creditNotes.lineCol.unitPrice' | translate }}</th>
-                    <th class="text-right p-2 w-28">{{ 'creditNotes.lineCol.quantity' | translate }}</th>
-                    <th class="text-right p-2 w-28">{{ 'creditNotes.lineCol.lineTotal' | translate }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (l of creditForm.lines; track l.invoiceLineId) {
-                    <tr class="border-t" [class.opacity-50]="l.maxCreditable === 0">
-                      <td class="p-2">
-                        <div class="font-medium">{{ l.productName }}</div>
-                        <div class="text-xs text-gray-500 font-mono">{{ l.sku }}</div>
-                      </td>
-                      <td class="p-2 text-right text-gray-500">{{ l.quantityInvoiced }}</td>
-                      <td class="p-2 text-right text-gray-500">{{ l.quantityDelivered }}</td>
-                      <td class="p-2 text-right text-gray-500">{{ creditableAlready(l.invoiceLineId) }}</td>
-                      <td class="p-2 text-right font-medium">{{ l.maxCreditable }}</td>
-                      <td class="p-2 text-right text-gray-500">{{ l.unitPrice | money }}</td>
-                      <td class="p-1">
-                        <p-inputNumber [(ngModel)]="l.quantity" [min]="0" [max]="l.maxCreditable"
-                                       [minFractionDigits]="0" [maxFractionDigits]="3"
-                                       [disabled]="l.maxCreditable === 0"
-                                       inputStyleClass="w-full text-right" styleClass="w-full" />
-                      </td>
-                      <td class="p-2 text-right font-medium">{{ creditLineTotal(l) | money }}</td>
-                    </tr>
-                  }
-                </tbody>
-                <tfoot class="bg-gray-50 border-t">
-                  <tr>
-                    <td colspan="7" class="p-2 text-right">{{ 'creditNotes.totals.subtotal' | translate }}</td>
-                    <td class="p-2 text-right font-medium">{{ creditSubtotal() | money }} {{ ci.currency }}</td>
-                  </tr>
-                  @if (creditTaxAmount() > 0) {
-                    <tr>
-                      <td colspan="7" class="p-2 text-right">{{ 'creditNotes.totals.tax' | translate }}</td>
-                      <td class="p-2 text-right">{{ creditTaxAmount() | money }} {{ ci.currency }}</td>
-                    </tr>
-                  }
-                  <tr>
-                    <td colspan="7" class="p-2 text-right font-bold">{{ 'creditNotes.totals.total' | translate }}</td>
-                    <td class="p-2 text-right font-bold text-red-700">{{ creditTotal() | money }} {{ ci.currency }}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+              @if (cp.amountToCustomerCredit > 0) {
+                <div class="p-3 rounded border border-amber-300 bg-amber-50 text-sm text-amber-900">
+                  <i class="pi pi-exclamation-triangle mr-1"></i>
+                  {{ 'creditNotes.preview.paidWarning' | translate:{
+                      amount: cp.amountToCustomerCredit, currency: cp.currency
+                  } }}
+                </div>
+              }
 
-            @if (creditLinesInvalid()) {
-              <div class="text-xs text-red-600">{{ 'creditNotes.atLeastOneLineQty' | translate }}</div>
+              @if (cp.willCreateReturnBl) {
+                <div class="p-3 rounded border border-amber-300 bg-amber-50 text-sm text-amber-900">
+                  <div class="flex items-center gap-1 mb-1">
+                    <i class="pi pi-truck"></i>
+                    <strong>{{ 'creditNotes.preview.brWarningHeader' | translate }}</strong>
+                  </div>
+                  <ul class="list-disc ml-5">
+                    @for (rl of cp.returnLines; track rl.productId) {
+                      <li>{{ rl.productName }} <span class="font-mono text-xs">({{ rl.sku }})</span> — {{ rl.quantityToReturn }}</li>
+                    }
+                  </ul>
+                </div>
+              }
+
+              <div>
+                <label class="block text-sm font-medium mb-1">{{ 'creditNotes.reason' | translate }}</label>
+                <input pInputText [(ngModel)]="creditForm.reason" class="w-full"
+                       [placeholder]="'creditNotes.reasonPlaceholder' | translate" />
+              </div>
             }
           </div>
         }
         <ng-template pTemplate="footer">
           <button pButton [label]="'common.cancel' | translate" class="p-button-text"
                   (click)="creditOpen.set(false)" [disabled]="savingCredit()"></button>
-          <button pButton [label]="'common.save' | translate" icon="pi pi-check"
-                  (click)="saveCreditNote()" [loading]="savingCredit()"></button>
+          <button pButton [label]="'creditNotes.confirm' | translate" icon="pi pi-check"
+                  class="p-button-warning"
+                  (click)="saveCreditNote()"
+                  [disabled]="!creditPreview() || !!creditPreview()?.blockReason"
+                  [loading]="savingCredit()"></button>
         </ng-template>
       </p-dialog>
     </div>
@@ -597,8 +640,6 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
 })
 export class InvoiceListPage implements OnInit {
   private http = inject(HttpClient);
-  private i18n = inject(TranslateService);
-  private confirmation = inject(ConfirmationService);
   private router = inject(Router);
 
   protected invoices = signal<Invoice[]>([]);
@@ -625,6 +666,18 @@ export class InvoiceListPage implements OnInit {
   protected submitted = signal(false);
   protected dialogOpen = false;
 
+  // Post-save delivery choice dialog
+  protected warehouses = signal<WarehouseOpt[]>([]);
+  protected deliveryDialogOpen = signal(false);
+  protected deliveryMode: 'deferred' | 'immediate' = 'immediate';
+  protected deliveryWarehouseId: string | null = null;
+  private pendingInvoicePayload: Record<string, unknown> | null = null;
+
+  // Customer credit auto-application (Phase 2 AllocationEngine). Populated
+  // when the user picks a customer; rows are CUSTOMER_CREDIT open items.
+  protected availableCredits = signal<{ sourceId: string; amountOpen: number }[]>([]);
+  protected applyCreditModel = true;
+
   protected detailOpen = signal(false);
   protected detail = signal<InvoiceDetail | null>(null);
   protected deliveries = signal<InvoiceDelivery[]>([]);
@@ -632,10 +685,11 @@ export class InvoiceListPage implements OnInit {
   protected taxEnabled = signal(true);
 
   protected creditOpen = signal(false);
-  protected creditable = signal<CreditableInvoice | null>(null);
+  protected creditPreview = signal<CreditNotePreview | null>(null);
   protected savingCredit = signal(false);
-  protected creditSubmitted = signal(false);
-  protected creditForm: { reason: string; lines: CreditLineForm[] } = { reason: '', lines: [] };
+  protected creditForm: { reason: string } = { reason: '' };
+
+  protected duplicating = signal(false);
 
   protected customerInvalid(): boolean { return this.submitted() && !this.form.customerId; }
   protected issueDateInvalid(): boolean { return this.submitted() && !this.form.issueDate; }
@@ -644,11 +698,6 @@ export class InvoiceListPage implements OnInit {
   protected lineProductInvalid(line: LineForm): boolean { return this.submitted() && !line.productId; }
   protected lineQtyInvalid(line: LineForm): boolean {
     return this.submitted() && (line.quantity == null || line.quantity <= 0);
-  }
-
-  protected creditLinesInvalid(): boolean {
-    return this.creditSubmitted()
-        && !this.creditForm.lines.some(l => (l.quantity ?? 0) > 0);
   }
 
   protected form: {
@@ -666,6 +715,16 @@ export class InvoiceListPage implements OnInit {
     this.loadCustomers();
     this.loadProducts();
     this.loadSettings();
+    this.loadWarehouses();
+  }
+
+  private async loadWarehouses() {
+    try {
+      const list = await firstValueFrom(this.http.get<WarehouseOpt[]>('/api/v1/inventory/warehouses'));
+      this.warehouses.set(list ?? []);
+    } catch {
+      this.warehouses.set([]);
+    }
   }
 
   private async loadSettings() {
@@ -677,16 +736,17 @@ export class InvoiceListPage implements OnInit {
   }
 
   protected isOverdue(inv: Invoice): boolean {
-    return inv.status !== 'PAID' && inv.status !== 'CANCELLED' && new Date(inv.dueDate) < new Date();
+    return inv.status !== 'PAID' && inv.status !== 'CANCELLED' && inv.status !== 'REFUNDED'
+        && new Date(inv.dueDate) < new Date();
   }
 
   protected statusSeverity(status: string): Severity {
-    return ({ DRAFT: 'secondary', ISSUED: 'info', PARTIAL: 'warning', PAID: 'success', OVERDUE: 'danger', CANCELLED: 'secondary' } as Record<string, Severity>)[status] ?? 'secondary';
+    return ({ DRAFT: 'secondary', ISSUED: 'info', PARTIAL: 'warning', PAID: 'success', OVERDUE: 'danger', CANCELLED: 'secondary', REFUNDED: 'danger' } as Record<string, Severity>)[status] ?? 'secondary';
   }
 
   protected deliveryStatusSeverity(status: string): Severity {
     return ({
-      NONE: 'secondary', PARTIALLY_DELIVERED: 'warning', DELIVERED: 'success',
+      NONE: 'secondary', PARTIALLY_DELIVERED: 'warning', DELIVERED: 'success', RETURNED: 'danger',
     } as Record<string, Severity>)[status] ?? 'secondary';
   }
 
@@ -698,11 +758,12 @@ export class InvoiceListPage implements OnInit {
   }
 
   protected canCreateCreditNote(status: string): boolean {
-    return status !== 'CANCELLED' && status !== 'DRAFT';
+    return status !== 'CANCELLED' && status !== 'DRAFT' && status !== 'REFUNDED';
   }
 
   protected canCreateDelivery(inv: { status: string; deliveryStatus: string }): boolean {
-    return inv.status !== 'DRAFT' && inv.status !== 'CANCELLED' && inv.deliveryStatus !== 'DELIVERED';
+    return inv.status !== 'DRAFT' && inv.status !== 'CANCELLED' && inv.status !== 'REFUNDED'
+        && inv.deliveryStatus !== 'DELIVERED' && inv.deliveryStatus !== 'RETURNED';
   }
 
   protected goToCreateDelivery(invoiceId: string) {
@@ -710,7 +771,8 @@ export class InvoiceListPage implements OnInit {
   }
 
   protected canCreatePayment(inv: { status: string; balance: number }): boolean {
-    return inv.status !== 'DRAFT' && inv.status !== 'CANCELLED' && Number(inv.balance) > 0;
+    return inv.status !== 'DRAFT' && inv.status !== 'CANCELLED' && inv.status !== 'REFUNDED'
+        && Number(inv.balance) > 0;
   }
 
   protected goToCreatePayment(invoiceId: string) {
@@ -758,104 +820,38 @@ export class InvoiceListPage implements OnInit {
   }
 
   protected async openCreateCreditNote(inv: InvoiceDetail) {
-    this.creditable.set(null);
-    this.creditSubmitted.set(false);
-    this.creditForm = { reason: '', lines: [] };
+    this.creditPreview.set(null);
+    this.creditForm = { reason: '' };
     this.creditOpen.set(true);
     try {
-      const ci = await firstValueFrom(
-        this.http.get<CreditableInvoice>(`/api/v1/invoices/${inv.id}/creditable`)
+      const cp = await firstValueFrom(
+        this.http.get<CreditNotePreview>(`/api/v1/invoices/${inv.id}/credit-note-preview`)
       );
-      this.creditable.set(ci);
-      this.creditForm = {
-        reason: '',
-        lines: ci.lines.map(l => ({
-          invoiceLineId: l.invoiceLineId,
-          productId: l.productId,
-          productName: l.productName,
-          sku: l.sku,
-          quantityInvoiced: Number(l.quantityInvoiced),
-          quantityDelivered: Number(l.quantityDelivered),
-          maxCreditable: Number(l.maxCreditable),
-          unitPrice: Number(l.unitPrice),
-          discountPercent: Number(l.discountPercent),
-          taxRate: Number(l.taxRate),
-          quantity: 0,
-        })),
-      };
+      this.creditPreview.set(cp);
     } catch {
-      this.creditable.set(null);
+      this.creditPreview.set(null);
     }
   }
 
-  protected creditableAlready(lineId: string): number {
-    return Number(this.creditable()?.lines.find(x => x.invoiceLineId === lineId)?.alreadyCredited ?? 0);
-  }
-
-  protected creditLineTotal(l: CreditLineForm): number {
-    const qty = Number(l.quantity || 0);
-    const disc = Number(l.discountPercent || 0);
-    return +(qty * Number(l.unitPrice) * (1 - disc / 100)).toFixed(2);
-  }
-
-  protected creditSubtotal(): number {
-    return +this.creditForm.lines.reduce((s, l) => s + this.creditLineTotal(l), 0).toFixed(2);
-  }
-
-  protected creditTaxAmount(): number {
-    const ci = this.creditable();
-    if (!ci || ci.subtotal <= 0 || ci.taxAmount <= 0) return 0;
-    return +(this.creditSubtotal() * ci.taxAmount / ci.subtotal).toFixed(2);
-  }
-
-  protected creditTotal(): number {
-    return +(this.creditSubtotal() + this.creditTaxAmount()).toFixed(2);
+  protected async duplicateInvoice(inv: InvoiceDetail) {
+    this.duplicating.set(true);
+    try {
+      await firstValueFrom(this.http.post(`/api/v1/invoices/${inv.id}/duplicate`, {}));
+      this.detailOpen.set(false);
+      this.reload();
+    } finally {
+      this.duplicating.set(false);
+    }
   }
 
   protected async saveCreditNote() {
-    this.creditSubmitted.set(true);
-    if (this.creditLinesInvalid()) return;
-    const ci = this.creditable();
-    if (!ci) return;
-
-    const overflowing = this.creditForm.lines
-        .map(l => {
-          const qty = Number(l.quantity || 0);
-          const notDelivered = Math.max(0, Number(l.quantityInvoiced) - Number(l.quantityDelivered));
-          const returnQty = Math.max(0, qty - notDelivered);
-          return { line: l, returnQty };
-        })
-        .filter(r => r.returnQty > 0);
-
-    if (overflowing.length > 0) {
-      const lineList = overflowing
-          .map(r => `• ${r.line.productName} (${r.line.sku}) — ${r.returnQty}`)
-          .join('\n');
-      this.confirmation.confirm({
-        message: this.i18n.instant('creditNotes.returnDeliveryWarning.message', { lines: lineList }),
-        header: this.i18n.instant('creditNotes.returnDeliveryWarning.header'),
-        icon: 'pi pi-exclamation-triangle',
-        acceptLabel: this.i18n.instant('common.confirm'),
-        rejectLabel: this.i18n.instant('common.cancel'),
-        accept: () => this.submitCreditNote(ci),
-      });
-      return;
-    }
-
-    await this.submitCreditNote(ci);
-  }
-
-  private async submitCreditNote(ci: CreditableInvoice) {
+    const cp = this.creditPreview();
+    if (!cp || cp.blockReason) return;
     this.savingCredit.set(true);
     try {
-      const payload = {
-        reason: this.creditForm.reason || null,
-        lines: this.creditForm.lines
-            .filter(l => (l.quantity ?? 0) > 0)
-            .map(l => ({ invoiceLineId: l.invoiceLineId, quantity: l.quantity })),
-      };
+      const payload = { reason: this.creditForm.reason || null };
       await firstValueFrom(
-        this.http.post(`/api/v1/invoices/${ci.invoiceId}/credit-notes`, payload)
+        this.http.post(`/api/v1/invoices/${cp.invoiceId}/credit-notes`, payload)
       );
       this.creditOpen.set(false);
       this.detailOpen.set(false);
@@ -874,6 +870,32 @@ export class InvoiceListPage implements OnInit {
   protected onCustomerChange() {
     const c = this.customers().find(x => x.id === this.form.customerId);
     if (c && !this.form.currency) this.form.currency = c.currency;
+    this.refreshAvailableCredits();
+  }
+
+  private async refreshAvailableCredits() {
+    if (!this.form.customerId) {
+      this.availableCredits.set([]);
+      return;
+    }
+    try {
+      const items = await firstValueFrom(
+        this.http.get<{ sourceType: string; sourceId: string; amountOpen: number }[]>(
+          `/api/v1/allocations/open-items?partyId=${this.form.customerId}`)
+      );
+      const credits = (items ?? [])
+        .filter(i => i.sourceType === 'CUSTOMER_CREDIT')
+        .map(i => ({ sourceId: i.sourceId, amountOpen: Number(i.amountOpen) }));
+      this.availableCredits.set(credits);
+      // Default behaviour: pre-check "apply credit" only when the customer has credit.
+      this.applyCreditModel = credits.length > 0;
+    } catch {
+      this.availableCredits.set([]);
+    }
+  }
+
+  protected totalAvailableCredit(): number {
+    return this.availableCredits().reduce((s, c) => s + c.amountOpen, 0);
   }
 
   protected addLine() {
@@ -929,33 +951,86 @@ export class InvoiceListPage implements OnInit {
         && this.form.lines.every(l => !!l.productId && (l.quantity || 0) > 0);
   }
 
-  protected async save() {
+  protected save() {
     this.submitted.set(true);
     if (!this.canSave()) return;
+    this.pendingInvoicePayload = {
+      customerId: this.form.customerId,
+      quoteId: null,
+      issueDate: this.toIsoDate(this.form.issueDate),
+      dueDate: this.toIsoDate(this.form.dueDate),
+      paymentTerms: this.form.paymentTerms || null,
+      currency: this.form.currency || null,
+      notes: this.form.notes || null,
+      lines: this.form.lines.map(l => ({
+        productId: l.productId,
+        uomId: l.uomId,
+        quantity: l.quantity,
+        unitPrice: l.unitPrice,
+        discountPercent: l.discountPercent,
+      })),
+    };
+    // Default delivery mode: immediate. Preselect the default warehouse when
+    // there are multiple warehouses so the dropdown is never empty.
+    this.deliveryMode = 'immediate';
+    const ws = this.warehouses();
+    this.deliveryWarehouseId = ws.length > 0
+        ? (ws.find(w => w.defaultWarehouse) ?? ws[0]).id
+        : null;
+    this.deliveryDialogOpen.set(true);
+  }
+
+  protected async confirmDeliveryChoice() {
+    if (!this.pendingInvoicePayload) return;
     this.saving.set(true);
     try {
-      const payload = {
-        customerId: this.form.customerId,
-        quoteId: null,
-        issueDate: this.toIsoDate(this.form.issueDate),
-        dueDate: this.toIsoDate(this.form.dueDate),
-        paymentTerms: this.form.paymentTerms || null,
-        currency: this.form.currency || null,
-        notes: this.form.notes || null,
-        lines: this.form.lines.map(l => ({
-          productId: l.productId,
-          uomId: l.uomId,
-          quantity: l.quantity,
-          unitPrice: l.unitPrice,
-          discountPercent: l.discountPercent,
-        })),
-      };
-      await firstValueFrom(this.http.post('/api/v1/invoices', payload));
+      let created: { id: string };
+      if (this.deliveryMode === 'immediate') {
+        if (!this.deliveryWarehouseId) return;
+        created = await firstValueFrom(this.http.post<{ id: string }>(
+          '/api/v1/invoices/with-immediate-delivery', {
+            invoice: this.pendingInvoicePayload,
+            warehouseId: this.deliveryWarehouseId,
+          }));
+      } else {
+        created = await firstValueFrom(this.http.post<{ id: string }>(
+          '/api/v1/invoices', this.pendingInvoicePayload));
+      }
+      if (this.applyCreditModel && this.availableCredits().length > 0 && created?.id) {
+        await this.applyCreditsToCreatedInvoice(created.id);
+      }
+      this.deliveryDialogOpen.set(false);
       this.dialogOpen = false;
+      this.pendingInvoicePayload = null;
+      this.availableCredits.set([]);
       this.reload();
     } finally {
       this.saving.set(false);
     }
+  }
+
+  private async applyCreditsToCreatedInvoice(invoiceId: string) {
+    // FIFO walk: consume each credit in order, stop once the invoice would be
+    // fully covered. The backend caps to min(invoice.balance, credit.remaining,
+    // amount) so requesting the full credit amount is safe.
+    for (const credit of this.availableCredits()) {
+      if (credit.amountOpen <= 0) continue;
+      try {
+        await firstValueFrom(this.http.post('/api/v1/allocations/credit-to-invoice', {
+          creditId: credit.sourceId,
+          invoiceId,
+          amount: credit.amountOpen,
+        }));
+      } catch {
+        // Best-effort: a single credit failure shouldn't block the invoice
+        // from existing. The user can apply remaining credits manually later.
+      }
+    }
+  }
+
+  protected cancelDeliveryDialog() {
+    this.deliveryDialogOpen.set(false);
+    this.pendingInvoicePayload = null;
   }
 
   private toIsoDate(d: Date): string {

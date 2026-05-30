@@ -31,6 +31,8 @@
   table.mvts thead tr { background: #1e40af; color: white; }
   table.mvts thead th { padding: 6px 8px; text-align: left; font-size: 10px; font-weight: bold; }
   table.mvts tbody td { padding: 5px 8px; border-bottom: 1px solid #e5e7eb; }
+  /* Each row stays on a single page so document numbers don't break across page boundaries. */
+  table.mvts tbody tr { page-break-inside: avoid; }
   table.mvts tbody tr.invoice { background: #e2e8f0; }
   table.mvts tbody tr.lines-row td { padding: 4px 12px; background: #f1f5f9; }
   table.lines { width: 100%; border-collapse: collapse; margin: 2px 0 4px 0; }
@@ -116,6 +118,12 @@
     <div class="balance-card due">
       <div class="label">Solde dû</div>
       <div class="value" th:text="${#numbers.formatDecimal(balance.balance,1,decimals)} + ' ' + ${currency}"></div>
+    </div>
+    <div class="balance-card" th:if="${balance.availableCredit != null and balance.availableCredit > 0}"
+         style="background:#fef3c7;">
+      <div class="label">Crédit disponible</div>
+      <div class="value" style="color:#854d0e;"
+           th:text="${#numbers.formatDecimal(balance.availableCredit,1,decimals)} + ' ' + ${currency}"></div>
     </div>
     <div class="balance-card overdue" th:if="${balance.overdue != null and balance.overdue > 0}">
       <div class="label">En retard</div>
