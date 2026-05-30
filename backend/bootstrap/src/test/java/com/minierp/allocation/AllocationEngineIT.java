@@ -133,6 +133,15 @@ class AllocationEngineIT {
 
             assertThat(credit.sign()).isEqualTo(OpenItem.Sign.POSITIVE);
             assertThat(credit.amountOpen()).isEqualByComparingTo("400.00");
+
+            // #4 regression guard: the payment itself must be FULLY consumed
+            // (100 invoice + 400 surplus credit = 500), i.e. NOT surface as an
+            // open PAYMENT item. A naive GREATEST-removal that summed only the
+            // invoice allocations (100) would wrongly leave 400 open here AND
+            // also count the 400 credit — double-counting the surplus.
+            assertThat(items.stream().filter(i -> "PAYMENT".equals(i.sourceType())))
+                    .as("payment with surplus→credit has no residual")
+                    .isEmpty();
         }
 
         @Test

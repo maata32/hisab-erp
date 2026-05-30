@@ -25,11 +25,18 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Phase 1 read-only implementation of {@link AllocationEngine}. Computes open
- * items per party by querying the existing source tables (invoices, payments,
- * customer_credits, purchase_invoices) and netting against the legacy
- * allocation tables ({@code payment_allocations}, {@code customer_credit_usages})
- * plus the new {@code allocations} table.
+ * Read-only implementation of {@link AllocationEngine}. Computes open items per
+ * party by querying the source-of-truth tables (invoices, payments,
+ * customer_credits, purchase_invoices) and netting against the unified
+ * {@code allocations} table.
+ *
+ * <p>The {@code GREATEST(legacy, new)} transition hack is gone (#4): the
+ * {@code allocations} table is authoritative for the invoice-settling part of a
+ * payment's residual. The legacy {@code payment_allocations} table is now read
+ * only for the one surplus path it modeled but {@code allocations} never did —
+ * the {@code CUSTOMER_BALANCE} shortcut (dead in the current UI, kept for
+ * historical rows). {@code customer_credit_usages} is no longer read at all
+ * (credit residual is the authoritative {@code customer_credits.remaining_amount}).</p>
  *
  * <p>Customer side only for Phase 1. Supplier side (purchase invoices,
  * supplier payments) will land alongside the Phase 2 UI refactor.</p>
@@ -318,21 +325,33 @@ class AllocationEngineImpl implements AllocationEngine {
 
     private List<OpenItem> openPayments(UUID tenant, UUID partyId) {
         // Customer payments that brought cash in and still have unallocated
-        // residual. Phase 5 double-writes every confirm allocation into BOTH
-        // payment_allocations AND allocations, so summing both would
-        // double-count. GREATEST(legacy, new) handles every transition phase:
-        // both equal during double-write, legacy only for pre-engine rows,
-        // new only for direct engine writes (e.g. applyCreditToRefund).
+        // residual. The unified `allocations` table is now authoritative for the
+        // invoice-settling part (kept in sync by the Phase-5 double-write, the
+        // 0052 backfill, and the #1 refund soft-void — reversed rows excluded).
+        //
+        // A payment's amount is consumed by exactly three things, each read from
+        // its own source of truth — no GREATEST hack, no double-count:
+        //   1. invoice-settling allocations (active rows in `allocations`);
+        //   2. surplus routed to a customer credit, materialized on
+        //      customer_credits.source_payment_id (initial_amount is immutable,
+        //      so it reflects what the payment minted even after the credit is
+        //      spent);
+        //   3. the legacy CUSTOMER_BALANCE surplus shortcut — the only path not
+        //      modeled in `allocations`. Dead in the current UI (surplus now
+        //      always goes to CUSTOMER_CREDIT) but kept here so historical rows
+        //      don't regress.
         List<OpenItem> out = new ArrayList<>();
         jdbc.query("""
                 SELECT p.id, p.number, p.payment_date, p.amount, p.status,
-                       p.amount - GREATEST(
-                           COALESCE((SELECT SUM(allocated_amount) FROM payment_allocations
-                                     WHERE payment_id = p.id), 0),
-                           COALESCE((SELECT SUM(amount) FROM allocations
-                                     WHERE positive_type = 'PAYMENT' AND positive_id = p.id
-                                       AND reversed_at IS NULL), 0)
-                       ) AS amount_open
+                       p.amount
+                       - COALESCE((SELECT SUM(amount) FROM allocations
+                                   WHERE positive_type = 'PAYMENT' AND positive_id = p.id
+                                     AND reversed_at IS NULL), 0)
+                       - COALESCE((SELECT SUM(initial_amount) FROM customer_credits
+                                   WHERE source_payment_id = p.id), 0)
+                       - COALESCE((SELECT SUM(allocated_amount) FROM payment_allocations
+                                   WHERE payment_id = p.id AND target_type = 'CUSTOMER_BALANCE'), 0)
+                       AS amount_open
                 FROM payments p
                 WHERE p.tenant_id = ? AND p.party_id = ?
                   AND p.status = 'CONFIRMED'
@@ -400,20 +419,22 @@ class AllocationEngineImpl implements AllocationEngine {
     }
 
     private List<OpenItem> openSupplierPayments(UUID tenant, UUID partyId) {
-        // Same GREATEST trick as customer payments — Phase 5 double-writes
-        // every supplier-payment confirm into both tables, so we pick the max
-        // to avoid double-counting during the transition. Only CONFIRMED rows
-        // are real cash movements.
+        // Mirror of openPayments, minus the customer-credit term: supplier
+        // payments never mint credits (grantCredit is customer-only). The amount
+        // is consumed by (1) invoice-settling allocations (authoritative in the
+        // `allocations` table) and (2) the legacy CUSTOMER_BALANCE → supplier
+        // balance surplus shortcut, the only path not modeled in `allocations`.
+        // Only CONFIRMED rows are real cash movements.
         List<OpenItem> out = new ArrayList<>();
         jdbc.query("""
                 SELECT p.id, p.number, p.payment_date, p.amount, p.status,
-                       p.amount - GREATEST(
-                           COALESCE((SELECT SUM(allocated_amount) FROM payment_allocations
-                                     WHERE payment_id = p.id), 0),
-                           COALESCE((SELECT SUM(amount) FROM allocations
-                                     WHERE positive_type = 'SUPPLIER_PAYMENT' AND positive_id = p.id
-                                       AND reversed_at IS NULL), 0)
-                       ) AS amount_open
+                       p.amount
+                       - COALESCE((SELECT SUM(amount) FROM allocations
+                                   WHERE positive_type = 'SUPPLIER_PAYMENT' AND positive_id = p.id
+                                     AND reversed_at IS NULL), 0)
+                       - COALESCE((SELECT SUM(allocated_amount) FROM payment_allocations
+                                   WHERE payment_id = p.id AND target_type = 'CUSTOMER_BALANCE'), 0)
+                       AS amount_open
                 FROM payments p
                 WHERE p.tenant_id = ? AND p.party_id = ?
                   AND p.status = 'CONFIRMED'
