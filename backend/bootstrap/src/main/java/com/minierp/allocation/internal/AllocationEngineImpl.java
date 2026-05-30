@@ -1,6 +1,7 @@
 package com.minierp.allocation.internal;
 
 import com.minierp.allocation.api.AllocationEngine;
+import com.minierp.allocation.api.AllocationHistoryRow;
 import com.minierp.allocation.api.AllocationLine;
 import com.minierp.allocation.api.AllocationProposal;
 import com.minierp.allocation.api.OpenItem;
@@ -18,7 +19,9 @@ import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -61,6 +64,118 @@ class AllocationEngineImpl implements AllocationEngine {
         items.addAll(openSupplierPayments(tenant, partyId));
         items.sort(Comparator.comparing(OpenItem::dateRef));
         return items;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AllocationHistoryRow> findAllocationHistoryByParty(UUID partyId) {
+        UUID tenant = TenantContext.require();
+        // Raw audit rows, newest first. Labels are resolved in a second pass so
+        // a reversed row still shows what it paired even after the fact.
+        List<Object[]> raw = new ArrayList<>();
+        jdbc.query("""
+                SELECT id, positive_type, positive_id, negative_type, negative_id,
+                       amount, allocated_at, notes, reversed_at, reversal_reason
+                FROM allocations
+                WHERE tenant_id = ? AND party_id = ?
+                ORDER BY allocated_at DESC, id DESC
+                """, (ResultSet rs) -> {
+                    raw.add(new Object[]{
+                            rs.getObject("id", UUID.class),
+                            rs.getString("positive_type"),
+                            rs.getObject("positive_id", UUID.class),
+                            rs.getString("negative_type"),
+                            rs.getObject("negative_id", UUID.class),
+                            rs.getBigDecimal("amount"),
+                            toInstant(rs.getTimestamp("allocated_at")),
+                            rs.getString("notes"),
+                            toInstant(rs.getTimestamp("reversed_at")),
+                            rs.getString("reversal_reason")});
+                }, tenant, partyId);
+        if (raw.isEmpty()) return List.of();
+
+        LabelResolver labels = new LabelResolver(tenant);
+        for (Object[] r : raw) {
+            labels.note((String) r[1], (UUID) r[2]);
+            labels.note((String) r[3], (UUID) r[4]);
+        }
+        labels.resolve();
+
+        List<AllocationHistoryRow> out = new ArrayList<>(raw.size());
+        for (Object[] r : raw) {
+            out.add(new AllocationHistoryRow(
+                    (UUID) r[0],
+                    (String) r[1], (UUID) r[2], labels.labelOf((String) r[1], (UUID) r[2]),
+                    (String) r[3], (UUID) r[4], labels.labelOf((String) r[3], (UUID) r[4]),
+                    (BigDecimal) r[5],
+                    (java.time.Instant) r[6],
+                    (String) r[7],
+                    (java.time.Instant) r[8],
+                    (String) r[9]));
+        }
+        return out;
+    }
+
+    /**
+     * Batches label lookups per source-type so the history query stays O(types)
+     * instead of O(rows). Each engine source-type maps to a (table, label-column)
+     * pair; ids are collected first, then resolved in one IN-query per type.
+     */
+    private final class LabelResolver {
+        private final UUID tenant;
+        private final Map<String, java.util.Set<UUID>> idsByType = new HashMap<>();
+        private final Map<String, String> resolved = new HashMap<>();
+
+        LabelResolver(UUID tenant) { this.tenant = tenant; }
+
+        void note(String type, UUID id) {
+            if (type == null || id == null) return;
+            idsByType.computeIfAbsent(type, k -> new java.util.HashSet<>()).add(id);
+        }
+
+        void resolve() {
+            for (var e : idsByType.entrySet()) {
+                String[] tc = tableAndColumn(e.getKey());
+                if (tc == null) continue;
+                List<UUID> ids = new ArrayList<>(e.getValue());
+                String ph = String.join(",", java.util.Collections.nCopies(ids.size(), "?"));
+                List<Object> args = new ArrayList<>(ids);
+                args.add(tenant);
+                jdbc.query("SELECT id, " + tc[1] + " AS label FROM " + tc[0]
+                                + " WHERE id IN (" + ph + ") AND tenant_id = ?",
+                        (ResultSet rs) -> {
+                            // Void block → RowCallbackHandler (per-row, cursor positioned);
+                            // an expression lambda here would bind to ResultSetExtractor.
+                            resolved.put(
+                                    key(e.getKey(), rs.getObject("id", UUID.class)),
+                                    rs.getString("label"));
+                        },
+                        args.toArray());
+            }
+        }
+
+        String labelOf(String type, UUID id) {
+            String label = resolved.get(key(type, id));
+            // Fallback to a short id when the source row is gone or unmapped.
+            return label != null ? label : (id == null ? "?" : id.toString().substring(0, 8));
+        }
+
+        private String key(String type, UUID id) { return type + ":" + id; }
+
+        private String[] tableAndColumn(String type) {
+            return switch (type) {
+                case T_INVOICE -> new String[]{"invoices", "number"};
+                case T_PURCHASE_INVOICE -> new String[]{"purchase_invoices", "number"};
+                case T_PAYMENT, T_SUPPLIER_PAYMENT -> new String[]{"payments", "number"};
+                case T_CUSTOMER_CREDIT -> new String[]{"customer_credits", "source"};
+                case T_CREDIT_NOTE -> new String[]{"credit_notes", "number"};
+                default -> null;
+            };
+        }
+    }
+
+    private static java.time.Instant toInstant(java.sql.Timestamp ts) {
+        return ts == null ? null : ts.toInstant();
     }
 
     @Override

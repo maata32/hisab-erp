@@ -36,6 +36,12 @@ public class AllocationController {
         return engine.findOpenItemsByParty(partyId);
     }
 
+    @GetMapping("/history")
+    @PreAuthorize("hasAuthority('customer:read')")
+    public List<AllocationHistoryRow> history(@RequestParam UUID partyId) {
+        return engine.findAllocationHistoryByParty(partyId);
+    }
+
     @PostMapping("/credit-to-invoice")
     @PreAuthorize("hasAuthority('sales:update') and hasAuthority('customer:read')")
     public ApplyResponse applyCreditToInvoice(@Valid @RequestBody ApplyCreditToInvoiceRequest req) {

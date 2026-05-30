@@ -387,6 +387,18 @@
       "SUPPLIER_PAYMENT": "دفعة مورّد",
       "CREDIT_NOTE": "إشعار دائن"
     },
+    "allocHistory": "سجل التخصيصات",
+    "allocHistoryTitle": "سجل التخصيصات",
+    "allocHistoryEmpty": "لا توجد تخصيصات مسجّلة على هذا الحساب.",
+    "allocHistoryCol": {
+      "date": "التاريخ",
+      "from": "المصدر (+)",
+      "to": "مخصّص على (−)",
+      "amount": "المبلغ",
+      "status": "الحالة"
+    },
+    "allocActive": "نشطة",
+    "allocReversed": "ملغاة",
     "types": {
       "INDIVIDUAL": "فرد",
       "COMPANY": "شركة"

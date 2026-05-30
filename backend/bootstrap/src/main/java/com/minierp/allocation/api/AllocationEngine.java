@@ -23,6 +23,14 @@ public interface AllocationEngine {
     List<OpenItem> findOpenItemsByParty(UUID partyId);
 
     /**
+     * Full pairing history from the {@code allocations} audit table for the
+     * given party, newest first, with human-readable labels resolved for both
+     * sides. Includes reversed (soft-void) rows so the screen can show what was
+     * allocated and later undone. Read-only.
+     */
+    List<AllocationHistoryRow> findAllocationHistoryByParty(UUID partyId);
+
+    /**
      * Propose a FIFO allocation for a source item against open items of the
      * opposite sign. The amount left over (if any) appears in
      * {@link AllocationProposal#surplus()}.

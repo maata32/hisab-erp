@@ -172,6 +172,9 @@ interface PartnerForm {
                   <button pButton icon="pi pi-wallet" class="p-button-sm p-button-text"
                           [pTooltip]="'partners.openItems' | translate"
                           (click)="openOpenItemsDialog(p)"></button>
+                  <button pButton icon="pi pi-history" class="p-button-sm p-button-text"
+                          [pTooltip]="'partners.allocHistory' | translate"
+                          (click)="openHistoryDialog(p)"></button>
                   <button pButton icon="pi pi-pencil" class="p-button-sm p-button-text"
                           [pTooltip]="'common.edit' | translate"
                           (click)="openEdit(p)"></button>
@@ -439,6 +442,57 @@ interface PartnerForm {
                   (click)="openItemsDialogOpen = false"></button>
         </ng-template>
       </p-dialog>
+
+      <!-- Allocation history dialog: full audit of the unified allocations table,
+           including reversed (soft-void) rows shown struck through. -->
+      <p-dialog [(visible)]="historyDialogOpen" [modal]="true" [style]="{ width: '820px' }"
+                [header]="('partners.allocHistoryTitle' | translate) + ' — ' + (historyPartner()?.name ?? '')">
+        @if (historyLoading()) {
+          <p class="text-sm text-gray-500 p-4 text-center">{{ 'common.loading' | translate }}</p>
+        } @else if (history().length === 0) {
+          <p class="text-sm text-gray-500 p-4 text-center">{{ 'partners.allocHistoryEmpty' | translate }}</p>
+        } @else {
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-600">
+              <tr>
+                <th class="text-left p-2 w-28">{{ 'partners.allocHistoryCol.date' | translate }}</th>
+                <th class="text-left p-2">{{ 'partners.allocHistoryCol.from' | translate }}</th>
+                <th class="text-left p-2">{{ 'partners.allocHistoryCol.to' | translate }}</th>
+                <th class="text-right p-2 w-28">{{ 'partners.allocHistoryCol.amount' | translate }}</th>
+                <th class="text-center p-2 w-24">{{ 'partners.allocHistoryCol.status' | translate }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of history(); track row.id) {
+                <tr class="border-t" [class.text-gray-400]="row.reversedAt">
+                  <td class="p-2 text-gray-600">{{ row.allocatedAt | date:'mediumDate' }}</td>
+                  <td class="p-2" [class.line-through]="row.reversedAt">
+                    <span class="text-xs text-gray-500">{{ ('partners.openItemsType.' + row.positiveType) | translate }}</span>
+                    <span class="font-mono text-xs ml-1">{{ row.positiveLabel }}</span>
+                  </td>
+                  <td class="p-2" [class.line-through]="row.reversedAt">
+                    <span class="text-xs text-gray-500">{{ ('partners.openItemsType.' + row.negativeType) | translate }}</span>
+                    <span class="font-mono text-xs ml-1">{{ row.negativeLabel }}</span>
+                  </td>
+                  <td class="p-2 text-right font-medium" [class.line-through]="row.reversedAt">{{ row.amount | money }}</td>
+                  <td class="p-2 text-center">
+                    @if (row.reversedAt) {
+                      <p-tag severity="secondary" [value]="'partners.allocReversed' | translate"
+                             [pTooltip]="row.reversalReason ?? ''"></p-tag>
+                    } @else {
+                      <p-tag severity="success" [value]="'partners.allocActive' | translate" />
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+        <ng-template pTemplate="footer">
+          <button pButton [label]="'common.close' | translate" class="p-button-text"
+                  (click)="historyDialogOpen = false"></button>
+        </ng-template>
+      </p-dialog>
     </div>
   `,
 })
@@ -512,6 +566,23 @@ export class PartnerListPage implements OnInit {
     amountOpen: number;
     dateRef: string;
     label: string;
+  }[]>([]);
+
+  // Allocation history dialog (#2): full audit of the unified allocations table
+  // for a party, including reversed (soft-void) rows.
+  protected historyDialogOpen = false;
+  protected historyPartner = signal<Partner | null>(null);
+  protected historyLoading = signal(false);
+  protected history = signal<{
+    id: string;
+    positiveType: string;
+    positiveLabel: string;
+    negativeType: string;
+    negativeLabel: string;
+    amount: number;
+    allocatedAt: string;
+    reversedAt: string | null;
+    reversalReason: string | null;
   }[]>([]);
 
   ngOnInit() {
@@ -710,6 +781,34 @@ export class PartnerListPage implements OnInit {
       this.openItems.set([]);
     } finally {
       this.openItemsLoading.set(false);
+    }
+  }
+
+  protected async openHistoryDialog(p: Partner) {
+    this.historyPartner.set(p);
+    this.history.set([]);
+    this.historyDialogOpen = true;
+    this.historyLoading.set(true);
+    try {
+      type Row = {
+        id: string;
+        positiveType: string;
+        positiveLabel: string;
+        negativeType: string;
+        negativeLabel: string;
+        amount: number;
+        allocatedAt: string;
+        reversedAt: string | null;
+        reversalReason: string | null;
+      };
+      const rows = await firstValueFrom(
+        this.http.get<Row[]>(`/api/v1/allocations/history?partyId=${p.id}`)
+      );
+      this.history.set(rows ?? []);
+    } catch {
+      this.history.set([]);
+    } finally {
+      this.historyLoading.set(false);
     }
   }
 

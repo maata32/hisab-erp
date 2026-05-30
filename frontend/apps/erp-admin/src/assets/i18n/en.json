@@ -387,6 +387,18 @@
       "SUPPLIER_PAYMENT": "Supplier payment",
       "CREDIT_NOTE": "Credit note"
     },
+    "allocHistory": "Allocation history",
+    "allocHistoryTitle": "Allocation history",
+    "allocHistoryEmpty": "No allocations recorded on this account.",
+    "allocHistoryCol": {
+      "date": "Date",
+      "from": "Source (+)",
+      "to": "Applied to (−)",
+      "amount": "Amount",
+      "status": "Status"
+    },
+    "allocActive": "Active",
+    "allocReversed": "Reversed",
     "types": {
       "INDIVIDUAL": "Individual",
       "COMPANY": "Company"

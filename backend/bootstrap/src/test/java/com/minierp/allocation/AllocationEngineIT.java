@@ -208,6 +208,37 @@ class AllocationEngineIT {
         }
 
         @Test
+        @DisplayName("#2: allocation history returns labeled rows, with refunded ones flagged reversed")
+        void allocationHistoryWithLabelsAndReversal() {
+            UUID inv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
+            PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
+                    "CUSTOMER_PAYMENT", customerId, new BigDecimal("100.00"), "MRU",
+                    LocalDate.now(), "CASH", null, null, "History test",
+                    List.of(new PaymentDto.AllocationRequest("SALE_INVOICE", inv,
+                            new BigDecimal("100.00"), null))));
+            paymentService.confirm(pay.id(), null);
+
+            // One active history row, labeled on both sides (payment number ↔ invoice number).
+            var rows = engine.findAllocationHistoryByParty(customerId);
+            assertThat(rows).hasSize(1);
+            var row = rows.get(0);
+            assertThat(row.positiveType()).isEqualTo("PAYMENT");
+            assertThat(row.negativeType()).isEqualTo("INVOICE");
+            assertThat(row.positiveLabel()).isEqualTo(pay.number());
+            assertThat(row.negativeLabel()).isNotBlank();
+            assertThat(row.amount()).isEqualByComparingTo("100.00");
+            assertThat(row.reversedAt()).isNull();
+
+            // After refund the same row survives but is flagged reversed.
+            paymentService.refund(pay.id(),
+                    new PaymentDto.RefundRequest(null, "CASH", null, "test"), null);
+            var afterRefund = engine.findAllocationHistoryByParty(customerId);
+            assertThat(afterRefund).hasSize(1);
+            assertThat(afterRefund.get(0).reversedAt()).isNotNull();
+            assertThat(afterRefund.get(0).reversalReason()).startsWith("Refund ");
+        }
+
+        @Test
         @DisplayName("Phase 6: creating an avoir on an unpaid invoice writes CREDIT_NOTE → INVOICE allocation")
         void creditNoteToInvoiceMirrored() {
             UUID inv = createInvoice(new BigDecimal("250.00"), LocalDate.now());

@@ -388,6 +388,18 @@
       "SUPPLIER_PAYMENT": "Paiement fournisseur",
       "CREDIT_NOTE": "Avoir"
     },
+    "allocHistory": "Historique des allocations",
+    "allocHistoryTitle": "Historique des allocations",
+    "allocHistoryEmpty": "Aucune allocation enregistrée sur ce compte.",
+    "allocHistoryCol": {
+      "date": "Date",
+      "from": "Origine (+)",
+      "to": "Imputé sur (−)",
+      "amount": "Montant",
+      "status": "Statut"
+    },
+    "allocActive": "Active",
+    "allocReversed": "Annulée",
     "types": {
       "INDIVIDUAL": "Particulier",
       "COMPANY": "Entreprise"
