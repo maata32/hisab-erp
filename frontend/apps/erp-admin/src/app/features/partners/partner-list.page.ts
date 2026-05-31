@@ -896,7 +896,7 @@ export class PartnerListPage implements OnInit {
 
   protected async loadChunk(event: TableLazyLoadEvent) {
     const first = event.first ?? 0;
-    const rows = event.rows ?? this.pageSize;
+    const rows = event.rows || this.pageSize; // || (not ??) so virtual-scroll's initial rows:0 falls back to pageSize
     const page = Math.floor(first / rows);
     const params = new URLSearchParams();
     params.set('page', String(page));

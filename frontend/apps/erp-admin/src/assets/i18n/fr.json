@@ -335,7 +335,9 @@
     "tab_suppliers": "Fournisseurs",
     "role_customer": "Client",
     "role_supplier": "Fournisseur",
-    "errors": { "roleRequired": "Sélectionnez au moins un rôle (client ou fournisseur)." },
+    "errors": {
+      "roleRequired": "Sélectionnez au moins un rôle (client ou fournisseur)."
+    },
     "roles": "Rôles",
     "code": "Code",
     "type": "Type",
@@ -475,7 +477,8 @@
     "unitPrice": "Prix unitaire",
     "discount": "Remise",
     "lineTotal": "Total ligne",
-    "noLines": "Aucune ligne. Cliquez sur Ajouter une ligne."
+    "noLines": "Aucune ligne. Cliquez sur Ajouter une ligne.",
+    "tax": "TVA"
   },
   "quotes": {
     "title": "Devis",
@@ -576,6 +579,11 @@
       "ISSUED": "Émis",
       "APPLIED": "Appliqué",
       "CANCELLED": "Annulé"
+    },
+    "atLeastOneLineQty": "Au moins une ligne doit avoir une quantité à créditer.",
+    "returnDeliveryWarning": {
+      "header": "Bon de retour requis",
+      "message": "Cet avoir couvre des unités réellement livrées. Un bon de retour sera créé automatiquement pour réintégrer la marchandise en stock :\n{{lines}}\n\nConfirmer la création de l'avoir et du bon de retour ?"
     }
   },
   "deliveries": {

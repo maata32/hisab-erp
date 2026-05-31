@@ -78,12 +78,15 @@ export class AuditLogPage implements OnInit {
   protected readonly rows = signal<AuditRow[]>([]);
 
   ngOnInit(): void {
-    // Rows fetched on demand via the p-table's onLazyLoad.
+    // The <p-table> that emits (onLazyLoad) only renders once total() > 0, so the
+    // lazy callback can never fire on its own — kick off the first page here.
+    void this.loadChunk({ first: 0, rows: this.pageSize });
   }
 
   protected async loadChunk(event: TableLazyLoadEvent) {
     const first = event.first ?? 0;
-    const rows = event.rows ?? this.pageSize;
+    const rows = event.rows || this.pageSize; // || (not ??) so virtual-scroll's initial rows:0 falls back to pageSize
+
     const page = Math.floor(first / rows);
     this.loading.set(true);
     try {

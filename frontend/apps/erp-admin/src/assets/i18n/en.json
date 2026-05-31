@@ -31,7 +31,8 @@
     "required": "This field is required",
     "mustBePositive": "Value must be positive",
     "mustBeNonNegative": "Value cannot be negative",
-    "atLeastOneLine": "Add at least one line"
+    "atLeastOneLine": "Add at least one line",
+    "confirm": "Confirm"
   },
   "error": {
     "creditnote": {
@@ -334,7 +335,9 @@
     "tab_suppliers": "Suppliers",
     "role_customer": "Customer",
     "role_supplier": "Supplier",
-    "errors": { "roleRequired": "Select at least one role (customer or supplier)." },
+    "errors": {
+      "roleRequired": "Select at least one role (customer or supplier)."
+    },
     "roles": "Roles",
     "code": "Code",
     "type": "Type",
@@ -474,7 +477,8 @@
     "unitPrice": "Unit price",
     "discount": "Discount",
     "lineTotal": "Line total",
-    "noLines": "No lines. Click Add line."
+    "noLines": "No lines. Click Add line.",
+    "tax": "VAT"
   },
   "quotes": {
     "title": "Quotes",
@@ -575,6 +579,11 @@
       "ISSUED": "Issued",
       "APPLIED": "Applied",
       "CANCELLED": "Cancelled"
+    },
+    "atLeastOneLineQty": "At least one line must have a quantity to credit.",
+    "returnDeliveryWarning": {
+      "header": "Return delivery required",
+      "message": "This credit note covers units that were actually delivered. A return delivery note will be auto-created to put the goods back into stock:\n{{lines}}\n\nConfirm creating the credit note and the return delivery?"
     }
   },
   "deliveries": {

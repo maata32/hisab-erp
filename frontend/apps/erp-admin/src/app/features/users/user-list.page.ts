@@ -356,7 +356,7 @@ export class UserListPage implements OnInit {
 
   protected async loadChunk(event: TableLazyLoadEvent) {
     const first = event.first ?? 0;
-    const rows = event.rows ?? this.pageSize;
+    const rows = event.rows || this.pageSize; // || (not ??) so virtual-scroll's initial rows:0 falls back to pageSize instead of yielding page=NaN&size=0
     const page = Math.floor(first / rows);
     const q = this.searchQuery ? `&q=${encodeURIComponent(this.searchQuery)}` : '';
     this.loading.set(true);

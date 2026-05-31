@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from '@minierp/shared-auth';
+import { authGuard, roleGuard } from '@minierp/shared-auth';
 
 export const appRoutes: Routes = [
   {
@@ -18,6 +18,9 @@ export const appRoutes: Routes = [
       },
       {
         path: 'organizations',
+        // Platform-level resource: the backend returns 403 for non-SUPER_ADMIN. Guard the
+        // route (not just the nav item) so direct-URL access is forbidden before any fetch.
+        canActivate: [roleGuard('SUPER_ADMIN')],
         loadComponent: () =>
           import('./features/organizations/organization-list.page').then((m) => m.OrganizationListPage),
       },

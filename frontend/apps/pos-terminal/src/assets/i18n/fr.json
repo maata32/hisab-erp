@@ -1,5 +1,12 @@
 {
-  "common": { "loading": "Chargement…", "logout": "Déconnexion", "save": "Enregistrer", "cancel": "Annuler", "close": "Fermer", "refresh": "Rafraîchir" },
+  "common": {
+    "loading": "Chargement…",
+    "logout": "Déconnexion",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "refresh": "Rafraîchir"
+  },
   "auth": {
     "tenantCode": "Code organisation",
     "email": "Email",
@@ -9,7 +16,12 @@
   },
   "pos": {
     "offline_banner": "Mode hors-ligne — les ventes seront synchronisées dès le retour de la connexion.",
-    "tab": { "sale": "Vente", "history": "Historique", "sessionHistory": "Sessions", "session": "Session" },
+    "tab": {
+      "sale": "Vente",
+      "history": "Historique",
+      "sessionHistory": "Sessions",
+      "session": "Session"
+    },
     "sessionHistory": {
       "title": "Historique des sessions",
       "subtitle": "Sessions en attente de versement et sessions versées"
@@ -38,7 +50,13 @@
       "status_cancelled": "Annulée",
       "void_confirm": "Annuler la vente {{number}} ? Le stock sera réintégré et la caisse ajustée.",
       "void_confirm_btn": "Confirmer l'annulation",
-      "reason": "Motif (optionnel)"
+      "reason": "Motif (optionnel)",
+      "refund": "Rembourser",
+      "is_refund": "Document de remboursement",
+      "status_refunded": "Remboursé",
+      "refund_intro": "Remboursement partiel ou total de la vente {{number}}. Cochez les lignes et ajustez la quantité à retourner.",
+      "refund_total": "Montant du remboursement",
+      "refund_confirm_btn": "Confirmer le remboursement"
     },
     "sale": {
       "no_session": {
@@ -84,7 +102,10 @@
       "select_register": "Sélectionner une caisse",
       "opening_float": "Fond de caisse initial",
       "opened_at": "Ouverte le",
-      "status": { "open": "Ouverte", "closed": "Fermée" },
+      "status": {
+        "open": "Ouverte",
+        "closed": "Fermée"
+      },
       "pending_sales": "vente(s) en attente de synchronisation",
       "kpi": {
         "opening_float": "Fond initial",
@@ -118,7 +139,11 @@
         "validatedAt": "Versée le",
         "counted": "Compté",
         "difference": "Écart"
-      }
+      },
+      "cash_in": "Entrée de caisse",
+      "cash_out": "Sortie de caisse",
+      "amount": "Montant",
+      "reason": "Motif"
     }
   }
 }
