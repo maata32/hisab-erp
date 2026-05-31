@@ -648,6 +648,21 @@
     "filterParty": "Filter by party",
     "allParties": "All parties",
     "kind": "Type",
+    "directionLabel": "Direction",
+    "direction": {
+      "in": "Money in",
+      "out": "Money out"
+    },
+    "derivedTypeHint": "Operation:",
+    "types": {
+      "CUSTOMER_PAYMENT": "Customer payment",
+      "CUSTOMER_REFUND": "Customer refund",
+      "SUPPLIER_PAYMENT": "Supplier payment",
+      "SUPPLIER_REFUND": "Supplier refund",
+      "CUSTOMER_DEPOSIT": "Customer deposit",
+      "CUSTOMER_CREDIT_WITHDRAWAL": "Credit withdrawal"
+    },
+    "noOpenSupplierInvoices": "No open supplier invoices for this party",
     "confirm": "Confirm",
     "allocations": "Allocate to invoices",
     "autoAllocate": "Auto-allocate",

@@ -352,6 +352,31 @@ class AllocationEngineIT {
         }
 
         @Test
+        @DisplayName("#3: a SUPPLIER_REFUND created without allocation surfaces as a POSITIVE open item")
+        void supplierRefundIsPositiveOpenItem() {
+            // The new UI lets a supplier-side "Versement" create a SUPPLIER_REFUND
+            // with no allocation: money received from a supplier becomes a free
+            // positive item the engine can re-impute later (e.g. against a future
+            // retrait, or against a sale invoice if the party is also a customer).
+            UUID supplierId = UUID.randomUUID();
+            jdbc.update("INSERT INTO parties (id, tenant_id, code, name, is_customer, is_supplier, active, created_at, updated_at, version) " +
+                    "VALUES (?,?,?,?,false,true,true,now(),now(),0)",
+                    supplierId, tenantId, "S-REFUND-" + supplierId, "Supplier Refund Test");
+
+            PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
+                    "SUPPLIER_REFUND", supplierId, new BigDecimal("750.00"), "MRU",
+                    LocalDate.now(), "BANK_TRANSFER", null, null, "Refund from supplier", null));
+            paymentService.confirm(pay.id(), null);
+
+            OpenItem refund = engine.findOpenItemsByParty(supplierId).stream()
+                    .filter(i -> "SUPPLIER_PAYMENT".equals(i.sourceType()) && pay.id().equals(i.sourceId()))
+                    .findFirst()
+                    .orElseThrow();
+            assertThat(refund.sign()).isEqualTo(OpenItem.Sign.POSITIVE);
+            assertThat(refund.amountOpen()).isEqualByComparingTo("750.00");
+        }
+
+        @Test
         @DisplayName("skips invoices in DRAFT / CANCELLED / PAID / REFUNDED")
         void terminalStatesExcluded() {
             // PAID invoice via createInvoice + applyPayment → balance=0 → excluded.

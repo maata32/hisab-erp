@@ -638,6 +638,21 @@
     "filterParty": "تصفية حسب الطرف",
     "allParties": "كل الأطراف",
     "kind": "النوع",
+    "directionLabel": "الاتجاه",
+    "direction": {
+      "in": "قبض",
+      "out": "صرف"
+    },
+    "derivedTypeHint": "العملية:",
+    "types": {
+      "CUSTOMER_PAYMENT": "دفعة عميل",
+      "CUSTOMER_REFUND": "استرداد لعميل",
+      "SUPPLIER_PAYMENT": "دفعة لمورّد",
+      "SUPPLIER_REFUND": "استرداد من مورّد",
+      "CUSTOMER_DEPOSIT": "عربون عميل",
+      "CUSTOMER_CREDIT_WITHDRAWAL": "سحب رصيد"
+    },
+    "noOpenSupplierInvoices": "لا توجد فواتير مورّد مفتوحة لهذا الطرف",
     "confirm": "تأكيد",
     "allocations": "التخصيص للفواتير",
     "autoAllocate": "تخصيص تلقائي",

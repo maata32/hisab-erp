@@ -11,6 +11,7 @@ import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
+import { SelectButtonModule } from 'primeng/selectbutton';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -41,13 +42,18 @@ interface Payment {
   allocations: PaymentAllocation[];
 }
 
-interface CustomerLite {
+interface PartnerLite {
   id: string;
   code: string;
   name: string;
+  isCustomer?: boolean;
+  isSupplier?: boolean;
   customerCreditBalance?: number;
   currency?: string;
 }
+
+/** Cash direction from the operator's till: IN = money received, OUT = money paid. */
+type Direction = 'IN' | 'OUT';
 
 interface OpenInvoice {
   id: string;
@@ -94,7 +100,8 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
   standalone: true,
   imports: [
     CommonModule, FormsModule, TranslateModule, MoneyPipe, TableModule, TagModule, ButtonModule,
-    DialogModule, DropdownModule, InputTextModule, InputNumberModule, CheckboxModule, TooltipModule,
+    DialogModule, DropdownModule, SelectButtonModule, InputTextModule, InputNumberModule,
+    CheckboxModule, TooltipModule,
   ],
   template: `
     <div class="space-y-4">
@@ -111,9 +118,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
         <div class="flex flex-wrap gap-3 mb-3 items-end">
           <div>
             <label class="block text-xs text-gray-500 mb-1">{{ 'payments.filterParty' | translate }}</label>
-            <p-dropdown [(ngModel)]="filterPartyId" [options]="customers()"
+            <p-dropdown [(ngModel)]="filterPartyId" [options]="parties()"
                         optionLabel="name" optionValue="id"
-                        [showClear]="true"
+                        [showClear]="true" [filter]="true" filterBy="name,code"
                         [placeholder]="'payments.allParties' | translate"
                         (onChange)="reload()" styleClass="w-64" />
           </div>
@@ -128,6 +135,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           <ng-template pTemplate="header">
             <tr>
               <th>{{ 'payments.number' | translate }}</th>
+              <th>{{ 'payments.kind' | translate }}</th>
               <th>{{ 'payments.party' | translate }}</th>
               <th>{{ 'payments.date' | translate }}</th>
               <th class="text-right">{{ 'payments.amount' | translate }}</th>
@@ -140,6 +148,10 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           <ng-template pTemplate="body" let-p>
             <tr>
               <td><span class="font-mono text-sm">{{ p.number }}</span></td>
+              <td>
+                <p-tag [value]="'payments.types.' + p.type | translate"
+                       [severity]="typeSeverity(p.type)" />
+              </td>
               <td>{{ p.partyName }}</td>
               <td>{{ p.paymentDate | date:'mediumDate' }}</td>
               <td class="text-right font-medium">{{ p.amount | money }} {{ p.currency }}</td>
@@ -177,7 +189,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             </tr>
           </ng-template>
           <ng-template pTemplate="emptymessage">
-            <tr><td colspan="8" class="text-center text-gray-400 py-8">
+            <tr><td colspan="9" class="text-center text-gray-400 py-8">
               {{ 'payments.empty' | translate }}
             </td></tr>
           </ng-template>
@@ -189,10 +201,10 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
         <div class="space-y-3">
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-sm font-medium mb-1">{{ 'payments.kind' | translate }} *</label>
-              <p-dropdown [(ngModel)]="form.type" [options]="typeOptions"
-                          optionLabel="label" optionValue="value" styleClass="w-full"
-                          (onChange)="onTypeChange()" />
+              <label class="block text-sm font-medium mb-1">{{ 'payments.directionLabel' | translate }} *</label>
+              <p-selectButton [(ngModel)]="form.direction" [options]="directionOptions"
+                              optionLabel="label" optionValue="value" [allowEmpty]="false"
+                              (onChange)="onTypeChange()" styleClass="w-full" />
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'payments.method' | translate }} *</label>
@@ -202,12 +214,18 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'payments.party' | translate }} *</label>
-            <p-dropdown [(ngModel)]="form.partyId" [options]="customers()"
+            <p-dropdown [(ngModel)]="form.partyId" [options]="parties()"
                         optionLabel="name" optionValue="id" [filter]="true" filterBy="name,code"
                         (onChange)="onPartyChange()"
                         [styleClass]="'w-full' + (partyInvalid() ? ' ng-invalid ng-dirty' : '')" />
             @if (partyInvalid()) {
               <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+            }
+            @if (form.partyId) {
+              <p class="text-xs text-gray-500 mt-1">
+                {{ 'payments.derivedTypeHint' | translate }}
+                <strong>{{ 'payments.types.' + derivedType() | translate }}</strong>
+              </p>
             }
           </div>
           <div class="grid grid-cols-2 gap-3">
@@ -241,14 +259,14 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             <input pInputText [(ngModel)]="form.notes" class="w-full" />
           </div>
 
-          @if (form.type === 'CUSTOMER_PAYMENT' && form.partyId && selectedCustomerCredit() > 0) {
+          @if (isCustomerInvoiceFlow() && form.partyId && selectedCustomerCredit() > 0) {
             <div class="p-3 rounded border border-sky-300 bg-sky-50 text-sm text-sky-900">
               <i class="pi pi-info-circle mr-1"></i>
               {{ 'payments.customerHasCredit' | translate:{ amount: selectedCustomerCreditFormatted() } }}
             </div>
           }
 
-          @if (form.type === 'CUSTOMER_REFUND' && form.partyId && selectedCustomerCredit() > 0) {
+          @if (isCustomerRefundFlow() && form.partyId && selectedCustomerCredit() > 0) {
             <div class="p-3 rounded border border-sky-300 bg-sky-50 text-sm text-sky-900 flex items-start gap-2">
               <i class="pi pi-info-circle mt-0.5"></i>
               <div class="flex-1">
@@ -263,7 +281,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             </div>
           }
 
-          @if (form.type === 'CUSTOMER_PAYMENT' && form.partyId) {
+          @if (isInvoiceFlow() && form.partyId) {
             <div class="border rounded">
               <div class="flex items-center justify-between p-2 bg-gray-50 border-b">
                 <span class="font-medium text-sm">{{ 'payments.allocations' | translate }}</span>
@@ -276,7 +294,8 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               </div>
               @if (openInvoices().length === 0) {
                 <div class="p-4 text-center text-gray-400 text-sm">
-                  {{ 'payments.noOpenInvoices' | translate }}
+                  {{ isSupplierInvoiceFlow() ? ('payments.noOpenSupplierInvoices' | translate)
+                                             : ('payments.noOpenInvoices' | translate) }}
                 </div>
               } @else {
                 <table class="w-full text-sm">
@@ -524,7 +543,7 @@ export class PaymentListPage implements OnInit {
   protected moneyFormat = inject(MoneyFormatService);
 
   protected payments = signal<Payment[]>([]);
-  protected customers = signal<CustomerLite[]>([]);
+  protected parties = signal<PartnerLite[]>([]);
   protected openInvoices = signal<OpenInvoice[]>([]);
   @ViewChild('table') private table?: Table;
   protected readonly pageSize = 50;
@@ -537,11 +556,44 @@ export class PaymentListPage implements OnInit {
 
   protected partyInvalid(): boolean { return this.submitted() && !this.form.partyId; }
 
+  /** The currently selected party (in the create dialog), or undefined. */
+  protected selectedParty(): PartnerLite | undefined {
+    return this.parties().find(c => c.id === this.form.partyId);
+  }
+
+  /**
+   * Backend payment type derived from the chosen cash direction and the party's
+   * roles. The user never picks this directly — they pick "Versement/Retrait"
+   * (direction) + a party, and the four enum values fall out:
+   *   IN  + customer  → CUSTOMER_PAYMENT   (the customer pays what they owe)
+   *   IN  + supplier  → SUPPLIER_REFUND    (a supplier refunds us)
+   *   OUT + supplier  → SUPPLIER_PAYMENT   (we settle a supplier invoice)
+   *   OUT + customer  → CUSTOMER_REFUND    (we refund a customer)
+   * For a dual-role party the direction is the tie-breaker (IN favours the
+   * customer side, OUT the supplier side).
+   */
+  protected derivedType(): string {
+    const p = this.selectedParty();
+    if (this.form.direction === 'IN') {
+      return p?.isCustomer ? 'CUSTOMER_PAYMENT' : 'SUPPLIER_REFUND';
+    }
+    return p?.isSupplier ? 'SUPPLIER_PAYMENT' : 'CUSTOMER_REFUND';
+  }
+
+  /** True when the derived type settles invoices on the customer side. */
+  protected isCustomerInvoiceFlow(): boolean { return this.derivedType() === 'CUSTOMER_PAYMENT'; }
+  /** True when the derived type settles invoices on the supplier side. */
+  protected isSupplierInvoiceFlow(): boolean { return this.derivedType() === 'SUPPLIER_PAYMENT'; }
+  /** True for any flow that allocates against open invoices (customer or supplier). */
+  protected isInvoiceFlow(): boolean { return this.isCustomerInvoiceFlow() || this.isSupplierInvoiceFlow(); }
+  /** True when the derived type is a customer refund (can be settled from credit). */
+  protected isCustomerRefundFlow(): boolean { return this.derivedType() === 'CUSTOMER_REFUND'; }
+
   protected selectedCustomerCredit(): number {
-    return Number(this.customers().find(c => c.id === this.form.partyId)?.customerCreditBalance ?? 0);
+    return Number(this.selectedParty()?.customerCreditBalance ?? 0);
   }
   protected selectedCustomerCurrency(): string {
-    return this.customers().find(c => c.id === this.form.partyId)?.currency ?? 'MRU';
+    return this.selectedParty()?.currency ?? 'MRU';
   }
   protected selectedCustomerCreditFormatted(): string {
     return `${this.moneyFormat.format(this.selectedCustomerCredit())} ${this.selectedCustomerCurrency()}`;
@@ -598,10 +650,15 @@ export class PaymentListPage implements OnInit {
     reason: '',
   };
 
-  protected readonly typeOptions = [
-    { value: 'CUSTOMER_PAYMENT', label: 'Encaissement client' },
-    { value: 'CUSTOMER_REFUND', label: 'Retrait client' },
-  ];
+  // The two cash directions the user picks. Labels are translated in the
+  // template via the i18n keys below; the values drive derivedType().
+  protected directionOptions: Array<{ value: Direction; label: string }> = [];
+  private refreshDirectionOptions() {
+    this.directionOptions = [
+      { value: 'IN', label: this.i18n.instant('payments.direction.in') },
+      { value: 'OUT', label: this.i18n.instant('payments.direction.out') },
+    ];
+  }
 
   protected readonly methodOptions = [
     { value: 'CASH', label: 'Espèces' },
@@ -616,6 +673,8 @@ export class PaymentListPage implements OnInit {
 
   ngOnInit() {
     this.loadCustomers();
+    this.refreshDirectionOptions();
+    this.i18n.onLangChange.subscribe(() => this.refreshDirectionOptions());
     // Payments are fetched on demand via the p-table's onLazyLoad.
     const invoiceId = this.route.snapshot.queryParamMap.get('createForInvoice');
     if (invoiceId) {
@@ -630,7 +689,7 @@ export class PaymentListPage implements OnInit {
         this.http.get<{ id: string; customerId: string; balance: number }>(`/api/v1/invoices/${invoiceId}`)
       );
       this.openCreate();
-      this.form.type = 'CUSTOMER_PAYMENT';
+      this.form.direction = 'IN'; // money in from the customer → CUSTOMER_PAYMENT
       this.form.partyId = inv.customerId;
       this.form.amount = Number(inv.balance);
       await this.onPartyChange();
@@ -652,6 +711,15 @@ export class PaymentListPage implements OnInit {
     return ({
       DRAFT: 'secondary', CONFIRMED: 'success', CANCELLED: 'danger', REFUNDED: 'warning',
     } as Record<string, Severity>)[s] ?? 'secondary';
+  }
+
+  /** Green for cash IN (customer payment / supplier refund), red for cash OUT. */
+  protected typeSeverity(t: string): Severity {
+    return ({
+      CUSTOMER_PAYMENT: 'success', SUPPLIER_REFUND: 'success',
+      CUSTOMER_DEPOSIT: 'success', CUSTOMER_REFUND: 'danger',
+      SUPPLIER_PAYMENT: 'danger', CUSTOMER_CREDIT_WITHDRAWAL: 'danger',
+    } as Record<string, Severity>)[t] ?? 'secondary';
   }
 
   protected canRefund(p: Payment): boolean {
@@ -713,7 +781,7 @@ export class PaymentListPage implements OnInit {
   }
 
   protected onTypeChange() {
-    // Allocations only apply to incoming customer payments (CUSTOMER_PAYMENT).
+    // Re-derive eligible invoices: direction change can flip customer↔supplier.
     this.form.allocations = [];
     this.openInvoices.set([]);
     this.allocationsUserEdited = false;
@@ -727,16 +795,13 @@ export class PaymentListPage implements OnInit {
     this.openInvoices.set([]);
     this.allocationsUserEdited = false;
     this.refreshPartyCredits();
-    if (this.form.type !== 'CUSTOMER_PAYMENT' || !this.form.partyId) return;
+    if (!this.isInvoiceFlow() || !this.form.partyId) return;
+    // Customer flow → sales invoices; supplier flow → purchase invoices. Both
+    // sit on the NEGATIVE side and are settled FIFO by the payment.
     try {
-      const res = await firstValueFrom(
-        this.http.get<{ content: OpenInvoice[] }>(
-          `/api/v1/invoices?customerId=${this.form.partyId}&size=200`
-        )
-      );
-      const open = (res.content ?? [])
-        .filter(i => Number(i.balance) > 0 && i.status !== 'CANCELLED')
-        .sort((a, b) => (a.dueDate ?? a.issueDate).localeCompare(b.dueDate ?? b.issueDate));
+      const open = this.isSupplierInvoiceFlow()
+        ? await this.fetchOpenSupplierInvoices(this.form.partyId)
+        : await this.fetchOpenCustomerInvoices(this.form.partyId);
       this.openInvoices.set(open);
       this.form.allocations = open.map(i => ({
         invoiceId: i.id,
@@ -753,12 +818,41 @@ export class PaymentListPage implements OnInit {
     }
   }
 
+  /** Open customer (sales) invoices for a party, FIFO-sorted by due/issue date. */
+  private async fetchOpenCustomerInvoices(partyId: string): Promise<OpenInvoice[]> {
+    const res = await firstValueFrom(
+      this.http.get<{ content: OpenInvoice[] }>(
+        `/api/v1/invoices?customerId=${partyId}&size=200`
+      )
+    );
+    return (res.content ?? [])
+      .filter(i => Number(i.balance) > 0 && i.status !== 'CANCELLED')
+      .sort((a, b) => (a.dueDate ?? a.issueDate).localeCompare(b.dueDate ?? b.issueDate));
+  }
+
+  /** Open supplier (purchase) invoices for a party, FIFO-sorted by due date. */
+  private async fetchOpenSupplierInvoices(partyId: string): Promise<OpenInvoice[]> {
+    const res = await firstValueFrom(
+      this.http.get<{ content: Array<{ id: string; number: string; invoiceDate: string;
+        dueDate: string; total: number; balance: number; currency: string; status: string }> }>(
+        `/api/v1/purchase-invoices?supplierId=${partyId}&size=200`
+      )
+    );
+    return (res.content ?? [])
+      .filter(i => Number(i.balance) > 0 && (i.status === 'ISSUED' || i.status === 'PARTIAL'))
+      .map(i => ({
+        id: i.id, number: i.number, issueDate: i.invoiceDate, dueDate: i.dueDate,
+        total: Number(i.total), balance: Number(i.balance), currency: i.currency, status: i.status,
+      }))
+      .sort((a, b) => (a.dueDate ?? a.issueDate).localeCompare(b.dueDate ?? b.issueDate));
+  }
+
   protected onAmountChange() {
     // Re-run FIFO if allocations were never customized. If the user customized
     // the distribution, preserve it as long as it remains valid (totalAllocated
     // ≤ new amount). On overflow, force a FIFO redistribution so the dialog
     // never displays an invalid total like "15000 / 4000".
-    if (this.form.type !== 'CUSTOMER_PAYMENT' || this.form.allocations.length === 0) return;
+    if (!this.isInvoiceFlow() || this.form.allocations.length === 0) return;
     if (!this.allocationsUserEdited) {
       this.autoAllocate();
       return;
@@ -796,7 +890,7 @@ export class PaymentListPage implements OnInit {
   }
 
   protected allocationValid(): boolean {
-    if (this.form.type !== 'CUSTOMER_PAYMENT') return true;
+    if (!this.isInvoiceFlow()) return true;
     if (this.openInvoices().length === 0) return true; // no open invoices = unallocated payment is fine
     const sum = this.totalAllocated();
     const amount = +Number(this.form.amount || 0).toFixed(2);
@@ -815,37 +909,42 @@ export class PaymentListPage implements OnInit {
   }
 
   protected createSurplus(): number {
-    if (this.form.type !== 'CUSTOMER_PAYMENT') return 0;
+    // Only a customer payment mints an OVERPAYMENT credit from its surplus.
+    // Supplier payments don't (grantCredit is customer-only); any unallocated
+    // remainder there simply leaves the payment partly open.
+    if (!this.isCustomerInvoiceFlow()) return 0;
     return Math.max(0, +((this.form.amount || 0) - this.totalAllocated()).toFixed(2));
   }
 
   protected async save() {
     this.submitted.set(true);
     if (!this.canSave()) return;
-    // Each line of the in-form allocation table maps to a persisted allocation
-    // row. The surplus (createSurplus()) is sent as an explicit CUSTOMER_CREDIT
-    // target so the eventual confirm grants a real OVERPAYMENT credit — no
-    // silent CUSTOMER_BALANCE shortcut.
-    const allocations: Array<{ targetType: string; targetId: string; allocatedAmount: number }> =
-      this.form.allocations
-        .filter(a => (a.allocated || 0) > 0)
-        .map(a => ({
-          targetType: 'SALE_INVOICE',
-          targetId: a.invoiceId,
-          allocatedAmount: a.allocated,
-        }));
+    const type = this.derivedType();
+    // Build the allocation targets from the derived type:
+    //  - CUSTOMER_PAYMENT → SALE_INVOICE lines + surplus→CUSTOMER_CREDIT
+    //  - SUPPLIER_PAYMENT → PURCHASE_INVOICE lines (no surplus credit)
+    //  - CUSTOMER_REFUND / SUPPLIER_REFUND → no allocation (refund settled from
+    //    credit afterwards for customers; supplier refund is a free positive
+    //    item the engine can re-impute later).
+    const allocations: Array<{ targetType: string; targetId: string; allocatedAmount: number }> = [];
+    if (this.isInvoiceFlow()) {
+      const invoiceTarget = this.isSupplierInvoiceFlow() ? 'PURCHASE_INVOICE' : 'SALE_INVOICE';
+      for (const a of this.form.allocations) {
+        if ((a.allocated || 0) > 0) {
+          allocations.push({ targetType: invoiceTarget, targetId: a.invoiceId, allocatedAmount: a.allocated });
+        }
+      }
+    }
     const surplus = this.createSurplus();
-    if (surplus > 0 && this.form.type === 'CUSTOMER_PAYMENT' && this.form.partyId) {
-      allocations.push({
-        targetType: 'CUSTOMER_CREDIT',
-        targetId: this.form.partyId,
-        allocatedAmount: surplus,
-      });
+    if (surplus > 0 && this.form.partyId) {
+      // createSurplus() is non-zero only for CUSTOMER_PAYMENT → mint OVERPAYMENT
+      // credit explicitly rather than via the silent CUSTOMER_BALANCE shortcut.
+      allocations.push({ targetType: 'CUSTOMER_CREDIT', targetId: this.form.partyId, allocatedAmount: surplus });
     }
     this.saving.set(true);
     try {
       const created = await firstValueFrom(this.http.post<{ id: string }>('/api/v1/payments', {
-        type: this.form.type,
+        type,
         partyId: this.form.partyId,
         amount: this.form.amount,
         currency: 'MRU',
@@ -859,7 +958,7 @@ export class PaymentListPage implements OnInit {
       // For a refund settled from credit we auto-confirm + consume the credit
       // in the same action — leaving the refund DRAFT would let the user cancel
       // it and orphan the allocation row.
-      if (this.form.type === 'CUSTOMER_REFUND'
+      if (type === 'CUSTOMER_REFUND'
           && this.settleRefundFromCredit
           && this.partyCredits.length > 0) {
         await firstValueFrom(this.http.post(`/api/v1/payments/${created.id}/confirm`, {}));
@@ -1072,19 +1171,22 @@ export class PaymentListPage implements OnInit {
   }
 
   private async loadCustomers() {
+    // All active partners (customers AND suppliers) — the payment dialog derives
+    // the backend type from the chosen direction + the party's roles, so both
+    // sides must be selectable. A party can be both (dual-role).
     try {
       const res = await firstValueFrom(
-        this.http.get<{ content: CustomerLite[] }>('/api/v1/partners?role=CUSTOMER&size=500')
+        this.http.get<{ content: PartnerLite[] }>('/api/v1/partners?size=500')
       );
-      this.customers.set(res.content ?? []);
+      this.parties.set(res.content ?? []);
     } catch {
-      this.customers.set([]);
+      this.parties.set([]);
     }
   }
 
   private emptyForm() {
     return {
-      type: 'CUSTOMER_PAYMENT',
+      direction: 'IN' as Direction,
       partyId: null as string | null,
       amount: 0,
       paymentDate: '',

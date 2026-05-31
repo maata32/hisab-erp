@@ -649,6 +649,21 @@
     "filterParty": "Filtrer par tiers",
     "allParties": "Tous les tiers",
     "kind": "Type",
+    "directionLabel": "Sens",
+    "direction": {
+      "in": "Versement",
+      "out": "Retrait"
+    },
+    "derivedTypeHint": "Opération :",
+    "types": {
+      "CUSTOMER_PAYMENT": "Versement client",
+      "CUSTOMER_REFUND": "Remboursement client",
+      "SUPPLIER_PAYMENT": "Paiement fournisseur",
+      "SUPPLIER_REFUND": "Remboursement fournisseur",
+      "CUSTOMER_DEPOSIT": "Acompte client",
+      "CUSTOMER_CREDIT_WITHDRAWAL": "Retrait de crédit"
+    },
+    "noOpenSupplierInvoices": "Aucune facture fournisseur ouverte pour ce tiers",
     "confirm": "Confirmer",
     "allocations": "Allouer aux factures",
     "autoAllocate": "Auto-allouer",
