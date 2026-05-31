@@ -47,6 +47,9 @@ TRUNCATE TABLE
     customer_credit_usages,
     customer_credits,
 
+    -- Allocations unifiees (AllocationEngine — changeset 0051)
+    allocations,
+
     -- Livraisons
     delivery_lines,
     deliveries,
