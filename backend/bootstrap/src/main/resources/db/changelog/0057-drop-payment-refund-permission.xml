@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Drop the dead payment:refund permission. The refund flow it guarded is
+        gone — a refund is now a plain outgoing payment (CUSTOMER_REFUND /
+        SUPPLIER_REFUND), no endpoint checks this authority anymore. Remove its
+        role grants first (FK), then the permission row itself. The
+        TenantRolesBootstrapper no longer grants it to new tenants either.
+    -->
+
+    <changeSet id="0057-drop-payment-refund-permission" author="mini-erp">
+        <sql splitStatements="false"><![CDATA[
+            DELETE FROM role_permission
+            WHERE permission_id IN (SELECT id FROM permissions WHERE code = 'payment:refund');
+            DELETE FROM permissions WHERE code = 'payment:refund';
+        ]]></sql>
+    </changeSet>
+
+</databaseChangeLog>

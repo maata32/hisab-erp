@@ -61,5 +61,6 @@
     <include file="db/changelog/0054-drop-refunded-status.xml"/>
     <include file="db/changelog/0055-drop-payment-refunded-status.xml"/>
     <include file="db/changelog/0056-drop-payment-refunded-columns.xml"/>
+    <include file="db/changelog/0057-drop-payment-refund-permission.xml"/>
 
 </databaseChangeLog>
