@@ -35,6 +35,12 @@
     "atLeastOneLine": "Ajoutez au moins une ligne"
   },
   "error": {
+    "allocation": {
+      "party_mismatch": "Les deux écritures n'appartiennent pas au même tiers.",
+      "not_a_refund": "L'écriture ciblée n'est pas un remboursement client.",
+      "not_a_supplier_refund": "L'écriture ciblée n'est pas un versement fournisseur.",
+      "not_a_supplier_retrait": "L'écriture ciblée n'est pas un retrait fournisseur."
+    },
     "creditnote": {
       "no_lines": "Aucune ligne à créditer.",
       "line_not_found": "Ligne de facture introuvable.",
@@ -507,6 +513,8 @@
     },
     "view": "Voir le détail",
     "issue": "Émettre la facture",
+    "cancel": "Annuler la facture",
+    "cancelConfirm": "Annuler cette facture brouillon ? Elle passera au statut « Annulée ».",
     "detailTitle": "Facture {{number}}",
     "createCreditNote": "Créer un avoir",
     "createDelivery": "Créer un BL",
@@ -686,21 +694,12 @@
     "surplusInfo": "Tout reliquat non alloué aux factures est explicitement enregistré comme crédit client (visible dans la liste des crédits, utilisable pour une facture future ou un retrait).",
     "surplusRowLabel": "Crédit client (surplus → OVERPAYMENT)",
     "customerHasCredit": "Ce client a {{amount}} de crédit en sa faveur — utilisé automatiquement sur les prochaines factures émises (non applicable à ce paiement).",
-    "refundFromCredit": {
-      "title": "Crédit disponible : {{amount}}",
-      "hint": "Cochez pour que ce remboursement consomme le crédit client (FIFO). Décocher si vous voulez rembourser en cash sans toucher au crédit."
-    },
-    "refund": "Rembourser",
-    "refundTitle": "Remboursement intégral",
-    "refundAmount": "Montant à rembourser",
-    "refundReason": "Motif du remboursement",
-    "refundReasonPlaceholder": "Erreur de saisie, retour client, ré-encaissement échoué…",
-    "refundImpactHeader": "Effets du remboursement (toutes les allocations seront annulées)",
-    "refundImpactTarget": "Cible",
-    "refundImpactAmount": "Montant reversé",
-    "refundImpactAfter": "État après",
-    "refundNoAllocations": "Ce paiement n'a aucune allocation : le remboursement ne crée qu'un mouvement de caisse miroir.",
-    "confirmRefund": "Confirmer le remboursement"
+    "imputeOnDeposits": "Imputer sur les versements",
+    "imputeOnSupplierRefunds": "Imputer sur les versements fournisseur",
+    "imputeHint": "Décochez une ligne pour ne pas la consommer",
+    "imputeSource": "Versement / crédit",
+    "imputeOpen": "Disponible",
+    "imputedTotal": "Imputé"
   },
   "errors": {
     "forbidden": "Vous n'avez pas la permission d'accéder à cette page.",

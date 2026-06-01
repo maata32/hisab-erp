@@ -35,6 +35,12 @@
     "confirm": "Confirm"
   },
   "error": {
+    "allocation": {
+      "party_mismatch": "The two entries do not belong to the same party.",
+      "not_a_refund": "The target entry is not a customer refund.",
+      "not_a_supplier_refund": "The target entry is not a supplier refund.",
+      "not_a_supplier_retrait": "The target entry is not a supplier payment."
+    },
     "creditnote": {
       "no_lines": "No lines to credit.",
       "line_not_found": "Invoice line not found.",
@@ -507,6 +513,8 @@
     },
     "view": "View details",
     "issue": "Issue invoice",
+    "cancel": "Cancel invoice",
+    "cancelConfirm": "Cancel this draft invoice? It will be marked as Cancelled.",
     "detailTitle": "Invoice {{number}}",
     "createCreditNote": "Create credit note",
     "createDelivery": "Create delivery",
@@ -686,21 +694,12 @@
     "surplusInfo": "Any portion not allocated to invoices is recorded as an explicit customer credit (visible in the credits list, usable on a future invoice or for withdrawal).",
     "surplusRowLabel": "Customer credit (surplus → OVERPAYMENT)",
     "customerHasCredit": "This customer has {{amount}} of credit on their account — auto-applied to the next invoices issued (not applicable to this payment).",
-    "refundFromCredit": {
-      "title": "Available credit: {{amount}}",
-      "hint": "Check to settle this refund from the customer's credit (FIFO). Uncheck to refund cash without touching the credit."
-    },
-    "refund": "Refund",
-    "refundTitle": "Full refund",
-    "refundAmount": "Amount to refund",
-    "refundReason": "Refund reason",
-    "refundReasonPlaceholder": "Entry mistake, customer return, failed re-collection…",
-    "refundImpactHeader": "Refund impact (all allocations will be reversed)",
-    "refundImpactTarget": "Target",
-    "refundImpactAmount": "Reversed amount",
-    "refundImpactAfter": "Status after",
-    "refundNoAllocations": "This payment has no allocations: the refund will only mirror the cash movement.",
-    "confirmRefund": "Confirm refund"
+    "imputeOnDeposits": "Impute on deposits",
+    "imputeOnSupplierRefunds": "Impute on supplier refunds",
+    "imputeHint": "Untick a row to leave it untouched",
+    "imputeSource": "Deposit / credit",
+    "imputeOpen": "Available",
+    "imputedTotal": "Imputed"
   },
   "errors": {
     "forbidden": "You do not have permission to access this page.",

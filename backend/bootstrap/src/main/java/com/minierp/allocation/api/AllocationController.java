@@ -58,6 +58,14 @@ public class AllocationController {
         return new ApplyResponse(consumed);
     }
 
+    @PostMapping("/supplier-refund-to-retrait")
+    @PreAuthorize("hasAuthority('payment:create') and hasAuthority('supplier:read')")
+    public ApplyResponse applySupplierRefundToRetrait(@Valid @RequestBody ApplySupplierRefundToRetraitRequest req) {
+        BigDecimal consumed = engine.applySupplierRefundToRetrait(
+                req.refundPaymentId(), req.retraitPaymentId(), req.amount());
+        return new ApplyResponse(consumed);
+    }
+
     public record ApplyCreditToInvoiceRequest(
             @NotNull UUID creditId,
             @NotNull UUID invoiceId,
@@ -66,6 +74,11 @@ public class AllocationController {
     public record ApplyCreditToRefundRequest(
             @NotNull UUID creditId,
             @NotNull UUID refundPaymentId,
+            @NotNull @Positive BigDecimal amount) {}
+
+    public record ApplySupplierRefundToRetraitRequest(
+            @NotNull UUID refundPaymentId,
+            @NotNull UUID retraitPaymentId,
             @NotNull @Positive BigDecimal amount) {}
 
     public record ApplyResponse(BigDecimal amountApplied) {}

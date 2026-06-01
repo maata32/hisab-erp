@@ -50,6 +50,12 @@ public class InvoiceController {
         return service.issueInvoice(id);
     }
 
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAuthority('sales:update')")
+    public SalesDto.InvoiceDto cancel(@PathVariable UUID id) {
+        return service.cancelInvoice(id);
+    }
+
     @PostMapping("/{id}/duplicate")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('sales:create')")

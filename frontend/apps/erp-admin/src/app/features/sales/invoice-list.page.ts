@@ -1,7 +1,7 @@
 import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MoneyPipe } from '@minierp/shared-i18n';
 import { HttpClient } from '@angular/common/http';
 import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
@@ -209,6 +209,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <button pButton icon="pi pi-send" class="p-button-sm p-button-text mr-1"
                           [pTooltip]="'invoices.issue' | translate"
                           (click)="issueInvoice(inv)"></button>
+                  <button pButton icon="pi pi-ban" class="p-button-sm p-button-text p-button-danger mr-1"
+                          [pTooltip]="'invoices.cancel' | translate"
+                          (click)="cancelInvoice(inv)"></button>
                 }
                 @if (canCreateDelivery(inv)) {
                   <button pButton icon="pi pi-truck" class="p-button-sm p-button-text mr-1"
@@ -641,6 +644,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
 export class InvoiceListPage implements OnInit {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private translate = inject(TranslateService);
 
   protected invoices = signal<Invoice[]>([]);
   protected customers = signal<CustomerOpt[]>([]);
@@ -753,6 +757,14 @@ export class InvoiceListPage implements OnInit {
   protected async issueInvoice(inv: Invoice) {
     try {
       await firstValueFrom(this.http.post(`/api/v1/invoices/${inv.id}/issue`, {}));
+      this.reload();
+    } catch { /* global error handler */ }
+  }
+
+  protected async cancelInvoice(inv: Invoice) {
+    if (!window.confirm(this.translate.instant('invoices.cancelConfirm'))) return;
+    try {
+      await firstValueFrom(this.http.post(`/api/v1/invoices/${inv.id}/cancel`, {}));
       this.reload();
     } catch { /* global error handler */ }
   }

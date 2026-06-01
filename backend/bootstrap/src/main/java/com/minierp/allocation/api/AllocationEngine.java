@@ -67,4 +67,20 @@ public interface AllocationEngine {
      *         payment.amount).
      */
     BigDecimal applyCreditToRefund(UUID creditId, UUID refundPaymentId, BigDecimal amount);
+
+    /**
+     * Impute an open supplier "versement" (a {@code SUPPLIER_REFUND} payment —
+     * cash the supplier gave back) against a supplier "retrait" (a
+     * {@code SUPPLIER_PAYMENT} payment — cash we paid out). Both payments must
+     * already exist, be CONFIRMED, and belong to the same supplier. The call
+     * records the pairing in {@code allocations} (positive side = the versement,
+     * negative side = the retrait) and thereby consumes the versement's open
+     * residual; no cash movement is generated and neither payment's amount nor
+     * any invoice balance is changed — this is a traceability link in the
+     * statement, mirroring {@link #applyCreditToRefund}.
+     *
+     * @return the amount actually consumed (capped by the versement's remaining
+     *         open residual and the retrait's amount).
+     */
+    BigDecimal applySupplierRefundToRetrait(UUID refundPaymentId, UUID retraitPaymentId, BigDecimal amount);
 }
