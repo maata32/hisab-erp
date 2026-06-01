@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Drop the REFUNDED payment status. Refunding a payment is no longer a flag
+        on the original inflow — it is an outgoing payment of its own
+        (CUSTOMER_REFUND / SUPPLIER_REFUND), reconciled against the inflow through
+        the unified allocations table. Any legacy row still marked REFUNDED is an
+        inflow that really happened, so it goes back to CONFIRMED (its money-out
+        leg lives on a separate refund payment). The vestigial refunded_at /
+        refunded_by_payment_id columns are dropped in changeset 0056.
+    -->
+
+    <changeSet id="0055-payments-refunded-to-confirmed" author="mini-erp">
+        <sql splitStatements="false"><![CDATA[
+            UPDATE payments SET status = 'CONFIRMED' WHERE status = 'REFUNDED';
+        ]]></sql>
+    </changeSet>
+
+</databaseChangeLog>

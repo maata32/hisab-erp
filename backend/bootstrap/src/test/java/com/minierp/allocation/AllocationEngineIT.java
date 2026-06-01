@@ -217,10 +217,12 @@ class AllocationEngineIT {
         }
 
         @Test
-        @DisplayName("Phase 6: avoir on a fully-prepaid invoice writes NO allocation (full surplus)")
-        void creditNoteFullSurplusSkipped() {
-            // 100 invoice, paid in full → balance 0. Avoir would route entirely
-            // to surplus credit, imputed=0 → no allocation row to write.
+        @DisplayName("avoir on a fully-prepaid invoice detaches the payment + letters the invoice")
+        void creditNoteOnPrepaidDetachesPaymentAndLettersInvoice() {
+            // 100 invoice, paid in full → balance 0. The avoir detaches the
+            // payment (its PAYMENT → INVOICE row is soft-voided + the cash becomes
+            // a refundable OVERPAYMENT credit stamped with the payment id) and
+            // letters the invoice itself (CREDIT_NOTE → INVOICE = 100).
             UUID inv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
             PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
                     "CUSTOMER_PAYMENT", customerId, new BigDecimal("100.00"), "MRU",
@@ -232,9 +234,32 @@ class AllocationEngineIT {
             var cn = salesService.createCreditNote(inv,
                     new SalesDto.CreateCreditNoteRequest("test avoir on prepaid"));
 
+            // The avoir now letters the invoice (full 100).
             assertThat(jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM allocations WHERE positive_type = 'CREDIT_NOTE' AND positive_id = ?",
-                    Long.class, cn.id())).isZero();
+                    "SELECT amount FROM allocations WHERE positive_type = 'CREDIT_NOTE' AND positive_id = ? " +
+                    "AND negative_type = 'INVOICE' AND negative_id = ? AND reversed_at IS NULL",
+                    BigDecimal.class, cn.id(), inv)).isEqualByComparingTo("100.00");
+            // The payment → invoice row is soft-voided (detached).
+            assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM allocations WHERE positive_type = 'PAYMENT' AND positive_id = ? " +
+                    "AND negative_type = 'INVOICE' AND negative_id = ? AND reversed_at IS NOT NULL",
+                    Long.class, pay.id(), inv)).isEqualTo(1L);
+            // The freed cash is now a refundable OVERPAYMENT credit stamped with the payment id.
+            assertThat(jdbc.queryForObject(
+                    "SELECT remaining_amount FROM customer_credits " +
+                    "WHERE source = 'OVERPAYMENT' AND source_payment_id = ? AND status = 'ACTIVE'",
+                    BigDecimal.class, pay.id())).isEqualByComparingTo("100.00");
+
+            // No double-count: the payment shows no open residual (consumed by the
+            // credit it minted), only the OVERPAYMENT credit surfaces as available.
+            List<OpenItem> items = engine.findOpenItemsByParty(customerId);
+            assertThat(items.stream().filter(i -> "PAYMENT".equals(i.sourceType()) && pay.id().equals(i.sourceId())))
+                    .isEmpty();
+            BigDecimal creditOpen = items.stream()
+                    .filter(i -> "CUSTOMER_CREDIT".equals(i.sourceType()))
+                    .map(OpenItem::amountOpen)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            assertThat(creditOpen).isEqualByComparingTo("100.00");
         }
 
         @Test
@@ -372,7 +397,7 @@ class AllocationEngineIT {
         }
 
         @Test
-        @DisplayName("skips invoices in DRAFT / CANCELLED / PAID / REFUNDED")
+        @DisplayName("skips invoices in DRAFT / CANCELLED / PAID")
         void terminalStatesExcluded() {
             // PAID invoice via createInvoice + applyPayment → balance=0 → excluded.
             UUID paid = createInvoice(new BigDecimal("100.00"), LocalDate.now().minusDays(1));

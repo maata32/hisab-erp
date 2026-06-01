@@ -1,3 +1,3 @@
 package com.minierp.sales.internal;
 
-public enum InvoiceStatus { DRAFT, ISSUED, PAID, PARTIAL, OVERDUE, CANCELLED, REFUNDED }
+public enum InvoiceStatus { DRAFT, ISSUED, PAID, PARTIAL, OVERDUE, CANCELLED }

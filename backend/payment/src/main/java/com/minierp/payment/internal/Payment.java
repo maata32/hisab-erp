@@ -68,10 +68,4 @@ class Payment extends TenantAwareEntity {
 
     @Column(name = "confirmed_by", columnDefinition = "uuid")
     private UUID confirmedBy;
-
-    @Column(name = "refunded_at")
-    private Instant refundedAt;
-
-    @Column(name = "refunded_by_payment_id", columnDefinition = "uuid")
-    private UUID refundedByPaymentId;
 }

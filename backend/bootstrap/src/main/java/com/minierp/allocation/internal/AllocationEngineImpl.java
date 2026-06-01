@@ -352,7 +352,7 @@ class AllocationEngineImpl implements AllocationEngine {
                 SELECT id, number, issue_date, due_date, total, balance, status
                 FROM invoices
                 WHERE tenant_id = ? AND party_id = ?
-                  AND status NOT IN ('DRAFT','CANCELLED','PAID','REFUNDED')
+                  AND status NOT IN ('DRAFT','CANCELLED','PAID')
                   AND balance > 0
                 """, (rs, i) -> new OpenItem(
                         T_INVOICE,

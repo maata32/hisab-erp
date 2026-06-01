@@ -187,7 +187,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                 {{ inv.balance | money }} {{ inv.currency }}
               </td>
               <td>
-                @if (inv.status === 'DRAFT' || inv.status === 'CANCELLED' || inv.status === 'REFUNDED') {
+                @if (inv.status === 'DRAFT' || inv.status === 'CANCELLED') {
                   <p-tag [value]="'sales.statuses.' + inv.status | translate" [severity]="statusSeverity(inv.status)" />
                 }
                 @if (inv.deliveryStatus && inv.deliveryStatus !== 'NONE') {
@@ -563,7 +563,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                           class="p-button-success"
                           (click)="goToCreatePayment(inv.id)"></button>
                 }
-                @if (canCreateCreditNote(inv.status)) {
+                @if (canCreateCreditNote(inv)) {
                   <button pButton icon="pi pi-undo" [label]="'invoices.createCreditNote' | translate"
                           class="p-button-warning"
                           (click)="openCreateCreditNote(inv)"></button>
@@ -742,12 +742,12 @@ export class InvoiceListPage implements OnInit {
   }
 
   protected isOverdue(inv: Invoice): boolean {
-    return inv.status !== 'PAID' && inv.status !== 'CANCELLED' && inv.status !== 'REFUNDED'
+    return inv.status !== 'PAID' && inv.status !== 'CANCELLED'
         && new Date(inv.dueDate) < new Date();
   }
 
   protected statusSeverity(status: string): Severity {
-    return ({ DRAFT: 'secondary', ISSUED: 'info', PARTIAL: 'warning', PAID: 'success', OVERDUE: 'danger', CANCELLED: 'secondary', REFUNDED: 'danger' } as Record<string, Severity>)[status] ?? 'secondary';
+    return ({ DRAFT: 'secondary', ISSUED: 'info', PARTIAL: 'warning', PAID: 'success', OVERDUE: 'danger', CANCELLED: 'secondary' } as Record<string, Severity>)[status] ?? 'secondary';
   }
 
   protected deliveryStatusSeverity(status: string): Severity {
@@ -777,12 +777,14 @@ export class InvoiceListPage implements OnInit {
     });
   }
 
-  protected canCreateCreditNote(status: string): boolean {
-    return status !== 'CANCELLED' && status !== 'DRAFT' && status !== 'REFUNDED';
+  protected canCreateCreditNote(inv: { status: string; creditNoteCount: number }): boolean {
+    // An avoir is total-only and one per invoice: hide the action once the
+    // invoice already carries a non-draft credit note (it is then settled).
+    return inv.status !== 'CANCELLED' && inv.status !== 'DRAFT' && inv.creditNoteCount === 0;
   }
 
-  protected canCreateDelivery(inv: { status: string; deliveryStatus: string }): boolean {
-    return inv.status !== 'DRAFT' && inv.status !== 'CANCELLED' && inv.status !== 'REFUNDED'
+  protected canCreateDelivery(inv: { status: string; deliveryStatus: string; creditNoteCount: number }): boolean {
+    return inv.status !== 'DRAFT' && inv.status !== 'CANCELLED' && inv.creditNoteCount === 0
         && inv.deliveryStatus !== 'DELIVERED' && inv.deliveryStatus !== 'RETURNED';
   }
 
@@ -791,7 +793,7 @@ export class InvoiceListPage implements OnInit {
   }
 
   protected canCreatePayment(inv: { status: string; balance: number }): boolean {
-    return inv.status !== 'DRAFT' && inv.status !== 'CANCELLED' && inv.status !== 'REFUNDED'
+    return inv.status !== 'DRAFT' && inv.status !== 'CANCELLED'
         && Number(inv.balance) > 0;
   }
 

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Drop the REFUNDED invoice status. A total avoir no longer flips the
+        source invoice to REMBOURSÉE: it detaches the invoice from its payments
+        and letters it via the credit note, leaving the invoice settled (PAID,
+        balance 0). Historical REFUNDED invoices already carry balance 0 and a
+        non-draft credit note, so re-stamping them PAID is loss-less — the linked
+        avoir is what makes them read as "soldée par avoir". The delivery_status
+        (incl. RETURNED) is untouched.
+    -->
+
+    <changeSet id="0054-invoices-refunded-to-paid" author="mini-erp">
+        <sql splitStatements="false"><![CDATA[
+            UPDATE invoices SET status = 'PAID' WHERE status = 'REFUNDED';
+        ]]></sql>
+    </changeSet>
+
+</databaseChangeLog>

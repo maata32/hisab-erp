@@ -36,4 +36,15 @@ interface AllocationRepository extends JpaRepository<Allocation, UUID> {
     @Query("SELECT a FROM Allocation a " +
            "WHERE a.positiveId = :positiveId AND a.positiveType IN :types AND a.reversedAt IS NULL")
     List<Allocation> findActiveByPositive(UUID positiveId, Collection<String> types);
+
+    /**
+     * Still-active rows where the given (type, id) sits on the negative side and
+     * the positive side is one of {@code positiveTypes}. Used by
+     * {@code InvoicePaymentsDetachedListener} to locate the PAYMENT → INVOICE
+     * rows it must soft-void when an avoir detaches an invoice from its payments.
+     */
+    @Query("SELECT a FROM Allocation a " +
+           "WHERE a.negativeType = :negativeType AND a.negativeId = :negativeId " +
+           "AND a.positiveType IN :positiveTypes AND a.reversedAt IS NULL")
+    List<Allocation> findActiveByNegative(String negativeType, UUID negativeId, Collection<String> positiveTypes);
 }

@@ -46,12 +46,8 @@
       "line_not_found": "Ligne de facture introuvable.",
       "line_exceeds_invoiced": "La quantité demandée dépasse le reliquat créditable de la ligne.",
       "invoice_cancelled": "Impossible d'émettre un avoir sur une facture annulée.",
-      "invoice_refunded": "Cette facture est déjà remboursée — un avoir a déjà été émis.",
       "invoice_fully_credited": "Cette facture est déjà entièrement créditée.",
       "warehouse_missing": "Aucun dépôt configuré pour réintégrer la marchandise au stock."
-    },
-    "invoice": {
-      "refunded_no_payment": "Impossible d'allouer un paiement à une facture remboursée."
     },
     "delivery": {
       "already_shipped": "Du stock est déjà sorti pour ce BL — impossible de l'annuler."
@@ -190,8 +186,8 @@
       "active_users": "Utilisateurs actifs",
       "invoices_draft": "Factures en brouillon",
       "invoices_not_fully_delivered": "Factures non livrées",
-      "invoices_refunded_month": "Factures remboursées (mois)",
-      "invoices_refunded_month_hint": "Montant total : {{amount}}"
+      "credit_notes_month": "Avoirs (mois)",
+      "credit_notes_month_hint": "Montant total : {{amount}}"
     },
     "aging": {
       "title": "Vieillissement des créances",
@@ -472,8 +468,7 @@
       "ISSUED": "Émis",
       "PARTIAL": "Partiel",
       "PAID": "Payé",
-      "OVERDUE": "En retard",
-      "REFUNDED": "Remboursée"
+      "OVERDUE": "En retard"
     },
     "confirmStatusChange": "Passer {{number}} au statut « {{status}} » ?",
     "lines": "Lignes",
@@ -574,7 +569,7 @@
       "alreadyPaid": "Déjà payé",
       "balance": "Solde restant dû",
       "creditAmount": "Montant de l'avoir",
-      "paidWarning": "Le montant déjà encaissé ({{amount}} {{currency}}) sera transformé en crédit client (OVERPAYMENT). Le client pourra l'utiliser sur une prochaine facture ou être remboursé séparément.",
+      "paidWarning": "Le montant déjà encaissé ({{amount}} {{currency}}) sera détaché de la facture et transformé en crédit client à rembourser (OVERPAYMENT). L'avoir solde la facture ; le client pourra utiliser ce crédit sur une prochaine facture ou être remboursé séparément.",
       "brWarningHeader": "En confirmant cet avoir, vous certifiez avoir physiquement réceptionné les articles ci-dessous. Un bon de retour (BR) sera créé automatiquement et le stock réintégré :"
     },
     "blocked": {
@@ -647,8 +642,7 @@
     "statuses": {
       "DRAFT": "Brouillon",
       "CONFIRMED": "Confirmé",
-      "CANCELLED": "Annulé",
-      "REFUNDED": "Remboursé"
+      "CANCELLED": "Annulé"
     },
     "methods": {
       "CASH": "Espèces",

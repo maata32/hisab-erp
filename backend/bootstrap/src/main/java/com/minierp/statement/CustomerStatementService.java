@@ -140,7 +140,7 @@ public class CustomerStatementService {
         for (var i : invoices) {
             String cnNumber = creditNoteByInvoice.get(i.id());
             String label = cnNumber != null
-                    ? "Facture remboursée par avoir " + cnNumber
+                    ? "Facture soldée par avoir " + cnNumber
                     : "Facture " + i.status().toLowerCase();
             mvts.add(new Movement(i.issueDate(), "INVOICE", i.number(),
                     label, nz(i.total()), ZERO, detailed ? i.lines() : null));
@@ -217,7 +217,7 @@ public class CustomerStatementService {
         List<Map<String, Object>> rows = new ArrayList<>();
         for (var i : invoices) {
             if (nz(i.balance()).signum() <= 0) continue;
-            if ("CANCELLED".equals(i.status()) || "REFUNDED".equals(i.status())) continue;
+            if ("CANCELLED".equals(i.status())) continue;
             Map<String, Object> row = new HashMap<>();
             row.put("date", i.issueDate());
             row.put("kind", "INVOICE");

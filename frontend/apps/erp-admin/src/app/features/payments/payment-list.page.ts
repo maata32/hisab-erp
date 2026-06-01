@@ -662,7 +662,7 @@ export class PaymentListPage implements OnInit {
 
   protected statusSeverity(s: string): Severity {
     return ({
-      DRAFT: 'secondary', CONFIRMED: 'success', CANCELLED: 'danger', REFUNDED: 'warning',
+      DRAFT: 'secondary', CONFIRMED: 'success', CANCELLED: 'danger',
     } as Record<string, Severity>)[s] ?? 'secondary';
   }
 

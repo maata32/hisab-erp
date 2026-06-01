@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.minierp.partner.api.CustomerCreditOperations;
 import com.minierp.sales.api.CreditNoteAppliedEvent;
 import com.minierp.sales.api.CreditNoteReturnRequestedEvent;
+import com.minierp.sales.api.InvoicePaymentsDetachedEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -119,10 +120,6 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
     public void applyPayment(UUID invoiceId, BigDecimal amount) {
         Invoice inv = invoices.lockById(invoiceId)
                 .orElseThrow(() -> NotFoundException.of("entity.invoice", invoiceId));
-        if (inv.getStatus() == InvoiceStatus.REFUNDED) {
-            throw new BusinessException("error.invoice.refunded_no_payment",
-                    Map.of("invoiceNumber", inv.getNumber()));
-        }
         inv.setPaidAmount(inv.getPaidAmount().add(amount));
         inv.setBalance(inv.getTotal().subtract(inv.getPaidAmount()).max(BigDecimal.ZERO));
         if (inv.getBalance().compareTo(BigDecimal.ZERO) == 0) {
@@ -197,8 +194,13 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
     public void recomputeDeliveryStatus(UUID invoiceId, Map<UUID, BigDecimal> totalDeliveredByProduct) {
         Invoice inv = invoices.findById(invoiceId).orElse(null);
         if (inv == null) return;
-        if (inv.getStatus() == InvoiceStatus.DRAFT || inv.getStatus() == InvoiceStatus.CANCELLED
-                || inv.getStatus() == InvoiceStatus.REFUNDED) {
+        if (inv.getStatus() == InvoiceStatus.DRAFT || inv.getStatus() == InvoiceStatus.CANCELLED) {
+            return;
+        }
+        // A fully-credited invoice keeps the RETURNED delivery status set when its
+        // avoir was issued — don't recompute it back to DELIVERED.
+        if (inv.getDeliveryStatus() == InvoiceDeliveryStatus.RETURNED
+                && creditNotes.countNonDraftByInvoiceId(invoiceId) > 0) {
             return;
         }
         Map<UUID, BigDecimal> invoicedByProduct = getInvoicedQtyByProduct(invoiceId);
@@ -241,7 +243,8 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
         return invoices.findById(invoiceId)
                 .map(inv -> inv.getStatus() != InvoiceStatus.DRAFT
                         && inv.getStatus() != InvoiceStatus.CANCELLED
-                        && inv.getStatus() != InvoiceStatus.REFUNDED
+                        // A fully-credited invoice (settled by an avoir) accepts no delivery.
+                        && creditNotes.countNonDraftByInvoiceId(invoiceId) == 0
                         && inv.getDeliveryStatus() != InvoiceDeliveryStatus.DELIVERED
                         && inv.getDeliveryStatus() != InvoiceDeliveryStatus.RETURNED)
                 .orElse(false);
@@ -589,21 +592,33 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
         cn.setTotal(total);
         cn.setAmount(total);
 
-        // Apply to invoice balance, surplus → customer credit (OVERPAYMENT).
-        BigDecimal imputed = applyCredit(inv.getId(), total);
-        BigDecimal surplus = total.subtract(imputed);
-        if (surplus.signum() > 0) {
-            customerCreditOps.grantCredit(inv.getPartyId(), surplus, "OVERPAYMENT",
-                    "Credit note " + cn.getNumber());
+        // Detach the invoice from its payments: the avoir, not the cash, now
+        // settles the invoice. The cash already received is freed back to the
+        // customer as a refundable OVERPAYMENT credit — the detachment listener
+        // mints one credit per payment (stamped with its source_payment_id, so
+        // the engine never double-counts the freed payment) and soft-voids the
+        // PAYMENT → INVOICE allocation rows.
+        BigDecimal priorPaid = inv.getPaidAmount();
+        if (priorPaid.signum() > 0) {
+            BigDecimal newBalance = inv.getTotal();
+            inv.setPaidAmount(BigDecimal.ZERO);
+            inv.setBalance(newBalance);
+            if (inv.getStatus() != InvoiceStatus.CANCELLED) {
+                inv.setStatus(InvoiceStatus.ISSUED);
+            }
+            balanceOps.addToPaid(inv.getPartyId(), priorPaid.negate(), false);
+            events.publishEvent(new InvoicePaymentsDetachedEvent(
+                    inv.getId(), inv.getPartyId(), cn.getNumber()));
         }
+
+        // Letter the avoir against the (now fully open) invoice balance.
+        BigDecimal imputed = applyCredit(inv.getId(), total);
         cn.setAppliedToInvoiceId(inv.getId());
         cn.setStatus(CreditNoteStatus.APPLIED);
 
         // Surface the CREDIT_NOTE → INVOICE pairing in the unified allocations
         // audit table — keeps the engine's view consistent with the payment
-        // double-write introduced in Phase 5. Only published when something was
-        // actually imputed (a 100%-prepaid invoice would route the full amount
-        // to surplus and leave nothing to mirror here).
+        // double-write introduced in Phase 5.
         if (imputed.signum() > 0) {
             events.publishEvent(new CreditNoteAppliedEvent(
                     cn.getId(), cn.getNumber(), inv.getId(), inv.getPartyId(), imputed));
@@ -615,9 +630,9 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
                     List.copyOf(returnLines)));
         }
 
-        // Total avoir = invoice fully refunded. Override the PAID set by applyCredit
-        // and mark the delivery side as RETURNED if anything was actually shipped.
-        inv.setStatus(InvoiceStatus.REFUNDED);
+        // Mark the delivery side as RETURNED if anything was actually shipped;
+        // the invoice itself stays PAID (settled by the avoir) — the linked
+        // credit note is what makes it read as "soldée par avoir".
         inv.setDeliveryStatus(returnLines.isEmpty()
                 ? InvoiceDeliveryStatus.NONE
                 : InvoiceDeliveryStatus.RETURNED);
@@ -636,10 +651,6 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
         }
         if (inv.getStatus() == InvoiceStatus.CANCELLED) {
             throw new BusinessException("error.creditnote.invoice_cancelled",
-                    Map.of("invoiceId", inv.getId(), "invoiceNumber", inv.getNumber()));
-        }
-        if (inv.getStatus() == InvoiceStatus.REFUNDED) {
-            throw new BusinessException("error.creditnote.invoice_refunded",
                     Map.of("invoiceId", inv.getId(), "invoiceNumber", inv.getNumber()));
         }
         long existing = creditNotes.countNonDraftByInvoiceId(inv.getId());
@@ -916,7 +927,6 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
         String payStatus = switch (inv.getStatus()) {
             case PAID -> "PAYÉE";
             case PARTIAL -> "PARTIELLE";
-            case REFUNDED -> "REMBOURSÉE";
             default -> "NON PAYÉE";
         };
         record LineModel(String productName, String sku, BigDecimal quantity, BigDecimal unitPrice,

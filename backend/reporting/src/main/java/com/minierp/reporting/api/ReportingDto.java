@@ -143,8 +143,8 @@ public final class ReportingDto {
             // Invoices backlog
             long invoicesDraftCount,
             long invoicesNotFullyDeliveredCount,
-            long invoicesRefundedCountMonth,
-            BigDecimal invoicesRefundedAmountMonth,
+            long creditNotesCountMonth,
+            BigDecimal creditNotesAmountMonth,
             // Lists & trends
             List<TopProductRow> topProductsMonth,
             List<DailyAmount> sales7Days,

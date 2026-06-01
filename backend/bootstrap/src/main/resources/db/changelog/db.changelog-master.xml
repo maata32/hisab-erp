@@ -58,5 +58,8 @@
     <include file="db/changelog/0051-allocations.xml"/>
     <include file="db/changelog/0052-allocations-backfill.xml"/>
     <include file="db/changelog/0053-allocation-reversal.xml"/>
+    <include file="db/changelog/0054-drop-refunded-status.xml"/>
+    <include file="db/changelog/0055-drop-payment-refunded-status.xml"/>
+    <include file="db/changelog/0056-drop-payment-refunded-columns.xml"/>
 
 </databaseChangeLog>
