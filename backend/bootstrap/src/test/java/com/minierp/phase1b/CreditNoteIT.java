@@ -110,7 +110,8 @@ class CreditNoteIT {
 
         SalesDto.InvoiceDto refreshed = salesService.getInvoice(inv.id());
         assertThat(refreshed.balance()).isEqualByComparingTo("0.00");
-        assertThat(refreshed.status()).isEqualTo("PAID");
+        // A total avoir fully refunds the invoice: status flips to REFUNDED (not PAID).
+        assertThat(refreshed.status()).isEqualTo("REFUNDED");
     }
 
     @Nested
@@ -155,10 +156,13 @@ class CreditNoteIT {
             salesService.createCreditNote(inv.id(),
                     new SalesDto.CreateCreditNoteRequest("Full"));
 
+            // The first total avoir leaves the invoice REFUNDED, so the second
+            // attempt is rejected by the REFUNDED guard (which precedes the
+            // already-credited count check) → error.creditnote.invoice_refunded.
             assertThatThrownBy(() -> salesService.createCreditNote(inv.id(),
                     new SalesDto.CreateCreditNoteRequest("Again")))
                     .isInstanceOfSatisfying(BusinessException.class, e ->
-                            assertThat(e.getMessageKey()).isEqualTo("error.creditnote.already_credited"));
+                            assertThat(e.getMessageKey()).isEqualTo("error.creditnote.invoice_refunded"));
         }
     }
 

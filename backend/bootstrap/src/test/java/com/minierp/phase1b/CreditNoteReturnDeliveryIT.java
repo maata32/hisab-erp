@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Avoir total + auto BR: an avoir cancels the whole invoice in one shot.
  * Stock-return behavior:
  *  - Fully shipped → BR for everything, stock back.
- *  - Never shipped → no BR, status flips to DELIVERED (nothing left to ship).
+ *  - Never shipped → no BR, delivery status stays NONE (nothing was shipped).
  *  - Partially shipped → BR for the delivered slice only; the never-shipped
  *    slice cancels without a stock movement.
  */
@@ -125,8 +125,8 @@ class CreditNoteReturnDeliveryIT {
 
         assertThat(findReturnDeliveryFor(inv.id())).as("nothing shipped → no BR").isNull();
         assertThat(salesService.getInvoice(inv.id()).deliveryStatus())
-                .as("fully credited invoice has no outstanding delivery")
-                .isEqualTo("DELIVERED");
+                .as("never shipped → no return → delivery status stays NONE")
+                .isEqualTo("NONE");
     }
 
     @Test
@@ -145,8 +145,8 @@ class CreditNoteReturnDeliveryIT {
                 .isEqualByComparingTo("1");
 
         assertThat(salesService.getInvoice(inv.id()).deliveryStatus())
-                .as("once the unshipped portion is cancelled and the shipped portion returned, everything is settled")
-                .isEqualTo("DELIVERED");
+                .as("shipped slice returned + unshipped slice cancelled → delivery status RETURNED")
+                .isEqualTo("RETURNED");
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
