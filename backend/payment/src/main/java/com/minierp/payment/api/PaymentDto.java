@@ -67,34 +67,4 @@ public class PaymentDto {
             List<AllocationRequest> allocations
     ) {}
 
-    public record RefundRequest(
-            LocalDate paymentDate,
-            @NotBlank String method,
-            String reference,
-            String reason
-    ) {}
-
-    /**
-     * One row in the impact preview shown before confirming a refund. Tells the
-     * UI: which allocation will be undone, on which document, for how much, and
-     * what the document will look like once the reversal lands.
-     */
-    public record RefundImpactRow(
-            String targetType,
-            UUID targetId,
-            String targetLabel,
-            BigDecimal amount,
-            String afterStatus
-    ) {}
-
-    public record RefundPreviewResponse(
-            UUID paymentId,
-            String paymentNumber,
-            BigDecimal amount,
-            String currency,
-            UUID partyId,
-            String partyName,
-            BigDecimal revokableCreditAmount,
-            List<RefundImpactRow> impacts
-    ) {}
 }

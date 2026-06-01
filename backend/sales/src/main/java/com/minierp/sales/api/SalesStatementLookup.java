@@ -12,7 +12,7 @@ import java.util.UUID;
 public interface SalesStatementLookup {
     /**
      * Invoices issued for a customer with issueDate in [{@code from}, {@code to}],
-     * excluding CANCELLED. Pass {@code detailed=true} to also load product lines
+     * excluding DRAFT and CANCELLED. Pass {@code detailed=true} to also load product lines
      * (each entry's {@code lines} field is populated); otherwise {@code lines} is null.
      */
     List<StatementInvoiceEntry> findInvoicesForStatement(

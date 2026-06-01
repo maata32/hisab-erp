@@ -1,7 +1,7 @@
 import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MoneyPipe } from '@minierp/shared-i18n';
 import { HttpClient } from '@angular/common/http';
 import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
@@ -13,6 +13,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { CalendarModule } from 'primeng/calendar';
+import { ConfirmationService } from 'primeng/api';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
@@ -209,6 +210,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <button pButton icon="pi pi-send" class="p-button-sm p-button-text mr-1"
                           [pTooltip]="'invoices.issue' | translate"
                           (click)="issueInvoice(inv)"></button>
+                  <button pButton icon="pi pi-ban" class="p-button-sm p-button-text p-button-danger mr-1"
+                          [pTooltip]="'invoices.cancel' | translate"
+                          (click)="cancelInvoice(inv)"></button>
                 }
                 @if (canCreateDelivery(inv)) {
                   <button pButton icon="pi pi-truck" class="p-button-sm p-button-text mr-1"
@@ -641,6 +645,8 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
 export class InvoiceListPage implements OnInit {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private translate = inject(TranslateService);
+  private confirmation = inject(ConfirmationService);
 
   protected invoices = signal<Invoice[]>([]);
   protected customers = signal<CustomerOpt[]>([]);
@@ -755,6 +761,20 @@ export class InvoiceListPage implements OnInit {
       await firstValueFrom(this.http.post(`/api/v1/invoices/${inv.id}/issue`, {}));
       this.reload();
     } catch { /* global error handler */ }
+  }
+
+  protected cancelInvoice(inv: Invoice) {
+    this.confirmation.confirm({
+      message: this.translate.instant('invoices.cancelConfirm'),
+      header: this.translate.instant('common.confirmation'),
+      icon: 'pi pi-exclamation-triangle',
+      accept: async () => {
+        try {
+          await firstValueFrom(this.http.post(`/api/v1/invoices/${inv.id}/cancel`, {}));
+          this.reload();
+        } catch { /* global error handler */ }
+      },
+    });
   }
 
   protected canCreateCreditNote(status: string): boolean {

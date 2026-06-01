@@ -32,7 +32,7 @@ interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
     Optional<Invoice> findFirstByQuoteIdOrderByCreatedAtDesc(UUID quoteId);
 
     @Query("SELECT i FROM Invoice i WHERE i.partyId = :partyId " +
-           "AND i.status <> 'CANCELLED' " +
+           "AND i.status NOT IN ('DRAFT','CANCELLED') " +
            "AND i.issueDate >= :from AND i.issueDate <= :to " +
            "ORDER BY i.issueDate ASC, i.createdAt ASC")
     List<Invoice> findForStatement(UUID partyId, LocalDate from, LocalDate to);

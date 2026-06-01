@@ -462,6 +462,17 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
         return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id), name);
     }
 
+    @Transactional
+    public SalesDto.InvoiceDto cancelInvoice(UUID id) {
+        Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));
+        if (inv.getStatus() != InvoiceStatus.DRAFT) {
+            throw new BusinessException("error.invoice.not_draft", Map.of("status", inv.getStatus()));
+        }
+        inv.setStatus(InvoiceStatus.CANCELLED);
+        String name = customerLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
+        return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id), name);
+    }
+
     @Transactional(readOnly = true)
     public SalesDto.InvoiceDto getInvoice(UUID id) {
         Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));

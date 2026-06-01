@@ -175,50 +175,8 @@ class AllocationEngineIT {
         }
 
         @Test
-        @DisplayName("#1: refunding a payment soft-voids its invoice allocations and reopens the invoice")
-        void refundReversesAllocations() {
-            UUID inv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
-            PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "CUSTOMER_PAYMENT", customerId, new BigDecimal("100.00"), "MRU",
-                    LocalDate.now(), "CASH", null, null, "Refund-reversal test",
-                    List.of(new PaymentDto.AllocationRequest("SALE_INVOICE", inv,
-                            new BigDecimal("100.00"), null))));
-            paymentService.confirm(pay.id(), null);
-
-            // One active engine row PAYMENT → INVOICE; invoice fully paid → not open.
-            assertThat(jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM allocations WHERE positive_id = ? AND reversed_at IS NULL",
-                    Long.class, pay.id())).isEqualTo(1L);
-            assertThat(engine.findOpenItemsByParty(customerId).stream()
-                    .anyMatch(i -> "INVOICE".equals(i.sourceType()) && inv.equals(i.sourceId())))
-                    .isFalse();
-
-            // Refund the payment.
-            paymentService.refund(pay.id(),
-                    new PaymentDto.RefundRequest(null, "CASH", null, "client annulé"), null);
-
-            // The row survives for audit but is now reversed → contributes nothing.
-            assertThat(jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM allocations WHERE positive_id = ?",
-                    Long.class, pay.id())).isEqualTo(1L);
-            assertThat(jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM allocations WHERE positive_id = ? AND reversed_at IS NULL",
-                    Long.class, pay.id())).isZero();
-            assertThat(jdbc.queryForObject(
-                    "SELECT reversal_reason FROM allocations WHERE positive_id = ?",
-                    String.class, pay.id())).startsWith("Refund ");
-
-            // Invoice is open again on the NEGATIVE side for its full amount.
-            OpenItem reopened = engine.findOpenItemsByParty(customerId).stream()
-                    .filter(i -> "INVOICE".equals(i.sourceType()) && inv.equals(i.sourceId()))
-                    .findFirst().orElseThrow();
-            assertThat(reopened.sign()).isEqualTo(OpenItem.Sign.NEGATIVE);
-            assertThat(reopened.amountOpen()).isEqualByComparingTo("100.00");
-        }
-
-        @Test
-        @DisplayName("#2: allocation history returns labeled rows, with refunded ones flagged reversed")
-        void allocationHistoryWithLabelsAndReversal() {
+        @DisplayName("#2: allocation history returns labeled rows on both sides")
+        void allocationHistoryWithLabels() {
             UUID inv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
             PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
                     "CUSTOMER_PAYMENT", customerId, new BigDecimal("100.00"), "MRU",
@@ -237,14 +195,6 @@ class AllocationEngineIT {
             assertThat(row.negativeLabel()).isNotBlank();
             assertThat(row.amount()).isEqualByComparingTo("100.00");
             assertThat(row.reversedAt()).isNull();
-
-            // After refund the same row survives but is flagged reversed.
-            paymentService.refund(pay.id(),
-                    new PaymentDto.RefundRequest(null, "CASH", null, "test"), null);
-            var afterRefund = engine.findAllocationHistoryByParty(customerId);
-            assertThat(afterRefund).hasSize(1);
-            assertThat(afterRefund.get(0).reversedAt()).isNotNull();
-            assertThat(afterRefund.get(0).reversalReason()).startsWith("Refund ");
         }
 
         @Test
@@ -374,6 +324,51 @@ class AllocationEngineIT {
                     .orElseThrow();
             assertThat(refund.sign()).isEqualTo(OpenItem.Sign.POSITIVE);
             assertThat(refund.amountOpen()).isEqualByComparingTo("750.00");
+        }
+
+        @Test
+        @DisplayName("supplier versement imputed on a retrait: consumes the versement residual, writes audit row, retrait cash unchanged")
+        void applySupplierRefundToRetrait() {
+            UUID supplierId = UUID.randomUUID();
+            jdbc.update("INSERT INTO parties (id, tenant_id, code, name, is_customer, is_supplier, active, created_at, updated_at, version) " +
+                    "VALUES (?,?,?,?,false,true,true,now(),now(),0)",
+                    supplierId, tenantId, "S-IMPUTE-" + supplierId, "Supplier Impute Test");
+
+            // Versement: the supplier gave us back 750 (open positive item).
+            PaymentDto.PaymentResponse versement = paymentService.create(new PaymentDto.CreatePaymentRequest(
+                    "SUPPLIER_REFUND", supplierId, new BigDecimal("750.00"), "MRU",
+                    LocalDate.now(), "BANK_TRANSFER", null, null, "Versement fournisseur", null));
+            paymentService.confirm(versement.id(), null);
+
+            // Retrait: we pay the supplier 1000 (cash out).
+            PaymentDto.PaymentResponse retrait = paymentService.create(new PaymentDto.CreatePaymentRequest(
+                    "SUPPLIER_PAYMENT", supplierId, new BigDecimal("1000.00"), "MRU",
+                    LocalDate.now(), "CASH", null, null, "Retrait fournisseur", null));
+            paymentService.confirm(retrait.id(), null);
+
+            // Impute 400 of the 750 versement onto the retrait.
+            BigDecimal consumed = engine.applySupplierRefundToRetrait(
+                    versement.id(), retrait.id(), new BigDecimal("400.00"));
+            assertThat(consumed).isEqualByComparingTo("400.00");
+
+            // Audit row: versement (positive) → retrait (negative), amount 400.
+            assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM allocations " +
+                    "WHERE positive_type = 'SUPPLIER_PAYMENT' AND positive_id = ? " +
+                    "  AND negative_type = 'SUPPLIER_PAYMENT' AND negative_id = ?",
+                    Long.class, versement.id(), retrait.id())).isEqualTo(1L);
+
+            // Versement residual consumed: 750 → 350 (still open, reusable).
+            OpenItem versementOpen = engine.findOpenItemsByParty(supplierId).stream()
+                    .filter(i -> "SUPPLIER_PAYMENT".equals(i.sourceType()) && versement.id().equals(i.sourceId()))
+                    .findFirst().orElseThrow();
+            assertThat(versementOpen.amountOpen()).isEqualByComparingTo("350.00");
+
+            // Retrait is on the NEGATIVE side → its cash residual is unchanged (1000).
+            OpenItem retraitOpen = engine.findOpenItemsByParty(supplierId).stream()
+                    .filter(i -> "SUPPLIER_PAYMENT".equals(i.sourceType()) && retrait.id().equals(i.sourceId()))
+                    .findFirst().orElseThrow();
+            assertThat(retraitOpen.amountOpen()).isEqualByComparingTo("1000.00");
         }
 
         @Test

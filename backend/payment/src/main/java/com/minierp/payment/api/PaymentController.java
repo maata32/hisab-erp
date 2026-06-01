@@ -58,19 +58,6 @@ public class PaymentController {
         return service.cancel(id);
     }
 
-    @GetMapping("/{id}/refund-preview")
-    @PreAuthorize("hasAuthority('payment:refund')")
-    public PaymentDto.RefundPreviewResponse refundPreview(@PathVariable UUID id) {
-        return service.refundPreview(id);
-    }
-
-    @PostMapping("/{id}/refund")
-    @PreAuthorize("hasAuthority('payment:refund')")
-    public PaymentDto.PaymentResponse refund(@PathVariable UUID id,
-                                             @Valid @RequestBody PaymentDto.RefundRequest req) {
-        return service.refund(id, req, CurrentUserHolder.tryGet().map(u -> u.userId()).orElse(null));
-    }
-
     @PostMapping("/auto-allocate")
     @PreAuthorize("hasAuthority('payment:update')")
     public PaymentDto.PaymentResponse autoAllocate(@Valid @RequestBody PaymentDto.AutoAllocateRequest req) {

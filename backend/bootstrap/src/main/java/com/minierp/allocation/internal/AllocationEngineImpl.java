@@ -298,6 +298,50 @@ class AllocationEngineImpl implements AllocationEngine {
         return consumed;
     }
 
+    @Override
+    @Transactional
+    public BigDecimal applySupplierRefundToRetrait(UUID refundPaymentId, UUID retraitPaymentId, BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0) {
+            return BigDecimal.ZERO;
+        }
+        var refundMeta = jdbc.queryForMap(
+                "SELECT party_id, type, amount FROM payments WHERE id = ?", refundPaymentId);
+        var retraitMeta = jdbc.queryForMap(
+                "SELECT party_id, type, amount FROM payments WHERE id = ?", retraitPaymentId);
+        UUID refundParty = (UUID) refundMeta.get("party_id");
+        UUID retraitParty = (UUID) retraitMeta.get("party_id");
+        if (refundParty == null || retraitParty == null || !refundParty.equals(retraitParty)) {
+            throw new BusinessException("error.allocation.party_mismatch",
+                    java.util.Map.of("refundPaymentId", refundPaymentId, "retraitPaymentId", retraitPaymentId));
+        }
+        if (!"SUPPLIER_REFUND".equals(refundMeta.get("type"))) {
+            throw new BusinessException("error.allocation.not_a_supplier_refund",
+                    java.util.Map.of("paymentId", refundPaymentId, "type", String.valueOf(refundMeta.get("type"))));
+        }
+        if (!"SUPPLIER_PAYMENT".equals(retraitMeta.get("type"))) {
+            throw new BusinessException("error.allocation.not_a_supplier_retrait",
+                    java.util.Map.of("paymentId", retraitPaymentId, "type", String.valueOf(retraitMeta.get("type"))));
+        }
+        BigDecimal refundAmount = (BigDecimal) refundMeta.get("amount");
+        BigDecimal retraitAmount = (BigDecimal) retraitMeta.get("amount");
+        // Open residual of the versement = its amount minus what it has already
+        // been imputed on (positive-side rows in `allocations`, reversed excluded).
+        BigDecimal refundOpen = refundAmount.subtract(
+                allocationsRepo.sumByPositive(T_SUPPLIER_PAYMENT, refundPaymentId));
+        BigDecimal consumed = amount.min(refundOpen).min(retraitAmount);
+        if (consumed.signum() <= 0) return BigDecimal.ZERO;
+
+        allocationsRepo.save(Allocation.builder()
+                .partyId(refundParty)
+                .positiveType(T_SUPPLIER_PAYMENT)
+                .positiveId(refundPaymentId)
+                .negativeType(T_SUPPLIER_PAYMENT)
+                .negativeId(retraitPaymentId)
+                .amount(consumed)
+                .build());
+        return consumed;
+    }
+
     // ── Queries ──────────────────────────────────────────────────────────────
 
     private List<OpenItem> openInvoices(UUID tenant, UUID partyId) {

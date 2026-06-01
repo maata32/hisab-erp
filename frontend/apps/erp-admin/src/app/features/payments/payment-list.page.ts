@@ -11,7 +11,6 @@ import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
-import { SelectButtonModule } from 'primeng/selectbutton';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -74,25 +73,6 @@ interface AllocationForm {
   allocated: number;
 }
 
-interface RefundImpactRow {
-  targetType: string;
-  targetId: string;
-  targetLabel: string;
-  amount: number;
-  afterStatus: string;
-}
-
-interface RefundPreview {
-  paymentId: string;
-  paymentNumber: string;
-  amount: number;
-  currency: string;
-  partyId: string;
-  partyName: string;
-  revokableCreditAmount: number;
-  impacts: RefundImpactRow[];
-}
-
 type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast';
 
 @Component({
@@ -100,7 +80,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
   standalone: true,
   imports: [
     CommonModule, FormsModule, TranslateModule, MoneyPipe, TableModule, TagModule, ButtonModule,
-    DialogModule, DropdownModule, SelectButtonModule, InputTextModule, InputNumberModule,
+    DialogModule, DropdownModule, InputTextModule, InputNumberModule,
     CheckboxModule, TooltipModule,
   ],
   template: `
@@ -177,11 +157,6 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                           [pTooltip]="'common.cancel' | translate"
                           (click)="cancelPayment(p)"></button>
                 }
-                @if (canRefund(p)) {
-                  <button pButton icon="pi pi-undo" class="p-button-sm p-button-text p-button-warning"
-                          [pTooltip]="'payments.refund' | translate"
-                          (click)="openRefund(p)"></button>
-                }
                 <button pButton icon="pi pi-file-pdf" class="p-button-sm p-button-text"
                         [pTooltip]="'payments.receipt' | translate"
                         (click)="printPdf('/api/v1/payments/' + p.id + '/receipt.pdf')"></button>
@@ -202,9 +177,10 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'payments.directionLabel' | translate }} *</label>
-              <p-selectButton [(ngModel)]="form.direction" [options]="directionOptions"
-                              optionLabel="label" optionValue="value" [allowEmpty]="false"
-                              (onChange)="onTypeChange()" styleClass="w-full" />
+              <p-dropdown [(ngModel)]="form.direction" [options]="directionOptions"
+                          optionLabel="label" optionValue="value"
+                          [disabled]="directionLocked"
+                          (onChange)="onTypeChange()" styleClass="w-full" />
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'payments.method' | translate }} *</label>
@@ -216,6 +192,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             <label class="block text-sm font-medium mb-1">{{ 'payments.party' | translate }} *</label>
             <p-dropdown [(ngModel)]="form.partyId" [options]="parties()"
                         optionLabel="name" optionValue="id" [filter]="true" filterBy="name,code"
+                        [disabled]="partyLocked"
                         (onChange)="onPartyChange()"
                         [styleClass]="'w-full' + (partyInvalid() ? ' ng-invalid ng-dirty' : '')" />
             @if (partyInvalid()) {
@@ -266,18 +243,38 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             </div>
           }
 
-          @if (isCustomerRefundFlow() && form.partyId && selectedCustomerCredit() > 0) {
-            <div class="p-3 rounded border border-sky-300 bg-sky-50 text-sm text-sky-900 flex items-start gap-2">
-              <i class="pi pi-info-circle mt-0.5"></i>
-              <div class="flex-1">
-                <label class="flex items-start gap-2 cursor-pointer">
-                  <input type="checkbox" [(ngModel)]="settleRefundFromCredit" class="mt-1" />
-                  <span>
-                    <strong>{{ 'payments.refundFromCredit.title' | translate:{ amount: selectedCustomerCreditFormatted() } }}</strong>
-                    <span class="block text-xs text-sky-700 mt-0.5">{{ 'payments.refundFromCredit.hint' | translate }}</span>
-                  </span>
-                </label>
+          @if (isCustomerRefundFlow() && form.partyId && partyCredits.length > 0) {
+            <div class="border rounded">
+              <div class="flex items-center justify-between p-2 bg-sky-50 border-b">
+                <span class="font-medium text-sm text-sky-900">{{ 'payments.imputeOnDeposits' | translate }}</span>
+                <span class="text-xs text-sky-700">{{ 'payments.imputeHint' | translate }}</span>
               </div>
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th class="w-10 p-2"></th>
+                    <th class="text-left p-2">{{ 'payments.imputeSource' | translate }}</th>
+                    <th class="text-right p-2 w-40">{{ 'payments.imputeOpen' | translate }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (c of partyCredits; track c.sourceId) {
+                    <tr class="border-t">
+                      <td class="p-2 text-center">
+                        <input type="checkbox" [(ngModel)]="c.selected" />
+                      </td>
+                      <td class="p-2">{{ c.label }}</td>
+                      <td class="p-2 text-right text-gray-700">{{ c.amountOpen | money }} {{ selectedCustomerCurrency() }}</td>
+                    </tr>
+                  }
+                </tbody>
+                <tfoot class="bg-gray-50 border-t">
+                  <tr>
+                    <td colspan="2" class="p-2 text-right font-medium">{{ 'payments.imputedTotal' | translate }}</td>
+                    <td class="p-2 text-right font-bold text-sky-800">{{ imputedAmount() | money }} {{ selectedCustomerCurrency() }}</td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           }
 
@@ -353,89 +350,6 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   (click)="dialogOpen = false" [disabled]="saving()"></button>
           <button pButton [label]="'common.save' | translate" icon="pi pi-check"
                   (click)="save()" [loading]="saving()"></button>
-        </ng-template>
-      </p-dialog>
-
-      <!-- Refund dialog -->
-      <p-dialog [(visible)]="refundOpen" [modal]="true" [style]="{ width: '720px' }"
-                [header]="'payments.refundTitle' | translate" [closable]="!savingRefund()">
-        @if (refundPreview(); as rp) {
-          <div class="space-y-3">
-            <div class="grid grid-cols-3 gap-3 bg-gray-50 p-3 rounded border">
-              <div>
-                <div class="text-xs text-gray-500">{{ 'payments.number' | translate }}</div>
-                <div class="font-mono">{{ rp.paymentNumber }}</div>
-              </div>
-              <div>
-                <div class="text-xs text-gray-500">{{ 'payments.party' | translate }}</div>
-                <div class="font-medium">{{ rp.partyName }}</div>
-              </div>
-              <div>
-                <div class="text-xs text-gray-500">{{ 'payments.refundAmount' | translate }}</div>
-                <div class="font-bold text-red-700">{{ rp.amount | money }} {{ rp.currency }}</div>
-              </div>
-            </div>
-
-            @if (rp.impacts.length > 0) {
-              <div class="p-3 rounded border border-amber-300 bg-amber-50 text-sm text-amber-900">
-                <div class="flex items-center gap-1 mb-1">
-                  <i class="pi pi-exclamation-triangle"></i>
-                  <strong>{{ 'payments.refundImpactHeader' | translate }}</strong>
-                </div>
-                <table class="w-full text-xs">
-                  <thead class="text-gray-600">
-                    <tr>
-                      <th class="text-left p-1">{{ 'payments.refundImpactTarget' | translate }}</th>
-                      <th class="text-right p-1">{{ 'payments.refundImpactAmount' | translate }}</th>
-                      <th class="text-left p-1">{{ 'payments.refundImpactAfter' | translate }}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (row of rp.impacts; track row.targetId) {
-                      <tr class="border-t border-amber-200">
-                        <td class="p-1">{{ row.targetLabel }}</td>
-                        <td class="p-1 text-right font-medium">{{ row.amount | money }} {{ rp.currency }}</td>
-                        <td class="p-1">{{ row.afterStatus || '—' }}</td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
-            } @else {
-              <div class="p-3 rounded border border-amber-300 bg-amber-50 text-sm text-amber-900">
-                {{ 'payments.refundNoAllocations' | translate }}
-              </div>
-            }
-
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-sm font-medium mb-1">{{ 'payments.method' | translate }} *</label>
-                <p-dropdown [(ngModel)]="refundForm.method" [options]="methodOptions"
-                            optionLabel="label" optionValue="value" styleClass="w-full" />
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-1">{{ 'payments.date' | translate }} *</label>
-                <input pInputText type="date" [(ngModel)]="refundForm.paymentDate" class="w-full" />
-              </div>
-            </div>
-            <div>
-              <label class="block text-sm font-medium mb-1">{{ 'payments.reference' | translate }}</label>
-              <input pInputText [(ngModel)]="refundForm.reference" class="w-full" />
-            </div>
-            <div>
-              <label class="block text-sm font-medium mb-1">{{ 'payments.refundReason' | translate }} *</label>
-              <input pInputText [(ngModel)]="refundForm.reason" class="w-full"
-                     [placeholder]="'payments.refundReasonPlaceholder' | translate" />
-            </div>
-          </div>
-        }
-        <ng-template pTemplate="footer">
-          <button pButton [label]="'common.cancel' | translate" class="p-button-text"
-                  (click)="refundOpen.set(false)" [disabled]="savingRefund()"></button>
-          <button pButton [label]="'payments.confirmRefund' | translate" icon="pi pi-undo"
-                  class="p-button-warning"
-                  [disabled]="!canSaveRefund()" [loading]="savingRefund()"
-                  (click)="saveRefund()"></button>
         </ng-template>
       </p-dialog>
 
@@ -552,6 +466,11 @@ export class PaymentListPage implements OnInit {
   protected saving = signal(false);
   protected submitted = signal(false);
   protected dialogOpen = false;
+  /** When true, the dialog was opened from a specific invoice: the cash direction
+   * is forced to a customer payment and the party is the invoice's customer, so
+   * both dropdowns are disabled. */
+  protected directionLocked = false;
+  protected partyLocked = false;
   protected filterPartyId: string | null = null;
 
   protected partyInvalid(): boolean { return this.submitted() && !this.form.partyId; }
@@ -604,26 +523,69 @@ export class PaymentListPage implements OnInit {
     return '';
   }
 
-  // CUSTOMER_REFUND ← CUSTOMER_CREDIT toggle (AllocationEngine Phase 3).
-  // Cached list of the party's active credits and a checkbox the user can
-  // un-tick to refund cash without touching the credit.
-  protected partyCredits: { sourceId: string; amountOpen: number }[] = [];
-  protected settleRefundFromCredit = true;
+  // Imputation versement↔retrait: a customer Retrait (CUSTOMER_REFUND) can be
+  // imputed on the party's open deposits/credits (CUSTOMER_CREDIT open items),
+  // consuming them via the allocation engine instead of being a pure cash-out.
+  // Each row carries a checkbox the user can untick to leave that credit alone.
+  protected partyCredits: { sourceId: string; amountOpen: number; label: string; selected: boolean }[] = [];
 
   private async refreshPartyCredits() {
     this.partyCredits = [];
     if (!this.form.partyId) return;
     try {
       const items = await firstValueFrom(
-        this.http.get<{ sourceType: string; sourceId: string; amountOpen: number }[]>(
+        this.http.get<{ sourceType: string; sourceId: string; amountOpen: number; label: string }[]>(
           `/api/v1/allocations/open-items?partyId=${this.form.partyId}`));
       this.partyCredits = (items ?? [])
         .filter(i => i.sourceType === 'CUSTOMER_CREDIT')
-        .map(i => ({ sourceId: i.sourceId, amountOpen: Number(i.amountOpen) }));
-      this.settleRefundFromCredit = this.partyCredits.length > 0;
+        .map(i => ({ sourceId: i.sourceId, amountOpen: Number(i.amountOpen), label: i.label, selected: true }));
     } catch {
       this.partyCredits = [];
     }
+  }
+
+  /** Total that will be imputed (consumed) from the selected open credits as a
+   *  traceability link — capped by the payment amount. Cash out is always the
+   *  full payment amount; imputation never reduces it. */
+  protected imputedAmount(): number {
+    const selected = this.partyCredits.filter(c => c.selected)
+      .reduce((s, c) => s + (c.amountOpen || 0), 0);
+    return Math.min(this.form.amount || 0, +selected.toFixed(2));
+  }
+
+  // SUPPLIER_PAYMENT (retrait) ← open supplier "versements" (SUPPLIER_REFUND)
+  // imputation — mirror of partyCredits. A versement surfaces in the engine as
+  // a POSITIVE SUPPLIER_PAYMENT open item, so we keep only those whose payment
+  // type is SUPPLIER_REFUND (cash the supplier actually gave back).
+  protected supplierRefunds: { sourceId: string; amountOpen: number; label: string; selected: boolean }[] = [];
+
+  private async refreshSupplierRefunds() {
+    this.supplierRefunds = [];
+    if (!this.form.partyId || !this.isSupplierInvoiceFlow()) return;
+    try {
+      const [items, pays] = await Promise.all([
+        firstValueFrom(this.http.get<{ sourceType: string; sourceId: string; amountOpen: number; label: string }[]>(
+          `/api/v1/allocations/open-items?partyId=${this.form.partyId}`)),
+        firstValueFrom(this.http.get<{ content: Payment[] }>(
+          `/api/v1/payments?partyId=${this.form.partyId}&size=200`)),
+      ]);
+      const refundIds = new Set((pays.content ?? [])
+        .filter(p => p.type === 'SUPPLIER_REFUND')
+        .map(p => p.id));
+      this.supplierRefunds = (items ?? [])
+        .filter(i => i.sourceType === 'SUPPLIER_PAYMENT' && refundIds.has(i.sourceId))
+        .map(i => ({ sourceId: i.sourceId, amountOpen: Number(i.amountOpen), label: i.label, selected: true }));
+    } catch {
+      this.supplierRefunds = [];
+    }
+  }
+
+  /** Total imputed from the selected supplier versements (traceability link,
+   *  capped by the retrait amount). Cash out stays the full retrait amount. */
+  protected supplierImputed(): number {
+    const selected = this.supplierRefunds.filter(c => c.selected)
+      .reduce((s, c) => s + (c.amountOpen || 0), 0);
+    return Math.min(this.form.amount || 0, +selected.toFixed(2));
   }
   protected paymentDateInvalid(): boolean { return this.submitted() && !this.form.paymentDate; }
   protected amountInvalid(): boolean {
@@ -638,17 +600,6 @@ export class PaymentListPage implements OnInit {
   protected allocateForm: {
     allocations: AllocationForm[];
   } = { allocations: [] };
-
-  // Refund dialog state
-  protected refundOpen = signal(false);
-  protected savingRefund = signal(false);
-  protected refundPreview = signal<RefundPreview | null>(null);
-  protected refundForm = {
-    method: 'CASH',
-    paymentDate: '',
-    reference: '',
-    reason: '',
-  };
 
   // The two cash directions the user picks. Labels are translated in the
   // template via the i18n keys below; the values drive derivedType().
@@ -690,6 +641,8 @@ export class PaymentListPage implements OnInit {
       );
       this.openCreate();
       this.form.direction = 'IN'; // money in from the customer → CUSTOMER_PAYMENT
+      this.directionLocked = true; // invoice-driven flow → user can't switch to Retrait
+      this.partyLocked = true;     // … nor change the party (it's the invoice's customer)
       this.form.partyId = inv.customerId;
       this.form.amount = Number(inv.balance);
       await this.onPartyChange();
@@ -722,60 +675,13 @@ export class PaymentListPage implements OnInit {
     } as Record<string, Severity>)[t] ?? 'secondary';
   }
 
-  protected canRefund(p: Payment): boolean {
-    return p.status === 'CONFIRMED'
-        && p.type !== 'CUSTOMER_REFUND' && p.type !== 'SUPPLIER_REFUND';
-  }
-
-  protected async openRefund(p: Payment) {
-    this.refundPreview.set(null);
-    this.refundForm = {
-      method: p.method,
-      paymentDate: new Date().toISOString().slice(0, 10),
-      reference: '',
-      reason: '',
-    };
-    this.refundOpen.set(true);
-    try {
-      const rp = await firstValueFrom(
-        this.http.get<RefundPreview>(`/api/v1/payments/${p.id}/refund-preview`)
-      );
-      this.refundPreview.set(rp);
-    } catch {
-      this.refundPreview.set(null);
-    }
-  }
-
-  protected canSaveRefund(): boolean {
-    return !!this.refundPreview()
-        && !!this.refundForm.method
-        && !!this.refundForm.paymentDate
-        && (this.refundForm.reason || '').trim().length > 0;
-  }
-
-  protected async saveRefund() {
-    const rp = this.refundPreview();
-    if (!rp || !this.canSaveRefund()) return;
-    this.savingRefund.set(true);
-    try {
-      await firstValueFrom(this.http.post(`/api/v1/payments/${rp.paymentId}/refund`, {
-        paymentDate: this.refundForm.paymentDate,
-        method: this.refundForm.method,
-        reference: this.refundForm.reference || null,
-        reason: this.refundForm.reason,
-      }));
-      this.refundOpen.set(false);
-      this.reload();
-    } finally {
-      this.savingRefund.set(false);
-    }
-  }
-
   protected openCreate() {
     this.form = this.emptyForm();
     this.form.paymentDate = new Date().toISOString().slice(0, 10);
     this.openInvoices.set([]);
     this.allocationsUserEdited = false;
+    this.directionLocked = false;
+    this.partyLocked = false;
     this.submitted.set(false);
     this.dialogOpen = true;
   }
@@ -795,6 +701,7 @@ export class PaymentListPage implements OnInit {
     this.openInvoices.set([]);
     this.allocationsUserEdited = false;
     this.refreshPartyCredits();
+    this.refreshSupplierRefunds();
     if (!this.isInvoiceFlow() || !this.form.partyId) return;
     // Customer flow → sales invoices; supplier flow → purchase invoices. Both
     // sit on the NEGATIVE side and are settled FIFO by the payment.
@@ -955,14 +862,18 @@ export class PaymentListPage implements OnInit {
         notes: this.form.notes || null,
         allocations,
       }));
-      // For a refund settled from credit we auto-confirm + consume the credit
-      // in the same action — leaving the refund DRAFT would let the user cancel
-      // it and orphan the allocation row.
-      if (type === 'CUSTOMER_REFUND'
-          && this.settleRefundFromCredit
-          && this.partyCredits.length > 0) {
+      // When the Retrait is imputed on open deposits/credits we auto-confirm +
+      // consume the selected credits in the same action — leaving the payment
+      // DRAFT would let the user cancel it and orphan the allocation rows.
+      if (type === 'CUSTOMER_REFUND' && this.partyCredits.some(c => c.selected)) {
         await firstValueFrom(this.http.post(`/api/v1/payments/${created.id}/confirm`, {}));
         await this.settleRefundFromCustomerCredits(created.id);
+      }
+      // Supplier retrait imputed on open supplier versements: same pattern —
+      // confirm then link each selected versement (traceability, no cash moved).
+      if (type === 'SUPPLIER_PAYMENT' && this.supplierRefunds.some(c => c.selected)) {
+        await firstValueFrom(this.http.post(`/api/v1/payments/${created.id}/confirm`, {}));
+        await this.settleSupplierRetraitFromRefunds(created.id);
       }
       this.dialogOpen = false;
       this.reload();
@@ -976,7 +887,7 @@ export class PaymentListPage implements OnInit {
     // its remaining_amount. The backend also caps to the refund payment's
     // amount, so over-requesting is safe.
     let remaining = Number(this.form.amount) || 0;
-    for (const credit of this.partyCredits) {
+    for (const credit of this.partyCredits.filter(c => c.selected)) {
       if (remaining <= 0) break;
       const take = Math.min(remaining, credit.amountOpen);
       if (take <= 0) continue;
@@ -989,6 +900,28 @@ export class PaymentListPage implements OnInit {
         remaining -= take;
       } catch {
         // Best-effort: a single failure shouldn't unwind the refund payment.
+      }
+    }
+  }
+
+  private async settleSupplierRetraitFromRefunds(retraitPaymentId: string) {
+    // FIFO link the supplier's open versements (SUPPLIER_REFUND) to this retrait.
+    // The backend caps each call to the versement residual and the retrait
+    // amount, so over-requesting is safe. Traceability only — no cash moved.
+    let remaining = Number(this.form.amount) || 0;
+    for (const refund of this.supplierRefunds.filter(c => c.selected)) {
+      if (remaining <= 0) break;
+      const take = Math.min(remaining, refund.amountOpen);
+      if (take <= 0) continue;
+      try {
+        await firstValueFrom(this.http.post('/api/v1/allocations/supplier-refund-to-retrait', {
+          refundPaymentId: refund.sourceId,
+          retraitPaymentId,
+          amount: take,
+        }));
+        remaining -= take;
+      } catch {
+        // Best-effort: a single failure shouldn't unwind the retrait payment.
       }
     }
   }

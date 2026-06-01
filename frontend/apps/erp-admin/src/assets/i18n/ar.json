@@ -35,6 +35,12 @@
     "confirm": "تأكيد"
   },
   "error": {
+    "allocation": {
+      "party_mismatch": "العمليتان لا تخصّان نفس الطرف.",
+      "not_a_refund": "العملية المستهدفة ليست استردادًا لعميل.",
+      "not_a_supplier_refund": "العملية المستهدفة ليست دفعة من مورّد.",
+      "not_a_supplier_retrait": "العملية المستهدفة ليست دفعة لمورّد."
+    },
     "creditnote": {
       "no_lines": "لا توجد بنود لإصدار إشعار دائن.",
       "line_not_found": "بند الفاتورة غير موجود.",
@@ -507,6 +513,8 @@
     },
     "view": "عرض التفاصيل",
     "issue": "إصدار الفاتورة",
+    "cancel": "إلغاء الفاتورة",
+    "cancelConfirm": "إلغاء هذه الفاتورة المسودة؟ ستصبح بحالة \"ملغاة\".",
     "detailTitle": "الفاتورة {{number}}",
     "createCreditNote": "إنشاء إشعار دائن",
     "createDelivery": "إنشاء إذن تسليم",
@@ -686,21 +694,12 @@
     "surplusRowLabel": "رصيد العميل (الفائض → OVERPAYMENT)",
     "enterAmountFirst": "أدخل المبلغ أولاً",
     "customerHasCredit": "لدى هذا العميل رصيد {{amount}} لصالحه — يُطبَّق تلقائياً على الفواتير المُصدَرة التالية (لا ينطبق على هذا الدفع).",
-    "refundFromCredit": {
-      "title": "الرصيد المتاح: {{amount}}",
-      "hint": "حدّد الخيار ليُسوّى هذا الاسترداد من رصيد العميل (FIFO). ألغِ التحديد للاسترداد نقداً دون المساس بالرصيد."
-    },
-    "refund": "استرداد",
-    "refundTitle": "استرداد كامل",
-    "refundAmount": "المبلغ المراد استرداده",
-    "refundReason": "سبب الاسترداد",
-    "refundReasonPlaceholder": "خطأ في الإدخال، إرجاع العميل، فشل إعادة التحصيل…",
-    "refundImpactHeader": "آثار الاسترداد (سيتم إلغاء جميع التخصيصات)",
-    "refundImpactTarget": "الهدف",
-    "refundImpactAmount": "المبلغ المعكوس",
-    "refundImpactAfter": "الحالة بعد",
-    "refundNoAllocations": "لا توجد تخصيصات لهذا الدفع: لن يؤدي الاسترداد إلا إلى عكس حركة الصندوق.",
-    "confirmRefund": "تأكيد الاسترداد"
+    "imputeOnDeposits": "الخصم من الدفعات",
+    "imputeOnSupplierRefunds": "الخصم من دفعات المورّد",
+    "imputeHint": "ألغِ تحديد أي سطر لتركه دون مساس",
+    "imputeSource": "دفعة / رصيد",
+    "imputeOpen": "المتاح",
+    "imputedTotal": "المخصوم"
   },
   "errors": {
     "forbidden": "ليس لديك إذن للوصول إلى هذه الصفحة.",
