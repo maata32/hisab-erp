@@ -13,6 +13,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { CalendarModule } from 'primeng/calendar';
+import { ConfirmationService } from 'primeng/api';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
@@ -645,6 +646,7 @@ export class InvoiceListPage implements OnInit {
   private http = inject(HttpClient);
   private router = inject(Router);
   private translate = inject(TranslateService);
+  private confirmation = inject(ConfirmationService);
 
   protected invoices = signal<Invoice[]>([]);
   protected customers = signal<CustomerOpt[]>([]);
@@ -761,12 +763,18 @@ export class InvoiceListPage implements OnInit {
     } catch { /* global error handler */ }
   }
 
-  protected async cancelInvoice(inv: Invoice) {
-    if (!window.confirm(this.translate.instant('invoices.cancelConfirm'))) return;
-    try {
-      await firstValueFrom(this.http.post(`/api/v1/invoices/${inv.id}/cancel`, {}));
-      this.reload();
-    } catch { /* global error handler */ }
+  protected cancelInvoice(inv: Invoice) {
+    this.confirmation.confirm({
+      message: this.translate.instant('invoices.cancelConfirm'),
+      header: this.translate.instant('common.confirmation'),
+      icon: 'pi pi-exclamation-triangle',
+      accept: async () => {
+        try {
+          await firstValueFrom(this.http.post(`/api/v1/invoices/${inv.id}/cancel`, {}));
+          this.reload();
+        } catch { /* global error handler */ }
+      },
+    });
   }
 
   protected canCreateCreditNote(status: string): boolean {
