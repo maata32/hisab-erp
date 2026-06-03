@@ -751,6 +751,8 @@
     "type": "Type",
     "default": "Défaut",
     "markDefault": "Marquer par défaut",
+    "setDefault": "Définir par défaut",
+    "setDefaultConfirm": "Définir « {{name}} » comme entrepôt par défaut ?",
     "types": {
       "MAIN": "Principal",
       "SECONDARY": "Secondaire",

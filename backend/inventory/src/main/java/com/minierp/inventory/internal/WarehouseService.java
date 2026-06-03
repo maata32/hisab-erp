@@ -48,6 +48,24 @@ public class WarehouseService {
         return toDto(w);
     }
 
+    /**
+     * Promotes a warehouse to be the tenant's default, demoting the current
+     * default. Idempotent when the target is already the default. There is
+     * always exactly one default, so this never clears the default outright.
+     */
+    @Transactional
+    public WarehouseDto setDefault(UUID id) {
+        Warehouse w = warehouses.findById(id)
+                .orElseThrow(() -> NotFoundException.of("entity.warehouse", id));
+        if (w.isDefaultWarehouse()) {
+            return toDto(w);
+        }
+        warehouses.findFirstByDefaultWarehouseTrue()
+                .ifPresent(current -> current.setDefaultWarehouse(false));
+        w.setDefaultWarehouse(true);
+        return toDto(w);
+    }
+
     @Transactional
     public WarehouseDto update(UUID id, String name, String address, String phone, Boolean active) {
         Warehouse w = warehouses.findById(id)

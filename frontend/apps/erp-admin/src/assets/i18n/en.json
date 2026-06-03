@@ -751,6 +751,8 @@
     "type": "Type",
     "default": "Default",
     "markDefault": "Mark as default",
+    "setDefault": "Set as default",
+    "setDefaultConfirm": "Set \"{{name}}\" as the default warehouse?",
     "types": {
       "MAIN": "Main",
       "SECONDARY": "Secondary",

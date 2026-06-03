@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -10,6 +10,8 @@ import { InputTextModule } from 'primeng/inputtext';
 import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
 import { CheckboxModule } from 'primeng/checkbox';
+import { TooltipModule } from 'primeng/tooltip';
+import { ConfirmationService } from 'primeng/api';
 import { firstValueFrom } from 'rxjs';
 
 interface Warehouse {
@@ -27,7 +29,7 @@ interface Warehouse {
   standalone: true,
   imports: [
     CommonModule, FormsModule, TranslateModule, TableModule, TagModule,
-    ButtonModule, InputTextModule, DialogModule, DropdownModule, CheckboxModule,
+    ButtonModule, InputTextModule, DialogModule, DropdownModule, CheckboxModule, TooltipModule,
   ],
   template: `
     <div class="space-y-4">
@@ -64,6 +66,11 @@ interface Warehouse {
               <td>
                 @if (w.defaultWarehouse) {
                   <i class="pi pi-star-fill text-yellow-500"></i>
+                } @else if (w.active) {
+                  <button pButton icon="pi pi-star"
+                          class="p-button-sm p-button-text p-button-rounded text-gray-400"
+                          [pTooltip]="'warehouses.setDefault' | translate"
+                          (click)="setDefault(w)"></button>
                 }
               </td>
               <td>
@@ -125,6 +132,8 @@ interface Warehouse {
 })
 export class WarehouseListPage implements OnInit {
   private http = inject(HttpClient);
+  private confirmation = inject(ConfirmationService);
+  private translate = inject(TranslateService);
 
   protected warehouses = signal<Warehouse[]>([]);
   protected loading = signal(true);
@@ -150,6 +159,22 @@ export class WarehouseListPage implements OnInit {
     this.form = this.emptyForm();
     this.submitted.set(false);
     this.dialogOpen = true;
+  }
+
+  protected setDefault(w: Warehouse) {
+    this.confirmation.confirm({
+      message: this.translate.instant('warehouses.setDefaultConfirm', { name: w.name }),
+      header: this.translate.instant('common.confirmation'),
+      icon: 'pi pi-star',
+      accept: async () => {
+        try {
+          await firstValueFrom(
+            this.http.post(`/api/v1/inventory/warehouses/${w.id}/set-default`, {})
+          );
+          this.load();
+        } catch { /* global error handler */ }
+      },
+    });
   }
 
   protected async save() {

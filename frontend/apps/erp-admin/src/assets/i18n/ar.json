@@ -751,6 +751,8 @@
     "type": "النوع",
     "default": "افتراضي",
     "markDefault": "تعيين كافتراضي",
+    "setDefault": "تعيين كافتراضي",
+    "setDefaultConfirm": "تعيين «{{name}}» كمستودع افتراضي؟",
     "types": {
       "MAIN": "رئيسي",
       "SECONDARY": "ثانوي",

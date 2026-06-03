@@ -45,6 +45,12 @@ public class InventoryController {
         return warehouses.update(id, req.name(), req.address(), req.phone(), req.active());
     }
 
+    @PostMapping("/warehouses/{id}/set-default")
+    @PreAuthorize("hasAuthority('warehouse:manage')")
+    public WarehouseDto setDefaultWarehouse(@PathVariable UUID id) {
+        return warehouses.setDefault(id);
+    }
+
     @GetMapping("/stocks/{warehouseId}/{productId}")
     @PreAuthorize("hasAuthority('stock:read')")
     public StockDto getStock(@PathVariable UUID warehouseId, @PathVariable UUID productId) {
