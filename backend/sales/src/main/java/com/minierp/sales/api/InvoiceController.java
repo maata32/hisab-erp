@@ -56,13 +56,6 @@ public class InvoiceController {
         return service.cancelInvoice(id);
     }
 
-    @PostMapping("/{id}/duplicate")
-    @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('sales:create')")
-    public SalesDto.InvoiceDto duplicate(@PathVariable UUID id) {
-        return service.duplicateInvoice(id);
-    }
-
     @GetMapping("/{id}/pdf")
     @PreAuthorize("hasAuthority('sales:read')")
     public ResponseEntity<byte[]> pdf(@PathVariable UUID id) {

@@ -397,64 +397,6 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
         return toInvoiceDto(inv, built, customer.name());
     }
 
-    /**
-     * Clone an invoice into a brand-new ISSUED one. Lines (snapshots and all)
-     * are copied verbatim. The new invoice has no quote link and is issued today
-     * with a fresh due date offset by the same number of days as the source.
-     */
-    @Transactional
-    public SalesDto.InvoiceDto duplicateInvoice(UUID id) {
-        Invoice src = invoices.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.invoice", id));
-        List<InvoiceLine> srcLines = invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id);
-        if (srcLines.isEmpty()) {
-            throw new BusinessException("error.invoice.no_lines", Map.of("invoiceId", id));
-        }
-
-        LocalDate today = LocalDate.now();
-        LocalDate dueDate = src.getDueDate() != null && src.getIssueDate() != null
-                ? today.plusDays(java.time.temporal.ChronoUnit.DAYS.between(src.getIssueDate(), src.getDueDate()))
-                : today.plusDays(30);
-
-        String number = numbering.next(DocumentType.INVOICE);
-        Invoice copy = Invoice.builder()
-                .number(number)
-                .partyId(src.getPartyId())
-                .quoteId(null)
-                .issueDate(today)
-                .dueDate(dueDate)
-                .status(InvoiceStatus.ISSUED)
-                .currency(src.getCurrency())
-                .paymentTerms(src.getPaymentTerms())
-                .notes(src.getNotes())
-                .build();
-        invoices.save(copy);
-
-        List<InvoiceLine> built = new ArrayList<>();
-        for (InvoiceLine sl : srcLines) {
-            InvoiceLine line = InvoiceLine.builder()
-                    .invoiceId(copy.getId())
-                    .lineNumber(sl.getLineNumber())
-                    .productId(sl.getProductId())
-                    .uomId(sl.getUomId())
-                    .quantity(sl.getQuantity())
-                    .unitPrice(sl.getUnitPrice())
-                    .discountPercent(sl.getDiscountPercent())
-                    .taxRate(sl.getTaxRate())
-                    .lineTotal(sl.getLineTotal())
-                    .snapshotName(sl.getSnapshotName())
-                    .snapshotSku(sl.getSnapshotSku())
-                    .build();
-            invoiceLines.save(line);
-            built.add(line);
-        }
-        computeInvoiceTotals(copy, built);
-        balanceOps.addToInvoiced(copy.getPartyId(), copy.getTotal());
-
-        String name = customerLookup.findById(copy.getPartyId()).map(PartnerSummary::name).orElse("");
-        return toInvoiceDto(copy, built, name);
-    }
-
     @Transactional
     public SalesDto.InvoiceDto issueInvoice(UUID id) {
         Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));

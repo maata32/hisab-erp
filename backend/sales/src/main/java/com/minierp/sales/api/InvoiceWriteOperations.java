@@ -14,7 +14,5 @@ public interface InvoiceWriteOperations {
 
     SalesDto.InvoiceDto createInvoice(SalesDto.CreateInvoiceRequest req);
 
-    SalesDto.InvoiceDto duplicateInvoice(UUID id);
-
     SalesDto.InvoiceDto getInvoice(UUID id);
 }
