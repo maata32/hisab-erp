@@ -122,9 +122,9 @@
           <td th:text="${taxEnabled ? 'TOTAL TTC' : 'TOTAL'}">TOTAL TTC</td>
           <td class="text-right" th:text="${invoice.currency + ' ' + #numbers.formatDecimal(invoice.total,1,decimals)}"></td>
         </tr>
-        <tr th:if="${invoice.paidAmount > 0}">
-          <td style="color:#166534;">Déjà payé</td>
-          <td class="text-right" style="color:#166534;" th:text="${#numbers.formatDecimal(invoice.paidAmount,1,decimals)}"></td>
+        <tr th:if="${invoice.total - invoice.balance > 0}">
+          <td style="color:#166534;">Montant payé</td>
+          <td class="text-right" style="color:#166534;" th:text="${invoice.currency + ' ' + #numbers.formatDecimal(invoice.total - invoice.balance,1,decimals)}"></td>
         </tr>
         <tr th:if="${invoice.balance > 0}">
           <td style="color:#991b1b;font-weight:bold;">Reste à payer</td>
