@@ -76,7 +76,8 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
                         inv.getIssueDate(), inv.getDueDate(),
                         inv.getTotal(), inv.getPaidAmount(), inv.getBalance(),
                         inv.getStatus().name(),
-                        detailed ? toStatementLines(inv.getId()) : null))
+                        detailed ? toStatementLines(inv.getId()) : null,
+                        inv.getCreatedAt()))
                 .toList();
     }
 
@@ -87,7 +88,8 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
         return creditNotes.findForStatement(customerId, from, to).stream()
                 .map(cn -> new StatementCreditNoteEntry(
                         cn.getId(), cn.getInvoiceId(), cn.getNumber(), cn.getIssueDate(),
-                        cn.getAmount(), cn.getReason(), cn.getStatus().name()))
+                        cn.getAmount(), cn.getReason(), cn.getStatus().name(),
+                        cn.getCreatedAt()))
                 .toList();
     }
 

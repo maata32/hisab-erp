@@ -1,6 +1,7 @@
 package com.minierp.payment.api;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -11,5 +12,6 @@ public record StatementPaymentEntry(
         BigDecimal amount,
         String method,
         String reference,
-        String status
+        String status,
+        Instant createdAt
 ) {}

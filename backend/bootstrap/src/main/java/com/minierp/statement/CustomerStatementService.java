@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -124,7 +125,7 @@ public class CustomerStatementService {
             List<StatementCreditEntry> credits,
             boolean detailed) {
 
-        record Movement(LocalDate date, String kind, String number, String label,
+        record Movement(LocalDate date, Instant createdAt, String kind, String number, String label,
                         BigDecimal debit, BigDecimal credit, List<StatementInvoiceLine> lines) {}
 
         // Map invoice → linked non-draft credit note number (one avoir per invoice
@@ -142,17 +143,17 @@ public class CustomerStatementService {
             String label = cnNumber != null
                     ? "Facture soldée par avoir " + cnNumber
                     : "Facture " + i.status().toLowerCase();
-            mvts.add(new Movement(i.issueDate(), "INVOICE", i.number(),
+            mvts.add(new Movement(i.issueDate(), i.createdAt(), "INVOICE", i.number(),
                     label, nz(i.total()), ZERO, detailed ? i.lines() : null));
         }
         for (var cn : creditNotes) {
             String reason = nullSafe(cn.reason()).isBlank() ? "(sans motif)" : cn.reason();
-            mvts.add(new Movement(cn.issueDate(), "CREDIT_NOTE", cn.number(),
+            mvts.add(new Movement(cn.issueDate(), cn.createdAt(), "CREDIT_NOTE", cn.number(),
                     "Avoir : " + reason,
                     ZERO, nz(cn.amount()), null));
         }
         for (var p : payments) {
-            mvts.add(new Movement(p.paymentDate(), "PAYMENT", p.number(),
+            mvts.add(new Movement(p.paymentDate(), p.createdAt(), "PAYMENT", p.number(),
                     "Paiement " + p.method() + (p.reference() != null ? " — " + p.reference() : ""),
                     ZERO, nz(p.amount()), null));
         }
@@ -166,17 +167,21 @@ public class CustomerStatementService {
             LocalDate date = c.createdAt() != null
                     ? c.createdAt().atZone(ZoneId.systemDefault()).toLocalDate()
                     : LocalDate.now();
-            mvts.add(new Movement(date, "CREDIT", "—",
+            mvts.add(new Movement(date, c.createdAt(), "CREDIT", "—",
                     "Crédit accordé (" + c.source() + ")",
                     ZERO, nz(c.initialAmount()), null));
         }
 
-        // Same-date ordering follows the business sequence: an invoice raises
-        // the debt before any payment / credit can reduce it, otherwise the
-        // running balance starts negative and is confusing to read.
+        // Primary order is the document date (the visible "Date" column stays
+        // monotonic). Within the same date we follow the real data-entry order
+        // via createdAt, so an avoir that settles its invoice appears right
+        // after it instead of being grouped below later invoices. The kind
+        // priority is only a last-resort tiebreaker for movements sharing the
+        // exact same instant (e.g. legacy rows with no createdAt).
         Map<String, Integer> kindOrder = Map.of(
                 "INVOICE", 0, "PAYMENT", 1, "CREDIT_NOTE", 2, "CREDIT", 3);
         mvts.sort(Comparator.comparing(Movement::date)
+                .thenComparing(Movement::createdAt, Comparator.nullsLast(Comparator.naturalOrder()))
                 .thenComparingInt(m -> kindOrder.getOrDefault(m.kind(), 99)));
 
         BigDecimal running = ZERO;

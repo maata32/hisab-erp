@@ -1,6 +1,7 @@
 package com.minierp.sales.api;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -19,5 +20,6 @@ public record StatementInvoiceEntry(
         BigDecimal paidAmount,
         BigDecimal balance,
         String status,
-        List<StatementInvoiceLine> lines
+        List<StatementInvoiceLine> lines,
+        Instant createdAt
 ) {}

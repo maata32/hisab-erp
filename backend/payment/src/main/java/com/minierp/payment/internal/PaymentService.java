@@ -63,7 +63,8 @@ public class PaymentService implements PaymentLookup {
         return payments.findConfirmedForCustomerStatement(customerId, from, to).stream()
                 .map(p -> new StatementPaymentEntry(
                         p.getId(), p.getNumber(), p.getPaymentDate(), p.getAmount(),
-                        p.getMethod().name(), p.getReference(), p.getStatus().name()))
+                        p.getMethod().name(), p.getReference(), p.getStatus().name(),
+                        p.getCreatedAt()))
                 .toList();
     }
 
