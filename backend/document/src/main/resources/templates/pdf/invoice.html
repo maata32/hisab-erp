@@ -123,7 +123,7 @@
           <td class="text-right" th:text="${invoice.currency + ' ' + #numbers.formatDecimal(invoice.total,1,decimals)}"></td>
         </tr>
         <tr th:if="${invoice.total - invoice.balance > 0}">
-          <td style="color:#166534;">Montant payé</td>
+          <td style="color:#166534;">Payé</td>
           <td class="text-right" style="color:#166534;" th:text="${invoice.currency + ' ' + #numbers.formatDecimal(invoice.total - invoice.balance,1,decimals)}"></td>
         </tr>
         <tr th:if="${invoice.balance > 0}">
