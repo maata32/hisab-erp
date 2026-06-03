@@ -20,6 +20,7 @@ import { firstValueFrom } from 'rxjs';
 interface Invoice {
   id: string;
   number: string;
+  customerId: string;
   customerName: string;
   issueDate: string;
   dueDate: string;
@@ -51,6 +52,7 @@ interface InvoiceLine {
   id: string;
   lineNumber: number;
   productId: string;
+  uomId: string;
   productName: string;
   sku: string;
   quantity: number;
@@ -187,9 +189,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                 {{ inv.balance | money }} {{ inv.currency }}
               </td>
               <td>
-                @if (inv.status === 'DRAFT' || inv.status === 'CANCELLED') {
-                  <p-tag [value]="'sales.statuses.' + inv.status | translate" [severity]="statusSeverity(inv.status)" />
-                }
+                <p-tag [value]="'sales.statuses.' + inv.status | translate" [severity]="statusSeverity(inv.status)" />
                 @if (inv.deliveryStatus && inv.deliveryStatus !== 'NONE') {
                   <p-tag [value]="'invoices.deliveryStatuses.' + inv.deliveryStatus | translate"
                          [severity]="deliveryStatusSeverity(inv.deliveryStatus)"
@@ -551,7 +551,6 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                         (click)="printPdf('/api/v1/invoices/' + inv.id + '/pdf')"></button>
                 <button pButton icon="pi pi-copy" [label]="'invoices.duplicate' | translate"
                         class="p-button-text"
-                        [loading]="duplicating()"
                         (click)="duplicateInvoice(inv)"></button>
                 @if (canCreateDelivery(inv)) {
                   <button pButton icon="pi pi-truck" [label]="'invoices.createDelivery' | translate"
@@ -694,8 +693,6 @@ export class InvoiceListPage implements OnInit {
   protected creditPreview = signal<CreditNotePreview | null>(null);
   protected savingCredit = signal(false);
   protected creditForm: { reason: string } = { reason: '' };
-
-  protected duplicating = signal(false);
 
   protected customerInvalid(): boolean { return this.submitted() && !this.form.customerId; }
   protected issueDateInvalid(): boolean { return this.submitted() && !this.form.issueDate; }
@@ -855,15 +852,30 @@ export class InvoiceListPage implements OnInit {
     }
   }
 
-  protected async duplicateInvoice(inv: InvoiceDetail) {
-    this.duplicating.set(true);
-    try {
-      await firstValueFrom(this.http.post(`/api/v1/invoices/${inv.id}/duplicate`, {}));
-      this.detailOpen.set(false);
-      this.reload();
-    } finally {
-      this.duplicating.set(false);
-    }
+  protected duplicateInvoice(inv: InvoiceDetail) {
+    // "Duplicate" is a data-entry aid, not a server-side copy: open the create
+    // dialog pre-filled identically to the source invoice so the user can review
+    // and adjust before saving. Nothing is persisted until they hit Save.
+    this.form = {
+      customerId: inv.customerId,
+      issueDate: new Date(inv.issueDate),
+      dueDate: new Date(inv.dueDate),
+      currency: inv.currency || '',
+      paymentTerms: inv.paymentTerms || '',
+      notes: inv.notes || '',
+      lines: inv.lines.map(l => ({
+        productId: l.productId,
+        uomId: l.uomId,
+        quantity: l.quantity,
+        unitPrice: l.unitPrice,
+        discountPercent: l.discountPercent,
+        taxRate: l.taxRate,
+      })),
+    };
+    this.submitted.set(false);
+    this.refreshAvailableCredits();
+    this.detailOpen.set(false);
+    this.dialogOpen = true;
   }
 
   protected async saveCreditNote() {
