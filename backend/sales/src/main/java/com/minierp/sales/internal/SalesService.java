@@ -424,7 +424,10 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
     public SalesDto.InvoiceDto getInvoice(UUID id) {
         Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));
         String name = customerLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
-        return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id), name);
+        // Carry the real avoir count so the detail view gates its actions
+        // correctly (créer un BL / un avoir hidden once the invoice is credited).
+        long cnCount = creditNotes.countNonDraftByInvoiceId(id);
+        return toInvoiceDto(inv, invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id), name, cnCount);
     }
 
     @Transactional(readOnly = true)
