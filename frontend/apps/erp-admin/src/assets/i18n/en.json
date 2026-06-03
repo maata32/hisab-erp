@@ -52,6 +52,9 @@
     "delivery": {
       "already_shipped": "Stock has already left the warehouse for this delivery — it cannot be cancelled."
     },
+    "inventory": {
+      "insufficient_stock": "Insufficient stock: {{available}} on hand, {{requested}} requested. The invoice was not created."
+    },
     "order": {
       "status_auto_only": "This status is auto-derived from deliveries and cannot be set manually.",
       "cannot_cancel": "Cannot cancel an invoiced or (partially) delivered order — issue a credit note instead."

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MoneyPipe } from '@minierp/shared-i18n';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
@@ -13,7 +13,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { CalendarModule } from 'primeng/calendar';
-import { ConfirmationService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
@@ -646,6 +646,7 @@ export class InvoiceListPage implements OnInit {
   private router = inject(Router);
   private translate = inject(TranslateService);
   private confirmation = inject(ConfirmationService);
+  private messages = inject(MessageService);
 
   protected invoices = signal<Invoice[]>([]);
   protected customers = signal<CustomerOpt[]>([]);
@@ -1038,9 +1039,33 @@ export class InvoiceListPage implements OnInit {
       this.pendingInvoicePayload = null;
       this.availableCredits.set([]);
       this.reload();
+    } catch (e) {
+      // Immediate delivery rolls back atomically when stock is short (or any
+      // other reason). Surface why instead of failing silently; the dialog
+      // stays open so the user can switch to deferred delivery or fix stock.
+      this.showError(e);
     } finally {
       this.saving.set(false);
     }
+  }
+
+  private showError(err: unknown) {
+    let detail = this.translate.instant('common.error_generic');
+    if (err instanceof HttpErrorResponse) {
+      const body = err.error;
+      if (body?.code) {
+        const translated = this.translate.instant(body.code, body.details ?? {});
+        detail = translated !== body.code ? translated : (body.message ?? body.code);
+      } else if (body?.message) {
+        detail = body.message;
+      }
+    }
+    this.messages.add({
+      severity: 'error',
+      summary: this.translate.instant('common.error'),
+      detail,
+      life: 5000,
+    });
   }
 
   private async applyCreditsToCreatedInvoice(invoiceId: string) {
