@@ -380,12 +380,17 @@
     "openItems": "Items ouverts (compte)",
     "openItemsTitle": "Items ouverts",
     "openItemsEmpty": "Aucun item ouvert sur ce compte.",
+    "impute": "Imputer",
+    "imputePreview": "À imputer :",
+    "imputeUnsupported": "Sélectionnez un crédit client (+) et une facture (−) à imputer.",
+    "imputeDone": "Imputation effectuée.",
     "openItemsCol": {
       "type": "Type",
       "ref": "Référence",
       "date": "Date",
       "open": "Reste ouvert",
-      "sign": "Signe"
+      "sign": "Signe",
+      "select": "Sél."
     },
     "openItemsType": {
       "INVOICE": "Facture client",

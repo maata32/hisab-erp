@@ -380,12 +380,17 @@
     "openItems": "البنود المفتوحة (الحساب)",
     "openItemsTitle": "البنود المفتوحة",
     "openItemsEmpty": "لا توجد بنود مفتوحة على هذا الحساب.",
+    "impute": "تخصيص",
+    "imputePreview": "للتخصيص:",
+    "imputeUnsupported": "اختر رصيد عميل (+) وفاتورة (−) للتخصيص.",
+    "imputeDone": "تم التخصيص.",
     "openItemsCol": {
       "type": "النوع",
       "ref": "المرجع",
       "date": "التاريخ",
       "open": "المتبقي مفتوحًا",
-      "sign": "الإشارة"
+      "sign": "الإشارة",
+      "select": "تحديد"
     },
     "openItemsType": {
       "INVOICE": "فاتورة عميل",

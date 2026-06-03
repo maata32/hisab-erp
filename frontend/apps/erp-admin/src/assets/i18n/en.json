@@ -380,12 +380,17 @@
     "openItems": "Open items (account)",
     "openItemsTitle": "Open items",
     "openItemsEmpty": "No open items on this account.",
+    "impute": "Apply",
+    "imputePreview": "To apply:",
+    "imputeUnsupported": "Select a customer credit (+) and an invoice (−) to apply.",
+    "imputeDone": "Applied.",
     "openItemsCol": {
       "type": "Type",
       "ref": "Reference",
       "date": "Date",
       "open": "Open amount",
-      "sign": "Sign"
+      "sign": "Sign",
+      "select": "Sel."
     },
     "openItemsType": {
       "INVOICE": "Customer invoice",

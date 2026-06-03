@@ -416,6 +416,7 @@ interface PartnerForm {
                 <th class="text-left p-2 w-28">{{ 'partners.openItemsCol.date' | translate }}</th>
                 <th class="text-right p-2 w-28">{{ 'partners.openItemsCol.open' | translate }}</th>
                 <th class="text-center p-2 w-20">{{ 'partners.openItemsCol.sign' | translate }}</th>
+                <th class="text-center p-2 w-12">{{ 'partners.openItemsCol.select' | translate }}</th>
               </tr>
             </thead>
             <tbody>
@@ -432,14 +433,35 @@ interface PartnerForm {
                       <p-tag severity="danger" [value]="'−'" />
                     }
                   </td>
+                  <td class="p-2 text-center">
+                    @if (item.sourceType === 'CUSTOMER_CREDIT' && item.sign === 'POSITIVE') {
+                      <input type="radio" name="impPos" [value]="item.sourceId" [(ngModel)]="impPositiveId" />
+                    } @else if (item.sourceType === 'INVOICE' && item.sign === 'NEGATIVE') {
+                      <input type="radio" name="impNeg" [value]="item.sourceId" [(ngModel)]="impNegativeId" />
+                    }
+                  </td>
                 </tr>
               }
             </tbody>
           </table>
         }
         <ng-template pTemplate="footer">
-          <button pButton [label]="'common.close' | translate" class="p-button-text"
-                  (click)="openItemsDialogOpen = false"></button>
+          <div class="flex items-center justify-between w-full gap-3">
+            <span class="text-sm text-gray-700">
+              @if (imputePairSupported()) {
+                {{ 'partners.imputePreview' | translate }} <strong>{{ imputeAmount() | money }}</strong>
+              }
+            </span>
+            <div class="flex gap-2">
+              <button pButton icon="pi pi-link" [label]="'partners.impute' | translate"
+                      class="p-button-sm"
+                      [pTooltip]="canImpute() ? '' : ('partners.imputeUnsupported' | translate)"
+                      [disabled]="!canImpute()" [loading]="imputing()"
+                      (click)="impute()"></button>
+              <button pButton [label]="'common.close' | translate" class="p-button-text"
+                      (click)="openItemsDialogOpen = false"></button>
+            </div>
+          </div>
         </ng-template>
       </p-dialog>
 
@@ -567,6 +589,14 @@ export class PartnerListPage implements OnInit {
     dateRef: string;
     label: string;
   }[]>([]);
+
+  // Manual imputation from the open-items dialog: pick one positive credit and
+  // one negative invoice, then net them via credit-to-invoice. Only that pair
+  // is reachable through the allocation controller, so radios are shown only on
+  // CUSTOMER_CREDIT (+) and INVOICE (−) rows.
+  protected impPositiveId: string | null = null;
+  protected impNegativeId: string | null = null;
+  protected imputing = signal(false);
 
   // Allocation history dialog (#2): full audit of the unified allocations table
   // for a party, including reversed (soft-void) rows.
@@ -762,6 +792,8 @@ export class PartnerListPage implements OnInit {
   protected async openOpenItemsDialog(p: Partner) {
     this.openItemsPartner.set(p);
     this.openItems.set([]);
+    this.impPositiveId = null;
+    this.impNegativeId = null;
     this.openItemsDialogOpen = true;
     this.openItemsLoading.set(true);
     try {
@@ -781,6 +813,61 @@ export class PartnerListPage implements OnInit {
       this.openItems.set([]);
     } finally {
       this.openItemsLoading.set(false);
+    }
+  }
+
+  private impSelectedPositive() {
+    return this.openItems().find(i => i.sourceId === this.impPositiveId && i.sign === 'POSITIVE');
+  }
+  private impSelectedNegative() {
+    return this.openItems().find(i => i.sourceId === this.impNegativeId && i.sign === 'NEGATIVE');
+  }
+
+  /** Amount that will be netted: the smaller of the two open residuals. */
+  protected imputeAmount(): number {
+    const pos = this.impSelectedPositive();
+    const neg = this.impSelectedNegative();
+    if (!pos || !neg) return 0;
+    return +Math.min(Number(pos.amountOpen), Number(neg.amountOpen)).toFixed(2);
+  }
+
+  /** Only CUSTOMER_CREDIT (+) → INVOICE (−) is reachable via the allocation
+   *  controller, so that is the one supported pair from this dialog. */
+  protected imputePairSupported(): boolean {
+    const pos = this.impSelectedPositive();
+    const neg = this.impSelectedNegative();
+    return pos?.sourceType === 'CUSTOMER_CREDIT' && neg?.sourceType === 'INVOICE';
+  }
+
+  protected canImpute(): boolean {
+    return !this.imputing() && this.imputePairSupported() && this.imputeAmount() > 0;
+  }
+
+  protected async impute() {
+    const pos = this.impSelectedPositive();
+    const neg = this.impSelectedNegative();
+    const amount = this.imputeAmount();
+    if (!pos || !neg || !this.imputePairSupported() || amount <= 0) return;
+    this.imputing.set(true);
+    try {
+      await firstValueFrom(this.http.post('/api/v1/allocations/credit-to-invoice', {
+        creditId: pos.sourceId,
+        invoiceId: neg.sourceId,
+        amount,
+      }));
+      this.toast.add({
+        severity: 'success',
+        summary: this.i18n.instant('common.success'),
+        detail: this.i18n.instant('partners.imputeDone'),
+        life: 4000,
+      });
+      const p = this.openItemsPartner();
+      if (p) await this.openOpenItemsDialog(p); // refresh residuals, keep dialog open
+      this.reload(); // partner balances may have changed
+    } catch (e) {
+      this.showError(e);
+    } finally {
+      this.imputing.set(false);
     }
   }
 
