@@ -282,12 +282,16 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             <div class="border rounded">
               <div class="flex items-center justify-between p-2 bg-gray-50 border-b">
                 <span class="font-medium text-sm">{{ 'payments.allocations' | translate }}</span>
-                <span [pTooltip]="autoAllocateTooltip()" tooltipPosition="left">
-                  <button pButton icon="pi pi-bolt" [label]="'payments.autoAllocate' | translate"
-                          class="p-button-sm p-button-text"
-                          [disabled]="!form.amount || openInvoices().length === 0"
-                          (click)="autoAllocate()"></button>
-                </span>
+                @if (invoiceLocked) {
+                  <span class="text-xs text-gray-500 italic">{{ 'payments.lockedAllocationHint' | translate }}</span>
+                } @else {
+                  <span [pTooltip]="autoAllocateTooltip()" tooltipPosition="left">
+                    <button pButton icon="pi pi-bolt" [label]="'payments.autoAllocate' | translate"
+                            class="p-button-sm p-button-text"
+                            [disabled]="!form.amount || openInvoices().length === 0"
+                            (click)="autoAllocate()"></button>
+                  </span>
+                }
               </div>
               @if (openInvoices().length === 0) {
                 <div class="p-4 text-center text-gray-400 text-sm">
@@ -311,11 +315,15 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                         <td class="p-2 text-gray-600">{{ a.dueDate | date:'mediumDate' }}</td>
                         <td class="p-2 text-right text-gray-700">{{ a.balance | money }}</td>
                         <td class="p-1">
-                          <p-inputNumber [(ngModel)]="a.allocated" [min]="0" [max]="a.balance"
-                                         [minFractionDigits]="moneyFormat.decimalPlaces()"
-                                         [maxFractionDigits]="moneyFormat.decimalPlaces()"
-                                         (onInput)="onAllocationEdit()"
-                                         inputStyleClass="w-full text-right" styleClass="w-full" />
+                          @if (invoiceLocked) {
+                            <div class="text-right font-medium px-2 py-1">{{ a.allocated | money }}</div>
+                          } @else {
+                            <p-inputNumber [(ngModel)]="a.allocated" [min]="0" [max]="a.balance"
+                                           [minFractionDigits]="moneyFormat.decimalPlaces()"
+                                           [maxFractionDigits]="moneyFormat.decimalPlaces()"
+                                           (onInput)="onAllocationEdit()"
+                                           inputStyleClass="w-full text-right" styleClass="w-full" />
+                          }
                         </td>
                       </tr>
                     }
@@ -471,6 +479,11 @@ export class PaymentListPage implements OnInit {
    * both dropdowns are disabled. */
   protected directionLocked = false;
   protected partyLocked = false;
+  /** When true, the dialog was opened from "pay this invoice": only that invoice
+   * is shown in the allocation table and its allocation is read-only — always
+   * allocated to the invoice (capped at its balance), any surplus → customer
+   * credit. The amount stays editable so the user can still overpay. */
+  protected invoiceLocked = false;
   protected filterPartyId: string | null = null;
 
   protected partyInvalid(): boolean { return this.submitted() && !this.form.partyId; }
@@ -646,12 +659,16 @@ export class PaymentListPage implements OnInit {
       this.form.partyId = inv.customerId;
       this.form.amount = Number(inv.balance);
       await this.onPartyChange();
-      // Override the FIFO distribution: allocate only to the target invoice,
-      // matching the user's clear intent ("paye cette facture").
+      // Lock the allocation to the targeted invoice: show only this line and
+      // make it read-only, matching the user's clear intent ("paye cette
+      // facture"). The amount stays editable so the user can overpay — the
+      // surplus then becomes a customer credit — but it is always allocated to
+      // this invoice (capped at its balance).
       const target = this.form.allocations.find(a => a.invoiceId === invoiceId);
       if (target) {
-        for (const a of this.form.allocations) a.allocated = 0;
-        target.allocated = Math.min(this.form.amount, target.balance);
+        this.form.allocations = [target];
+        this.invoiceLocked = true;
+        this.syncLockedAllocation();
         this.allocationsUserEdited = true;
       }
     } catch {
@@ -682,6 +699,7 @@ export class PaymentListPage implements OnInit {
     this.allocationsUserEdited = false;
     this.directionLocked = false;
     this.partyLocked = false;
+    this.invoiceLocked = false;
     this.submitted.set(false);
     this.dialogOpen = true;
   }
@@ -755,6 +773,7 @@ export class PaymentListPage implements OnInit {
   }
 
   protected onAmountChange() {
+    if (this.invoiceLocked) { this.syncLockedAllocation(); return; }
     // Re-run FIFO if allocations were never customized. If the user customized
     // the distribution, preserve it as long as it remains valid (totalAllocated
     // ≤ new amount). On overflow, force a FIFO redistribution so the dialog
@@ -771,6 +790,14 @@ export class PaymentListPage implements OnInit {
 
   protected onAllocationEdit() {
     this.allocationsUserEdited = true;
+  }
+
+  /** Locked "pay this invoice" flow: the single allocation always equals
+   *  min(amount, balance). Any amount above the balance is left as surplus and
+   *  becomes a customer credit (createSurplus). */
+  private syncLockedAllocation() {
+    const a = this.form.allocations[0];
+    if (a) a.allocated = +Math.min(this.form.amount || 0, a.balance).toFixed(2);
   }
 
   protected autoAllocate() {

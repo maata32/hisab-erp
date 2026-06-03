@@ -683,6 +683,7 @@
     "noOpenInvoices": "Aucune facture ouverte pour ce client",
     "enterAmountFirst": "Saisissez d'abord un montant",
     "allocated": "À allouer",
+    "lockedAllocationHint": "Alloué à cette facture (surplus → crédit client)",
     "totalAllocated": "Total alloué",
     "allocateTitle": "Allouer le paiement",
     "allocateTooltip": "Allouer le reste —",

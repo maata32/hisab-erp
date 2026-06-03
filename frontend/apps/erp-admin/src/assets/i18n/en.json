@@ -683,6 +683,7 @@
     "noOpenInvoices": "No open invoices for this customer",
     "enterAmountFirst": "Enter an amount first",
     "allocated": "Allocated",
+    "lockedAllocationHint": "Allocated to this invoice (surplus → customer credit)",
     "totalAllocated": "Total allocated",
     "allocateTitle": "Allocate payment",
     "allocateTooltip": "Allocate remaining —",

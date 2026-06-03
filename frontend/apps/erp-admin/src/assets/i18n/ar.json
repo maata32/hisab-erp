@@ -682,6 +682,7 @@
     "autoAllocate": "تخصيص تلقائي",
     "noOpenInvoices": "لا توجد فواتير مفتوحة لهذا العميل",
     "allocated": "المخصص",
+    "lockedAllocationHint": "مخصّص لهذه الفاتورة (الفائض → رصيد العميل)",
     "totalAllocated": "إجمالي المخصص",
     "allocateTitle": "تخصيص الدفعة",
     "allocateTooltip": "تخصيص المتبقي —",
