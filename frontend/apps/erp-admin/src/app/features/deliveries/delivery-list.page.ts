@@ -53,6 +53,7 @@ interface InvoiceLite {
   customerName: string;
   status: string;
   deliveryStatus: string;
+  creditNoteCount: number;
   lines: { id: string; productId: string; uomId: string; quantity: number; productName: string; sku: string }[];
 }
 
@@ -374,11 +375,15 @@ export class DeliveryListPage implements OnInit {
   }
 
   protected deliverableInvoices(): InvoiceLite[] {
-    // BL prereq: invoice not DRAFT, not CANCELLED, not fully delivered.
+    // BL prereq, mirroring the backend SalesService.canReceiveDelivery: invoice
+    // not DRAFT, not CANCELLED, not settled by an avoir (creditNoteCount === 0),
+    // and not already fully delivered or returned.
     return this.invoicesList().filter(inv =>
       inv.status !== 'DRAFT'
       && inv.status !== 'CANCELLED'
-      && inv.deliveryStatus !== 'DELIVERED');
+      && inv.creditNoteCount === 0
+      && inv.deliveryStatus !== 'DELIVERED'
+      && inv.deliveryStatus !== 'RETURNED');
   }
 
   protected statusSeverity(status: string): Severity {
