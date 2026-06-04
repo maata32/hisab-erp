@@ -188,7 +188,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <p-dropdown [(ngModel)]="form.warehouseId" [options]="warehouses()"
                           optionLabel="name" optionValue="id"
                           [placeholder]="'deliveries.pickWarehouse' | translate"
-                          appendTo="body"
+                          appendTo="body" (onChange)="onWarehouseChange()"
                           [styleClass]="'w-full' + (warehouseInvalid() ? ' ng-invalid ng-dirty' : '')">
                 <ng-template let-w pTemplate="item">
                   <div class="flex items-center gap-2">
@@ -254,6 +254,20 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             </table>
             @if (createLinesInvalid()) {
               <div class="px-2 py-2 text-xs text-red-600 border-t">{{ 'deliveries.atLeastOneLineQty' | translate }}</div>
+            }
+            @if (anyShort()) {
+              <div class="px-3 py-2 text-xs text-amber-800 bg-amber-50 border-t border-amber-200 flex items-start gap-2">
+                <i class="pi pi-exclamation-triangle mt-0.5"></i>
+                <div>
+                  <div class="font-medium">{{ 'deliveries.stockWarningTitle' | translate }}</div>
+                  <ul class="list-disc ml-4 mt-1">
+                    @for (l of shortLines(); track l.productId) {
+                      <li>{{ l.productName }} — {{ 'deliveries.stockWarningLine' | translate:{ available: lineAvailable(l.productId), requested: l.quantityOrdered } }}</li>
+                    }
+                  </ul>
+                  <div class="mt-1">{{ 'deliveries.stockWarningHint' | translate }}</div>
+                </div>
+              </div>
             }
           </div>
         </div>
@@ -342,6 +356,41 @@ export class DeliveryListPage implements OnInit {
   }
   protected signedByInvalid(): boolean { return this.submittedRecord() && !this.recordForm.signedBy?.trim(); }
   protected remainingByProduct: Record<string, number> = {};
+  /** Available qty per product in the currently selected create-dialog warehouse. */
+  protected stockByProduct: Record<string, number> = {};
+
+  protected lineAvailable(productId: string): number {
+    return this.stockByProduct[productId] ?? 0;
+  }
+  /** A line is short when its ship qty exceeds the selected warehouse's stock. */
+  protected lineShort(l: DeliveryLineForm): boolean {
+    return !!this.form.warehouseId && (l.quantityOrdered ?? 0) > this.lineAvailable(l.productId);
+  }
+  protected shortLines(): DeliveryLineForm[] {
+    return this.form.lines.filter(l => this.lineShort(l));
+  }
+  protected anyShort(): boolean { return this.shortLines().length > 0; }
+
+  private async loadWarehouseStock() {
+    this.stockByProduct = {};
+    const wid = this.form.warehouseId;
+    if (!wid) return;
+    try {
+      const stocks = await firstValueFrom(
+        this.http.get<{ productId: string; qtyAvailable: number }[]>(
+          `/api/v1/inventory/stocks/by-warehouse/${wid}`)
+      );
+      const map: Record<string, number> = {};
+      for (const s of stocks ?? []) map[s.productId] = Number(s.qtyAvailable);
+      this.stockByProduct = map;
+    } catch {
+      this.stockByProduct = {};
+    }
+  }
+
+  protected onWarehouseChange() {
+    this.loadWarehouseStock();
+  }
 
   protected form: {
     invoiceId: string | null;
@@ -411,6 +460,7 @@ export class DeliveryListPage implements OnInit {
     this.remainingByProduct = {};
     this.submittedCreate.set(false);
     this.createOpen = true;
+    await this.loadWarehouseStock(); // warehouse is preselected (default) in emptyForm
   }
 
   protected async onInvoiceChange() {
