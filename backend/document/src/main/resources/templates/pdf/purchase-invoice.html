@@ -62,21 +62,13 @@
     </div>
   </div>
 
-  <div class="parties">
-    <div class="party-block">
-      <div class="party-label">Acheteur</div>
-      <div class="party-name" th:text="${orgName}"></div>
-      <div class="party-detail" th:if="${!#strings.isEmpty(orgAddress)}" th:text="${orgAddress}"></div>
-      <div class="party-detail" th:if="${!#strings.isEmpty(orgPhone)}">Tél. <span th:text="${orgPhone}"></span></div>
-      <div class="party-detail" th:if="${!#strings.isEmpty(orgEmail)}" th:text="${orgEmail}"></div>
-      <div class="party-detail" th:text="${orgEmail}"></div>
-    </div>
-    <div class="party-block" style="text-align:right;">
+  <div class="parties" style="margin-bottom:12px;">
+    <div class="party-block" style="width:100%;text-align:right;">
       <div class="party-label">Fournisseur</div>
       <div class="party-name" th:text="${supplier.name}"></div>
-      <div class="party-detail" th:text="${supplier.code}"></div>
-      <div class="party-detail" th:text="${supplier.phone}"></div>
-      <div class="party-detail" th:text="${supplier.email}"></div>
+      <div class="party-detail" th:if="${!#strings.isEmpty(supplier.code)}" th:text="${supplier.code}"></div>
+      <div class="party-detail" th:if="${!#strings.isEmpty(supplier.phone)}" th:text="${supplier.phone}"></div>
+      <div class="party-detail" th:if="${!#strings.isEmpty(supplier.email)}" th:text="${supplier.email}"></div>
     </div>
   </div>
 
