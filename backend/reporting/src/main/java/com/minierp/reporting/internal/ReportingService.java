@@ -253,21 +253,39 @@ public class ReportingService {
         LocalDate sevenDaysAgo = today.minusDays(6);
 
         // ── Finance — today/month sales ───────────────────────────────────────
+        // "Ventes" = POS completed sales + issued invoices (an invoice counts as
+        // a sale on its issue_date, excluding DRAFT/CANCELLED). The POS and
+        // invoice chains are disjoint, so the UNION ALL never double-counts.
         BigDecimal salesToday = nz(jdbc.queryForObject(
-                "SELECT COALESCE(SUM(total),0) FROM sales WHERE tenant_id=? AND status='COMPLETED' " +
-                "AND completed_at::date = ?", BigDecimal.class, tenant, today));
+                "SELECT COALESCE(SUM(total),0) FROM (" +
+                "  SELECT total FROM sales WHERE tenant_id=? AND status='COMPLETED' AND completed_at::date = ? " +
+                "  UNION ALL " +
+                "  SELECT total FROM invoices WHERE tenant_id=? AND status NOT IN ('DRAFT','CANCELLED') AND issue_date = ?" +
+                ") x", BigDecimal.class, tenant, today, tenant, today));
         long salesCountToday = nz(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM sales WHERE tenant_id=? AND status='COMPLETED' " +
-                "AND completed_at::date = ?", Long.class, tenant, today));
+                "SELECT COUNT(*) FROM (" +
+                "  SELECT 1 FROM sales WHERE tenant_id=? AND status='COMPLETED' AND completed_at::date = ? " +
+                "  UNION ALL " +
+                "  SELECT 1 FROM invoices WHERE tenant_id=? AND status NOT IN ('DRAFT','CANCELLED') AND issue_date = ?" +
+                ") x", Long.class, tenant, today, tenant, today));
         BigDecimal salesYesterday = nz(jdbc.queryForObject(
-                "SELECT COALESCE(SUM(total),0) FROM sales WHERE tenant_id=? AND status='COMPLETED' " +
-                "AND completed_at::date = ?", BigDecimal.class, tenant, yesterday));
+                "SELECT COALESCE(SUM(total),0) FROM (" +
+                "  SELECT total FROM sales WHERE tenant_id=? AND status='COMPLETED' AND completed_at::date = ? " +
+                "  UNION ALL " +
+                "  SELECT total FROM invoices WHERE tenant_id=? AND status NOT IN ('DRAFT','CANCELLED') AND issue_date = ?" +
+                ") x", BigDecimal.class, tenant, yesterday, tenant, yesterday));
         BigDecimal salesMonth = nz(jdbc.queryForObject(
-                "SELECT COALESCE(SUM(total),0) FROM sales WHERE tenant_id=? AND status='COMPLETED' " +
-                "AND completed_at::date >= ?", BigDecimal.class, tenant, monthStart));
+                "SELECT COALESCE(SUM(total),0) FROM (" +
+                "  SELECT total FROM sales WHERE tenant_id=? AND status='COMPLETED' AND completed_at::date >= ? " +
+                "  UNION ALL " +
+                "  SELECT total FROM invoices WHERE tenant_id=? AND status NOT IN ('DRAFT','CANCELLED') AND issue_date >= ?" +
+                ") x", BigDecimal.class, tenant, monthStart, tenant, monthStart));
         long salesCountMonth = nz(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM sales WHERE tenant_id=? AND status='COMPLETED' " +
-                "AND completed_at::date >= ?", Long.class, tenant, monthStart));
+                "SELECT COUNT(*) FROM (" +
+                "  SELECT 1 FROM sales WHERE tenant_id=? AND status='COMPLETED' AND completed_at::date >= ? " +
+                "  UNION ALL " +
+                "  SELECT 1 FROM invoices WHERE tenant_id=? AND status NOT IN ('DRAFT','CANCELLED') AND issue_date >= ?" +
+                ") x", Long.class, tenant, monthStart, tenant, monthStart));
         BigDecimal avgTicketToday = avg(salesToday, salesCountToday);
         BigDecimal avgTicketMonth = avg(salesMonth, salesCountMonth);
 
@@ -414,15 +432,20 @@ public class ReportingService {
         List<ReportingDto.DailyAmount> sales7Days = jdbc.query(
                 "WITH days AS ( " +
                 "  SELECT generate_series(?::date, ?::date, '1 day')::date AS day " +
+                "), amounts AS ( " +
+                "  SELECT completed_at::date AS day, total FROM sales " +
+                "    WHERE tenant_id=? AND status='COMPLETED' AND completed_at::date BETWEEN ? AND ? " +
+                "  UNION ALL " +
+                "  SELECT issue_date AS day, total FROM invoices " +
+                "    WHERE tenant_id=? AND status NOT IN ('DRAFT','CANCELLED') AND issue_date BETWEEN ? AND ? " +
                 ") " +
-                "SELECT d.day, COALESCE(SUM(s.total), 0) AS amount " +
-                "FROM days d " +
-                "LEFT JOIN sales s ON s.tenant_id = ? AND s.status='COMPLETED' AND s.completed_at::date = d.day " +
+                "SELECT d.day, COALESCE(SUM(a.total), 0) AS amount " +
+                "FROM days d LEFT JOIN amounts a ON a.day = d.day " +
                 "GROUP BY d.day ORDER BY d.day",
                 (rs, i) -> new ReportingDto.DailyAmount(
                         rs.getObject("day", LocalDate.class),
                         rs.getBigDecimal("amount")),
-                sevenDaysAgo, today, tenant);
+                sevenDaysAgo, today, tenant, sevenDaysAgo, today, tenant, sevenDaysAgo, today);
 
         // ── Payment method breakdown for today ───────────────────────────────
         List<ReportingDto.PaymentMethodAmount> paymentMethodsToday = jdbc.query(
