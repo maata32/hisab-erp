@@ -53,7 +53,7 @@
       "already_shipped": "Du stock est déjà sorti pour ce BL — impossible de l'annuler."
     },
     "inventory": {
-      "insufficient_stock": "Stock insuffisant : {{available}} en stock, {{requested}} demandé. La facture n'a pas été créée."
+      "insufficient_stock": "Stock insuffisant : {{available}} en stock, {{requested}} demandé. Opération annulée."
     },
     "order": {
       "status_auto_only": "Ce statut est calculé automatiquement à partir des livraisons.",

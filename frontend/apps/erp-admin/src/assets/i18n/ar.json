@@ -53,7 +53,7 @@
       "already_shipped": "تم إخراج المخزون لهذا التسليم — لا يمكن إلغاؤه."
     },
     "inventory": {
-      "insufficient_stock": "المخزون غير كافٍ: {{available}} متوفر، {{requested}} مطلوب. لم يتم إنشاء الفاتورة."
+      "insufficient_stock": "المخزون غير كافٍ: {{available}} متوفر، {{requested}} مطلوب. تم إلغاء العملية."
     },
     "order": {
       "status_auto_only": "تُحدَّد هذه الحالة تلقائيًا من عمليات التسليم ولا يمكن ضبطها يدويًا.",

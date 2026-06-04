@@ -2,8 +2,8 @@ import { Component, OnInit, inject, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { ConfirmationService } from 'primeng/api';
-import { HttpClient } from '@angular/common/http';
+import { ConfirmationService, MessageService } from 'primeng/api';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -317,6 +317,7 @@ export class DeliveryListPage implements OnInit {
   private http = inject(HttpClient);
   private i18n = inject(TranslateService);
   private confirmation = inject(ConfirmationService);
+  private messages = inject(MessageService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
 
@@ -526,9 +527,33 @@ export class DeliveryListPage implements OnInit {
       }));
       this.recordOpen = false;
       this.reload();
+    } catch (e) {
+      // Confirming a delivery issues stock and rolls back atomically when stock
+      // is short. Surface why instead of failing silently; the dialog stays open
+      // so the user can restock (or cancel the BL) and retry.
+      this.showError(e);
     } finally {
       this.saving.set(false);
     }
+  }
+
+  private showError(err: unknown) {
+    let detail = this.i18n.instant('common.error_generic');
+    if (err instanceof HttpErrorResponse) {
+      const body = err.error;
+      if (body?.code) {
+        const translated = this.i18n.instant(body.code, body.details ?? {});
+        detail = translated !== body.code ? translated : (body.message ?? body.code);
+      } else if (body?.message) {
+        detail = body.message;
+      }
+    }
+    this.messages.add({
+      severity: 'error',
+      summary: this.i18n.instant('common.error'),
+      detail,
+      life: 5000,
+    });
   }
 
   protected cancel(d: Delivery) {
