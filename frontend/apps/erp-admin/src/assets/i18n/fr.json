@@ -423,7 +423,8 @@
       "CUSTOMER_CREDIT": "Crédit client",
       "PURCHASE_INVOICE": "Facture fournisseur",
       "SUPPLIER_PAYMENT": "Paiement fournisseur",
-      "CREDIT_NOTE": "Avoir"
+      "CREDIT_NOTE": "Avoir",
+      "PURCHASE_CREDIT_NOTE": "Avoir d'achat"
     },
     "allocHistory": "Historique des allocations",
     "allocHistoryTitle": "Historique des allocations",
@@ -859,7 +860,8 @@
       "TRANSFER_IN": "Transfert entrant",
       "INVENTORY_COUNT": "Comptage inventaire",
       "EXPIRY_DESTRUCTION": "Destruction péremption",
-      "OPENING_BALANCE": "Stock initial"
+      "OPENING_BALANCE": "Stock initial",
+      "PURCHASE_RETURN": "Retour fournisseur"
     }
   },
   "stockTransfers": {

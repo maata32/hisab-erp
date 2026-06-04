@@ -423,7 +423,8 @@
       "CUSTOMER_CREDIT": "رصيد عميل",
       "PURCHASE_INVOICE": "فاتورة مورّد",
       "SUPPLIER_PAYMENT": "دفعة مورّد",
-      "CREDIT_NOTE": "إشعار دائن"
+      "CREDIT_NOTE": "إشعار دائن",
+      "PURCHASE_CREDIT_NOTE": "إشعار دائن شراء"
     },
     "allocHistory": "سجل التخصيصات",
     "allocHistoryTitle": "سجل التخصيصات",
@@ -859,7 +860,8 @@
       "TRANSFER_IN": "تحويل وارد",
       "INVENTORY_COUNT": "جرد المخزون",
       "EXPIRY_DESTRUCTION": "إتلاف منتهي الصلاحية",
-      "OPENING_BALANCE": "رصيد افتتاحي"
+      "OPENING_BALANCE": "رصيد افتتاحي",
+      "PURCHASE_RETURN": "إرجاع للمورّد"
     }
   },
   "stockTransfers": {

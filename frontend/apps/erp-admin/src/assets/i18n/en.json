@@ -423,7 +423,8 @@
       "CUSTOMER_CREDIT": "Customer credit",
       "PURCHASE_INVOICE": "Supplier invoice",
       "SUPPLIER_PAYMENT": "Supplier payment",
-      "CREDIT_NOTE": "Credit note"
+      "CREDIT_NOTE": "Credit note",
+      "PURCHASE_CREDIT_NOTE": "Purchase credit note"
     },
     "allocHistory": "Allocation history",
     "allocHistoryTitle": "Allocation history",
@@ -859,7 +860,8 @@
       "TRANSFER_IN": "Transfer in",
       "INVENTORY_COUNT": "Inventory count",
       "EXPIRY_DESTRUCTION": "Expiry destruction",
-      "OPENING_BALANCE": "Opening balance"
+      "OPENING_BALANCE": "Opening balance",
+      "PURCHASE_RETURN": "Supplier return"
     }
   },
   "stockTransfers": {
