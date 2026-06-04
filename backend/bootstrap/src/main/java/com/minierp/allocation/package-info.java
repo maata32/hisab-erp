@@ -11,7 +11,8 @@
                 "shared",
                 "partner::customer-api",
                 "sales::sales-api",
-                "payment::payment-api"
+                "payment::payment-api",
+                "purchase::purchase-api"
         })
 package com.minierp.allocation;
 

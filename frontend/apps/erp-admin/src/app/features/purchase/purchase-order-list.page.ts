@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MoneyPipe } from '@minierp/shared-i18n';
 import { HttpClient } from '@angular/common/http';
@@ -21,7 +22,7 @@ interface PurchaseOrder {
   number: string;
   supplierId: string;
   supplierName: string;
-  warehouseId: string;
+  warehouseId: string | null;
   orderDate: string;
   expectedDate: string | null;
   status: string;
@@ -30,6 +31,7 @@ interface PurchaseOrder {
   taxAmount: number;
   total: number;
   notes: string | null;
+  convertedToInvoiceId: string | null;
   lines: PurchaseOrderLine[];
 }
 
@@ -39,7 +41,6 @@ interface PurchaseOrderLine {
   productId: string;
   uomId: string;
   quantity: number;
-  quantityReceived: number;
   unitCost: number;
   taxRate: number;
   lineTotal: number;
@@ -62,18 +63,6 @@ interface LineForm {
   unitCost: number;
   taxRate: number;
   trackExpiry: boolean;
-}
-
-interface ReceiveLineForm {
-  lineId: string;
-  productName: string;
-  ordered: number;
-  alreadyReceived: number;
-  trackExpiry: boolean;
-  quantityReceived: number;
-  lotNumber: string;
-  productionDate: Date | null;
-  expirationDate: Date | null;
 }
 
 type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast';
@@ -131,10 +120,15 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                           [pTooltip]="'purchaseOrders.confirm' | translate"
                           (click)="confirmOrder(o)"></button>
                 }
-                @if (canReceive(o.status)) {
-                  <button pButton icon="pi pi-inbox" class="p-button-sm p-button-text p-button-success"
-                          [pTooltip]="'purchaseOrders.receive' | translate"
-                          (click)="openReceive(o)"></button>
+                @if (canConvert(o.status)) {
+                  <button pButton icon="pi pi-file-import" class="p-button-sm p-button-text p-button-success"
+                          [pTooltip]="'purchaseOrders.convert' | translate"
+                          (click)="openConvert(o)"></button>
+                }
+                @if (o.status === 'CONVERTED' && o.convertedToInvoiceId) {
+                  <button pButton icon="pi pi-arrow-right" class="p-button-sm p-button-text"
+                          [pTooltip]="'purchaseOrders.openInvoice' | translate"
+                          (click)="goToInvoices()"></button>
                 }
                 @if (canCancel(o.status)) {
                   <button pButton icon="pi pi-times" class="p-button-sm p-button-text p-button-danger"
@@ -167,13 +161,10 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               }
             </div>
             <div>
-              <label class="block text-sm font-medium mb-1">{{ 'purchaseOrders.warehouse' | translate }} *</label>
+              <label class="block text-sm font-medium mb-1">{{ 'purchaseOrders.warehouse' | translate }}</label>
               <p-dropdown [(ngModel)]="form.warehouseId" [options]="warehouses()"
-                          optionLabel="name" optionValue="id" appendTo="body"
-                          [styleClass]="'w-full' + (warehouseInvalid() ? ' ng-invalid ng-dirty' : '')" />
-              @if (warehouseInvalid()) {
-                <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
-              }
+                          optionLabel="name" optionValue="id" [showClear]="true" appendTo="body"
+                          styleClass="w-full" />
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'purchaseOrders.orderDate' | translate }} *</label>
@@ -291,59 +282,26 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
         </ng-template>
       </p-dialog>
 
-      <!-- Receive dialog -->
-      <p-dialog [(visible)]="receiveOpen" [modal]="true" [style]="{ width: '900px' }"
-                [header]="('purchaseOrders.receive' | translate) + ' — ' + (receivePo()?.number ?? '')"
-                [closable]="!receiving()">
-        <p class="text-sm text-gray-600 mb-2">{{ 'purchaseOrders.receiveHint' | translate }}</p>
-        <table class="w-full text-sm border">
-          <thead class="bg-gray-50 text-gray-600">
-            <tr>
-              <th class="text-left p-2">{{ 'sales.product' | translate }}</th>
-              <th class="text-right p-2 w-20">{{ 'purchaseOrders.ordered' | translate }}</th>
-              <th class="text-right p-2 w-20">{{ 'purchaseOrders.already' | translate }}</th>
-              <th class="text-right p-2 w-28">{{ 'purchaseOrders.receivingNow' | translate }}</th>
-              <th class="p-2 w-40">{{ 'purchaseOrders.lotNumber' | translate }}</th>
-              <th class="p-2 w-36">{{ 'purchaseOrders.expirationDate' | translate }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (l of receiveLines(); track l.lineId) {
-              <tr class="border-t">
-                <td class="p-2">{{ l.productName }}</td>
-                <td class="p-2 text-right">{{ l.ordered }}</td>
-                <td class="p-2 text-right">{{ l.alreadyReceived }}</td>
-                <td class="p-1">
-                  <p-inputNumber [(ngModel)]="l.quantityReceived" [min]="0"
-                                 [max]="l.ordered - l.alreadyReceived"
-                                 [minFractionDigits]="0" [maxFractionDigits]="3"
-                                 inputStyleClass="w-full text-right" styleClass="w-full" />
-                </td>
-                <td class="p-1">
-                  @if (l.trackExpiry) {
-                    <input pInputText [(ngModel)]="l.lotNumber" class="w-full"
-                           [placeholder]="'purchaseOrders.lotNumber' | translate" />
-                  } @else {
-                    <span class="text-gray-300">—</span>
-                  }
-                </td>
-                <td class="p-1">
-                  @if (l.trackExpiry) {
-                    <p-calendar [(ngModel)]="l.expirationDate" dateFormat="dd/mm/yy"
-                                styleClass="w-full" appendTo="body" />
-                  } @else {
-                    <span class="text-gray-300">—</span>
-                  }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
+      <!-- Convert dialog -->
+      <p-dialog [(visible)]="convertOpen" [modal]="true" [style]="{ width: '480px' }"
+                [header]="('purchaseOrders.convert' | translate) + ' — ' + (convertOrderRef()?.number ?? '')"
+                [closable]="!converting()">
+        <p class="text-sm text-gray-600 mb-3">{{ 'purchaseOrders.convertHint' | translate }}</p>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'purchaseInvoices.supplierReference' | translate }}</label>
+            <input pInputText [(ngModel)]="convertForm.supplierReference" class="w-full" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'purchaseInvoices.dueDate' | translate }}</label>
+            <p-calendar [(ngModel)]="convertForm.dueDate" dateFormat="dd/mm/yy" styleClass="w-full" appendTo="body" />
+          </div>
+        </div>
         <ng-template pTemplate="footer">
           <button pButton [label]="'common.cancel' | translate" class="p-button-text"
-                  (click)="receiveOpen = false" [disabled]="receiving()"></button>
-          <button pButton [label]="'purchaseOrders.receiveAction' | translate" icon="pi pi-check"
-                  (click)="confirmReceive()" [loading]="receiving()" [disabled]="!canReceiveSubmit()"></button>
+                  (click)="convertOpen = false" [disabled]="converting()"></button>
+          <button pButton [label]="'purchaseOrders.convertAction' | translate" icon="pi pi-check"
+                  (click)="confirmConvert()" [loading]="converting()"></button>
         </ng-template>
       </p-dialog>
     </div>
@@ -353,6 +311,7 @@ export class PurchaseOrderListPage implements OnInit {
   private http = inject(HttpClient);
   private i18n = inject(TranslateService);
   private confirmation = inject(ConfirmationService);
+  private router = inject(Router);
 
   protected orders = signal<PurchaseOrder[]>([]);
   protected suppliers = signal<SupplierOpt[]>([]);
@@ -380,7 +339,6 @@ export class PurchaseOrderListPage implements OnInit {
   protected createOpen = false;
 
   protected supplierInvalid(): boolean { return this.submitted() && !this.form.supplierId; }
-  protected warehouseInvalid(): boolean { return this.submitted() && !this.form.warehouseId; }
   protected orderDateInvalid(): boolean { return this.submitted() && !this.form.orderDate; }
   protected noLinesInvalid(): boolean { return this.submitted() && this.form.lines.length === 0; }
   protected lineProductInvalid(line: LineForm): boolean { return this.submitted() && !line.productId; }
@@ -391,10 +349,10 @@ export class PurchaseOrderListPage implements OnInit {
     return this.submitted() && (line.unitCost == null || line.unitCost < 0);
   }
 
-  protected receiveOpen = false;
-  protected receiving = signal(false);
-  protected receivePo = signal<PurchaseOrder | null>(null);
-  protected receiveLines = signal<ReceiveLineForm[]>([]);
+  protected convertOpen = false;
+  protected converting = signal(false);
+  protected convertOrderRef = signal<PurchaseOrder | null>(null);
+  protected convertForm: { supplierReference: string; dueDate: Date | null } = { supplierReference: '', dueDate: null };
 
   protected form: {
     supplierId: string | null;
@@ -416,16 +374,20 @@ export class PurchaseOrderListPage implements OnInit {
   protected statusSeverity(status: string): Severity {
     return ({
       DRAFT: 'secondary', CONFIRMED: 'info',
-      PARTIALLY_RECEIVED: 'warning', RECEIVED: 'success', CANCELLED: 'secondary',
+      CONVERTED: 'success', CANCELLED: 'secondary',
     } as Record<string, Severity>)[status] ?? 'secondary';
   }
 
-  protected canReceive(status: string): boolean {
-    return status === 'CONFIRMED' || status === 'PARTIALLY_RECEIVED';
+  protected canConvert(status: string): boolean {
+    return status === 'DRAFT' || status === 'CONFIRMED';
   }
 
   protected canCancel(status: string): boolean {
     return status === 'DRAFT' || status === 'CONFIRMED';
+  }
+
+  protected goToInvoices() {
+    this.router.navigate(['/purchase-invoices']);
   }
 
   protected async printPdf(url: string) {
@@ -460,6 +422,30 @@ export class PurchaseOrderListPage implements OnInit {
         this.reload();
       },
     });
+  }
+
+  protected openConvert(o: PurchaseOrder) {
+    this.convertOrderRef.set(o);
+    this.convertForm = { supplierReference: '', dueDate: null };
+    this.convertOpen = true;
+  }
+
+  protected async confirmConvert() {
+    const o = this.convertOrderRef();
+    if (!o) return;
+    this.converting.set(true);
+    try {
+      const payload = {
+        supplierReference: this.convertForm.supplierReference || null,
+        dueDate: this.convertForm.dueDate ? this.toIsoDate(this.convertForm.dueDate) : null,
+      };
+      await firstValueFrom(this.http.post(`/api/v1/purchase-orders/${o.id}/convert`, payload));
+      this.convertOpen = false;
+      this.reload();
+      this.router.navigate(['/purchase-invoices']);
+    } finally {
+      this.converting.set(false);
+    }
   }
 
   protected openCreate() {
@@ -500,7 +486,7 @@ export class PurchaseOrderListPage implements OnInit {
   }
 
   protected canSave(): boolean {
-    return !!this.form.supplierId && !!this.form.warehouseId
+    return !!this.form.supplierId
         && this.form.lines.length > 0
         && this.form.lines.every(l => !!l.productId && (l.quantity || 0) > 0 && (l.unitCost || 0) >= 0);
   }
@@ -512,7 +498,7 @@ export class PurchaseOrderListPage implements OnInit {
     try {
       const payload = {
         supplierId: this.form.supplierId,
-        warehouseId: this.form.warehouseId,
+        warehouseId: this.form.warehouseId || null,
         orderDate: this.toIsoDate(this.form.orderDate),
         expectedDate: this.form.expectedDate ? this.toIsoDate(this.form.expectedDate) : null,
         currency: this.form.currency || null,
@@ -530,62 +516,6 @@ export class PurchaseOrderListPage implements OnInit {
       this.reload();
     } finally {
       this.saving.set(false);
-    }
-  }
-
-  protected openReceive(o: PurchaseOrder) {
-    this.receivePo.set(o);
-    this.receiveLines.set(o.lines.map(l => {
-      const product = this.products().find(p => p.id === l.productId);
-      return {
-        lineId: l.id,
-        productName: l.productName,
-        ordered: l.quantity,
-        alreadyReceived: l.quantityReceived,
-        trackExpiry: !!product?.trackExpiry,
-        quantityReceived: Math.max(0, l.quantity - l.quantityReceived),
-        lotNumber: '',
-        productionDate: null,
-        expirationDate: null,
-      };
-    }));
-    this.receiveOpen = true;
-  }
-
-  protected canReceiveSubmit(): boolean {
-    const lines = this.receiveLines();
-    if (!lines.some(l => l.quantityReceived > 0)) return false;
-    return lines.every(l => {
-      if (l.quantityReceived <= 0) return true;
-      if (l.trackExpiry) {
-        return !!l.lotNumber?.trim() && !!l.expirationDate;
-      }
-      return true;
-    });
-  }
-
-  protected async confirmReceive() {
-    const po = this.receivePo();
-    if (!po) return;
-    this.receiving.set(true);
-    try {
-      const payload = {
-        warehouseId: null,
-        lines: this.receiveLines()
-          .filter(l => l.quantityReceived > 0)
-          .map(l => ({
-            purchaseOrderLineId: l.lineId,
-            quantityReceived: l.quantityReceived,
-            lotNumber: l.trackExpiry ? l.lotNumber : null,
-            productionDate: l.trackExpiry && l.productionDate ? this.toIsoDate(l.productionDate) : null,
-            expirationDate: l.trackExpiry && l.expirationDate ? this.toIsoDate(l.expirationDate) : null,
-          })),
-      };
-      await firstValueFrom(this.http.post(`/api/v1/purchase-orders/${po.id}/receive`, payload));
-      this.receiveOpen = false;
-      this.reload();
-    } finally {
-      this.receiving.set(false);
     }
   }
 

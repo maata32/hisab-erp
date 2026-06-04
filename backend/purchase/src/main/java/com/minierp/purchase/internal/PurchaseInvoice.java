@@ -45,6 +45,11 @@ class PurchaseInvoice extends TenantAwareEntity {
     @Builder.Default
     private PurchaseInvoiceStatus status = PurchaseInvoiceStatus.ISSUED;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reception_status", nullable = false, length = 20)
+    @Builder.Default
+    private PurchaseInvoiceReceptionStatus receptionStatus = PurchaseInvoiceReceptionStatus.NONE;
+
     @Column(nullable = false, length = 3)
     @Builder.Default
     private String currency = "MRU";

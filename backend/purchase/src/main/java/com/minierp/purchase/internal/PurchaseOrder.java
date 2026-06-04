@@ -28,7 +28,10 @@ class PurchaseOrder extends TenantAwareEntity {
     @Column(name = "party_id", nullable = false, columnDefinition = "uuid")
     private UUID partyId;
 
-    @Column(name = "warehouse_id", nullable = false, columnDefinition = "uuid")
+    // Optional hint for where goods are expected. The actual reception now
+    // happens on a GoodsReceipt anchored to the converted purchase invoice,
+    // which carries its own warehouse — so this is nullable.
+    @Column(name = "warehouse_id", columnDefinition = "uuid")
     private UUID warehouseId;
 
     @Column(name = "order_date", nullable = false)
@@ -57,4 +60,7 @@ class PurchaseOrder extends TenantAwareEntity {
 
     @Column(length = 1000)
     private String notes;
+
+    @Column(name = "converted_to_invoice_id", columnDefinition = "uuid")
+    private UUID convertedToInvoiceId;
 }

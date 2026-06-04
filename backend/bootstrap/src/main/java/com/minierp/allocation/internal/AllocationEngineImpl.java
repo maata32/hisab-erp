@@ -58,6 +58,7 @@ class AllocationEngineImpl implements AllocationEngine {
     public static final String T_PURCHASE_INVOICE = "PURCHASE_INVOICE";
     public static final String T_SUPPLIER_PAYMENT = "SUPPLIER_PAYMENT";
     public static final String T_CREDIT_NOTE = "CREDIT_NOTE";
+    public static final String T_PURCHASE_CREDIT_NOTE = "PURCHASE_CREDIT_NOTE";
 
     @Override
     @Transactional(readOnly = true)
@@ -176,6 +177,7 @@ class AllocationEngineImpl implements AllocationEngine {
                 case T_PAYMENT, T_SUPPLIER_PAYMENT -> new String[]{"payments", "number"};
                 case T_CUSTOMER_CREDIT -> new String[]{"customer_credits", "source"};
                 case T_CREDIT_NOTE -> new String[]{"credit_notes", "number"};
+                case T_PURCHASE_CREDIT_NOTE -> new String[]{"purchase_credit_notes", "number"};
                 default -> null;
             };
         }

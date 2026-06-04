@@ -57,11 +57,12 @@ public class PurchaseOrderController {
         return service.cancelOrder(id);
     }
 
-    @PostMapping("/{id}/receive")
-    @PreAuthorize("hasAuthority('purchase:receive')")
-    public PurchaseDto.ReceiptResult receive(@PathVariable UUID id,
-                                             @Valid @RequestBody PurchaseDto.ReceivePurchaseOrderRequest req) {
-        return service.receive(id, req);
+    @PostMapping("/{id}/convert")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('purchase:create')")
+    public PurchaseDto.PurchaseInvoiceDto convert(@PathVariable UUID id,
+                                                  @RequestBody(required = false) PurchaseDto.ConvertOrderToInvoiceRequest req) {
+        return service.convertOrderToInvoice(id, req);
     }
 
     @GetMapping("/{id}/pdf")

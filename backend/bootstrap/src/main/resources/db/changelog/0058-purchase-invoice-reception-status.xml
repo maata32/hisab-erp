@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Purchase chain mirror of the sales chain. The purchase invoice gains an
+        auto-derived reception_status (NONE/PARTIALLY_RECEIVED/RECEIVED/RETURNED),
+        mirror of invoices.delivery_status. The purchase order gains
+        converted_to_invoice_id (mirror of quotes.converted_to_invoice_id) and its
+        warehouse becomes optional — reception now happens on a goods-receipt that
+        carries its own warehouse.
+    -->
+
+    <changeSet id="0058-purchase-invoice-reception-status" author="mini-erp">
+        <addColumn tableName="purchase_invoices">
+            <column name="reception_status" type="varchar(20)" defaultValue="NONE">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="0058-purchase-order-converted-link" author="mini-erp">
+        <addColumn tableName="purchase_orders">
+            <column name="converted_to_invoice_id" type="uuid"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="0058-purchase-order-warehouse-nullable" author="mini-erp">
+        <dropNotNullConstraint tableName="purchase_orders" columnName="warehouse_id" columnDataType="uuid"/>
+    </changeSet>
+</databaseChangeLog>

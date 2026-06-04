@@ -34,4 +34,14 @@ class NumberingFacadeImpl implements NumberingOperations {
     public String nextPurchaseInvoiceNumber() {
         return numbering.next(DocumentType.PURCHASE_INVOICE);
     }
+
+    @Override
+    public String nextGoodsReceiptNumber() {
+        return numbering.next(DocumentType.GOODS_RECEIPT);
+    }
+
+    @Override
+    public String nextPurchaseCreditNoteNumber() {
+        return numbering.next(DocumentType.PURCHASE_CREDIT_NOTE);
+    }
 }

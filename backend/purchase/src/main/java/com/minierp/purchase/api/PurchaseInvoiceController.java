@@ -45,6 +45,12 @@ public class PurchaseInvoiceController {
         return service.getInvoice(id);
     }
 
+    @PostMapping("/{id}/issue")
+    @PreAuthorize("hasAuthority('purchase:update')")
+    public PurchaseDto.PurchaseInvoiceDto issue(@PathVariable UUID id) {
+        return service.issueInvoice(id);
+    }
+
     @PostMapping("/{id}/cancel")
     @PreAuthorize("hasAuthority('purchase:update')")
     public PurchaseDto.PurchaseInvoiceDto cancel(@PathVariable UUID id) {
@@ -59,5 +65,19 @@ public class PurchaseInvoiceController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"purchase-invoice-" + id + ".pdf\"")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(bytes);
+    }
+
+    @PostMapping("/{id}/credit-notes")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('purchase:create')")
+    public PurchaseDto.PurchaseCreditNoteDto createCreditNote(@PathVariable UUID id,
+                                                              @Valid @RequestBody PurchaseDto.CreatePurchaseCreditNoteRequest req) {
+        return service.createPurchaseCreditNote(id, req);
+    }
+
+    @GetMapping("/{id}/credit-note-preview")
+    @PreAuthorize("hasAuthority('purchase:read')")
+    public PurchaseDto.PurchaseCreditNotePreviewDto creditNotePreview(@PathVariable UUID id) {
+        return service.getPurchaseCreditNotePreview(id);
     }
 }

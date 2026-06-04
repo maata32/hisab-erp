@@ -62,5 +62,9 @@
     <include file="db/changelog/0055-drop-payment-refunded-status.xml"/>
     <include file="db/changelog/0056-drop-payment-refunded-columns.xml"/>
     <include file="db/changelog/0057-drop-payment-refund-permission.xml"/>
+    <include file="db/changelog/0058-purchase-invoice-reception-status.xml"/>
+    <include file="db/changelog/0059-purchase-order-lifecycle.xml"/>
+    <include file="db/changelog/0060-goods-receipts.xml"/>
+    <include file="db/changelog/0061-purchase-credit-notes.xml"/>
 
 </databaseChangeLog>

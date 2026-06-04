@@ -7,22 +7,20 @@ import com.minierp.partner.api.PartnerLookup;
 import com.minierp.partner.api.PartnerSummary;
 import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
-import com.minierp.inventory.api.StockMovementDto;
-import com.minierp.inventory.api.StockMovementType;
-import com.minierp.inventory.api.StockOperations;
-import com.minierp.lotexpiry.api.LotOperations;
+import com.minierp.purchase.api.PurchaseCreditNoteAppliedEvent;
 import com.minierp.purchase.api.PurchaseDto;
 import com.minierp.purchase.api.PurchaseInvoiceOperations;
+import com.minierp.purchase.api.PurchaseInvoicePaymentsDetachedEvent;
 import com.minierp.purchase.api.PurchaseInvoiceSummary;
 import com.minierp.sales.api.NumberingOperations;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
-import com.minierp.shared.security.CurrentUserHolder;
 import com.minierp.shared.tenant.TenantContext;
 import com.minierp.shared.util.PageResponse;
 import com.minierp.tenant.api.TenantLookup;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,15 +44,18 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     private final PurchaseOrderLineRepository purchaseOrderLines;
     private final PurchaseInvoiceRepository purchaseInvoices;
     private final PurchaseInvoiceLineRepository purchaseInvoiceLines;
+    private final PurchaseCreditNoteRepository purchaseCreditNotes;
+    private final PurchaseCreditNoteLineRepository purchaseCreditNoteLines;
+    private final GoodsReceiptLineRepository goodsReceiptLines;
 
     private final PartnerLookup supplierLookup;
     private final ApBalanceOperations supplierBalanceOps;
     private final CatalogLookup catalog;
-    private final StockOperations stockOps;
-    private final LotOperations lotOps;
     private final NumberingOperations numbering;
     private final DocumentRenderer renderer;
     private final TenantLookup tenantLookup;
+    private final GoodsReceiptService goodsReceiptService;
+    private final ApplicationEventPublisher events;
 
     // ────────────────────────────────────────────────────────────────────────
     // Purchase orders
@@ -118,9 +119,8 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     public PurchaseDto.PurchaseOrderDto cancelOrder(UUID id) {
         PurchaseOrder po = purchaseOrders.findById(id)
                 .orElseThrow(() -> NotFoundException.of("entity.purchase_order", id));
-        if (po.getStatus() == PurchaseOrderStatus.RECEIVED
-                || po.getStatus() == PurchaseOrderStatus.PARTIALLY_RECEIVED) {
-            throw new BusinessException("error.purchase.po_already_received",
+        if (po.getStatus() == PurchaseOrderStatus.CONVERTED) {
+            throw new BusinessException("error.purchase.po_already_converted",
                     Map.of("status", po.getStatus().name()));
         }
         po.setStatus(PurchaseOrderStatus.CANCELLED);
@@ -129,82 +129,55 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     }
 
     /**
-     * Receive part (or all) of a confirmed purchase order. For each received line:
-     *   - validates quantityReceived ≤ ordered − previously received,
-     *   - if the product has trackExpiry, requires lotNumber + expirationDate and creates a ProductLot,
-     *   - posts a PURCHASE_RECEIPT StockMovement (recomputes CMP),
-     *   - bumps PurchaseOrderLine.quantityReceived.
-     * After all lines are processed, updates PO.status to PARTIALLY_RECEIVED or RECEIVED.
+     * Convert a confirmed/draft purchase order into a DRAFT purchase invoice —
+     * mirror of {@code SalesService.convertQuoteToInvoice}. Copies the order
+     * lines; the invoice stays DRAFT (it does not hit the AP balance until it is
+     * issued). The order is marked CONVERTED.
      */
     @Transactional
-    public PurchaseDto.ReceiptResult receive(UUID purchaseOrderId, PurchaseDto.ReceivePurchaseOrderRequest req) {
-        PurchaseOrder po = purchaseOrders.lockById(purchaseOrderId)
-                .orElseThrow(() -> NotFoundException.of("entity.purchase_order", purchaseOrderId));
-        if (po.getStatus() != PurchaseOrderStatus.CONFIRMED
-                && po.getStatus() != PurchaseOrderStatus.PARTIALLY_RECEIVED) {
-            throw new BusinessException("error.purchase.po_not_receivable",
+    public PurchaseDto.PurchaseInvoiceDto convertOrderToInvoice(UUID orderId, PurchaseDto.ConvertOrderToInvoiceRequest req) {
+        PurchaseOrder po = purchaseOrders.findById(orderId)
+                .orElseThrow(() -> NotFoundException.of("entity.purchase_order", orderId));
+        if (po.getStatus() != PurchaseOrderStatus.DRAFT && po.getStatus() != PurchaseOrderStatus.CONFIRMED) {
+            throw new BusinessException("error.purchase.po_not_convertible",
                     Map.of("status", po.getStatus().name()));
         }
+        String number = numbering.nextPurchaseInvoiceNumber();
+        PurchaseInvoice inv = PurchaseInvoice.builder()
+                .number(number)
+                .partyId(po.getPartyId())
+                .purchaseOrderId(po.getId())
+                .supplierReference(req != null ? req.supplierReference() : null)
+                .invoiceDate(LocalDate.now())
+                .dueDate(req != null ? req.dueDate() : null)
+                .status(PurchaseInvoiceStatus.DRAFT)
+                .receptionStatus(PurchaseInvoiceReceptionStatus.NONE)
+                .currency(po.getCurrency())
+                .notes(po.getNotes())
+                .build();
+        purchaseInvoices.save(inv);
 
-        UUID warehouseId = req.warehouseId() != null ? req.warehouseId() : po.getWarehouseId();
-        UUID userId = CurrentUserHolder.tryGet().map(u -> u.userId()).orElse(null);
-        List<PurchaseDto.ReceiptLineResult> results = new ArrayList<>();
-
-        for (PurchaseDto.ReceiveLineRequest lineReq : req.lines()) {
-            PurchaseOrderLine line = purchaseOrderLines.lockById(lineReq.purchaseOrderLineId())
-                    .orElseThrow(() -> NotFoundException.of("entity.purchase_order_line", lineReq.purchaseOrderLineId()));
-            if (!line.getPurchaseOrderId().equals(purchaseOrderId)) {
-                throw new BusinessException("error.purchase.line_not_in_po",
-                        Map.of("lineId", line.getId()));
-            }
-
-            BigDecimal remaining = line.getQuantity().subtract(line.getQuantityReceived());
-            if (lineReq.quantityReceived().compareTo(remaining) > 0) {
-                throw new BusinessException("error.purchase.over_receipt",
-                        Map.of("requested", lineReq.quantityReceived(), "remaining", remaining));
-            }
-
-            ProductSnapshot product = catalog.findProductById(line.getProductId())
-                    .orElseThrow(() -> NotFoundException.of("entity.product", line.getProductId()));
-
-            UUID lotId = null;
-            if (product.trackExpiry()) {
-                if (lineReq.lotNumber() == null || lineReq.lotNumber().isBlank()
-                        || lineReq.expirationDate() == null) {
-                    throw new BusinessException("error.purchase.lot_data_required",
-                            Map.of("productId", product.id()));
-                }
-                lotId = lotOps.receiveLot(
-                        product.id(), warehouseId, product.baseUomId(),
-                        lineReq.lotNumber(), lineReq.expirationDate(), lineReq.productionDate(),
-                        lineReq.quantityReceived(), line.getUnitCost(),
-                        po.getPartyId(), po.getId());
-            }
-
-            StockMovementDto mv = stockOps.receive(
-                    warehouseId, product.id(), lineReq.quantityReceived(), line.getUnitCost(),
-                    StockMovementType.PURCHASE_RECEIPT,
-                    "PURCHASE_ORDER", po.getId(), po.getNumber(),
-                    "PO " + po.getNumber() + " line " + line.getLineNumber(),
-                    userId);
-
-            line.setQuantityReceived(line.getQuantityReceived().add(lineReq.quantityReceived()));
-            results.add(new PurchaseDto.ReceiptLineResult(line.getId(), lineReq.quantityReceived(), mv.id(), lotId));
+        int i = 1;
+        for (PurchaseOrderLine pol : purchaseOrderLines.findByPurchaseOrderIdOrderByLineNumberAsc(orderId)) {
+            purchaseInvoiceLines.save(PurchaseInvoiceLine.builder()
+                    .purchaseInvoiceId(inv.getId()).lineNumber(i++)
+                    .productId(pol.getProductId()).uomId(pol.getUomId())
+                    .quantity(pol.getQuantity()).unitCost(pol.getUnitCost())
+                    .taxRate(pol.getTaxRate()).lineTotal(pol.getLineTotal())
+                    .snapshotName(pol.getSnapshotName()).snapshotSku(pol.getSnapshotSku())
+                    .build());
         }
+        // DRAFT invoice mirrors the order totals 1:1.
+        inv.setSubtotal(po.getSubtotal());
+        inv.setTaxAmount(po.getTaxAmount());
+        inv.setTotal(po.getTotal());
+        inv.setBalance(po.getTotal());
 
-        // Re-evaluate PO status across all lines.
-        List<PurchaseOrderLine> allLines = purchaseOrderLines.findByPurchaseOrderIdOrderByLineNumberAsc(po.getId());
-        boolean allFullyReceived = allLines.stream()
-                .allMatch(l -> l.getQuantityReceived().compareTo(l.getQuantity()) >= 0);
-        boolean anyReceived = allLines.stream()
-                .anyMatch(l -> l.getQuantityReceived().compareTo(BigDecimal.ZERO) > 0);
-        if (allFullyReceived) {
-            po.setStatus(PurchaseOrderStatus.RECEIVED);
-        } else if (anyReceived) {
-            po.setStatus(PurchaseOrderStatus.PARTIALLY_RECEIVED);
-        }
+        po.setStatus(PurchaseOrderStatus.CONVERTED);
+        po.setConvertedToInvoiceId(inv.getId());
 
-        return new PurchaseDto.ReceiptResult(po.getId(), po.getStatus().name(), results);
+        String name = supplierLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
+        return toInvoiceDto(inv, purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(inv.getId()), name);
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -225,6 +198,7 @@ public class PurchaseService implements PurchaseInvoiceOperations {
                 .invoiceDate(req.invoiceDate() != null ? req.invoiceDate() : LocalDate.now())
                 .dueDate(req.dueDate())
                 .status(PurchaseInvoiceStatus.ISSUED)
+                .receptionStatus(PurchaseInvoiceReceptionStatus.NONE)
                 .currency(req.currency() != null ? req.currency() : supplier.currency())
                 .notes(req.notes())
                 .build();
@@ -235,6 +209,20 @@ public class PurchaseService implements PurchaseInvoiceOperations {
 
         supplierBalanceOps.addToInvoiced(inv.getPartyId(), inv.getTotal());
         return toInvoiceDto(inv, built, supplier.name());
+    }
+
+    @Transactional
+    public PurchaseDto.PurchaseInvoiceDto issueInvoice(UUID id) {
+        PurchaseInvoice inv = purchaseInvoices.findById(id)
+                .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", id));
+        if (inv.getStatus() != PurchaseInvoiceStatus.DRAFT) {
+            throw new BusinessException("error.purchase.invoice_not_draft",
+                    Map.of("status", inv.getStatus().name()));
+        }
+        inv.setStatus(PurchaseInvoiceStatus.ISSUED);
+        supplierBalanceOps.addToInvoiced(inv.getPartyId(), inv.getTotal());
+        String name = supplierLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
+        return toInvoiceDto(inv, purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(id), name);
     }
 
     @Transactional(readOnly = true)
@@ -249,9 +237,12 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     public PageResponse<PurchaseDto.PurchaseInvoiceDto> listInvoices(UUID supplierId, String status, Pageable pageable) {
         PurchaseInvoiceStatus st = status != null && !status.isBlank() ? PurchaseInvoiceStatus.valueOf(status) : null;
         var page = purchaseInvoices.findFiltered(supplierId, st, pageable);
+        List<UUID> ids = page.getContent().stream().map(PurchaseInvoice::getId).toList();
+        Map<UUID, Long> counts = creditNoteCounts(ids);
         return PageResponse.of(page.map(inv -> {
             String name = supplierLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
-            return toInvoiceDto(inv, purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(inv.getId()), name);
+            return toInvoiceDto(inv, purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(inv.getId()),
+                    name, counts.getOrDefault(inv.getId(), 0L));
         }));
     }
 
@@ -259,15 +250,11 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     public PurchaseDto.PurchaseInvoiceDto cancelInvoice(UUID id) {
         PurchaseInvoice inv = purchaseInvoices.findById(id)
                 .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", id));
-        if (inv.getStatus() == PurchaseInvoiceStatus.PAID
-                || inv.getStatus() == PurchaseInvoiceStatus.PARTIAL) {
-            throw new BusinessException("error.purchase.invoice_already_paid",
+        if (inv.getStatus() != PurchaseInvoiceStatus.DRAFT) {
+            throw new BusinessException("error.purchase.invoice_not_draft",
                     Map.of("status", inv.getStatus().name()));
         }
-        if (inv.getStatus() != PurchaseInvoiceStatus.CANCELLED) {
-            supplierBalanceOps.addToInvoiced(inv.getPartyId(), inv.getTotal().negate());
-            inv.setStatus(PurchaseInvoiceStatus.CANCELLED);
-        }
+        inv.setStatus(PurchaseInvoiceStatus.CANCELLED);
         String name = supplierLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
         return toInvoiceDto(inv, purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(id), name);
     }
@@ -321,6 +308,183 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    // Purchase credit notes (avoirs) — total-only, mirror of sales credit notes
+    // ────────────────────────────────────────────────────────────────────────
+
+    @Transactional
+    public PurchaseDto.PurchaseCreditNoteDto createPurchaseCreditNote(UUID invoiceId, PurchaseDto.CreatePurchaseCreditNoteRequest req) {
+        PurchaseInvoice inv = purchaseInvoices.findById(invoiceId)
+                .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", invoiceId));
+        ensureCreditable(inv);
+
+        List<PurchaseInvoiceLine> invLines = purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(invoiceId);
+        if (invLines.isEmpty()) {
+            throw new BusinessException("error.purchase.creditnote.invoice_has_no_lines",
+                    Map.of("invoiceId", inv.getId()));
+        }
+        Map<UUID, BigDecimal> receivedByProduct = aggregate(goodsReceiptLines.sumReceivedByProductForInvoice(invoiceId));
+
+        String number = numbering.nextPurchaseCreditNoteNumber();
+        PurchaseCreditNote cn = PurchaseCreditNote.builder()
+                .number(number)
+                .purchaseInvoiceId(invoiceId)
+                .partyId(inv.getPartyId())
+                .issueDate(LocalDate.now())
+                .reason(req != null ? req.reason() : null)
+                .currency(inv.getCurrency())
+                .status(PurchaseCreditNoteStatus.ISSUED)
+                .build();
+        purchaseCreditNotes.save(cn);
+
+        // Total avoir: one line per invoice line, full quantity. The stock return
+        // is what has actually been received per product — never-received units
+        // cancel without a return BRC.
+        Map<UUID, BigDecimal> productReturnedAcc = new HashMap<>();
+        int lineNo = 1;
+        for (PurchaseInvoiceLine il : invLines) {
+            BigDecimal received = receivedByProduct.getOrDefault(il.getProductId(), BigDecimal.ZERO);
+            BigDecimal alreadyAttributed = productReturnedAcc.getOrDefault(il.getProductId(), BigDecimal.ZERO);
+            BigDecimal stockReturnQty = received.subtract(alreadyAttributed)
+                    .max(BigDecimal.ZERO).min(il.getQuantity());
+            if (stockReturnQty.signum() > 0) {
+                productReturnedAcc.merge(il.getProductId(), stockReturnQty, BigDecimal::add);
+            }
+            purchaseCreditNoteLines.save(PurchaseCreditNoteLine.builder()
+                    .purchaseCreditNoteId(cn.getId()).lineNumber(lineNo++)
+                    .purchaseInvoiceLineId(il.getId())
+                    .productId(il.getProductId()).uomId(il.getUomId())
+                    .quantity(il.getQuantity()).unitCost(il.getUnitCost())
+                    .taxRate(il.getTaxRate()).lineTotal(il.getLineTotal())
+                    .returnedToStockQty(stockReturnQty)
+                    .snapshotName(il.getSnapshotName()).snapshotSku(il.getSnapshotSku())
+                    .build());
+        }
+
+        // Aggregate per-product return lines for the return BRC.
+        List<GoodsReceiptService.ReturnLine> returnLines = new ArrayList<>();
+        for (Map.Entry<UUID, BigDecimal> e : productReturnedAcc.entrySet()) {
+            if (e.getValue().signum() <= 0) continue;
+            PurchaseInvoiceLine ref = invLines.stream()
+                    .filter(l -> l.getProductId().equals(e.getKey()))
+                    .findFirst().orElseThrow();
+            returnLines.add(new GoodsReceiptService.ReturnLine(
+                    ref.getProductId(), ref.getUomId(), e.getValue(),
+                    ref.getUnitCost(), ref.getSnapshotName(), ref.getSnapshotSku()));
+        }
+
+        // Avoir total = invoice total.
+        cn.setSubtotal(inv.getSubtotal());
+        cn.setTaxAmount(inv.getTaxAmount());
+        cn.setTotal(inv.getTotal());
+        cn.setAmount(inv.getTotal());
+
+        // Detach the invoice from its supplier payments: the avoir, not the cash,
+        // now settles the invoice. The detachment listener soft-voids the
+        // SUPPLIER_PAYMENT → PURCHASE_INVOICE allocation rows so the payment
+        // residual reopens as an available open item.
+        BigDecimal priorPaid = inv.getPaidAmount();
+        if (priorPaid.signum() > 0) {
+            inv.setPaidAmount(BigDecimal.ZERO);
+            inv.setBalance(inv.getTotal());
+            if (inv.getStatus() != PurchaseInvoiceStatus.CANCELLED) {
+                inv.setStatus(PurchaseInvoiceStatus.ISSUED);
+            }
+            supplierBalanceOps.addToPaid(inv.getPartyId(), priorPaid.negate(), false);
+            events.publishEvent(new PurchaseInvoicePaymentsDetachedEvent(
+                    inv.getId(), inv.getPartyId(), cn.getNumber()));
+        }
+
+        // Letter the avoir against the (now fully open) invoice balance.
+        BigDecimal imputed = applyCredit(inv, inv.getTotal());
+        cn.setAppliedToInvoiceId(inv.getId());
+        cn.setStatus(PurchaseCreditNoteStatus.APPLIED);
+
+        if (imputed.signum() > 0) {
+            events.publishEvent(new PurchaseCreditNoteAppliedEvent(
+                    cn.getId(), cn.getNumber(), inv.getId(), inv.getPartyId(), imputed));
+        }
+
+        // Send the received goods back to the supplier (RETURN BRC, stock-out).
+        if (!returnLines.isEmpty()) {
+            goodsReceiptService.createReturnReceipt(inv.getId(), inv.getPartyId(), returnLines, cn.getNumber());
+        }
+        inv.setReceptionStatus(returnLines.isEmpty()
+                ? PurchaseInvoiceReceptionStatus.NONE
+                : PurchaseInvoiceReceptionStatus.RETURNED);
+
+        return toCreditNoteDto(cn);
+    }
+
+    @Transactional(readOnly = true)
+    public PurchaseDto.PurchaseCreditNoteDto getPurchaseCreditNote(UUID id) {
+        PurchaseCreditNote cn = purchaseCreditNotes.findById(id)
+                .orElseThrow(() -> NotFoundException.of("entity.purchase_credit_note", id));
+        return toCreditNoteDto(cn);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<PurchaseDto.PurchaseCreditNoteDto> listPurchaseCreditNotes(UUID supplierId, UUID invoiceId, Pageable pageable) {
+        var page = invoiceId != null
+                ? purchaseCreditNotes.findByPurchaseInvoiceId(invoiceId, pageable)
+                : supplierId != null
+                    ? purchaseCreditNotes.findByPartyId(supplierId, pageable)
+                    : purchaseCreditNotes.findAll(pageable);
+        return PageResponse.of(page.map(this::toCreditNoteDto));
+    }
+
+    @Transactional(readOnly = true)
+    public PurchaseDto.PurchaseCreditNotePreviewDto getPurchaseCreditNotePreview(UUID invoiceId) {
+        PurchaseInvoice inv = purchaseInvoices.findById(invoiceId)
+                .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", invoiceId));
+        String blockReason = creditBlockReason(inv);
+        Map<UUID, BigDecimal> receivedByProduct = aggregate(goodsReceiptLines.sumReceivedByProductForInvoice(invoiceId));
+        Map<UUID, BigDecimal> acc = new HashMap<>();
+        List<PurchaseDto.PurchaseCreditNoteReturnLineDto> returnRows = new ArrayList<>();
+        for (PurchaseInvoiceLine il : purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(invoiceId)) {
+            BigDecimal received = receivedByProduct.getOrDefault(il.getProductId(), BigDecimal.ZERO);
+            BigDecimal alreadyAttributed = acc.getOrDefault(il.getProductId(), BigDecimal.ZERO);
+            BigDecimal qty = received.subtract(alreadyAttributed).max(BigDecimal.ZERO).min(il.getQuantity());
+            if (qty.signum() <= 0) continue;
+            acc.merge(il.getProductId(), qty, BigDecimal::add);
+            returnRows.add(new PurchaseDto.PurchaseCreditNoteReturnLineDto(
+                    il.getProductId(), il.getSnapshotName(), il.getSnapshotSku(), qty));
+        }
+        return new PurchaseDto.PurchaseCreditNotePreviewDto(
+                inv.getId(), inv.getNumber(), inv.getTotal(), blockReason, inv.getPaidAmount(), returnRows);
+    }
+
+    private void ensureCreditable(PurchaseInvoice inv) {
+        String reason = creditBlockReason(inv);
+        if (reason != null) {
+            throw new BusinessException("error.purchase.creditnote.not_creditable",
+                    Map.of("reason", reason, "status", inv.getStatus().name()));
+        }
+    }
+
+    private String creditBlockReason(PurchaseInvoice inv) {
+        if (inv.getStatus() == PurchaseInvoiceStatus.DRAFT || inv.getStatus() == PurchaseInvoiceStatus.CANCELLED) {
+            return "INVOICE_NOT_CREDITABLE";
+        }
+        if (purchaseCreditNotes.countNonDraftByInvoiceId(inv.getId()) > 0) {
+            return "ALREADY_CREDITED";
+        }
+        return null;
+    }
+
+    private BigDecimal applyCredit(PurchaseInvoice inv, BigDecimal amount) {
+        BigDecimal imputed = amount.min(inv.getBalance()).max(BigDecimal.ZERO);
+        if (imputed.signum() == 0) return BigDecimal.ZERO;
+        inv.setBalance(inv.getBalance().subtract(imputed));
+        if (inv.getBalance().compareTo(BigDecimal.ZERO) == 0) {
+            inv.setStatus(PurchaseInvoiceStatus.PAID);
+        } else if (inv.getBalance().compareTo(inv.getTotal()) < 0) {
+            inv.setStatus(PurchaseInvoiceStatus.PARTIAL);
+        }
+        supplierBalanceOps.addToPaid(inv.getPartyId(), imputed, true);
+        return imputed;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // PDF
     // ────────────────────────────────────────────────────────────────────────
 
@@ -342,6 +506,17 @@ public class PurchaseService implements PurchaseInvoiceOperations {
         List<PurchaseOrderLine> lines = purchaseOrderLines.findByPurchaseOrderIdOrderByLineNumberAsc(id);
         Map<String, Object> vars = buildPurchaseOrderVars(po, lines, supplier);
         return renderer.renderPdf(PdfRenderRequest.of("purchase-order", vars));
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] generateCreditNotePdf(UUID id) {
+        PurchaseCreditNote cn = purchaseCreditNotes.findById(id)
+                .orElseThrow(() -> NotFoundException.of("entity.purchase_credit_note", id));
+        PurchaseInvoice inv = purchaseInvoices.findById(cn.getPurchaseInvoiceId()).orElse(null);
+        PartnerSummary supplier = supplierLookup.findById(cn.getPartyId()).orElse(null);
+        List<PurchaseCreditNoteLine> lines = purchaseCreditNoteLines.findByPurchaseCreditNoteIdOrderByLineNumberAsc(id);
+        Map<String, Object> vars = buildCreditNoteVars(cn, lines, supplier, inv);
+        return renderer.renderPdf(PdfRenderRequest.of("purchase-credit-note", vars));
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -415,15 +590,30 @@ public class PurchaseService implements PurchaseInvoiceOperations {
         inv.setBalance(inv.getTotal());
     }
 
+    private Map<UUID, Long> creditNoteCounts(List<UUID> invoiceIds) {
+        Map<UUID, Long> map = new HashMap<>();
+        if (invoiceIds.isEmpty()) return map;
+        for (Object[] row : purchaseCreditNotes.countNonDraftByInvoiceIds(invoiceIds)) {
+            map.put((UUID) row[0], (Long) row[1]);
+        }
+        return map;
+    }
+
+    private Map<UUID, BigDecimal> aggregate(List<Object[]> rows) {
+        Map<UUID, BigDecimal> map = new HashMap<>();
+        for (Object[] row : rows) map.put((UUID) row[0], (BigDecimal) row[1]);
+        return map;
+    }
+
     private PurchaseDto.LineDto toLineDto(PurchaseOrderLine l) {
         return new PurchaseDto.LineDto(l.getId(), l.getLineNumber(), l.getProductId(), l.getUomId(),
-                l.getQuantity(), l.getQuantityReceived(), l.getUnitCost(), l.getTaxRate(),
+                l.getQuantity(), l.getUnitCost(), l.getTaxRate(),
                 l.getLineTotal(), l.getSnapshotName(), l.getSnapshotSku());
     }
 
     private PurchaseDto.LineDto toLineDto(PurchaseInvoiceLine l) {
         return new PurchaseDto.LineDto(l.getId(), l.getLineNumber(), l.getProductId(), l.getUomId(),
-                l.getQuantity(), BigDecimal.ZERO, l.getUnitCost(), l.getTaxRate(),
+                l.getQuantity(), l.getUnitCost(), l.getTaxRate(),
                 l.getLineTotal(), l.getSnapshotName(), l.getSnapshotSku());
     }
 
@@ -432,18 +622,40 @@ public class PurchaseService implements PurchaseInvoiceOperations {
                 po.getPartyId(), supplierName, po.getWarehouseId(),
                 po.getOrderDate(), po.getExpectedDate(), po.getStatus().name(),
                 po.getCurrency(), po.getSubtotal(), po.getTaxAmount(), po.getTotal(),
-                po.getNotes(), lines.stream().map(this::toLineDto).toList(),
+                po.getNotes(), po.getConvertedToInvoiceId(),
+                lines.stream().map(this::toLineDto).toList(),
                 po.getCreatedAt());
     }
 
     private PurchaseDto.PurchaseInvoiceDto toInvoiceDto(PurchaseInvoice inv, List<PurchaseInvoiceLine> lines, String supplierName) {
+        return toInvoiceDto(inv, lines, supplierName, purchaseCreditNotes.countNonDraftByInvoiceId(inv.getId()));
+    }
+
+    private PurchaseDto.PurchaseInvoiceDto toInvoiceDto(PurchaseInvoice inv, List<PurchaseInvoiceLine> lines,
+                                                        String supplierName, long creditNoteCount) {
         return new PurchaseDto.PurchaseInvoiceDto(inv.getId(), inv.getNumber(),
                 inv.getPartyId(), supplierName, inv.getPurchaseOrderId(),
                 inv.getSupplierReference(), inv.getInvoiceDate(), inv.getDueDate(),
-                inv.getStatus().name(), inv.getCurrency(),
+                inv.getStatus().name(), inv.getReceptionStatus().name(), inv.getCurrency(),
                 inv.getSubtotal(), inv.getTaxAmount(), inv.getTotal(),
                 inv.getPaidAmount(), inv.getBalance(), inv.getNotes(),
-                lines.stream().map(this::toLineDto).toList(), inv.getCreatedAt());
+                lines.stream().map(this::toLineDto).toList(), creditNoteCount, inv.getCreatedAt());
+    }
+
+    private PurchaseDto.PurchaseCreditNoteDto toCreditNoteDto(PurchaseCreditNote cn) {
+        String supplierName = supplierLookup.findById(cn.getPartyId()).map(PartnerSummary::name).orElse("");
+        List<PurchaseDto.PurchaseCreditNoteLineDto> lineDtos = purchaseCreditNoteLines
+                .findByPurchaseCreditNoteIdOrderByLineNumberAsc(cn.getId()).stream()
+                .map(l -> new PurchaseDto.PurchaseCreditNoteLineDto(l.getId(), l.getLineNumber(),
+                        l.getProductId(), l.getUomId(), l.getQuantity(), l.getUnitCost(),
+                        l.getTaxRate(), l.getLineTotal(), l.getReturnedToStockQty(),
+                        l.getSnapshotName(), l.getSnapshotSku()))
+                .toList();
+        return new PurchaseDto.PurchaseCreditNoteDto(cn.getId(), cn.getNumber(),
+                cn.getPurchaseInvoiceId(), cn.getPartyId(), supplierName,
+                cn.getIssueDate(), cn.getReason(),
+                cn.getSubtotal(), cn.getTaxAmount(), cn.getTotal(), cn.getAmount(),
+                cn.getStatus().name(), cn.getCurrency(), lineDtos, cn.getCreatedAt());
     }
 
     private PurchaseInvoiceSummary toInvoiceSummary(PurchaseInvoice inv) {
@@ -483,6 +695,28 @@ public class PurchaseService implements PurchaseInvoiceOperations {
         return vars;
     }
 
+    private Map<String, Object> buildCreditNoteVars(PurchaseCreditNote cn, List<PurchaseCreditNoteLine> lines,
+                                                    PartnerSummary supplier, PurchaseInvoice inv) {
+        record LineModel(String productName, String sku, BigDecimal quantity, BigDecimal unitCost,
+                         BigDecimal taxRate, BigDecimal lineTotal) {}
+        record CreditNoteModel(String number, LocalDate issueDate, String reason, String invoiceNumber,
+                               BigDecimal subtotal, BigDecimal taxAmount, BigDecimal total,
+                               String currency, List<LineModel> lines) {}
+        record SupplierModel(String code, String name, String phone, String email) {}
+        var lm = lines.stream().map(l -> new LineModel(l.getSnapshotName(), l.getSnapshotSku(),
+                l.getQuantity(), l.getUnitCost(), l.getTaxRate(), l.getLineTotal())).toList();
+        Map<String, Object> vars = new HashMap<>(brandingVars());
+        vars.put("creditNote", new CreditNoteModel(cn.getNumber(), cn.getIssueDate(), cn.getReason(),
+                inv != null ? inv.getNumber() : "",
+                cn.getSubtotal(), cn.getTaxAmount(), cn.getTotal(), cn.getCurrency(), lm));
+        vars.put("supplier", new SupplierModel(
+                supplier != null ? supplier.code() : "",
+                supplier != null ? supplier.name() : "",
+                supplier != null ? supplier.phone() : "",
+                supplier != null ? supplier.email() : ""));
+        return vars;
+    }
+
     private Map<String, Object> brandingVars() {
         var b = tenantLookup.findBrandingById(TenantContext.require()).orElse(null);
         Map<String, Object> m = new HashMap<>();
@@ -495,14 +729,14 @@ public class PurchaseService implements PurchaseInvoiceOperations {
     }
 
     private Map<String, Object> buildPurchaseOrderVars(PurchaseOrder po, List<PurchaseOrderLine> lines, PartnerSummary supplier) {
-        record LineModel(String productName, String sku, BigDecimal quantity, BigDecimal quantityReceived,
+        record LineModel(String productName, String sku, BigDecimal quantity,
                          BigDecimal unitCost, BigDecimal taxRate, BigDecimal lineTotal) {}
         record OrderModel(String number, LocalDate orderDate, LocalDate expectedDate, String statusLabel,
                           BigDecimal subtotal, BigDecimal taxAmount, BigDecimal total,
                           String currency, String notes, List<LineModel> lines) {}
         record SupplierModel(String code, String name, String phone, String email) {}
         var lm = lines.stream().map(l -> new LineModel(l.getSnapshotName(), l.getSnapshotSku(),
-                l.getQuantity(), l.getQuantityReceived(), l.getUnitCost(), l.getTaxRate(), l.getLineTotal())).toList();
+                l.getQuantity(), l.getUnitCost(), l.getTaxRate(), l.getLineTotal())).toList();
         Map<String, Object> vars = new HashMap<>(brandingVars());
         vars.put("order", new OrderModel(po.getNumber(), po.getOrderDate(), po.getExpectedDate(),
                 po.getStatus().name(),

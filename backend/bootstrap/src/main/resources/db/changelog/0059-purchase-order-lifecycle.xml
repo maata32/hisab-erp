@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Reception moves off the purchase order onto a dedicated goods-receipt
+        document. The PO lifecycle is now DRAFT → CONFIRMED → CONVERTED → CANCELLED
+        (mirror of the quote). Existing PARTIALLY_RECEIVED / RECEIVED rows predate
+        the goods-receipt model — map them back to CONFIRMED. The per-line
+        quantity_received column is no longer used.
+    -->
+
+    <changeSet id="0059-remap-received-po-status" author="mini-erp">
+        <sql>
+            UPDATE purchase_orders
+            SET status = 'CONFIRMED'
+            WHERE status IN ('PARTIALLY_RECEIVED', 'RECEIVED');
+        </sql>
+    </changeSet>
+
+    <changeSet id="0059-drop-po-line-quantity-received" author="mini-erp">
+        <dropColumn tableName="purchase_order_lines" columnName="quantity_received"/>
+    </changeSet>
+</databaseChangeLog>

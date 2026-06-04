@@ -52,6 +52,30 @@
     "delivery": {
       "already_shipped": "Du stock est déjà sorti pour ce BL — impossible de l'annuler."
     },
+    "reception": {
+      "invoice_not_receivable": "Cette facture n'accepte pas de réception (brouillon, annulée, soldée par avoir ou déjà entièrement reçue).",
+      "supplier_mismatch": "Le fournisseur ne correspond pas à celui de la facture.",
+      "warehouse_missing": "Aucun dépôt configuré pour la réception.",
+      "not_pending": "Le bon de réception n'est pas en attente.",
+      "already_terminal": "Le bon de réception est déjà clôturé ou annulé.",
+      "not_inbound": "Opération réservée aux réceptions entrantes.",
+      "line_not_in_receipt": "Ligne absente de ce bon de réception.",
+      "over_receipt": "Quantité reçue supérieure au reliquat : {{remaining}} restant.",
+      "lot_data_required": "Lot et date d'expiration obligatoires pour ce produit.",
+      "immediate_lot_unsupported": "Réception immédiate impossible : ce produit suit les lots, utilisez la réception manuelle.",
+      "already_received": "Bon de réception déjà reçu — impossible de l'annuler.",
+      "already_posted": "Du stock est déjà entré pour ce bon — impossible de l'annuler."
+    },
+    "purchase": {
+      "po_not_draft": "Seule une commande en brouillon peut être confirmée.",
+      "po_already_converted": "Commande déjà convertie en facture.",
+      "po_not_convertible": "Cette commande ne peut pas être convertie.",
+      "invoice_not_draft": "Seule une facture en brouillon peut être émise ou annulée.",
+      "creditnote": {
+        "not_creditable": "Impossible d'émettre un avoir sur cette facture.",
+        "invoice_has_no_lines": "La facture ne comporte aucune ligne."
+      }
+    },
     "inventory": {
       "insufficient_stock": "Stock insuffisant : {{available}} en stock, {{requested}} demandé. Opération annulée."
     },
@@ -117,6 +141,7 @@
     "treasury": "Trésorerie",
     "purchaseOrders": "Commandes fournisseur",
     "purchaseInvoices": "Factures d'achat",
+    "goodsReceipts": "Bons de réception",
     "creditNotes": "Avoirs"
   },
   "dashboard": {
@@ -1123,18 +1148,14 @@
     "confirmHint": "Confirmer la commande {{number}} ?",
     "cancel": "Annuler",
     "cancelHint": "Annuler la commande {{number}} ?",
-    "receive": "Réceptionner",
-    "receiveAction": "Valider la réception",
-    "receiveHint": "Saisissez les quantités reçues. Pour les produits avec date d'expiration, lot et date d'expiration sont obligatoires.",
-    "ordered": "Cmd",
-    "already": "Reçu",
-    "receivingNow": "Réception",
-    "lotNumber": "N° de lot",
-    "productionDate": "Date production",
-    "expirationDate": "Date d'expiration",
+    "convert": "Convertir en facture",
+    "convertAction": "Convertir",
+    "convertHint": "La commande sera convertie en facture d'achat (brouillon). Vous pourrez l'émettre puis la réceptionner.",
+    "openInvoice": "Voir la facture",
     "statuses": {
       "DRAFT": "Brouillon",
       "CONFIRMED": "Confirmée",
+      "CONVERTED": "Convertie",
       "PARTIALLY_RECEIVED": "Partiellement reçue",
       "RECEIVED": "Reçue",
       "CANCELLED": "Annulée"
@@ -1154,13 +1175,67 @@
     "total": "Total",
     "balance": "Reste à payer",
     "status": "Statut",
+    "reception": "Réception",
+    "credited": "Avoir",
     "cancelHint": "Annuler la facture {{number}} ?",
+    "issue": "Émettre",
+    "issueHint": "Émettre la facture {{number}} ? Elle sera comptabilisée au solde fournisseur.",
+    "receive": "Réceptionner",
+    "pay": "Payer",
+    "creditNote": "Émettre un avoir",
+    "creditNoteTitle": "Avoir d'achat",
+    "creditNoteHint": "Un avoir total annule la facture. Les marchandises reçues sont retournées au fournisseur.",
+    "creditNoteAction": "Émettre l'avoir",
+    "creditNotePaidWarning": "Cette facture a déjà été réglée ({{amount}}). L'avoir détache le paiement, qui redevient disponible côté fournisseur.",
+    "reason": "Motif",
+    "returnedToSupplier": "Retour au fournisseur",
+    "returnQty": "Qté retournée",
+    "noReturnLines": "Aucune marchandise reçue à retourner.",
     "statuses": {
       "DRAFT": "Brouillon",
       "ISSUED": "Émise",
       "PARTIAL": "Partiellement payée",
       "PAID": "Payée",
       "CANCELLED": "Annulée"
+    },
+    "receptionStatuses": {
+      "NONE": "Non reçue",
+      "PARTIALLY_RECEIVED": "Partiellement reçue",
+      "RECEIVED": "Reçue",
+      "RETURNED": "Retournée"
+    }
+  },
+  "reception": {
+    "title": "Bons de réception",
+    "subtitle": "Réception des marchandises sur les factures d'achat",
+    "create": "Nouvelle réception",
+    "createTitle": "Nouveau bon de réception",
+    "createHint": "Les lignes à réceptionner sont reprises automatiquement des reliquats de la facture. Saisissez les quantités reçues à l'étape suivante.",
+    "empty": "Aucun bon de réception",
+    "number": "Numéro",
+    "supplier": "Fournisseur",
+    "warehouse": "Entrepôt",
+    "scheduledDate": "Date prévue",
+    "receivedAt": "Reçu le",
+    "status": "Statut",
+    "pickInvoice": "Choisir une facture",
+    "pickWarehouse": "Choisir un entrepôt",
+    "record": "Enregistrer la réception",
+    "recordTitle": "Enregistrer la réception",
+    "confirmRecord": "Valider la réception",
+    "expected": "Attendu",
+    "receivingNow": "Réception",
+    "lotNumber": "N° de lot",
+    "expirationDate": "Date d'expiration",
+    "confirmCancel": "Annuler le bon de réception {{number}} ?",
+    "type": {
+      "return": "Retour"
+    },
+    "statuses": {
+      "PENDING": "En attente",
+      "IN_PROGRESS": "En cours",
+      "RECEIVED": "Reçu",
+      "CANCELLED": "Annulé"
     }
   }
 }

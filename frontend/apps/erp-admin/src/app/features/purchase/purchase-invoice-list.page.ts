@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MoneyPipe } from '@minierp/shared-i18n';
 import { HttpClient } from '@angular/common/http';
@@ -26,6 +27,7 @@ interface PurchaseInvoice {
   invoiceDate: string;
   dueDate: string | null;
   status: string;
+  receptionStatus: string;
   currency: string;
   subtotal: number;
   taxAmount: number;
@@ -33,6 +35,16 @@ interface PurchaseInvoice {
   paidAmount: number;
   balance: number;
   notes: string | null;
+  creditNoteCount: number;
+}
+
+interface CreditNotePreview {
+  purchaseInvoiceId: string;
+  invoiceNumber: string;
+  total: number;
+  blockReason: string | null;
+  alreadyPaid: number;
+  returnLines: { productId: string; productName: string; sku: string; returnQty: number }[];
 }
 
 interface SupplierOpt { id: string; code: string; name: string; currency: string; }
@@ -81,12 +93,12 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             <tr>
               <th>{{ 'purchaseInvoices.number' | translate }}</th>
               <th>{{ 'purchaseInvoices.supplier' | translate }}</th>
-              <th>{{ 'purchaseInvoices.supplierReference' | translate }}</th>
               <th>{{ 'purchaseInvoices.invoiceDate' | translate }}</th>
               <th>{{ 'purchaseInvoices.dueDate' | translate }}</th>
               <th class="text-right">{{ 'purchaseInvoices.total' | translate }}</th>
               <th class="text-right">{{ 'purchaseInvoices.balance' | translate }}</th>
               <th>{{ 'purchaseInvoices.status' | translate }}</th>
+              <th>{{ 'purchaseInvoices.reception' | translate }}</th>
               <th></th>
             </tr>
           </ng-template>
@@ -94,7 +106,6 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             <tr>
               <td><span class="font-mono text-sm">{{ inv.number }}</span></td>
               <td>{{ inv.supplierName }}</td>
-              <td class="text-sm text-gray-500">{{ inv.supplierReference || '—' }}</td>
               <td>{{ inv.invoiceDate | date:'mediumDate' }}</td>
               <td>{{ inv.dueDate ? (inv.dueDate | date:'mediumDate') : '—' }}</td>
               <td class="text-right font-medium">{{ inv.total | money }} {{ inv.currency }}</td>
@@ -103,12 +114,41 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   [class.text-green-600]="inv.balance === 0">
                 {{ inv.balance | money }} {{ inv.currency }}
               </td>
-              <td><p-tag [value]="'purchaseInvoices.statuses.' + inv.status | translate"
-                         [severity]="statusSeverity(inv.status)" /></td>
+              <td>
+                <p-tag [value]="'purchaseInvoices.statuses.' + inv.status | translate"
+                       [severity]="statusSeverity(inv.status)" />
+                @if (inv.creditNoteCount > 0) {
+                  <p-tag class="ml-1" [value]="'purchaseInvoices.credited' | translate" severity="danger" />
+                }
+              </td>
+              <td>
+                <p-tag [value]="'purchaseInvoices.receptionStatuses.' + inv.receptionStatus | translate"
+                       [severity]="receptionSeverity(inv.receptionStatus)" />
+              </td>
               <td class="whitespace-nowrap">
                 <button pButton icon="pi pi-print" class="p-button-sm p-button-text"
                         [pTooltip]="'common.print' | translate"
                         (click)="printPdf('/api/v1/purchase-invoices/' + inv.id + '/pdf')"></button>
+                @if (inv.status === 'DRAFT') {
+                  <button pButton icon="pi pi-check" class="p-button-sm p-button-text p-button-info"
+                          [pTooltip]="'purchaseInvoices.issue' | translate"
+                          (click)="issue(inv)"></button>
+                }
+                @if (canReceive(inv)) {
+                  <button pButton icon="pi pi-inbox" class="p-button-sm p-button-text p-button-success"
+                          [pTooltip]="'purchaseInvoices.receive' | translate"
+                          (click)="goToReception(inv)"></button>
+                }
+                @if (canPay(inv)) {
+                  <button pButton icon="pi pi-wallet" class="p-button-sm p-button-text"
+                          [pTooltip]="'purchaseInvoices.pay' | translate"
+                          (click)="goToPay(inv)"></button>
+                }
+                @if (canCredit(inv)) {
+                  <button pButton icon="pi pi-replay" class="p-button-sm p-button-text p-button-warning"
+                          [pTooltip]="'purchaseInvoices.creditNote' | translate"
+                          (click)="openCreditNote(inv)"></button>
+                }
                 @if (canCancel(inv.status)) {
                   <button pButton icon="pi pi-times" class="p-button-sm p-button-text p-button-danger"
                           [pTooltip]="'common.cancel' | translate"
@@ -258,6 +298,60 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   (click)="save()" [loading]="saving()"></button>
         </ng-template>
       </p-dialog>
+
+      <!-- Credit note (avoir) dialog -->
+      <p-dialog [(visible)]="creditOpen" [modal]="true" [style]="{ width: '560px' }"
+                [header]="('purchaseInvoices.creditNoteTitle' | translate) + ' — ' + (creditInvoice()?.number ?? '')"
+                [closable]="!crediting()">
+        @if (preview(); as p) {
+          <div class="space-y-3">
+            <p class="text-sm text-gray-600">{{ 'purchaseInvoices.creditNoteHint' | translate }}</p>
+            <div class="flex justify-between text-sm border-b pb-2">
+              <span>{{ 'purchaseInvoices.total' | translate }}</span>
+              <span class="font-bold">{{ p.total | money }} {{ creditInvoice()?.currency }}</span>
+            </div>
+            @if (p.alreadyPaid > 0) {
+              <div class="text-xs text-amber-700 bg-amber-50 rounded p-2">
+                {{ 'purchaseInvoices.creditNotePaidWarning' | translate:{ amount: (p.alreadyPaid | money) } }}
+              </div>
+            }
+            @if (p.returnLines.length > 0) {
+              <div>
+                <div class="text-sm font-medium mb-1">{{ 'purchaseInvoices.returnedToSupplier' | translate }}</div>
+                <table class="w-full text-sm border">
+                  <thead class="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th class="text-left p-2">{{ 'sales.product' | translate }}</th>
+                      <th class="text-right p-2 w-24">{{ 'purchaseInvoices.returnQty' | translate }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (rl of p.returnLines; track rl.productId) {
+                      <tr class="border-t">
+                        <td class="p-2">{{ rl.productName }} <span class="text-gray-400">({{ rl.sku }})</span></td>
+                        <td class="p-2 text-right">{{ rl.returnQty }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <div class="text-xs text-gray-500">{{ 'purchaseInvoices.noReturnLines' | translate }}</div>
+            }
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'purchaseInvoices.reason' | translate }}</label>
+              <input pInputText [(ngModel)]="creditReason" class="w-full" />
+            </div>
+          </div>
+        }
+        <ng-template pTemplate="footer">
+          <button pButton [label]="'common.cancel' | translate" class="p-button-text"
+                  (click)="creditOpen = false" [disabled]="crediting()"></button>
+          <button pButton [label]="'purchaseInvoices.creditNoteAction' | translate" icon="pi pi-check"
+                  class="p-button-warning"
+                  (click)="confirmCreditNote()" [loading]="crediting()"></button>
+        </ng-template>
+      </p-dialog>
     </div>
   `,
 })
@@ -265,6 +359,7 @@ export class PurchaseInvoiceListPage implements OnInit {
   private http = inject(HttpClient);
   private i18n = inject(TranslateService);
   private confirmation = inject(ConfirmationService);
+  private router = inject(Router);
 
   protected invoices = signal<PurchaseInvoice[]>([]);
   protected suppliers = signal<SupplierOpt[]>([]);
@@ -301,6 +396,13 @@ export class PurchaseInvoiceListPage implements OnInit {
     return this.submitted() && (line.unitCost == null || line.unitCost < 0);
   }
 
+  // Avoir (credit note) dialog state
+  protected creditOpen = false;
+  protected crediting = signal(false);
+  protected creditInvoice = signal<PurchaseInvoice | null>(null);
+  protected preview = signal<CreditNotePreview | null>(null);
+  protected creditReason = '';
+
   protected form: {
     supplierId: string | null;
     invoiceDate: Date;
@@ -324,8 +426,75 @@ export class PurchaseInvoiceListPage implements OnInit {
     } as Record<string, Severity>)[status] ?? 'secondary';
   }
 
+  protected receptionSeverity(status: string): Severity {
+    return ({
+      NONE: 'secondary', PARTIALLY_RECEIVED: 'warning',
+      RECEIVED: 'success', RETURNED: 'danger',
+    } as Record<string, Severity>)[status] ?? 'secondary';
+  }
+
+  protected canReceive(inv: PurchaseInvoice): boolean {
+    return inv.status !== 'DRAFT' && inv.status !== 'CANCELLED'
+        && inv.creditNoteCount === 0
+        && inv.receptionStatus !== 'RECEIVED' && inv.receptionStatus !== 'RETURNED';
+  }
+
+  protected canPay(inv: PurchaseInvoice): boolean {
+    return (inv.status === 'ISSUED' || inv.status === 'PARTIAL') && inv.balance > 0;
+  }
+
+  protected canCredit(inv: PurchaseInvoice): boolean {
+    return inv.status !== 'DRAFT' && inv.status !== 'CANCELLED' && inv.creditNoteCount === 0;
+  }
+
   protected canCancel(status: string): boolean {
-    return status === 'DRAFT' || status === 'ISSUED';
+    return status === 'DRAFT';
+  }
+
+  protected issue(inv: PurchaseInvoice) {
+    this.confirmation.confirm({
+      message: this.i18n.instant('purchaseInvoices.issueHint', { number: inv.number }),
+      header: this.i18n.instant('common.confirmation'),
+      icon: 'pi pi-check',
+      accept: async () => {
+        await firstValueFrom(this.http.post(`/api/v1/purchase-invoices/${inv.id}/issue`, {}));
+        this.reload();
+      },
+    });
+  }
+
+  protected goToReception(inv: PurchaseInvoice) {
+    this.router.navigate(['/goods-receipts'], { queryParams: { invoiceId: inv.id } });
+  }
+
+  protected goToPay(inv: PurchaseInvoice) {
+    this.router.navigate(['/payments'], { queryParams: { purchaseInvoiceId: inv.id, supplierId: inv.supplierId } });
+  }
+
+  protected async openCreditNote(inv: PurchaseInvoice) {
+    this.creditInvoice.set(inv);
+    this.preview.set(null);
+    this.creditReason = '';
+    this.creditOpen = true;
+    try {
+      const p = await firstValueFrom(
+        this.http.get<CreditNotePreview>(`/api/v1/purchase-invoices/${inv.id}/credit-note-preview`));
+      this.preview.set(p);
+    } catch { this.preview.set(null); }
+  }
+
+  protected async confirmCreditNote() {
+    const inv = this.creditInvoice();
+    if (!inv) return;
+    this.crediting.set(true);
+    try {
+      await firstValueFrom(this.http.post(`/api/v1/purchase-invoices/${inv.id}/credit-notes`,
+        { reason: this.creditReason || null }));
+      this.creditOpen = false;
+      this.reload();
+    } finally {
+      this.crediting.set(false);
+    }
   }
 
   protected cancel(inv: PurchaseInvoice) {

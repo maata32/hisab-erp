@@ -139,6 +139,7 @@ export class MainLayoutComponent {
     // Purchase cycle
     { label: 'nav.purchaseOrders', icon: 'pi pi-shopping-bag', path: '/purchase-orders', permission: 'purchase:read' },
     { label: 'nav.purchaseInvoices', icon: 'pi pi-file-edit', path: '/purchase-invoices', permission: 'purchase:read' },
+    { label: 'nav.goodsReceipts', icon: 'pi pi-inbox', path: '/goods-receipts', permission: 'purchase:read' },
 
     // Inventory & catalog
     { label: 'nav.products', icon: 'pi pi-box', path: '/products', permission: 'product:read' },

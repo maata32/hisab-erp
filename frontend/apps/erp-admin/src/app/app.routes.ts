@@ -80,6 +80,11 @@ export const appRoutes: Routes = [
           import('./features/purchase/purchase-invoice-list.page').then((m) => m.PurchaseInvoiceListPage),
       },
       {
+        path: 'goods-receipts',
+        loadComponent: () =>
+          import('./features/reception/reception-list.page').then((m) => m.ReceptionListPage),
+      },
+      {
         path: 'products',
         loadComponent: () =>
           import('./features/products/product-list.page').then((m) => m.ProductListPage),

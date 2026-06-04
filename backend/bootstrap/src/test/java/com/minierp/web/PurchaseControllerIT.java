@@ -63,4 +63,20 @@ class PurchaseControllerIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray());
     }
+
+    @Test
+    @DisplayName("GET /goods-receipts returns 200")
+    void listGoodsReceipts_returns200() throws Exception {
+        mockMvc.perform(get("/api/v1/goods-receipts").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray());
+    }
+
+    @Test
+    @DisplayName("GET /purchase-credit-notes returns 200")
+    void listPurchaseCreditNotes_returns200() throws Exception {
+        mockMvc.perform(get("/api/v1/purchase-credit-notes").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray());
+    }
 }

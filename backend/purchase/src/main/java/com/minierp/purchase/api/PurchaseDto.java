@@ -30,7 +30,6 @@ public class PurchaseDto {
             UUID productId,
             UUID uomId,
             BigDecimal quantity,
-            BigDecimal quantityReceived,
             BigDecimal unitCost,
             BigDecimal taxRate,
             BigDecimal lineTotal,
@@ -42,7 +41,8 @@ public class PurchaseDto {
 
     public record CreatePurchaseOrderRequest(
             @NotNull UUID supplierId,
-            @NotNull UUID warehouseId,
+            // Optional hint; the actual warehouse is chosen on the goods-receipt.
+            UUID warehouseId,
             LocalDate orderDate,
             LocalDate expectedDate,
             String currency,
@@ -64,38 +64,15 @@ public class PurchaseDto {
             BigDecimal taxAmount,
             BigDecimal total,
             String notes,
+            UUID convertedToInvoiceId,
             List<LineDto> lines,
             Instant createdAt
     ) {}
 
-    // ── Reception ────────────────────────────────────────────────────────────
-
-    public record ReceiveLineRequest(
-            @NotNull UUID purchaseOrderLineId,
-            @NotNull @Positive BigDecimal quantityReceived,
-            // Required when product.trackExpiry = true.
-            String lotNumber,
-            LocalDate productionDate,
-            LocalDate expirationDate
-    ) {}
-
-    public record ReceivePurchaseOrderRequest(
-            // Optional override for the PO header warehouse.
-            UUID warehouseId,
-            @NotEmpty @Valid List<ReceiveLineRequest> lines
-    ) {}
-
-    public record ReceiptLineResult(
-            UUID purchaseOrderLineId,
-            BigDecimal quantityReceived,
-            UUID stockMovementId,
-            UUID lotId
-    ) {}
-
-    public record ReceiptResult(
-            UUID purchaseOrderId,
-            String status,
-            List<ReceiptLineResult> lines
+    /** Body of {@code POST /purchase-orders/{id}/convert}. */
+    public record ConvertOrderToInvoiceRequest(
+            LocalDate dueDate,
+            String supplierReference
     ) {}
 
     // ── Purchase invoices ────────────────────────────────────────────────────
@@ -121,6 +98,7 @@ public class PurchaseDto {
             LocalDate invoiceDate,
             LocalDate dueDate,
             String status,
+            String receptionStatus,
             String currency,
             BigDecimal subtotal,
             BigDecimal taxAmount,
@@ -129,6 +107,62 @@ public class PurchaseDto {
             BigDecimal balance,
             String notes,
             List<LineDto> lines,
+            long creditNoteCount,
             Instant createdAt
+    ) {}
+
+    // ── Purchase credit notes (avoirs) ────────────────────────────────────────
+
+    public record CreatePurchaseCreditNoteRequest(
+            String reason
+    ) {}
+
+    public record PurchaseCreditNoteLineDto(
+            UUID id,
+            int lineNumber,
+            UUID productId,
+            UUID uomId,
+            BigDecimal quantity,
+            BigDecimal unitCost,
+            BigDecimal taxRate,
+            BigDecimal lineTotal,
+            BigDecimal returnedToStockQty,
+            String productName,
+            String sku
+    ) {}
+
+    public record PurchaseCreditNoteDto(
+            UUID id,
+            String number,
+            UUID purchaseInvoiceId,
+            UUID supplierId,
+            String supplierName,
+            LocalDate issueDate,
+            String reason,
+            BigDecimal subtotal,
+            BigDecimal taxAmount,
+            BigDecimal total,
+            BigDecimal amount,
+            String status,
+            String currency,
+            List<PurchaseCreditNoteLineDto> lines,
+            Instant createdAt
+    ) {}
+
+    public record PurchaseCreditNoteReturnLineDto(
+            UUID productId,
+            String productName,
+            String sku,
+            BigDecimal returnQty
+    ) {}
+
+    public record PurchaseCreditNotePreviewDto(
+            UUID purchaseInvoiceId,
+            String invoiceNumber,
+            BigDecimal total,
+            // null when the avoir can be issued; otherwise a reason code.
+            String blockReason,
+            BigDecimal alreadyPaid,
+            List<PurchaseCreditNoteReturnLineDto> returnLines
     ) {}
 }

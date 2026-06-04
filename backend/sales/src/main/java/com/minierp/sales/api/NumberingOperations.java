@@ -6,4 +6,6 @@ public interface NumberingOperations {
     String nextPaymentReceiptNumber();
     String nextPurchaseOrderNumber();
     String nextPurchaseInvoiceNumber();
+    String nextGoodsReceiptNumber();
+    String nextPurchaseCreditNoteNumber();
 }

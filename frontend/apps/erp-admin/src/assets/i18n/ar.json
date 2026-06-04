@@ -52,6 +52,30 @@
     "delivery": {
       "already_shipped": "تم إخراج المخزون لهذا التسليم — لا يمكن إلغاؤه."
     },
+    "reception": {
+      "invoice_not_receivable": "هذه الفاتورة لا تقبل الاستلام (مسودة أو ملغاة أو مُسوّاة بإشعار دائن أو مستلمة بالكامل).",
+      "supplier_mismatch": "المورّد لا يطابق مورّد الفاتورة.",
+      "warehouse_missing": "لا يوجد مستودع مُهيّأ للاستلام.",
+      "not_pending": "بون الاستلام ليس قيد الانتظار.",
+      "already_terminal": "بون الاستلام مغلق أو ملغى بالفعل.",
+      "not_inbound": "العملية مقصورة على عمليات الاستلام الواردة.",
+      "line_not_in_receipt": "البند غير موجود في بون الاستلام هذا.",
+      "over_receipt": "الكمية المستلمة تتجاوز المتبقي: {{remaining}} متبقٍ.",
+      "lot_data_required": "الدفعة وتاريخ الانتهاء إلزاميان لهذا المنتج.",
+      "immediate_lot_unsupported": "الاستلام الفوري غير متاح: هذا المنتج يتتبّع الدفعات، استخدم الاستلام اليدوي.",
+      "already_received": "بون الاستلام مُستلم بالفعل — لا يمكن إلغاؤه.",
+      "already_posted": "تم إدخال المخزون لهذا البون — لا يمكن إلغاؤه."
+    },
+    "purchase": {
+      "po_not_draft": "يمكن تأكيد الطلبات المسودة فقط.",
+      "po_already_converted": "تم تحويل الطلب إلى فاتورة بالفعل.",
+      "po_not_convertible": "لا يمكن تحويل هذا الطلب.",
+      "invoice_not_draft": "يمكن إصدار أو إلغاء الفواتير المسودة فقط.",
+      "creditnote": {
+        "not_creditable": "لا يمكن إصدار إشعار دائن على هذه الفاتورة.",
+        "invoice_has_no_lines": "الفاتورة لا تحتوي على بنود."
+      }
+    },
     "inventory": {
       "insufficient_stock": "المخزون غير كافٍ: {{available}} متوفر، {{requested}} مطلوب. تم إلغاء العملية."
     },
@@ -117,6 +141,7 @@
     "treasury": "الخزينة",
     "purchaseOrders": "طلبات الشراء",
     "purchaseInvoices": "فواتير الشراء",
+    "goodsReceipts": "بونات الاستلام",
     "creditNotes": "إشعارات دائنة"
   },
   "dashboard": {
@@ -1123,18 +1148,14 @@
     "confirmHint": "تأكيد الطلب {{number}}؟",
     "cancel": "إلغاء",
     "cancelHint": "إلغاء الطلب {{number}}؟",
-    "receive": "استلام",
-    "receiveAction": "تأكيد الاستلام",
-    "receiveHint": "أدخل الكميات المستلمة. للمنتجات ذات تتبّع الصلاحية، الدفعة وتاريخ الانتهاء إلزاميان.",
-    "ordered": "مطلوب",
-    "already": "مستلم",
-    "receivingNow": "الاستلام الآن",
-    "lotNumber": "رقم الدفعة",
-    "productionDate": "تاريخ الإنتاج",
-    "expirationDate": "تاريخ الانتهاء",
+    "convert": "تحويل إلى فاتورة",
+    "convertAction": "تحويل",
+    "convertHint": "سيتم تحويل الطلب إلى فاتورة شراء (مسودة). يمكنك بعدها إصدارها واستلامها.",
+    "openInvoice": "عرض الفاتورة",
     "statuses": {
       "DRAFT": "مسودة",
       "CONFIRMED": "مؤكدة",
+      "CONVERTED": "محوّلة",
       "PARTIALLY_RECEIVED": "استلام جزئي",
       "RECEIVED": "مستلمة",
       "CANCELLED": "ملغاة"
@@ -1154,13 +1175,67 @@
     "total": "الإجمالي",
     "balance": "المتبقي",
     "status": "الحالة",
+    "reception": "الاستلام",
+    "credited": "إشعار دائن",
     "cancelHint": "إلغاء الفاتورة {{number}}؟",
+    "issue": "إصدار",
+    "issueHint": "إصدار الفاتورة {{number}}؟ سيتم احتسابها في رصيد المورّد.",
+    "receive": "استلام",
+    "pay": "دفع",
+    "creditNote": "إصدار إشعار دائن",
+    "creditNoteTitle": "إشعار دائن شراء",
+    "creditNoteHint": "الإشعار الدائن الكلي يلغي الفاتورة. تُعاد البضائع المستلمة إلى المورّد.",
+    "creditNoteAction": "إصدار الإشعار",
+    "creditNotePaidWarning": "تم دفع هذه الفاتورة بالفعل ({{amount}}). يفصل الإشعار الدائن الدفعة التي تصبح متاحة من جديد لدى المورّد.",
+    "reason": "السبب",
+    "returnedToSupplier": "مُعاد إلى المورّد",
+    "returnQty": "الكمية المُعادة",
+    "noReturnLines": "لا توجد بضائع مستلمة لإعادتها.",
     "statuses": {
       "DRAFT": "مسودة",
       "ISSUED": "مُصدرة",
       "PARTIAL": "مدفوعة جزئيًا",
       "PAID": "مدفوعة",
       "CANCELLED": "ملغاة"
+    },
+    "receptionStatuses": {
+      "NONE": "غير مستلمة",
+      "PARTIALLY_RECEIVED": "استلام جزئي",
+      "RECEIVED": "مستلمة",
+      "RETURNED": "مُعادة"
+    }
+  },
+  "reception": {
+    "title": "بونات الاستلام",
+    "subtitle": "استلام البضائع على فواتير الشراء",
+    "create": "استلام جديد",
+    "createTitle": "بون استلام جديد",
+    "createHint": "تُستمد البنود المراد استلامها تلقائيًا من متبقيات الفاتورة. أدخل الكميات المستلمة في الخطوة التالية.",
+    "empty": "لا توجد بونات استلام",
+    "number": "الرقم",
+    "supplier": "المورّد",
+    "warehouse": "المستودع",
+    "scheduledDate": "التاريخ المتوقع",
+    "receivedAt": "استُلم في",
+    "status": "الحالة",
+    "pickInvoice": "اختر فاتورة",
+    "pickWarehouse": "اختر مستودعًا",
+    "record": "تسجيل الاستلام",
+    "recordTitle": "تسجيل الاستلام",
+    "confirmRecord": "تأكيد الاستلام",
+    "expected": "متوقع",
+    "receivingNow": "الاستلام الآن",
+    "lotNumber": "رقم الدفعة",
+    "expirationDate": "تاريخ الانتهاء",
+    "confirmCancel": "إلغاء بون الاستلام {{number}}؟",
+    "type": {
+      "return": "إرجاع"
+    },
+    "statuses": {
+      "PENDING": "قيد الانتظار",
+      "IN_PROGRESS": "قيد التنفيذ",
+      "RECEIVED": "مستلم",
+      "CANCELLED": "ملغى"
     }
   }
 }

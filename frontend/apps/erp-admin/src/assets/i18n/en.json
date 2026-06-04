@@ -52,6 +52,30 @@
     "delivery": {
       "already_shipped": "Stock has already left the warehouse for this delivery — it cannot be cancelled."
     },
+    "reception": {
+      "invoice_not_receivable": "This invoice does not accept a receipt (draft, cancelled, settled by a credit note, or already fully received).",
+      "supplier_mismatch": "The supplier does not match the invoice's supplier.",
+      "warehouse_missing": "No warehouse configured for the receipt.",
+      "not_pending": "The goods receipt is not pending.",
+      "already_terminal": "The goods receipt is already closed or cancelled.",
+      "not_inbound": "Operation restricted to inbound receipts.",
+      "line_not_in_receipt": "Line not part of this goods receipt.",
+      "over_receipt": "Received quantity exceeds the remaining amount: {{remaining}} left.",
+      "lot_data_required": "Lot and expiration date are required for this product.",
+      "immediate_lot_unsupported": "Immediate receipt unavailable: this product tracks lots, use manual receipt.",
+      "already_received": "Goods receipt already received — it cannot be cancelled.",
+      "already_posted": "Stock has already been posted for this receipt — it cannot be cancelled."
+    },
+    "purchase": {
+      "po_not_draft": "Only a draft order can be confirmed.",
+      "po_already_converted": "Order already converted to an invoice.",
+      "po_not_convertible": "This order cannot be converted.",
+      "invoice_not_draft": "Only a draft invoice can be issued or cancelled.",
+      "creditnote": {
+        "not_creditable": "A credit note cannot be issued on this invoice.",
+        "invoice_has_no_lines": "The invoice has no lines."
+      }
+    },
     "inventory": {
       "insufficient_stock": "Insufficient stock: {{available}} on hand, {{requested}} requested. Operation cancelled."
     },
@@ -117,6 +141,7 @@
     "treasury": "Treasury",
     "purchaseOrders": "Purchase orders",
     "purchaseInvoices": "Purchase invoices",
+    "goodsReceipts": "Goods receipts",
     "creditNotes": "Credit notes"
   },
   "dashboard": {
@@ -1123,18 +1148,14 @@
     "confirmHint": "Confirm order {{number}}?",
     "cancel": "Cancel",
     "cancelHint": "Cancel order {{number}}?",
-    "receive": "Receive",
-    "receiveAction": "Confirm receipt",
-    "receiveHint": "Enter received quantities. For products with expiry tracking, lot and expiration date are required.",
-    "ordered": "Ord",
-    "already": "Rcvd",
-    "receivingNow": "Receiving",
-    "lotNumber": "Lot #",
-    "productionDate": "Production date",
-    "expirationDate": "Expiration date",
+    "convert": "Convert to invoice",
+    "convertAction": "Convert",
+    "convertHint": "The order will be converted to a draft purchase invoice. You can then issue and receive it.",
+    "openInvoice": "Open invoice",
     "statuses": {
       "DRAFT": "Draft",
       "CONFIRMED": "Confirmed",
+      "CONVERTED": "Converted",
       "PARTIALLY_RECEIVED": "Partially received",
       "RECEIVED": "Received",
       "CANCELLED": "Cancelled"
@@ -1154,12 +1175,66 @@
     "total": "Total",
     "balance": "Outstanding",
     "status": "Status",
+    "reception": "Reception",
+    "credited": "Credit note",
     "cancelHint": "Cancel invoice {{number}}?",
+    "issue": "Issue",
+    "issueHint": "Issue invoice {{number}}? It will be posted to the supplier balance.",
+    "receive": "Receive",
+    "pay": "Pay",
+    "creditNote": "Issue a credit note",
+    "creditNoteTitle": "Purchase credit note",
+    "creditNoteHint": "A total credit note cancels the invoice. Received goods are returned to the supplier.",
+    "creditNoteAction": "Issue credit note",
+    "creditNotePaidWarning": "This invoice was already paid ({{amount}}). The credit note detaches the payment, which becomes available again on the supplier.",
+    "reason": "Reason",
+    "returnedToSupplier": "Returned to supplier",
+    "returnQty": "Return qty",
+    "noReturnLines": "No received goods to return.",
     "statuses": {
       "DRAFT": "Draft",
       "ISSUED": "Issued",
       "PARTIAL": "Partially paid",
       "PAID": "Paid",
+      "CANCELLED": "Cancelled"
+    },
+    "receptionStatuses": {
+      "NONE": "Not received",
+      "PARTIALLY_RECEIVED": "Partially received",
+      "RECEIVED": "Received",
+      "RETURNED": "Returned"
+    }
+  },
+  "reception": {
+    "title": "Goods receipts",
+    "subtitle": "Receive goods against purchase invoices",
+    "create": "New receipt",
+    "createTitle": "New goods receipt",
+    "createHint": "Lines to receive are pre-filled from the invoice's outstanding quantities. Enter received quantities in the next step.",
+    "empty": "No goods receipts",
+    "number": "Number",
+    "supplier": "Supplier",
+    "warehouse": "Warehouse",
+    "scheduledDate": "Scheduled date",
+    "receivedAt": "Received at",
+    "status": "Status",
+    "pickInvoice": "Pick an invoice",
+    "pickWarehouse": "Pick a warehouse",
+    "record": "Record receipt",
+    "recordTitle": "Record receipt",
+    "confirmRecord": "Confirm receipt",
+    "expected": "Expected",
+    "receivingNow": "Receiving",
+    "lotNumber": "Lot #",
+    "expirationDate": "Expiration date",
+    "confirmCancel": "Cancel goods receipt {{number}}?",
+    "type": {
+      "return": "Return"
+    },
+    "statuses": {
+      "PENDING": "Pending",
+      "IN_PROGRESS": "In progress",
+      "RECEIVED": "Received",
       "CANCELLED": "Cancelled"
     }
   }
