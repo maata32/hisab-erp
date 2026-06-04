@@ -367,11 +367,16 @@ public class ReportingService {
         long invoicesDraftCount = nz(jdbc.queryForObject(
                 "SELECT COUNT(*) FROM invoices WHERE tenant_id=? AND status='DRAFT'",
                 Long.class, tenant));
-        // Non-cancelled non-draft invoices not yet fully delivered (returned ones are out of scope).
+        // Non-cancelled non-draft invoices not yet fully delivered. Returned ones
+        // are out of scope, and so are invoices settled by an avoir: a credited
+        // invoice will never be delivered (mirrors SalesService.canReceiveDelivery),
+        // so counting it as "non livrée" overstates the backlog.
         long invoicesNotFullyDeliveredCount = nz(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM invoices " +
-                "WHERE tenant_id=? AND status NOT IN ('DRAFT','CANCELLED') " +
-                "  AND delivery_status NOT IN ('DELIVERED','RETURNED')",
+                "SELECT COUNT(*) FROM invoices i " +
+                "WHERE i.tenant_id=? AND i.status NOT IN ('DRAFT','CANCELLED') " +
+                "  AND i.delivery_status NOT IN ('DELIVERED','RETURNED') " +
+                "  AND NOT EXISTS (SELECT 1 FROM credit_notes cn " +
+                "                  WHERE cn.invoice_id = i.id AND cn.status <> 'DRAFT')",
                 Long.class, tenant));
 
         // Credit notes issued (this month) — count and aggregated total. Replaces
