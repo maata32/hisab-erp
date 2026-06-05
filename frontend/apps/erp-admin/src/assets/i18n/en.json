@@ -698,8 +698,8 @@
     "kind": "Type",
     "directionLabel": "Direction",
     "direction": {
-      "in": "Money in",
-      "out": "Money out"
+      "in": "Cash in",
+      "out": "Cash out"
     },
     "derivedTypeHint": "Operation:",
     "types": {

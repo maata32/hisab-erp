@@ -180,7 +180,18 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <p-dropdown [(ngModel)]="form.direction" [options]="directionOptions"
                           optionLabel="label" optionValue="value"
                           [disabled]="directionLocked"
-                          (onChange)="onTypeChange()" styleClass="w-full" />
+                          (onChange)="onTypeChange()" styleClass="w-full">
+                <ng-template let-opt pTemplate="item">
+                  <span class="flex items-center">
+                    <i class="mr-2" [ngClass]="directionIcon(opt.value)"></i>{{ opt.label }}
+                  </span>
+                </ng-template>
+                <ng-template pTemplate="selectedItem">
+                  <span class="flex items-center">
+                    <i class="mr-2" [ngClass]="directionIcon(form.direction)"></i>{{ directionLabel(form.direction) }}
+                  </span>
+                </ng-template>
+              </p-dropdown>
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'payments.method' | translate }} *</label>
@@ -484,6 +495,12 @@ export class PaymentListPage implements OnInit {
    * allocated to the invoice (capped at its balance), any surplus → customer
    * credit. The amount stays editable so the user can still overpay. */
   protected invoiceLocked = false;
+  /** When the dialog is opened from a specific invoice the backend payment type
+   * is known up-front (CUSTOMER_PAYMENT / SUPPLIER_PAYMENT) and must NOT be
+   * re-derived from the party's roles — that derivation depends on the party
+   * list being loaded and on the role flags, which can leave an invoice-driven
+   * dialog stuck on the wrong flow (no allocation line, wrong save type). */
+  protected lockedType: string | null = null;
   protected filterPartyId: string | null = null;
 
   protected partyInvalid(): boolean { return this.submitted() && !this.form.partyId; }
@@ -505,6 +522,8 @@ export class PaymentListPage implements OnInit {
    * customer side, OUT the supplier side).
    */
   protected derivedType(): string {
+    // Invoice-driven flow: the type was fixed when the dialog opened.
+    if (this.lockedType) return this.lockedType;
     const p = this.selectedParty();
     if (this.form.direction === 'IN') {
       return p?.isCustomer ? 'CUSTOMER_PAYMENT' : 'SUPPLIER_REFUND';
@@ -624,6 +643,15 @@ export class PaymentListPage implements OnInit {
     ];
   }
 
+  /** Cash-direction arrow: Versement = green down (in), Paiement = red up (out). */
+  protected directionIcon(dir: Direction | string): string {
+    return dir === 'IN' ? 'pi pi-arrow-down text-green-600' : 'pi pi-arrow-up text-red-600';
+  }
+
+  protected directionLabel(dir: Direction): string {
+    return this.directionOptions.find(o => o.value === dir)?.label ?? '';
+  }
+
   protected readonly methodOptions = [
     { value: 'CASH', label: 'Espèces' },
     { value: 'BANK_TRANSFER', label: 'Virement' },
@@ -664,6 +692,7 @@ export class PaymentListPage implements OnInit {
       );
       this.openCreate();
       this.form.direction = 'IN'; // money in from the customer → CUSTOMER_PAYMENT
+      this.lockedType = 'CUSTOMER_PAYMENT'; // known type — don't re-derive from roles
       this.directionLocked = true; // invoice-driven flow → user can't switch to Retrait
       this.partyLocked = true;     // … nor change the party (it's the invoice's customer)
       this.form.partyId = inv.customerId;
@@ -702,6 +731,7 @@ export class PaymentListPage implements OnInit {
       );
       this.openCreate();
       this.form.direction = 'OUT'; // money out to the supplier → SUPPLIER_PAYMENT
+      this.lockedType = 'SUPPLIER_PAYMENT'; // known type — don't re-derive from roles
       this.directionLocked = true; // invoice-driven flow → user can't switch to Versement
       this.partyLocked = true;     // … nor change the party (it's the invoice's supplier)
       this.form.partyId = inv.supplierId;
@@ -743,6 +773,7 @@ export class PaymentListPage implements OnInit {
     this.directionLocked = false;
     this.partyLocked = false;
     this.invoiceLocked = false;
+    this.lockedType = null;
     this.submitted.set(false);
     this.dialogOpen = true;
   }

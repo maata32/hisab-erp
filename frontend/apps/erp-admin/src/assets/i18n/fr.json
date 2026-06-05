@@ -698,8 +698,8 @@
     "kind": "Type",
     "directionLabel": "Sens",
     "direction": {
-      "in": "Versement",
-      "out": "Retrait"
+      "in": "Encaissement",
+      "out": "Décaissement"
     },
     "derivedTypeHint": "Opération :",
     "types": {
