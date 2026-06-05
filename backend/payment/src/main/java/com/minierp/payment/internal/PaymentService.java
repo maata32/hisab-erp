@@ -68,6 +68,18 @@ public class PaymentService implements PaymentLookup {
                 .toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<StatementPaymentEntry> findConfirmedForSupplier(
+            UUID supplierId, LocalDate from, LocalDate to) {
+        return payments.findConfirmedForSupplierStatement(supplierId, from, to).stream()
+                .map(p -> new StatementPaymentEntry(
+                        p.getId(), p.getNumber(), p.getPaymentDate(), p.getAmount(),
+                        p.getMethod().name(), p.getReference(), p.getStatus().name(),
+                        p.getCreatedAt()))
+                .toList();
+    }
+
     @Transactional
     public PaymentDto.PaymentResponse create(PaymentDto.CreatePaymentRequest req) {
         String number = numbering.nextPaymentReceiptNumber();
@@ -266,9 +278,8 @@ public class PaymentService implements PaymentLookup {
     @Transactional(readOnly = true)
     public byte[] generateReceipt(UUID id) {
         Payment p = payments.findById(id).orElseThrow(() -> NotFoundException.of("entity.payment", id));
-        PartnerSummary customer = customerLookup.findById(p.getPartyId()).orElse(null);
         List<PaymentAllocation> allocs = allocations.findByPaymentId(id);
-        Map<String, Object> vars = buildReceiptVars(p, allocs, customer);
+        Map<String, Object> vars = buildReceiptVars(p, allocs);
         return renderer.renderPdf(PdfRenderRequest.of("payment-receipt", vars));
     }
 
@@ -300,7 +311,7 @@ public class PaymentService implements PaymentLookup {
                 .orElseGet(() -> supplierLookup.findById(p.getPartyId()).map(PartnerSummary::name).orElse(""));
     }
 
-    private Map<String, Object> buildReceiptVars(Payment p, List<PaymentAllocation> allocs, PartnerSummary customer) {
+    private Map<String, Object> buildReceiptVars(Payment p, List<PaymentAllocation> allocs) {
         String methodLabel = switch (p.getMethod()) {
             case CASH -> "Espèces";
             case CHECK -> "Chèque";
@@ -316,13 +327,56 @@ public class PaymentService implements PaymentLookup {
                         List<AllocModel> allocations) {}
         record CustModel(String name) {}
         var allocModels = allocs.stream().map(a -> new AllocModel(
-                a.getTargetType().name() + " " + a.getTargetId().toString().substring(0, 8),
-                a.getAllocatedAmount())).toList();
+                allocTargetLabel(a), a.getAllocatedAmount())).toList();
+        ReceiptLabels labels = receiptLabels(p.getType());
         Map<String, Object> vars = new HashMap<>(brandingVars());
         vars.put("payment", new PayModel(p.getNumber(), p.getPaymentDate(), p.getAmount(), p.getCurrency(),
                 p.getMethod().name(), methodLabel, p.getReference(), "CONFIRMÉ", p.getNotes(), allocModels));
-        vars.put("customer", new CustModel(customer != null ? customer.name() : ""));
+        vars.put("customer", new CustModel(resolvePartyName(p)));
+        vars.put("docTitle", labels.docTitle());
+        vars.put("amountLabel", labels.amountLabel());
+        vars.put("partyLabel", labels.partyLabel());
         return vars;
+    }
+
+    private record ReceiptLabels(String docTitle, String amountLabel, String partyLabel) {}
+
+    /**
+     * Receipt wording keyed to the payment's cash direction so a supplier
+     * settlement (cash OUT) no longer reads like a customer encaissement.
+     *   IN  → "REÇU DE PAIEMENT" / "Montant reçu"
+     *   OUT → "BON DE PAIEMENT" / "Montant payé" (refund: "BON DE REMBOURSEMENT")
+     * The party row label flips to "Fournisseur" for the two supplier types.
+     */
+    private ReceiptLabels receiptLabels(PaymentType type) {
+        return switch (type) {
+            case CUSTOMER_PAYMENT, CUSTOMER_DEPOSIT ->
+                    new ReceiptLabels("REÇU DE PAIEMENT", "Montant reçu", "Client");
+            case SUPPLIER_REFUND ->
+                    new ReceiptLabels("REÇU DE PAIEMENT", "Montant reçu", "Fournisseur");
+            case SUPPLIER_PAYMENT ->
+                    new ReceiptLabels("BON DE PAIEMENT", "Montant payé", "Fournisseur");
+            case CUSTOMER_CREDIT_WITHDRAWAL ->
+                    new ReceiptLabels("BON DE PAIEMENT", "Montant payé", "Client");
+            case CUSTOMER_REFUND ->
+                    new ReceiptLabels("BON DE REMBOURSEMENT", "Montant remboursé", "Client");
+        };
+    }
+
+    /** Human label for an allocation target — resolves invoices to their number. */
+    private String allocTargetLabel(PaymentAllocation a) {
+        UUID id = a.getTargetId();
+        return switch (a.getTargetType()) {
+            case SALE_INVOICE -> invoiceOps.findById(id)
+                    .map(s -> "Facture " + s.number()).orElse("Facture");
+            case PURCHASE_INVOICE -> purchaseInvoiceOps.findById(id)
+                    .map(s -> "Facture fournisseur " + s.number()).orElse("Facture fournisseur");
+            case CUSTOMER_CREDIT -> "Crédit client";
+            case CUSTOMER_BALANCE -> "Solde client";
+            case SALE -> "Vente";
+            case EXPENSE -> "Dépense";
+            case SALARY -> "Salaire";
+        };
     }
 
     private Map<String, Object> brandingVars() {

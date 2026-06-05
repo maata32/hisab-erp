@@ -38,20 +38,20 @@
       <div th:if="${#strings.isEmpty(logoUrl)}" class="company-name" th:text="${orgName}"></div>
     </div>
     <div class="doc-title">
-      <h1>REÇU DE PAIEMENT</h1>
+      <h1 th:text="${docTitle}">REÇU DE PAIEMENT</h1>
       <div class="doc-number" th:text="${payment.number}"></div>
       <div class="doc-date">Date : <span th:text="${#temporals.format(payment.paymentDate,'dd/MM/yyyy')}"></span></div>
     </div>
   </div>
 
   <div class="amount-block">
-    <div class="amount-label">Montant reçu</div>
+    <div class="amount-label" th:text="${amountLabel}">Montant reçu</div>
     <div class="amount-value" th:text="${payment.currency + ' ' + #numbers.formatDecimal(payment.amount,1,decimals)}"></div>
   </div>
 
   <table class="details-table">
     <tr>
-      <td>Client</td>
+      <td th:text="${partyLabel}">Client</td>
       <td th:text="${customer.name}"></td>
     </tr>
     <tr>
