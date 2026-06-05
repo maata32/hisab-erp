@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -31,4 +32,12 @@ interface PurchaseCreditNoteRepository extends JpaRepository<PurchaseCreditNote,
               AND cn.status <> com.minierp.purchase.internal.PurchaseCreditNoteStatus.DRAFT
             """)
     long countNonDraftByInvoiceId(@Param("invoiceId") UUID invoiceId);
+
+    @Query("SELECT cn FROM PurchaseCreditNote cn WHERE cn.partyId = :partyId " +
+           "AND cn.status <> com.minierp.purchase.internal.PurchaseCreditNoteStatus.DRAFT " +
+           "AND cn.issueDate >= :from AND cn.issueDate <= :to " +
+           "ORDER BY cn.issueDate ASC, cn.createdAt ASC")
+    List<PurchaseCreditNote> findForStatement(@Param("partyId") UUID partyId,
+                                              @Param("from") LocalDate from,
+                                              @Param("to") LocalDate to);
 }

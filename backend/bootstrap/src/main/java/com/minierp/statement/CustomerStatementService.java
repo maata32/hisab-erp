@@ -1,6 +1,7 @@
 package com.minierp.statement;
 
 import com.minierp.partner.api.PartnerLookup;
+import com.minierp.partner.api.ApBalanceOperations;
 import com.minierp.partner.api.CustomerStatementLookup;
 import com.minierp.partner.api.PartnerSummary;
 import com.minierp.partner.api.StatementCreditEntry;
@@ -8,6 +9,9 @@ import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
 import com.minierp.payment.api.PaymentLookup;
 import com.minierp.payment.api.StatementPaymentEntry;
+import com.minierp.purchase.api.PurchaseStatementLookup;
+import com.minierp.purchase.api.StatementPurchaseCreditNoteEntry;
+import com.minierp.purchase.api.StatementPurchaseInvoiceEntry;
 import com.minierp.sales.api.SalesStatementLookup;
 import com.minierp.sales.api.StatementCreditNoteEntry;
 import com.minierp.sales.api.StatementInvoiceEntry;
@@ -39,7 +43,9 @@ public class CustomerStatementService {
     private final PartnerLookup customers;
     private final CustomerStatementLookup statementLookup;
     private final SalesStatementLookup salesLookup;
+    private final PurchaseStatementLookup purchaseLookup;
     private final PaymentLookup paymentLookup;
+    private final ApBalanceOperations apBalanceOps;
     private final DocumentRenderer renderer;
     private final TenantLookup tenantLookup;
 
@@ -52,6 +58,7 @@ public class CustomerStatementService {
                 .orElseThrow(() -> NotFoundException.of("entity.customer", customerId));
 
         boolean detailed = st == StatementType.DETAILED;
+        // ── Customer (AR) side ──
         List<StatementInvoiceEntry> invoices = salesLookup
                 .findInvoicesForStatement(customerId, effectiveFrom, effectiveTo, detailed);
         List<StatementCreditNoteEntry> creditNotes = salesLookup
@@ -61,10 +68,19 @@ public class CustomerStatementService {
         List<StatementCreditEntry> credits = statementLookup
                 .findActiveCreditsForStatement(customerId, effectiveFrom, effectiveTo);
         CustomerStatementLookup.BalanceSnapshot balance = statementLookup.getBalance(customerId);
+        // ── Supplier (AP) side — merged into the same unified ledger ──
+        List<StatementPurchaseInvoiceEntry> purchaseInvoices = purchaseLookup
+                .findInvoicesForStatement(customerId, effectiveFrom, effectiveTo, detailed);
+        List<StatementPurchaseCreditNoteEntry> purchaseCreditNotes = purchaseLookup
+                .findCreditNotesForStatement(customerId, effectiveFrom, effectiveTo);
+        List<StatementPaymentEntry> supplierPayments = paymentLookup
+                .findConfirmedForSupplier(customerId, effectiveFrom, effectiveTo);
+        ApBalanceOperations.ApSnapshot apBalance = apBalanceOps.getApSnapshot(customerId);
 
         List<Map<String, Object>> rows = (st == StatementType.OUTSTANDING)
-                ? buildOutstandingRows(invoices, credits)
-                : buildChronologicalRows(invoices, creditNotes, payments, credits, detailed);
+                ? buildOutstandingRows(invoices, credits, purchaseInvoices)
+                : buildChronologicalRows(invoices, creditNotes, payments, credits,
+                        purchaseInvoices, purchaseCreditNotes, supplierPayments, detailed);
 
         Map<String, Object> vars = new HashMap<>();
         vars.put("statementType", st.name().toLowerCase());
@@ -79,10 +95,12 @@ public class CustomerStatementService {
                 "phone", nullSafe(customer.phone()),
                 "email", nullSafe(customer.email())
         ));
-        BigDecimal totalPayments = payments.stream()
-                .map(p -> nz(p.amount())).reduce(ZERO, BigDecimal::add);
-        BigDecimal totalCreditNotes = creditNotes.stream()
-                .map(cn -> nz(cn.amount())).reduce(ZERO, BigDecimal::add);
+        // Combined cash in/out across both sides (customer encaissements +
+        // supplier règlements) and avoirs (sales + purchase).
+        BigDecimal totalPayments = payments.stream().map(p -> nz(p.amount())).reduce(ZERO, BigDecimal::add)
+                .add(supplierPayments.stream().map(p -> nz(p.amount())).reduce(ZERO, BigDecimal::add));
+        BigDecimal totalCreditNotes = creditNotes.stream().map(cn -> nz(cn.amount())).reduce(ZERO, BigDecimal::add)
+                .add(purchaseCreditNotes.stream().map(cn -> nz(cn.amount())).reduce(ZERO, BigDecimal::add));
         // Sum of every still-active credit row (OVERPAYMENT, REFUND, DEPOSIT,
         // MANUAL_ADJUSTMENT). Shown as a separate "Crédit disponible" card so
         // a customer with surplus avoir / overpaid invoice sees Solde dû = 0
@@ -92,15 +110,19 @@ public class CustomerStatementService {
                 .map(c -> nz(c.remainingAmount()))
                 .reduce(ZERO, BigDecimal::add);
 
+        // Net position across both ledgers. Positive = the partner owes us (AR
+        // exceeds AP); negative = we owe the partner. Headline "Solde dû" card.
+        BigDecimal netBalance = nz(balance.balance()).subtract(nz(apBalance.balance()));
+
         Map<String, Object> balanceMap = new HashMap<>();
-        balanceMap.put("totalInvoiced", nz(balance.totalInvoiced()));
-        balanceMap.put("totalPaid", nz(balance.totalPaid()));
+        balanceMap.put("totalInvoiced", nz(balance.totalInvoiced()).add(nz(apBalance.totalInvoiced())));
+        balanceMap.put("totalPaid", nz(balance.totalPaid()).add(nz(apBalance.totalPaid())));
         balanceMap.put("totalPayments", totalPayments);
         balanceMap.put("totalCreditNotes", totalCreditNotes);
-        balanceMap.put("balance", nz(balance.balance()));
+        balanceMap.put("balance", netBalance);
         balanceMap.put("overdue", nz(balance.overdueAmount()));
         balanceMap.put("availableCredit", availableCredit);
-        balanceMap.put("lastPaymentDate", balance.lastPaymentDate());
+        balanceMap.put("lastPaymentDate", latest(balance.lastPaymentDate(), apBalance.lastPaymentDate()));
         vars.put("balance", balanceMap);
         vars.put("currency", nullSafe(customer.currency()));
         vars.put("rows", rows);
@@ -123,6 +145,9 @@ public class CustomerStatementService {
             List<StatementCreditNoteEntry> creditNotes,
             List<StatementPaymentEntry> payments,
             List<StatementCreditEntry> credits,
+            List<StatementPurchaseInvoiceEntry> purchaseInvoices,
+            List<StatementPurchaseCreditNoteEntry> purchaseCreditNotes,
+            List<StatementPaymentEntry> supplierPayments,
             boolean detailed) {
 
         record Movement(LocalDate date, Instant createdAt, String kind, String number, String label,
@@ -172,6 +197,26 @@ public class CustomerStatementService {
                     ZERO, nz(c.initialAmount()), null));
         }
 
+        // ── Supplier (AP) movements, signed for the net "partner owes us" view ──
+        // A purchase invoice puts us in debt → credit (in the partner's favour);
+        // a supplier règlement we paid out → debit; a supplier avoir reduces what
+        // we owe → debit. Mirror of the sales side with the sign flipped.
+        for (var pi : purchaseInvoices) {
+            mvts.add(new Movement(pi.invoiceDate(), pi.createdAt(), "INVOICE", pi.number(),
+                    "Facture d'achat", ZERO, nz(pi.total()),
+                    detailed ? pi.lines() : null));
+        }
+        for (var pcn : purchaseCreditNotes) {
+            String reason = nullSafe(pcn.reason()).isBlank() ? "(sans motif)" : pcn.reason();
+            mvts.add(new Movement(pcn.issueDate(), pcn.createdAt(), "CREDIT_NOTE", pcn.number(),
+                    "Avoir fournisseur : " + reason, nz(pcn.amount()), ZERO, null));
+        }
+        for (var sp : supplierPayments) {
+            mvts.add(new Movement(sp.paymentDate(), sp.createdAt(), "PAYMENT", sp.number(),
+                    "Règlement fournisseur " + sp.method() + (sp.reference() != null ? " — " + sp.reference() : ""),
+                    nz(sp.amount()), ZERO, null));
+        }
+
         // Primary order is the document date (the visible "Date" column stays
         // monotonic). Within the same date we follow the real data-entry order
         // via createdAt, so an avoir that settles its invoice appears right
@@ -218,7 +263,8 @@ public class CustomerStatementService {
      */
     private List<Map<String, Object>> buildOutstandingRows(
             List<StatementInvoiceEntry> invoices,
-            List<StatementCreditEntry> credits) {
+            List<StatementCreditEntry> credits,
+            List<StatementPurchaseInvoiceEntry> purchaseInvoices) {
         List<Map<String, Object>> rows = new ArrayList<>();
         for (var i : invoices) {
             if (nz(i.balance()).signum() <= 0) continue;
@@ -230,6 +276,20 @@ public class CustomerStatementService {
             row.put("label", "Facture impayée — éch. " + (i.dueDate() != null ? i.dueDate() : "—"));
             row.put("debit", nz(i.balance()));
             row.put("credit", ZERO);
+            row.put("running", null);
+            rows.add(row);
+        }
+        // Unpaid purchase invoices — what we still owe the supplier (credit side).
+        for (var pi : purchaseInvoices) {
+            if (nz(pi.balance()).signum() <= 0) continue;
+            if ("CANCELLED".equals(pi.status())) continue;
+            Map<String, Object> row = new HashMap<>();
+            row.put("date", pi.invoiceDate());
+            row.put("kind", "INVOICE");
+            row.put("number", pi.number());
+            row.put("label", "Facture d'achat à payer — éch. " + (pi.dueDate() != null ? pi.dueDate() : "—"));
+            row.put("debit", ZERO);
+            row.put("credit", nz(pi.balance()));
             row.put("running", null);
             rows.add(row);
         }
@@ -259,6 +319,13 @@ public class CustomerStatementService {
 
     private static String nullSafe(String s) {
         return s != null ? s : "";
+    }
+
+    /** Most recent of two nullable dates (either may be null). */
+    private static LocalDate latest(LocalDate a, LocalDate b) {
+        if (a == null) return b;
+        if (b == null) return a;
+        return a.isAfter(b) ? a : b;
     }
 
     private enum StatementType {

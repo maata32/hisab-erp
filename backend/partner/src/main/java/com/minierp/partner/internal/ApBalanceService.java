@@ -42,6 +42,15 @@ class ApBalanceService implements ApBalanceOperations {
                 .orElse(BigDecimal.ZERO);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public ApSnapshot getApSnapshot(UUID supplierId) {
+        return apBalances.findByPartyId(supplierId)
+                .map(b -> new ApSnapshot(b.getTotalInvoiced(), b.getTotalPaid(),
+                        b.getBalance(), b.getLastPaymentDate()))
+                .orElse(new ApSnapshot(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, null));
+    }
+
     private ApBalance getOrCreate(UUID partyId) {
         return apBalances.findByPartyId(partyId)
                 .orElse(ApBalance.builder().partyId(partyId).build());

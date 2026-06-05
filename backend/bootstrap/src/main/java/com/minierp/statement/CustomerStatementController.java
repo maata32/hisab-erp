@@ -29,7 +29,7 @@ public class CustomerStatementController {
     private final CustomerStatementService service;
 
     @GetMapping("/{id}/statement.pdf")
-    @PreAuthorize("hasAuthority('customer:read')")
+    @PreAuthorize("hasAuthority('customer:read') or hasAuthority('supplier:read')")
     public ResponseEntity<byte[]> statementPdf(
             @PathVariable UUID id,
             @RequestParam(defaultValue = "full") String type,

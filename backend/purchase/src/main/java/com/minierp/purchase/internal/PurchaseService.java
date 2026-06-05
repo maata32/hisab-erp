@@ -12,7 +12,11 @@ import com.minierp.purchase.api.PurchaseDto;
 import com.minierp.purchase.api.PurchaseInvoiceOperations;
 import com.minierp.purchase.api.PurchaseInvoicePaymentsDetachedEvent;
 import com.minierp.purchase.api.PurchaseInvoiceSummary;
+import com.minierp.purchase.api.PurchaseStatementLookup;
+import com.minierp.purchase.api.StatementPurchaseCreditNoteEntry;
+import com.minierp.purchase.api.StatementPurchaseInvoiceEntry;
 import com.minierp.sales.api.NumberingOperations;
+import com.minierp.sales.api.StatementInvoiceLine;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
 import com.minierp.shared.tenant.TenantContext;
@@ -38,7 +42,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class PurchaseService implements PurchaseInvoiceOperations {
+public class PurchaseService implements PurchaseInvoiceOperations, PurchaseStatementLookup {
 
     private final PurchaseOrderRepository purchaseOrders;
     private final PurchaseOrderLineRepository purchaseOrderLines;
@@ -748,5 +752,46 @@ public class PurchaseService implements PurchaseInvoiceOperations {
                 supplier != null ? supplier.phone() : "",
                 supplier != null ? supplier.email() : ""));
         return vars;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // PurchaseStatementLookup — supplier side of the unified partner statement
+    // ────────────────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StatementPurchaseInvoiceEntry> findInvoicesForStatement(
+            UUID supplierId, LocalDate from, LocalDate to, boolean detailed) {
+        return purchaseInvoices.findForStatement(supplierId, from, to).stream()
+                .map(pi -> new StatementPurchaseInvoiceEntry(
+                        pi.getId(), pi.getNumber(),
+                        pi.getInvoiceDate(), pi.getDueDate(),
+                        pi.getTotal(), pi.getPaidAmount(), pi.getBalance(),
+                        pi.getStatus().name(),
+                        detailed ? toStatementLines(pi.getId()) : null,
+                        pi.getCreatedAt()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StatementPurchaseCreditNoteEntry> findCreditNotesForStatement(
+            UUID supplierId, LocalDate from, LocalDate to) {
+        return purchaseCreditNotes.findForStatement(supplierId, from, to).stream()
+                .map(cn -> new StatementPurchaseCreditNoteEntry(
+                        cn.getId(), cn.getPurchaseInvoiceId(), cn.getNumber(), cn.getIssueDate(),
+                        cn.getAmount(), cn.getReason(), cn.getStatus().name(),
+                        cn.getCreatedAt()))
+                .toList();
+    }
+
+    /** Purchase invoice lines mapped to the shared statement-line shape (unitPrice = unit cost). */
+    private List<StatementInvoiceLine> toStatementLines(UUID purchaseInvoiceId) {
+        return purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(purchaseInvoiceId).stream()
+                .map(l -> new StatementInvoiceLine(
+                        l.getSnapshotName(), l.getSnapshotSku(),
+                        l.getQuantity(), l.getUnitCost(),
+                        BigDecimal.ZERO, l.getLineTotal()))
+                .toList();
     }
 }

@@ -164,11 +164,9 @@ interface PartnerForm {
                          [severity]="p.active ? 'success' : 'secondary'" />
                 </td>
                 <td class="whitespace-nowrap">
-                  @if (p.isCustomer) {
-                    <button pButton icon="pi pi-file-pdf" class="p-button-sm p-button-text"
-                            [pTooltip]="'partners.statement' | translate"
-                            (click)="openStatementDialog(p)"></button>
-                  }
+                  <button pButton icon="pi pi-file-pdf" class="p-button-sm p-button-text"
+                          [pTooltip]="'partners.statement' | translate"
+                          (click)="openStatementDialog(p)"></button>
                   <button pButton icon="pi pi-wallet" class="p-button-sm p-button-text"
                           [pTooltip]="'partners.openItems' | translate"
                           (click)="openOpenItemsDialog(p)"></button>

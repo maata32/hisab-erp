@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,4 +28,10 @@ interface PurchaseInvoiceRepository extends JpaRepository<PurchaseInvoice, UUID>
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT pi FROM PurchaseInvoice pi WHERE pi.id = :id")
     Optional<PurchaseInvoice> lockById(UUID id);
+
+    @Query("SELECT pi FROM PurchaseInvoice pi WHERE pi.partyId = :partyId " +
+           "AND pi.status NOT IN ('DRAFT','CANCELLED') " +
+           "AND pi.invoiceDate >= :from AND pi.invoiceDate <= :to " +
+           "ORDER BY pi.invoiceDate ASC, pi.createdAt ASC")
+    List<PurchaseInvoice> findForStatement(UUID partyId, LocalDate from, LocalDate to);
 }

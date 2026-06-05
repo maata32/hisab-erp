@@ -91,7 +91,7 @@
       <div class="party-detail" th:text="${orgPhone}"></div>
     </div>
     <div class="party-block" style="text-align:right;">
-      <div class="party-label">Client</div>
+      <div class="party-label">Partenaire</div>
       <div class="party-name" th:text="${customer.name}"></div>
       <div class="party-detail" th:text="'Code : ' + ${customer.code}"></div>
       <div class="party-detail" th:if="${!#strings.isEmpty(customer.phone)}"
