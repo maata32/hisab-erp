@@ -16,7 +16,7 @@ help: ## Show this help
 
 # ---------- dev stack ----------
 
-.PHONY: dev-up dev-down dev-logs dev-restart dev-rebuild dev-status
+.PHONY: dev-up dev-down dev-logs dev-restart dev-rebuild dev-rebuild-front dev-status
 dev-up: ## Start full dev stack (Postgres, Redis, MinIO, MailHog, backend, admin, pos)
 	$(COMPOSE_DEV) up -d --build
 	@echo ""
@@ -40,6 +40,9 @@ dev-restart: ## Restart only the backend container
 
 dev-rebuild: ## Rebuild backend image and restart
 	$(COMPOSE_DEV) up -d --build backend
+
+dev-rebuild-front: ## Rebuild frontend images (admin + pos) and restart
+	$(COMPOSE_DEV) up -d --build admin pos
 
 dev-status: ## Print container status
 	$(COMPOSE_DEV) ps
