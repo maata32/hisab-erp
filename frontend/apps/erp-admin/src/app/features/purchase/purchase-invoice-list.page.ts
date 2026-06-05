@@ -446,48 +446,57 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
       </p-dialog>
 
       <!-- Credit note (avoir) dialog -->
-      <p-dialog [(visible)]="creditOpen" [modal]="true" [style]="{ width: '560px' }"
+      <p-dialog [(visible)]="creditOpen" [modal]="true" [style]="{ width: '640px' }"
                 [header]="('purchaseInvoices.creditNoteTitle' | translate) + ' — ' + (creditInvoice()?.number ?? '')"
                 [closable]="!crediting()">
         @if (preview(); as p) {
           <div class="space-y-3">
-            <p class="text-sm text-gray-600">{{ 'purchaseInvoices.creditNoteHint' | translate }}</p>
-            <div class="flex justify-between text-sm border-b pb-2">
-              <span>{{ 'purchaseInvoices.total' | translate }}</span>
-              <span class="font-bold">{{ p.total | money }} {{ creditInvoice()?.currency }}</span>
-            </div>
-            @if (p.alreadyPaid > 0) {
-              <div class="text-xs text-amber-700 bg-amber-50 rounded p-2">
-                {{ 'purchaseInvoices.creditNotePaidWarning' | translate:{ amount: (p.alreadyPaid | money) } }}
-              </div>
-            }
-            @if (p.returnLines.length > 0) {
-              <div>
-                <div class="text-sm font-medium mb-1">{{ 'purchaseInvoices.returnedToSupplier' | translate }}</div>
-                <table class="w-full text-sm border">
-                  <thead class="bg-gray-50 text-gray-600">
-                    <tr>
-                      <th class="text-left p-2">{{ 'sales.product' | translate }}</th>
-                      <th class="text-right p-2 w-24">{{ 'purchaseInvoices.returnQty' | translate }}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (rl of p.returnLines; track rl.productId) {
-                      <tr class="border-t">
-                        <td class="p-2">{{ rl.productName }} <span class="text-gray-400">({{ rl.sku }})</span></td>
-                        <td class="p-2 text-right">{{ rl.returnQty }}</td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
+            @if (p.blockReason) {
+              <div class="p-3 rounded border border-red-300 bg-red-50 text-sm text-red-800">
+                <i class="pi pi-ban mr-1"></i>
+                {{ ('purchaseInvoices.creditNoteBlocked.' + p.blockReason) | translate }}
               </div>
             } @else {
-              <div class="text-xs text-gray-500">{{ 'purchaseInvoices.noReturnLines' | translate }}</div>
+              <div class="text-sm space-y-1">
+                <div class="flex justify-between"><span class="text-gray-500">{{ 'creditNotes.preview.invoiceTotal' | translate }}</span>
+                  <span class="font-medium">{{ creditInvoice()?.total | money }} {{ creditInvoice()?.currency }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">{{ 'creditNotes.preview.alreadyPaid' | translate }}</span>
+                  <span>{{ p.alreadyPaid | money }} {{ creditInvoice()?.currency }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">{{ 'creditNotes.preview.balance' | translate }}</span>
+                  <span>{{ creditInvoice()?.balance | money }} {{ creditInvoice()?.currency }}</span></div>
+                <div class="flex justify-between border-t pt-2 mt-1">
+                  <span class="font-medium">{{ 'creditNotes.preview.creditAmount' | translate }}</span>
+                  <span class="font-bold text-red-700">{{ p.total | money }} {{ creditInvoice()?.currency }}</span></div>
+              </div>
+
+              @if (p.alreadyPaid > 0) {
+                <div class="p-3 rounded border border-amber-300 bg-amber-50 text-sm text-amber-900">
+                  <i class="pi pi-exclamation-triangle mr-1"></i>
+                  {{ 'purchaseInvoices.creditNotePaidWarning' | translate:{ amount: (p.alreadyPaid | money) } }}
+                </div>
+              }
+
+              @if (p.returnLines.length > 0) {
+                <div class="p-3 rounded border border-amber-300 bg-amber-50 text-sm text-amber-900">
+                  <div class="flex items-center gap-1 mb-1">
+                    <i class="pi pi-truck"></i>
+                    <strong>{{ 'purchaseInvoices.returnWarningHeader' | translate }}</strong>
+                  </div>
+                  <ul class="list-disc ml-5">
+                    @for (rl of p.returnLines; track rl.productId) {
+                      <li>{{ rl.productName }} <span class="font-mono text-xs">({{ rl.sku }})</span> — {{ rl.returnQty }}</li>
+                    }
+                  </ul>
+                </div>
+              } @else {
+                <div class="text-xs text-gray-500">{{ 'purchaseInvoices.noReturnLines' | translate }}</div>
+              }
+
+              <div>
+                <label class="block text-sm font-medium mb-1">{{ 'purchaseInvoices.reason' | translate }}</label>
+                <input pInputText [(ngModel)]="creditReason" class="w-full" />
+              </div>
             }
-            <div>
-              <label class="block text-sm font-medium mb-1">{{ 'purchaseInvoices.reason' | translate }}</label>
-              <input pInputText [(ngModel)]="creditReason" class="w-full" />
-            </div>
           </div>
         }
         <ng-template pTemplate="footer">
@@ -495,7 +504,8 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   (click)="creditOpen = false" [disabled]="crediting()"></button>
           <button pButton [label]="'purchaseInvoices.creditNoteAction' | translate" icon="pi pi-check"
                   class="p-button-warning"
-                  (click)="confirmCreditNote()" [loading]="crediting()"></button>
+                  (click)="confirmCreditNote()" [loading]="crediting()"
+                  [disabled]="!preview() || !!preview()?.blockReason"></button>
         </ng-template>
       </p-dialog>
     </div>

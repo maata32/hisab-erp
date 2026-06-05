@@ -1197,6 +1197,12 @@
     "returnedToSupplier": "Retour au fournisseur",
     "returnQty": "Qté retournée",
     "noReturnLines": "Aucune marchandise reçue à retourner.",
+    "returnWarningHeader": "En confirmant cet avoir, vous certifiez retourner physiquement au fournisseur les articles ci-dessous. Un bon de retour fournisseur (BR) sera créé automatiquement et le stock sera déduit :",
+    "creditNoteAmount": "Montant de l'avoir",
+    "creditNoteBlocked": {
+      "INVOICE_NOT_CREDITABLE": "Cette facture ne peut pas faire l'objet d'un avoir (brouillon ou annulée).",
+      "ALREADY_CREDITED": "Un avoir existe déjà pour cette facture."
+    },
     "statuses": {
       "DRAFT": "Brouillon",
       "ISSUED": "Émise",

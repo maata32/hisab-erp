@@ -1197,6 +1197,12 @@
     "returnedToSupplier": "Returned to supplier",
     "returnQty": "Return qty",
     "noReturnLines": "No received goods to return.",
+    "returnWarningHeader": "By confirming this credit note, you certify that you are physically returning the items below to the supplier. A supplier return note (BR) will be created automatically and stock will be deducted:",
+    "creditNoteAmount": "Credit note amount",
+    "creditNoteBlocked": {
+      "INVOICE_NOT_CREDITABLE": "This invoice cannot be credited (draft or cancelled).",
+      "ALREADY_CREDITED": "A credit note already exists for this invoice."
+    },
     "statuses": {
       "DRAFT": "Draft",
       "ISSUED": "Issued",
