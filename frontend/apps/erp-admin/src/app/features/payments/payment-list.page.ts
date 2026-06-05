@@ -645,6 +645,11 @@ export class PaymentListPage implements OnInit {
       this.openCreateForInvoice(invoiceId);
       this.router.navigate([], { queryParams: {}, replaceUrl: true });
     }
+    const purchaseInvoiceId = this.route.snapshot.queryParamMap.get('createForPurchaseInvoice');
+    if (purchaseInvoiceId) {
+      this.openCreateForPurchaseInvoice(purchaseInvoiceId);
+      this.router.navigate([], { queryParams: {}, replaceUrl: true });
+    }
   }
 
   private async openCreateForInvoice(invoiceId: string) {
@@ -664,6 +669,39 @@ export class PaymentListPage implements OnInit {
       // facture"). The amount stays editable so the user can overpay — the
       // surplus then becomes a customer credit — but it is always allocated to
       // this invoice (capped at its balance).
+      const target = this.form.allocations.find(a => a.invoiceId === invoiceId);
+      if (target) {
+        this.form.allocations = [target];
+        this.invoiceLocked = true;
+        this.syncLockedAllocation();
+        this.allocationsUserEdited = true;
+      }
+    } catch {
+      // Fall back to a blank create dialog if the invoice fetch fails.
+      this.openCreate();
+    }
+  }
+
+  /** Supplier-side mirror of openCreateForInvoice: "Payer cette facture
+   *  fournisseur" opens the dialog with the cash direction forced to OUT (we
+   *  settle the supplier → SUPPLIER_PAYMENT), the party locked to the invoice's
+   *  supplier, and the allocation locked to that single purchase invoice. */
+  private async openCreateForPurchaseInvoice(invoiceId: string) {
+    try {
+      // derivedType() ('OUT' + supplier → SUPPLIER_PAYMENT) and onPartyChange()
+      // both need the party list, which ngOnInit loads un-awaited — make sure
+      // it's in before we lock the supplier flow.
+      if (this.parties().length === 0) await this.loadCustomers();
+      const inv = await firstValueFrom(
+        this.http.get<{ id: string; supplierId: string; balance: number }>(`/api/v1/purchase-invoices/${invoiceId}`)
+      );
+      this.openCreate();
+      this.form.direction = 'OUT'; // money out to the supplier → SUPPLIER_PAYMENT
+      this.directionLocked = true; // invoice-driven flow → user can't switch to Versement
+      this.partyLocked = true;     // … nor change the party (it's the invoice's supplier)
+      this.form.partyId = inv.supplierId;
+      this.form.amount = Number(inv.balance);
+      await this.onPartyChange();
       const target = this.form.allocations.find(a => a.invoiceId === invoiceId);
       if (target) {
         this.form.allocations = [target];

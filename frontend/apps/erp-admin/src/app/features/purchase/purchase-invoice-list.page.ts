@@ -47,6 +47,23 @@ interface CreditNotePreview {
   returnLines: { productId: string; productName: string; sku: string; returnQty: number }[];
 }
 
+interface InvoiceLineDetail {
+  id: string;
+  productName: string;
+  sku: string;
+  quantity: number;
+  unitCost: number;
+  taxRate: number;
+  lineTotal: number;
+}
+
+interface PurchaseInvoiceDetail extends PurchaseInvoice {
+  lines: InvoiceLineDetail[];
+}
+
+interface ReceptionLite { id: string; number: string; status: string; }
+interface PurchaseCreditNoteLite { id: string; number: string; total: number; currency: string; }
+
 interface SupplierOpt { id: string; code: string; name: string; currency: string; }
 interface ProductOpt { id: string; sku: string; name: string; baseUomId: string; defaultTaxRate: number; }
 interface ProductStockBreakdown {
@@ -126,6 +143,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                        [severity]="receptionSeverity(inv.receptionStatus)" />
               </td>
               <td class="whitespace-nowrap">
+                <button pButton icon="pi pi-eye" class="p-button-sm p-button-text mr-1"
+                        [pTooltip]="'purchaseInvoices.view' | translate"
+                        (click)="openDetail(inv)"></button>
                 <button pButton icon="pi pi-print" class="p-button-sm p-button-text"
                         [pTooltip]="'common.print' | translate"
                         (click)="printPdf('/api/v1/purchase-invoices/' + inv.id + '/pdf')"></button>
@@ -162,6 +182,132 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           </ng-template>
         </p-table>
       </div>
+
+      <!-- Detail (voir) modal -->
+      <p-dialog [(visible)]="detailOpen" [modal]="true" [style]="{ width: '900px' }"
+                [header]="('purchaseInvoices.detailTitle' | translate:{ number: detail()?.number || '' })">
+        @if (detail(); as inv) {
+          <div class="space-y-3">
+            <div class="grid grid-cols-3 gap-3 text-sm">
+              <div>
+                <span class="text-gray-500">{{ 'purchaseInvoices.supplier' | translate }} :</span>
+                <div class="font-medium">{{ inv.supplierName }}</div>
+              </div>
+              <div>
+                <span class="text-gray-500">{{ 'purchaseInvoices.invoiceDate' | translate }} :</span>
+                <div class="font-medium">{{ inv.invoiceDate | date:'mediumDate' }}</div>
+              </div>
+              <div>
+                <span class="text-gray-500">{{ 'purchaseInvoices.dueDate' | translate }} :</span>
+                <div class="font-medium">{{ inv.dueDate ? (inv.dueDate | date:'mediumDate') : '—' }}</div>
+              </div>
+              <div>
+                <span class="text-gray-500">{{ 'purchaseInvoices.status' | translate }} :</span>
+                <div><p-tag [value]="'purchaseInvoices.statuses.' + inv.status | translate" [severity]="statusSeverity(inv.status)" /></div>
+              </div>
+              <div>
+                <span class="text-gray-500">{{ 'purchaseInvoices.reception' | translate }} :</span>
+                <div><p-tag [value]="'purchaseInvoices.receptionStatuses.' + inv.receptionStatus | translate"
+                            [severity]="receptionSeverity(inv.receptionStatus)" /></div>
+              </div>
+              <div>
+                <span class="text-gray-500">{{ 'purchaseInvoices.total' | translate }} :</span>
+                <div class="font-bold">{{ inv.total | money }} {{ inv.currency }}</div>
+              </div>
+              <div>
+                <span class="text-gray-500">{{ 'purchaseInvoices.balance' | translate }} :</span>
+                <div class="font-bold" [class.text-red-600]="inv.balance > 0" [class.text-green-700]="inv.balance === 0">
+                  {{ inv.balance | money }} {{ inv.currency }}
+                </div>
+              </div>
+              @if (inv.supplierReference) {
+                <div class="col-span-3">
+                  <span class="text-gray-500">{{ 'purchaseInvoices.supplierReference' | translate }} :</span>
+                  <span class="font-mono ml-1">{{ inv.supplierReference }}</span>
+                </div>
+              }
+            </div>
+
+            @if (receptions().length > 0) {
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-gray-500 text-sm">{{ 'purchaseInvoices.receptions' | translate }} :</span>
+                @for (r of receptions(); track r.id) {
+                  <button pButton icon="pi pi-file-pdf" class="p-button-sm p-button-text"
+                          [label]="r.number"
+                          (click)="printPdf('/api/v1/goods-receipts/' + r.id + '/pdf')"></button>
+                }
+              </div>
+            }
+
+            @if (detailCreditNotes().length > 0) {
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-gray-500 text-sm">{{ 'purchaseInvoices.creditNotes' | translate }} :</span>
+                @for (c of detailCreditNotes(); track c.id) {
+                  <button pButton icon="pi pi-file-pdf" class="p-button-sm p-button-text text-red-700"
+                          [label]="c.number + ' (' + (c.total | money) + ' ' + c.currency + ')'"
+                          (click)="printPdf('/api/v1/purchase-credit-notes/' + c.id + '/pdf')"></button>
+                }
+              </div>
+            }
+
+            <div class="border rounded">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th class="text-left p-2">{{ 'sales.product' | translate }}</th>
+                    <th class="text-right p-2 w-24">{{ 'sales.quantity' | translate }}</th>
+                    <th class="text-right p-2 w-28">{{ 'purchaseOrders.unitCost' | translate }}</th>
+                    <th class="text-right p-2 w-20">{{ 'sales.tax' | translate }}%</th>
+                    <th class="text-right p-2 w-28">{{ 'sales.lineTotal' | translate }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (l of inv.lines; track l.id) {
+                    <tr class="border-t">
+                      <td class="p-2">
+                        <div class="font-medium">{{ l.productName }}</div>
+                        <div class="text-xs text-gray-500 font-mono">{{ l.sku }}</div>
+                      </td>
+                      <td class="p-2 text-right">{{ l.quantity }}</td>
+                      <td class="p-2 text-right">{{ l.unitCost | money }}</td>
+                      <td class="p-2 text-right">{{ (l.taxRate * 100) | number:'1.0-0' }}%</td>
+                      <td class="p-2 text-right font-medium">{{ l.lineTotal | money }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+        <ng-template pTemplate="footer">
+          <div class="flex justify-between items-center gap-3 w-full">
+            <button pButton [label]="'common.close' | translate" class="p-button-text"
+                    (click)="detailOpen.set(false)"></button>
+            @if (detail(); as inv) {
+              <div class="flex items-center gap-2 flex-wrap justify-end">
+                <button pButton icon="pi pi-print" [label]="'common.print' | translate"
+                        class="p-button-text"
+                        (click)="printPdf('/api/v1/purchase-invoices/' + inv.id + '/pdf')"></button>
+                @if (canReceive(inv)) {
+                  <button pButton icon="pi pi-inbox" [label]="'purchaseInvoices.receive' | translate"
+                          class="p-button-success"
+                          (click)="goToReception(inv)"></button>
+                }
+                @if (canPay(inv)) {
+                  <button pButton icon="pi pi-wallet" [label]="'purchaseInvoices.pay' | translate"
+                          class="p-button-info"
+                          (click)="goToPay(inv)"></button>
+                }
+                @if (canCredit(inv)) {
+                  <button pButton icon="pi pi-replay" [label]="'purchaseInvoices.creditNote' | translate"
+                          class="p-button-warning"
+                          (click)="detailOpen.set(false); openCreditNote(inv)"></button>
+                }
+              </div>
+            }
+          </div>
+        </ng-template>
+      </p-dialog>
 
       <!-- Create dialog -->
       <p-dialog [(visible)]="createOpen" [modal]="true" [style]="{ width: '900px' }"
@@ -396,6 +542,12 @@ export class PurchaseInvoiceListPage implements OnInit {
     return this.submitted() && (line.unitCost == null || line.unitCost < 0);
   }
 
+  // Detail (voir) modal state
+  protected detailOpen = signal(false);
+  protected detail = signal<PurchaseInvoiceDetail | null>(null);
+  protected receptions = signal<ReceptionLite[]>([]);
+  protected detailCreditNotes = signal<PurchaseCreditNoteLite[]>([]);
+
   // Avoir (credit note) dialog state
   protected creditOpen = false;
   protected crediting = signal(false);
@@ -468,7 +620,30 @@ export class PurchaseInvoiceListPage implements OnInit {
   }
 
   protected goToPay(inv: PurchaseInvoice) {
-    this.router.navigate(['/payments'], { queryParams: { purchaseInvoiceId: inv.id, supplierId: inv.supplierId } });
+    this.router.navigate(['/payments'], { queryParams: { createForPurchaseInvoice: inv.id } });
+  }
+
+  protected async openDetail(inv: PurchaseInvoice) {
+    this.detail.set(null);
+    this.receptions.set([]);
+    this.detailCreditNotes.set([]);
+    this.detailOpen.set(true);
+    try {
+      const full = await firstValueFrom(
+        this.http.get<PurchaseInvoiceDetail>(`/api/v1/purchase-invoices/${inv.id}`));
+      this.detail.set(full);
+    } catch { this.detail.set(null); }
+    // Linked receptions (BRC) + avoirs — best-effort, mirrors the sales detail.
+    try {
+      const r = await firstValueFrom(
+        this.http.get<{ content: ReceptionLite[] }>(`/api/v1/goods-receipts?invoiceId=${inv.id}&size=100`));
+      this.receptions.set(r.content ?? []);
+    } catch { this.receptions.set([]); }
+    try {
+      const c = await firstValueFrom(
+        this.http.get<{ content: PurchaseCreditNoteLite[] }>(`/api/v1/purchase-credit-notes?invoiceId=${inv.id}&size=100`));
+      this.detailCreditNotes.set(c.content ?? []);
+    } catch { this.detailCreditNotes.set([]); }
   }
 
   protected async openCreditNote(inv: PurchaseInvoice) {
