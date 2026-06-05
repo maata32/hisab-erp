@@ -654,6 +654,11 @@ export class PaymentListPage implements OnInit {
 
   private async openCreateForInvoice(invoiceId: string) {
     try {
+      // derivedType()/onPartyChange() need the party list (loaded un-awaited in
+      // ngOnInit). Without this guard a slow /partners response loses the race:
+      // selectedParty() is undefined, isInvoiceFlow() is false, and the open
+      // invoices are never fetched → dialog shows no line to allocate.
+      if (this.parties().length === 0) await this.loadCustomers();
       const inv = await firstValueFrom(
         this.http.get<{ id: string; customerId: string; balance: number }>(`/api/v1/invoices/${invoiceId}`)
       );
