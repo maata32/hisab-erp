@@ -30,16 +30,21 @@ class PaymentAllocationListener {
     @EventListener
     @Transactional(propagation = Propagation.MANDATORY)
     public void on(PaymentConfirmedEvent event) {
-        String positiveType = positiveTypeFor(event.paymentType());
-        if (positiveType == null) return;
-
         for (var line : event.allocations()) {
-            String negativeType = switch (line.targetType()) {
-                case "SALE_INVOICE" -> AllocationEngineImpl.T_INVOICE;
-                case "PURCHASE_INVOICE" -> AllocationEngineImpl.T_PURCHASE_INVOICE;
-                default -> null;
-            };
-            if (negativeType == null) continue;
+            // Derive both sides from the allocation TARGET, not the payment type:
+            // settling a sale invoice is a customer payment (T_PAYMENT), settling
+            // a purchase invoice is a supplier payment (T_SUPPLIER_PAYMENT). This
+            // is unambiguous even for the party-agnostic CASH_OUT type. Only
+            // invoice-shaped targets are mirrored into the engine.
+            String positiveType;
+            String negativeType;
+            switch (line.targetType()) {
+                case "SALE_INVOICE" -> { positiveType = AllocationEngineImpl.T_PAYMENT;
+                                         negativeType = AllocationEngineImpl.T_INVOICE; }
+                case "PURCHASE_INVOICE" -> { positiveType = AllocationEngineImpl.T_SUPPLIER_PAYMENT;
+                                             negativeType = AllocationEngineImpl.T_PURCHASE_INVOICE; }
+                default -> { continue; }
+            }
 
             allocations.save(Allocation.builder()
                     .partyId(event.partyId())
@@ -50,17 +55,5 @@ class PaymentAllocationListener {
                     .amount(line.amount())
                     .build());
         }
-    }
-
-    /** Maps a {@code PaymentType} to the engine's positive-side source-type
-     *  constant. Returns {@code null} for payment types that don't bring funds
-     *  to the operator (refunds, withdrawals — those would sit on the negative
-     *  side of an allocation, not the positive one). */
-    private static String positiveTypeFor(String paymentType) {
-        return switch (paymentType) {
-            case "CUSTOMER_PAYMENT", "CUSTOMER_DEPOSIT" -> AllocationEngineImpl.T_PAYMENT;
-            case "SUPPLIER_PAYMENT" -> AllocationEngineImpl.T_SUPPLIER_PAYMENT;
-            default -> null;
-        };
     }
 }

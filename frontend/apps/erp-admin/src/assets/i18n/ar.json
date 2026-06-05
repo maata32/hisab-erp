@@ -703,12 +703,10 @@
     },
     "derivedTypeHint": "العملية:",
     "types": {
-      "CUSTOMER_PAYMENT": "دفعة عميل",
-      "CUSTOMER_REFUND": "استرداد لعميل",
-      "SUPPLIER_PAYMENT": "دفعة لمورّد",
-      "SUPPLIER_REFUND": "استرداد من مورّد",
-      "CUSTOMER_DEPOSIT": "عربون عميل",
-      "CUSTOMER_CREDIT_WITHDRAWAL": "سحب رصيد"
+      "CASH_IN": "قبض",
+      "CASH_OUT": "صرف",
+      "CASH_IN_REFUND": "قبض",
+      "CASH_OUT_REFUND": "صرف"
     },
     "noOpenSupplierInvoices": "لا توجد فواتير مورّد مفتوحة لهذا الطرف",
     "confirm": "تأكيد",

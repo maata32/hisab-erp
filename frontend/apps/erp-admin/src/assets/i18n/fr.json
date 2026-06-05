@@ -703,12 +703,10 @@
     },
     "derivedTypeHint": "Opération :",
     "types": {
-      "CUSTOMER_PAYMENT": "Versement client",
-      "CUSTOMER_REFUND": "Remboursement client",
-      "SUPPLIER_PAYMENT": "Paiement fournisseur",
-      "SUPPLIER_REFUND": "Remboursement fournisseur",
-      "CUSTOMER_DEPOSIT": "Acompte client",
-      "CUSTOMER_CREDIT_WITHDRAWAL": "Retrait de crédit"
+      "CASH_IN": "Encaissement",
+      "CASH_OUT": "Décaissement",
+      "CASH_IN_REFUND": "Encaissement",
+      "CASH_OUT_REFUND": "Décaissement"
     },
     "noOpenSupplierInvoices": "Aucune facture fournisseur ouverte pour ce tiers",
     "confirm": "Confirmer",

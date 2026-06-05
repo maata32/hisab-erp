@@ -66,5 +66,6 @@
     <include file="db/changelog/0059-purchase-order-lifecycle.xml"/>
     <include file="db/changelog/0060-goods-receipts.xml"/>
     <include file="db/changelog/0061-purchase-credit-notes.xml"/>
+    <include file="db/changelog/0062-payment-types-generalize.xml"/>
 
 </databaseChangeLog>

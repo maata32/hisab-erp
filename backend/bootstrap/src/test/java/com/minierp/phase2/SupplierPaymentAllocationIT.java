@@ -106,9 +106,9 @@ class SupplierPaymentAllocationIT {
         assertThat(inv.total()).isEqualByComparingTo("800000.00");
         assertThat(partnerService.getApBalance(supplierId).balance()).isEqualByComparingTo("800000.00");
 
-        // Pay it via SUPPLIER_PAYMENT → BANK_TRANSFER
+        // Pay it via CASH_OUT (supplier settlement) → BANK_TRANSFER
         PaymentDto.PaymentResponse payment = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                "SUPPLIER_PAYMENT", supplierId, new BigDecimal("800000.00"), "MRU",
+                "CASH_OUT", supplierId, new BigDecimal("800000.00"), "MRU",
                 LocalDate.now(), "BANK_TRANSFER", "VIR-2026-04-30-001", "BMI-12345",
                 "Supplier settlement",
                 List.of(new PaymentDto.AllocationRequest("PURCHASE_INVOICE", inv.id(),

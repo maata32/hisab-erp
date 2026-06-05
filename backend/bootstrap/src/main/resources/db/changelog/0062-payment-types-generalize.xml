@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Generalize the payment taxonomy from party-based (CUSTOMER_*/SUPPLIER_*)
+        to direction-based, party-agnostic types. The customer/supplier nature is
+        now derived from the party's role. Mapping (lossy by design — DEPOSIT and
+        CREDIT_WITHDRAWAL fold into the plain in/out types):
+            CUSTOMER_PAYMENT, CUSTOMER_DEPOSIT          -> CASH_IN
+            SUPPLIER_PAYMENT, CUSTOMER_CREDIT_WITHDRAWAL -> CASH_OUT
+            SUPPLIER_REFUND                             -> CASH_IN_REFUND
+            CUSTOMER_REFUND                             -> CASH_OUT_REFUND
+        payments.type is a plain VARCHAR(40) with no CHECK constraint, so this is
+        a pure data update. The engine `allocations` table uses its own entity-kind
+        tags (PAYMENT / SUPPLIER_PAYMENT) and is unaffected.
+    -->
+
+    <changeSet id="0062-payment-types-generalize" author="mini-erp">
+        <sql splitStatements="false"><![CDATA[
+            UPDATE payments SET type = 'CASH_IN'         WHERE type IN ('CUSTOMER_PAYMENT','CUSTOMER_DEPOSIT');
+            UPDATE payments SET type = 'CASH_OUT'        WHERE type IN ('SUPPLIER_PAYMENT','CUSTOMER_CREDIT_WITHDRAWAL');
+            UPDATE payments SET type = 'CASH_IN_REFUND'  WHERE type = 'SUPPLIER_REFUND';
+            UPDATE payments SET type = 'CASH_OUT_REFUND' WHERE type = 'CUSTOMER_REFUND';
+        ]]></sql>
+    </changeSet>
+
+</databaseChangeLog>

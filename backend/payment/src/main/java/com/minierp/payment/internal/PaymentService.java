@@ -215,7 +215,10 @@ public class PaymentService implements PaymentLookup {
             case SALE_INVOICE -> invoiceOps.applyPayment(targetId, amount);
             case PURCHASE_INVOICE -> purchaseInvoiceOps.applyPayment(targetId, amount);
             case CUSTOMER_BALANCE -> {
-                if (p.getType() == PaymentType.SUPPLIER_PAYMENT) {
+                // Surplus shortcut: a cash-out to a supplier party books on the AP
+                // balance, everything else on the AR balance. The party role (not
+                // the type) now carries the customer/supplier nature.
+                if (p.getType() == PaymentType.CASH_OUT && isSupplierParty(p.getPartyId())) {
                     supplierBalanceOps.addToPaid(targetId, amount, true);
                 } else {
                     balanceOps.addToPaid(targetId, amount, true);
@@ -296,19 +299,19 @@ public class PaymentService implements PaymentLookup {
                 p.getCreatedAt());
     }
 
-    /**
-     * Resolves the party display name. For SUPPLIER_* payment types, looks up the supplier
-     * first; otherwise falls back to the customer lookup. Returns "" if neither resolves.
-     */
+    /** Party display name from the single unified partner table. Returns "" if unresolved. */
     private String resolvePartyName(Payment p) {
-        if (p.getType() == PaymentType.SUPPLIER_PAYMENT || p.getType() == PaymentType.SUPPLIER_REFUND) {
-            return supplierLookup.findById(p.getPartyId())
-                    .map(PartnerSummary::name)
-                    .orElseGet(() -> customerLookup.findById(p.getPartyId()).map(PartnerSummary::name).orElse(""));
-        }
         return customerLookup.findById(p.getPartyId())
                 .map(PartnerSummary::name)
                 .orElseGet(() -> supplierLookup.findById(p.getPartyId()).map(PartnerSummary::name).orElse(""));
+    }
+
+    /** True when the payment's party carries the supplier role (the customer/supplier
+     *  nature is no longer encoded in the payment type). */
+    private boolean isSupplierParty(UUID partyId) {
+        return customerLookup.findById(partyId)
+                .map(PartnerSummary::isSupplier)
+                .orElseGet(() -> supplierLookup.findById(partyId).map(PartnerSummary::isSupplier).orElse(false));
     }
 
     private Map<String, Object> buildReceiptVars(Payment p, List<PaymentAllocation> allocs) {
@@ -335,31 +338,26 @@ public class PaymentService implements PaymentLookup {
         vars.put("customer", new CustModel(resolvePartyName(p)));
         vars.put("docTitle", labels.docTitle());
         vars.put("amountLabel", labels.amountLabel());
-        vars.put("partyLabel", labels.partyLabel());
+        // Party row label now comes from the party role, not the payment type.
+        vars.put("partyLabel", isSupplierParty(p.getPartyId()) ? "Fournisseur" : "Client");
         return vars;
     }
 
-    private record ReceiptLabels(String docTitle, String amountLabel, String partyLabel) {}
+    private record ReceiptLabels(String docTitle, String amountLabel) {}
 
     /**
-     * Receipt wording keyed to the payment's cash direction so a supplier
-     * settlement (cash OUT) no longer reads like a customer encaissement.
-     *   IN  → "REÇU DE PAIEMENT" / "Montant reçu"
-     *   OUT → "BON DE PAIEMENT" / "Montant payé" (refund: "BON DE REMBOURSEMENT")
-     * The party row label flips to "Fournisseur" for the two supplier types.
+     * Receipt wording keyed purely to the cash direction — a cash-in is a
+     * cash-in and a cash-out is a cash-out, whatever the party. The refund
+     * notion is not surfaced.
+     *   CASH_IN  / CASH_IN_REFUND  -> "REÇU DE PAIEMENT" / "Montant reçu"
+     *   CASH_OUT / CASH_OUT_REFUND -> "BON DE PAIEMENT"  / "Montant payé"
      */
     private ReceiptLabels receiptLabels(PaymentType type) {
         return switch (type) {
-            case CUSTOMER_PAYMENT, CUSTOMER_DEPOSIT ->
-                    new ReceiptLabels("REÇU DE PAIEMENT", "Montant reçu", "Client");
-            case SUPPLIER_REFUND ->
-                    new ReceiptLabels("REÇU DE PAIEMENT", "Montant reçu", "Fournisseur");
-            case SUPPLIER_PAYMENT ->
-                    new ReceiptLabels("BON DE PAIEMENT", "Montant payé", "Fournisseur");
-            case CUSTOMER_CREDIT_WITHDRAWAL ->
-                    new ReceiptLabels("BON DE PAIEMENT", "Montant payé", "Client");
-            case CUSTOMER_REFUND ->
-                    new ReceiptLabels("BON DE REMBOURSEMENT", "Montant remboursé", "Client");
+            case CASH_IN, CASH_IN_REFUND ->
+                    new ReceiptLabels("REÇU DE PAIEMENT", "Montant reçu");
+            case CASH_OUT, CASH_OUT_REFUND ->
+                    new ReceiptLabels("BON DE PAIEMENT", "Montant payé");
         };
     }
 

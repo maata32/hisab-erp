@@ -703,12 +703,10 @@
     },
     "derivedTypeHint": "Operation:",
     "types": {
-      "CUSTOMER_PAYMENT": "Customer payment",
-      "CUSTOMER_REFUND": "Customer refund",
-      "SUPPLIER_PAYMENT": "Supplier payment",
-      "SUPPLIER_REFUND": "Supplier refund",
-      "CUSTOMER_DEPOSIT": "Customer deposit",
-      "CUSTOMER_CREDIT_WITHDRAWAL": "Credit withdrawal"
+      "CASH_IN": "Cash in",
+      "CASH_OUT": "Cash out",
+      "CASH_IN_REFUND": "Cash in",
+      "CASH_OUT_REFUND": "Cash out"
     },
     "noOpenSupplierInvoices": "No open supplier invoices for this party",
     "confirm": "Confirm",

@@ -267,9 +267,8 @@ class AllocationEngineImpl implements AllocationEngine {
         }
         UUID creditParty = jdbc.queryForObject(
                 "SELECT party_id FROM customer_credits WHERE id = ?", UUID.class, creditId);
-        // Verify the target payment is a CUSTOMER_REFUND and belongs to the
-        // same party; reject anything else (REFUND of a CONFIRMED CUSTOMER_PAYMENT
-        // is handled by the legacy {@code payment.refund} flow, not here).
+        // Verify the target payment is a CASH_OUT_REFUND and belongs to the
+        // same party; reject anything else.
         var paymentMeta = jdbc.queryForMap(
                 "SELECT party_id, type, amount FROM payments WHERE id = ?", refundPaymentId);
         UUID paymentParty = (UUID) paymentMeta.get("party_id");
@@ -279,7 +278,7 @@ class AllocationEngineImpl implements AllocationEngine {
             throw new BusinessException("error.allocation.party_mismatch",
                     java.util.Map.of("creditId", creditId, "paymentId", refundPaymentId));
         }
-        if (!"CUSTOMER_REFUND".equals(paymentType)) {
+        if (!"CASH_OUT_REFUND".equals(paymentType)) {
             throw new BusinessException("error.allocation.not_a_refund",
                     java.util.Map.of("paymentId", refundPaymentId, "type", paymentType));
         }
@@ -316,11 +315,11 @@ class AllocationEngineImpl implements AllocationEngine {
             throw new BusinessException("error.allocation.party_mismatch",
                     java.util.Map.of("refundPaymentId", refundPaymentId, "retraitPaymentId", retraitPaymentId));
         }
-        if (!"SUPPLIER_REFUND".equals(refundMeta.get("type"))) {
+        if (!"CASH_IN_REFUND".equals(refundMeta.get("type"))) {
             throw new BusinessException("error.allocation.not_a_supplier_refund",
                     java.util.Map.of("paymentId", refundPaymentId, "type", String.valueOf(refundMeta.get("type"))));
         }
-        if (!"SUPPLIER_PAYMENT".equals(retraitMeta.get("type"))) {
+        if (!"CASH_OUT".equals(retraitMeta.get("type"))) {
             throw new BusinessException("error.allocation.not_a_supplier_retrait",
                     java.util.Map.of("paymentId", retraitPaymentId, "type", String.valueOf(retraitMeta.get("type"))));
         }
@@ -401,7 +400,7 @@ class AllocationEngineImpl implements AllocationEngine {
                 FROM payments p
                 WHERE p.tenant_id = ? AND p.party_id = ?
                   AND p.status = 'CONFIRMED'
-                  AND p.type IN ('CUSTOMER_PAYMENT','CUSTOMER_DEPOSIT')
+                  AND p.type = 'CASH_IN'
                 """, (ResultSet rs) -> {
                     BigDecimal open = rs.getBigDecimal("amount_open");
                     if (open == null || open.signum() <= 0) return;
@@ -484,7 +483,7 @@ class AllocationEngineImpl implements AllocationEngine {
                 FROM payments p
                 WHERE p.tenant_id = ? AND p.party_id = ?
                   AND p.status = 'CONFIRMED'
-                  AND p.type IN ('SUPPLIER_PAYMENT','SUPPLIER_REFUND')
+                  AND p.type IN ('CASH_OUT','CASH_IN_REFUND')
                 """, (ResultSet rs) -> {
                     BigDecimal open = rs.getBigDecimal("amount_open");
                     if (open == null || open.signum() <= 0) return;

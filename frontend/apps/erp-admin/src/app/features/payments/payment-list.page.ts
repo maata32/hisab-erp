@@ -130,7 +130,8 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <td><span class="font-mono text-sm">{{ p.number }}</span></td>
               <td>
                 <p-tag [value]="'payments.types.' + p.type | translate"
-                       [severity]="typeSeverity(p.type)" />
+                       [severity]="typeSeverity(p.type)"
+                       [styleClass]="typeTagClass(p.type)" />
               </td>
               <td>{{ p.partyName }}</td>
               <td>{{ p.paymentDate | date:'mediumDate' }}</td>
@@ -466,6 +467,10 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
       </p-dialog>
     </div>
   `,
+  styles: [`
+    /* Soften the solid red of cash-out (Décaissement) tags to a calmer red. */
+    :host ::ng-deep .p-tag.pay-out { background: #fde8e8 !important; color: #c0392b !important; }
+  `],
 })
 export class PaymentListPage implements OnInit {
   private http = inject(HttpClient);
@@ -496,10 +501,10 @@ export class PaymentListPage implements OnInit {
    * credit. The amount stays editable so the user can still overpay. */
   protected invoiceLocked = false;
   /** When the dialog is opened from a specific invoice the backend payment type
-   * is known up-front (CUSTOMER_PAYMENT / SUPPLIER_PAYMENT) and must NOT be
-   * re-derived from the party's roles — that derivation depends on the party
-   * list being loaded and on the role flags, which can leave an invoice-driven
-   * dialog stuck on the wrong flow (no allocation line, wrong save type). */
+   * is known up-front (CASH_IN / CASH_OUT) and must NOT be re-derived from the
+   * party's roles — that derivation depends on the party list being loaded and
+   * on the role flags, which can leave an invoice-driven dialog stuck on the
+   * wrong flow (no allocation line, wrong save type). */
   protected lockedType: string | null = null;
   protected filterPartyId: string | null = null;
 
@@ -512,12 +517,12 @@ export class PaymentListPage implements OnInit {
 
   /**
    * Backend payment type derived from the chosen cash direction and the party's
-   * roles. The user never picks this directly — they pick "Versement/Retrait"
-   * (direction) + a party, and the four enum values fall out:
-   *   IN  + customer  → CUSTOMER_PAYMENT   (the customer pays what they owe)
-   *   IN  + supplier  → SUPPLIER_REFUND    (a supplier refunds us)
-   *   OUT + supplier  → SUPPLIER_PAYMENT   (we settle a supplier invoice)
-   *   OUT + customer  → CUSTOMER_REFUND    (we refund a customer)
+   * roles. The user never picks this directly — they pick a direction
+   * (Encaissement/Décaissement) + a party, and the four general types fall out:
+   *   IN  + customer  → CASH_IN          (the customer pays what they owe)
+   *   IN  + supplier  → CASH_IN_REFUND   (a supplier refunds us)
+   *   OUT + supplier  → CASH_OUT         (we settle a supplier invoice)
+   *   OUT + customer  → CASH_OUT_REFUND  (we refund a customer)
    * For a dual-role party the direction is the tie-breaker (IN favours the
    * customer side, OUT the supplier side).
    */
@@ -526,19 +531,19 @@ export class PaymentListPage implements OnInit {
     if (this.lockedType) return this.lockedType;
     const p = this.selectedParty();
     if (this.form.direction === 'IN') {
-      return p?.isCustomer ? 'CUSTOMER_PAYMENT' : 'SUPPLIER_REFUND';
+      return p?.isCustomer ? 'CASH_IN' : 'CASH_IN_REFUND';
     }
-    return p?.isSupplier ? 'SUPPLIER_PAYMENT' : 'CUSTOMER_REFUND';
+    return p?.isSupplier ? 'CASH_OUT' : 'CASH_OUT_REFUND';
   }
 
   /** True when the derived type settles invoices on the customer side. */
-  protected isCustomerInvoiceFlow(): boolean { return this.derivedType() === 'CUSTOMER_PAYMENT'; }
+  protected isCustomerInvoiceFlow(): boolean { return this.derivedType() === 'CASH_IN'; }
   /** True when the derived type settles invoices on the supplier side. */
-  protected isSupplierInvoiceFlow(): boolean { return this.derivedType() === 'SUPPLIER_PAYMENT'; }
+  protected isSupplierInvoiceFlow(): boolean { return this.derivedType() === 'CASH_OUT'; }
   /** True for any flow that allocates against open invoices (customer or supplier). */
   protected isInvoiceFlow(): boolean { return this.isCustomerInvoiceFlow() || this.isSupplierInvoiceFlow(); }
   /** True when the derived type is a customer refund (can be settled from credit). */
-  protected isCustomerRefundFlow(): boolean { return this.derivedType() === 'CUSTOMER_REFUND'; }
+  protected isCustomerRefundFlow(): boolean { return this.derivedType() === 'CASH_OUT_REFUND'; }
 
   protected selectedCustomerCredit(): number {
     return Number(this.selectedParty()?.customerCreditBalance ?? 0);
@@ -555,7 +560,7 @@ export class PaymentListPage implements OnInit {
     return '';
   }
 
-  // Imputation versement↔retrait: a customer Retrait (CUSTOMER_REFUND) can be
+  // Imputation: a customer Décaissement (CASH_OUT_REFUND) can be
   // imputed on the party's open deposits/credits (CUSTOMER_CREDIT open items),
   // consuming them via the allocation engine instead of being a pure cash-out.
   // Each row carries a checkbox the user can untick to leave that credit alone.
@@ -585,10 +590,10 @@ export class PaymentListPage implements OnInit {
     return Math.min(this.form.amount || 0, +selected.toFixed(2));
   }
 
-  // SUPPLIER_PAYMENT (retrait) ← open supplier "versements" (SUPPLIER_REFUND)
-  // imputation — mirror of partyCredits. A versement surfaces in the engine as
-  // a POSITIVE SUPPLIER_PAYMENT open item, so we keep only those whose payment
-  // type is SUPPLIER_REFUND (cash the supplier actually gave back).
+  // CASH_OUT (retrait) ← open supplier "versements" (CASH_IN_REFUND) imputation
+  // — mirror of partyCredits. A versement surfaces in the engine as a POSITIVE
+  // SUPPLIER_PAYMENT open item (engine tag), so we keep only those whose payment
+  // type is CASH_IN_REFUND (cash the supplier actually gave back).
   protected supplierRefunds: { sourceId: string; amountOpen: number; label: string; selected: boolean }[] = [];
 
   private async refreshSupplierRefunds() {
@@ -602,7 +607,7 @@ export class PaymentListPage implements OnInit {
           `/api/v1/payments?partyId=${this.form.partyId}&size=200`)),
       ]);
       const refundIds = new Set((pays.content ?? [])
-        .filter(p => p.type === 'SUPPLIER_REFUND')
+        .filter(p => p.type === 'CASH_IN_REFUND')
         .map(p => p.id));
       this.supplierRefunds = (items ?? [])
         .filter(i => i.sourceType === 'SUPPLIER_PAYMENT' && refundIds.has(i.sourceId))
@@ -691,8 +696,8 @@ export class PaymentListPage implements OnInit {
         this.http.get<{ id: string; customerId: string; balance: number }>(`/api/v1/invoices/${invoiceId}`)
       );
       this.openCreate();
-      this.form.direction = 'IN'; // money in from the customer → CUSTOMER_PAYMENT
-      this.lockedType = 'CUSTOMER_PAYMENT'; // known type — don't re-derive from roles
+      this.form.direction = 'IN'; // money in from the customer → CASH_IN
+      this.lockedType = 'CASH_IN'; // known type — don't re-derive from roles
       this.directionLocked = true; // invoice-driven flow → user can't switch to Retrait
       this.partyLocked = true;     // … nor change the party (it's the invoice's customer)
       this.form.partyId = inv.customerId;
@@ -718,11 +723,11 @@ export class PaymentListPage implements OnInit {
 
   /** Supplier-side mirror of openCreateForInvoice: "Payer cette facture
    *  fournisseur" opens the dialog with the cash direction forced to OUT (we
-   *  settle the supplier → SUPPLIER_PAYMENT), the party locked to the invoice's
+   *  settle the supplier → CASH_OUT), the party locked to the invoice's
    *  supplier, and the allocation locked to that single purchase invoice. */
   private async openCreateForPurchaseInvoice(invoiceId: string) {
     try {
-      // derivedType() ('OUT' + supplier → SUPPLIER_PAYMENT) and onPartyChange()
+      // derivedType() ('OUT' + supplier → CASH_OUT) and onPartyChange()
       // both need the party list, which ngOnInit loads un-awaited — make sure
       // it's in before we lock the supplier flow.
       if (this.parties().length === 0) await this.loadCustomers();
@@ -730,8 +735,8 @@ export class PaymentListPage implements OnInit {
         this.http.get<{ id: string; supplierId: string; balance: number }>(`/api/v1/purchase-invoices/${invoiceId}`)
       );
       this.openCreate();
-      this.form.direction = 'OUT'; // money out to the supplier → SUPPLIER_PAYMENT
-      this.lockedType = 'SUPPLIER_PAYMENT'; // known type — don't re-derive from roles
+      this.form.direction = 'OUT'; // money out to the supplier → CASH_OUT
+      this.lockedType = 'CASH_OUT'; // known type — don't re-derive from roles
       this.directionLocked = true; // invoice-driven flow → user can't switch to Versement
       this.partyLocked = true;     // … nor change the party (it's the invoice's supplier)
       this.form.partyId = inv.supplierId;
@@ -756,13 +761,17 @@ export class PaymentListPage implements OnInit {
     } as Record<string, Severity>)[s] ?? 'secondary';
   }
 
-  /** Green for cash IN (customer payment / supplier refund), red for cash OUT. */
+  /** Green for cash in (CASH_IN / CASH_IN_REFUND), red for cash out. */
   protected typeSeverity(t: string): Severity {
     return ({
-      CUSTOMER_PAYMENT: 'success', SUPPLIER_REFUND: 'success',
-      CUSTOMER_DEPOSIT: 'success', CUSTOMER_REFUND: 'danger',
-      SUPPLIER_PAYMENT: 'danger', CUSTOMER_CREDIT_WITHDRAWAL: 'danger',
+      CASH_IN: 'success', CASH_IN_REFUND: 'success',
+      CASH_OUT: 'danger', CASH_OUT_REFUND: 'danger',
     } as Record<string, Severity>)[t] ?? 'secondary';
+  }
+
+  /** Extra tag class to soften the cash-out red (see component styles). */
+  protected typeTagClass(t: string): string {
+    return (t === 'CASH_OUT' || t === 'CASH_OUT_REFUND') ? 'pay-out' : '';
   }
 
   protected openCreate() {
@@ -929,9 +938,9 @@ export class PaymentListPage implements OnInit {
     if (!this.canSave()) return;
     const type = this.derivedType();
     // Build the allocation targets from the derived type:
-    //  - CUSTOMER_PAYMENT → SALE_INVOICE lines + surplus→CUSTOMER_CREDIT
-    //  - SUPPLIER_PAYMENT → PURCHASE_INVOICE lines (no surplus credit)
-    //  - CUSTOMER_REFUND / SUPPLIER_REFUND → no allocation (refund settled from
+    //  - CASH_IN (customer)  → SALE_INVOICE lines + surplus→CUSTOMER_CREDIT
+    //  - CASH_OUT (supplier) → PURCHASE_INVOICE lines (no surplus credit)
+    //  - CASH_OUT_REFUND / CASH_IN_REFUND → no allocation (refund settled from
     //    credit afterwards for customers; supplier refund is a free positive
     //    item the engine can re-impute later).
     const allocations: Array<{ targetType: string; targetId: string; allocatedAmount: number }> = [];
@@ -945,8 +954,8 @@ export class PaymentListPage implements OnInit {
     }
     const surplus = this.createSurplus();
     if (surplus > 0 && this.form.partyId) {
-      // createSurplus() is non-zero only for CUSTOMER_PAYMENT → mint OVERPAYMENT
-      // credit explicitly rather than via the silent CUSTOMER_BALANCE shortcut.
+      // createSurplus() is non-zero only for CASH_IN → mint OVERPAYMENT credit
+      // explicitly rather than via the silent CUSTOMER_BALANCE shortcut.
       allocations.push({ targetType: 'CUSTOMER_CREDIT', targetId: this.form.partyId, allocatedAmount: surplus });
     }
     this.saving.set(true);
@@ -966,13 +975,13 @@ export class PaymentListPage implements OnInit {
       // When the Retrait is imputed on open deposits/credits we auto-confirm +
       // consume the selected credits in the same action — leaving the payment
       // DRAFT would let the user cancel it and orphan the allocation rows.
-      if (type === 'CUSTOMER_REFUND' && this.partyCredits.some(c => c.selected)) {
+      if (type === 'CASH_OUT_REFUND' && this.partyCredits.some(c => c.selected)) {
         await firstValueFrom(this.http.post(`/api/v1/payments/${created.id}/confirm`, {}));
         await this.settleRefundFromCustomerCredits(created.id);
       }
       // Supplier retrait imputed on open supplier versements: same pattern —
       // confirm then link each selected versement (traceability, no cash moved).
-      if (type === 'SUPPLIER_PAYMENT' && this.supplierRefunds.some(c => c.selected)) {
+      if (type === 'CASH_OUT' && this.supplierRefunds.some(c => c.selected)) {
         await firstValueFrom(this.http.post(`/api/v1/payments/${created.id}/confirm`, {}));
         await this.settleSupplierRetraitFromRefunds(created.id);
       }
@@ -1006,7 +1015,7 @@ export class PaymentListPage implements OnInit {
   }
 
   private async settleSupplierRetraitFromRefunds(retraitPaymentId: string) {
-    // FIFO link the supplier's open versements (SUPPLIER_REFUND) to this retrait.
+    // FIFO link the supplier's open versements (CASH_IN_REFUND) to this retrait.
     // The backend caps each call to the versement residual and the retrait
     // amount, so over-requesting is safe. Traceability only — no cash moved.
     let remaining = Number(this.form.amount) || 0;

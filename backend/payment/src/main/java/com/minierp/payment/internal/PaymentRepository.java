@@ -22,21 +22,21 @@ interface PaymentRepository extends JpaRepository<Payment, UUID> {
      */
     @Query("SELECT p FROM Payment p WHERE p.partyId = :partyId " +
            "AND p.status = 'CONFIRMED' " +
-           "AND p.type IN ('CUSTOMER_PAYMENT','CUSTOMER_DEPOSIT','CUSTOMER_REFUND') " +
+           "AND p.type IN ('CASH_IN','CASH_OUT_REFUND') " +
            "AND p.paymentDate >= :from AND p.paymentDate <= :to " +
            "ORDER BY p.paymentDate ASC")
     List<Payment> findConfirmedForCustomerStatement(UUID partyId, LocalDate from, LocalDate to);
 
     /**
      * Supplier-side statement movements: cash we paid out to settle purchase
-     * invoices (SUPPLIER_PAYMENT) — always a debit on the partner timeline, and
-     * the only supplier cash event the AP balance tracks, so the running balance
-     * reconciles with the AP snapshot. SUPPLIER_REFUND (cash a supplier returns)
+     * invoices (CASH_OUT) — always a debit on the partner timeline, and the only
+     * supplier cash event the AP balance tracks, so the running balance
+     * reconciles with the AP snapshot. CASH_IN_REFUND (cash a supplier returns)
      * is intentionally excluded since the lookup DTO carries no type to sign it.
      */
     @Query("SELECT p FROM Payment p WHERE p.partyId = :partyId " +
            "AND p.status = 'CONFIRMED' " +
-           "AND p.type = 'SUPPLIER_PAYMENT' " +
+           "AND p.type = 'CASH_OUT' " +
            "AND p.paymentDate >= :from AND p.paymentDate <= :to " +
            "ORDER BY p.paymentDate ASC")
     List<Payment> findConfirmedForSupplierStatement(UUID partyId, LocalDate from, LocalDate to);

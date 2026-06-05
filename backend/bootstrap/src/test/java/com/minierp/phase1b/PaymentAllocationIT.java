@@ -98,7 +98,7 @@ class PaymentAllocationIT {
 
         // Create payment of 350 (covers inv1=100 + inv2=200 + partial inv3=50)
         PaymentDto.PaymentResponse payment = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                "CUSTOMER_PAYMENT", customerId, new BigDecimal("350.00"), "MRU",
+                "CASH_IN", customerId, new BigDecimal("350.00"), "MRU",
                 LocalDate.now(), "CASH", null, null, "Auto-allocate test", null
         ));
 

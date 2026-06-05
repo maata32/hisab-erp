@@ -86,7 +86,7 @@ class PaymentOverpaymentIT {
         UUID invoiceId = createInvoice(new BigDecimal("5000"));
 
         PaymentDto.PaymentResponse payment = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                "CUSTOMER_PAYMENT", customerId, new BigDecimal("8000"), "MRU",
+                "CASH_IN", customerId, new BigDecimal("8000"), "MRU",
                 LocalDate.now(), "CASH", null, null, "Overpayment test", List.of(
                         new PaymentDto.AllocationRequest(
                                 "SALE_INVOICE", invoiceId, new BigDecimal("5000"), null),
@@ -109,7 +109,7 @@ class PaymentOverpaymentIT {
         UUID invoiceId = createInvoice(new BigDecimal("5000"));
 
         PaymentDto.PaymentResponse payment = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                "CUSTOMER_PAYMENT", customerId, new BigDecimal("5000"), "MRU",
+                "CASH_IN", customerId, new BigDecimal("5000"), "MRU",
                 LocalDate.now(), "CASH", null, null, "Exact payment", List.of(
                         new PaymentDto.AllocationRequest(
                                 "SALE_INVOICE", invoiceId, new BigDecimal("5000"), null))));

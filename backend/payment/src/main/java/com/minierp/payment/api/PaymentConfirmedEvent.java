@@ -18,9 +18,8 @@ import java.util.UUID;
  * positive↔negative allocation contract.</p>
  *
  * @param paymentId      id of the just-confirmed payment row
- * @param paymentType    one of {@code CUSTOMER_PAYMENT, CUSTOMER_DEPOSIT,
- *                       CUSTOMER_REFUND, CUSTOMER_CREDIT_WITHDRAWAL,
- *                       SUPPLIER_PAYMENT, SUPPLIER_REFUND}
+ * @param paymentType    one of {@code CASH_IN, CASH_OUT, CASH_IN_REFUND,
+ *                       CASH_OUT_REFUND}
  * @param partyId        the counterparty
  * @param allocations    per-target slice, snapshotted from the legacy
  *                       {@code payment_allocations} table

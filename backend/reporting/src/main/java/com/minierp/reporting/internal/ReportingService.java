@@ -315,7 +315,7 @@ public class ReportingService {
                 BigDecimal.class, tenant, today));
         BigDecimal cashReceivedToday = nz(jdbc.queryForObject(
                 "SELECT COALESCE(SUM(amount),0) FROM payments WHERE tenant_id=? AND status='CONFIRMED' " +
-                "AND payment_date = ? AND type IN ('CUSTOMER_PAYMENT','CUSTOMER_DEPOSIT')",
+                "AND payment_date = ? AND type = 'CASH_IN'",
                 BigDecimal.class, tenant, today));
 
         // ── Stock & ops ──────────────────────────────────────────────────────

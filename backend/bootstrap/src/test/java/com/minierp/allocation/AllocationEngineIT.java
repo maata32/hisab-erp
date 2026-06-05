@@ -116,7 +116,7 @@ class AllocationEngineIT {
             // allocation (mimics the front-end "Nouveau paiement" save path).
             UUID inv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
             PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "CUSTOMER_PAYMENT", customerId, new BigDecimal("500.00"), "MRU",
+                    "CASH_IN", customerId, new BigDecimal("500.00"), "MRU",
                     LocalDate.now(), "CASH", null, null, "Overpayment test",
                     List.of(
                             new PaymentDto.AllocationRequest("SALE_INVOICE", inv,
@@ -150,7 +150,7 @@ class AllocationEngineIT {
             UUID inv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
 
             PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "CUSTOMER_PAYMENT", customerId, new BigDecimal("100.00"), "MRU",
+                    "CASH_IN", customerId, new BigDecimal("100.00"), "MRU",
                     LocalDate.now(), "CASH", null, null, "Double-write test",
                     List.of(new PaymentDto.AllocationRequest("SALE_INVOICE", inv,
                             new BigDecimal("100.00"), null))));
@@ -179,7 +179,7 @@ class AllocationEngineIT {
         void allocationHistoryWithLabels() {
             UUID inv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
             PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "CUSTOMER_PAYMENT", customerId, new BigDecimal("100.00"), "MRU",
+                    "CASH_IN", customerId, new BigDecimal("100.00"), "MRU",
                     LocalDate.now(), "CASH", null, null, "History test",
                     List.of(new PaymentDto.AllocationRequest("SALE_INVOICE", inv,
                             new BigDecimal("100.00"), null))));
@@ -225,7 +225,7 @@ class AllocationEngineIT {
             // letters the invoice itself (CREDIT_NOTE → INVOICE = 100).
             UUID inv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
             PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "CUSTOMER_PAYMENT", customerId, new BigDecimal("100.00"), "MRU",
+                    "CASH_IN", customerId, new BigDecimal("100.00"), "MRU",
                     LocalDate.now(), "CASH", null, null, "Prepay",
                     List.of(new PaymentDto.AllocationRequest("SALE_INVOICE", inv,
                             new BigDecimal("100.00"), null))));
@@ -269,7 +269,7 @@ class AllocationEngineIT {
             // credit, not pair two open items. The listener must skip them.
             UUID inv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
             PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "CUSTOMER_PAYMENT", customerId, new BigDecimal("500.00"), "MRU",
+                    "CASH_IN", customerId, new BigDecimal("500.00"), "MRU",
                     LocalDate.now(), "CASH", null, null, "Surplus test",
                     List.of(
                             new PaymentDto.AllocationRequest("SALE_INVOICE", inv,
@@ -307,7 +307,7 @@ class AllocationEngineIT {
 
             // Supplier payment of 1500 covering only 1000 of the invoice → 500 residual.
             PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "SUPPLIER_PAYMENT", supplierId, new BigDecimal("1500.00"), "MRU",
+                    "CASH_OUT", supplierId, new BigDecimal("1500.00"), "MRU",
                     LocalDate.now(), "BANK_TRANSFER", "VIR-ALLOC", "BANK-1",
                     "With surplus",
                     List.of(new PaymentDto.AllocationRequest("PURCHASE_INVOICE", pinv.id(),
@@ -327,9 +327,9 @@ class AllocationEngineIT {
         }
 
         @Test
-        @DisplayName("#3: a SUPPLIER_REFUND created without allocation surfaces as a POSITIVE open item")
+        @DisplayName("#3: a CASH_IN_REFUND created without allocation surfaces as a POSITIVE open item")
         void supplierRefundIsPositiveOpenItem() {
-            // The new UI lets a supplier-side "Versement" create a SUPPLIER_REFUND
+            // The new UI lets a supplier-side "Versement" create a CASH_IN_REFUND
             // with no allocation: money received from a supplier becomes a free
             // positive item the engine can re-impute later (e.g. against a future
             // retrait, or against a sale invoice if the party is also a customer).
@@ -339,7 +339,7 @@ class AllocationEngineIT {
                     supplierId, tenantId, "S-REFUND-" + supplierId, "Supplier Refund Test");
 
             PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "SUPPLIER_REFUND", supplierId, new BigDecimal("750.00"), "MRU",
+                    "CASH_IN_REFUND", supplierId, new BigDecimal("750.00"), "MRU",
                     LocalDate.now(), "BANK_TRANSFER", null, null, "Refund from supplier", null));
             paymentService.confirm(pay.id(), null);
 
@@ -361,13 +361,13 @@ class AllocationEngineIT {
 
             // Versement: the supplier gave us back 750 (open positive item).
             PaymentDto.PaymentResponse versement = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "SUPPLIER_REFUND", supplierId, new BigDecimal("750.00"), "MRU",
+                    "CASH_IN_REFUND", supplierId, new BigDecimal("750.00"), "MRU",
                     LocalDate.now(), "BANK_TRANSFER", null, null, "Versement fournisseur", null));
             paymentService.confirm(versement.id(), null);
 
             // Retrait: we pay the supplier 1000 (cash out).
             PaymentDto.PaymentResponse retrait = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "SUPPLIER_PAYMENT", supplierId, new BigDecimal("1000.00"), "MRU",
+                    "CASH_OUT", supplierId, new BigDecimal("1000.00"), "MRU",
                     LocalDate.now(), "CASH", null, null, "Retrait fournisseur", null));
             paymentService.confirm(retrait.id(), null);
 
@@ -402,7 +402,7 @@ class AllocationEngineIT {
             // PAID invoice via createInvoice + applyPayment → balance=0 → excluded.
             UUID paid = createInvoice(new BigDecimal("100.00"), LocalDate.now().minusDays(1));
             PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "CUSTOMER_PAYMENT", customerId, new BigDecimal("100.00"), "MRU",
+                    "CASH_IN", customerId, new BigDecimal("100.00"), "MRU",
                     LocalDate.now(), "CASH", null, null, "Pay in full", null));
             paymentService.autoAllocate(new PaymentDto.AutoAllocateRequest(customerId, pay.id(), null));
             paymentService.confirm(pay.id(), null);
@@ -446,7 +446,7 @@ class AllocationEngineIT {
             // Seed: 100 invoice + 500 payment with explicit 400 surplus → CUSTOMER_CREDIT of 400.
             UUID firstInv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
             PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "CUSTOMER_PAYMENT", customerId, new BigDecimal("500.00"), "MRU",
+                    "CASH_IN", customerId, new BigDecimal("500.00"), "MRU",
                     LocalDate.now(), "CASH", null, null, "Seed credit",
                     List.of(
                             new PaymentDto.AllocationRequest("SALE_INVOICE", firstInv,
@@ -496,7 +496,7 @@ class AllocationEngineIT {
             // Seed: 100 invoice + 500 payment → 400 OVERPAYMENT credit.
             UUID firstInv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
             PaymentDto.PaymentResponse seed = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "CUSTOMER_PAYMENT", customerId, new BigDecimal("500.00"), "MRU",
+                    "CASH_IN", customerId, new BigDecimal("500.00"), "MRU",
                     LocalDate.now(), "CASH", null, null, "Seed credit",
                     List.of(
                             new PaymentDto.AllocationRequest("SALE_INVOICE", firstInv,
@@ -508,9 +508,9 @@ class AllocationEngineIT {
                     "SELECT id FROM customer_credits WHERE party_id = ? AND status = 'ACTIVE'",
                     UUID.class, customerId);
 
-            // Operator pays the customer back 400 via a CUSTOMER_REFUND payment.
+            // Operator pays the customer back 400 via a CASH_OUT_REFUND payment.
             PaymentDto.PaymentResponse refund = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "CUSTOMER_REFUND", customerId, new BigDecimal("400.00"), "MRU",
+                    "CASH_OUT_REFUND", customerId, new BigDecimal("400.00"), "MRU",
                     LocalDate.now(), "CASH", null, null, "Customer cash refund", null));
             paymentService.confirm(refund.id(), null);
 
@@ -540,7 +540,7 @@ class AllocationEngineIT {
             // 100 invoice + 50 OVERPAYMENT credit. Ask for 999 → only 50 applied.
             UUID prevInv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
             PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "CUSTOMER_PAYMENT", customerId, new BigDecimal("150.00"), "MRU",
+                    "CASH_IN", customerId, new BigDecimal("150.00"), "MRU",
                     LocalDate.now(), "CASH", null, null, "Seed small credit",
                     List.of(
                             new PaymentDto.AllocationRequest("SALE_INVOICE", prevInv,
