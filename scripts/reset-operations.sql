@@ -55,6 +55,10 @@ TRUNCATE TABLE
     deliveries,
 
     -- Achats
+    purchase_credit_note_lines,
+    purchase_credit_notes,
+    goods_receipt_lines,
+    goods_receipts,
     purchase_invoice_lines,
     purchase_invoices,
     purchase_order_lines,
