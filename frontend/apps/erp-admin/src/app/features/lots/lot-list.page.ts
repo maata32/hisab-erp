@@ -107,10 +107,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                           [label]="'lots.destroy' | translate"
                           (click)="openDestroy(l)"></button>
                 }
-                <a [href]="'/api/v1/lots/' + l.id + '/label.pdf'" target="_blank"
-                   class="p-button p-button-sm p-button-text" [title]="'lots.label' | translate">
-                  <i class="pi pi-tag"></i>
-                </a>
+                <button pButton icon="pi pi-tag" class="p-button-sm p-button-text"
+                        [pTooltip]="'lots.label' | translate"
+                        (click)="printPdf('/api/v1/lots/' + l.id + '/label.pdf')"></button>
               </td>
             </tr>
           </ng-template>
@@ -239,6 +238,19 @@ export class LotListPage implements OnInit {
       this.load();
       if (this.activeTab === 2) this.loadExpired();
     } finally { this.saving.set(false); }
+  }
+
+  /** Fetch the PDF through HttpClient so the auth interceptor attaches the JWT
+   *  (a plain anchor navigation would 401), then open it in a new tab. */
+  protected async printPdf(url: string) {
+    try {
+      const blob = await firstValueFrom(this.http.get(url, { responseType: 'blob' }));
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+    } catch (e) {
+      console.error('PDF fetch failed', e);
+    }
   }
 
   private async load() {
