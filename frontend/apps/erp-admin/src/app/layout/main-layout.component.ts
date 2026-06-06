@@ -143,6 +143,7 @@ export class MainLayoutComponent {
 
     // Inventory & catalog
     { label: 'nav.products', icon: 'pi pi-box', path: '/products', permission: 'product:read' },
+    { label: 'nav.attributes', icon: 'pi pi-th-large', path: '/attributes', permission: 'product:read' },
     { label: 'nav.stock', icon: 'pi pi-database', path: '/stock', permission: 'stock:read' },
     { label: 'nav.warehouses', icon: 'pi pi-warehouse', path: '/warehouses', permission: 'stock:read' },
     { label: 'nav.stockTransfers', icon: 'pi pi-arrow-right-arrow-left', path: '/stock-transfers', permission: 'inventory:transfer' },

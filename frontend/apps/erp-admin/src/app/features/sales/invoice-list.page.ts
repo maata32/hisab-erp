@@ -95,6 +95,17 @@ interface CreditNotePreview {
   blockReason: string | null;
 }
 
+/** A net-position open item (credit or opposite-chain invoice) the user can
+ *  offset against the invoice being created. */
+interface CompensItem {
+  sourceType: string;
+  sourceId: string;
+  label: string;
+  amountOpen: number;
+  selected: boolean;
+  amount: number;
+}
+
 interface CustomerOpt {
   id: string;
   code: string;
@@ -281,20 +292,43 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             </div>
           </div>
 
-          @if (totalAvailableCredit() > 0) {
-            <div class="p-3 rounded border border-sky-300 bg-sky-50 text-sm text-sky-900 flex items-start gap-2">
-              <i class="pi pi-info-circle mt-0.5"></i>
-              <div class="flex-1">
-                <label class="flex items-start gap-2 cursor-pointer">
-                  <input type="checkbox" [(ngModel)]="applyCreditModel" class="mt-1" />
-                  <span>
-                    <strong>{{ 'invoices.creditBanner.title' | translate:{
-                      amount: totalAvailableCredit(), currency: form.currency
-                    } }}</strong>
-                    <span class="block text-xs text-sky-700 mt-0.5">{{ 'invoices.creditBanner.hint' | translate }}</span>
-                  </span>
-                </label>
+          @if (compensItems().length > 0) {
+            <div class="border border-sky-300 rounded bg-sky-50">
+              <div class="flex items-center justify-between p-2 border-b border-sky-200">
+                <span class="font-medium text-sm text-sky-900">{{ 'compensate.title' | translate }}</span>
+                <span class="text-xs text-sky-800">{{ 'compensate.total' | translate }} :
+                  <strong>{{ compensTotal() | money }} {{ form.currency }}</strong></span>
               </div>
+              <table class="w-full text-sm">
+                <thead class="text-sky-800">
+                  <tr>
+                    <th class="w-8 p-2"></th>
+                    <th class="text-left p-2">{{ 'partners.openItemsCol.type' | translate }}</th>
+                    <th class="text-left p-2">{{ 'partners.openItemsCol.ref' | translate }}</th>
+                    <th class="text-right p-2 w-28">{{ 'partners.openItemsCol.open' | translate }}</th>
+                    <th class="text-right p-2 w-32">{{ 'compensate.colImpute' | translate }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of compensItems(); track item.sourceId) {
+                    <tr class="border-t border-sky-200">
+                      <td class="p-2 text-center">
+                        <input type="checkbox" [(ngModel)]="item.selected" />
+                      </td>
+                      <td class="p-2">{{ ('partners.openItemsType.' + item.sourceType) | translate }}</td>
+                      <td class="p-2 font-mono text-xs">{{ item.label }}</td>
+                      <td class="p-2 text-right text-gray-700">{{ item.amountOpen | money }}</td>
+                      <td class="p-1">
+                        <p-inputNumber [(ngModel)]="item.amount" [min]="0" [max]="item.amountOpen"
+                                       [minFractionDigits]="2" [maxFractionDigits]="2"
+                                       [disabled]="!item.selected"
+                                       inputStyleClass="w-full text-right" styleClass="w-full" />
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+              <p class="text-xs text-sky-700 p-2 border-t border-sky-200">{{ 'compensate.hint' | translate }}</p>
             </div>
           }
           <div>
@@ -679,10 +713,12 @@ export class InvoiceListPage implements OnInit {
   protected deliveryWarehouseId: string | null = null;
   private pendingInvoicePayload: Record<string, unknown> | null = null;
 
-  // Customer credit auto-application (Phase 2 AllocationEngine). Populated
-  // when the user picks a customer; rows are CUSTOMER_CREDIT open items.
-  protected availableCredits = signal<{ sourceId: string; amountOpen: number }[]>([]);
-  protected applyCreditModel = true;
+  // Net-position offset menu (unified AllocationEngine). Populated when the user
+  // picks a customer: the customer's NEGATIVE open items — credits (CUSTOMER_CREDIT)
+  // and, when the party is also a supplier, our open purchase invoices
+  // (PURCHASE_INVOICE) — which can be netted against the sale invoice (POSITIVE)
+  // being created. Credits are pre-checked to preserve the prior auto-apply UX.
+  protected compensItems = signal<CompensItem[]>([]);
 
   protected detailOpen = signal(false);
   protected detail = signal<InvoiceDetail | null>(null);
@@ -874,7 +910,7 @@ export class InvoiceListPage implements OnInit {
       })),
     };
     this.submitted.set(false);
-    this.refreshAvailableCredits();
+    this.refreshCompensItems();
     this.detailOpen.set(false);
     this.dialogOpen = true;
   }
@@ -899,38 +935,51 @@ export class InvoiceListPage implements OnInit {
   protected openCreate() {
     this.form = this.emptyForm();
     this.submitted.set(false);
+    this.compensItems.set([]);
     this.dialogOpen = true;
   }
 
   protected onCustomerChange() {
     const c = this.customers().find(x => x.id === this.form.customerId);
     if (c && !this.form.currency) this.form.currency = c.currency;
-    this.refreshAvailableCredits();
+    this.refreshCompensItems();
   }
 
-  private async refreshAvailableCredits() {
+  private async refreshCompensItems() {
     if (!this.form.customerId) {
-      this.availableCredits.set([]);
+      this.compensItems.set([]);
       return;
     }
     try {
       const items = await firstValueFrom(
-        this.http.get<{ sourceType: string; sourceId: string; amountOpen: number }[]>(
+        this.http.get<{ sourceType: string; sourceId: string; sign: string; amountOpen: number; label: string }[]>(
           `/api/v1/allocations/open-items?partyId=${this.form.customerId}`)
       );
-      const credits = (items ?? [])
-        .filter(i => i.sourceType === 'CUSTOMER_CREDIT')
-        .map(i => ({ sourceId: i.sourceId, amountOpen: Number(i.amountOpen) }));
-      this.availableCredits.set(credits);
-      // Default behaviour: pre-check "apply credit" only when the customer has credit.
-      this.applyCreditModel = credits.length > 0;
+      // A sale invoice is POSITIVE, so it nets against the party's NEGATIVE items:
+      // credits and — when the party is also a supplier — our purchase invoices.
+      const negatives = (items ?? [])
+        .filter(i => i.sign === 'NEGATIVE'
+          && (i.sourceType === 'CUSTOMER_CREDIT' || i.sourceType === 'PURCHASE_INVOICE'))
+        .map(i => ({
+          sourceType: i.sourceType,
+          sourceId: i.sourceId,
+          label: i.label,
+          amountOpen: Number(i.amountOpen),
+          // Pre-check credits (prior auto-apply UX); leave purchase invoices opt-in.
+          selected: i.sourceType === 'CUSTOMER_CREDIT',
+          amount: Number(i.amountOpen),
+        }));
+      this.compensItems.set(negatives);
     } catch {
-      this.availableCredits.set([]);
+      this.compensItems.set([]);
     }
   }
 
-  protected totalAvailableCredit(): number {
-    return this.availableCredits().reduce((s, c) => s + c.amountOpen, 0);
+  protected compensTotal(): number {
+    return +this.compensItems()
+      .filter(i => i.selected)
+      .reduce((s, i) => s + (i.amount || 0), 0)
+      .toFixed(2);
   }
 
   protected addLine() {
@@ -1031,13 +1080,13 @@ export class InvoiceListPage implements OnInit {
         created = await firstValueFrom(this.http.post<{ id: string }>(
           '/api/v1/invoices', this.pendingInvoicePayload));
       }
-      if (this.applyCreditModel && this.availableCredits().length > 0 && created?.id) {
-        await this.applyCreditsToCreatedInvoice(created.id);
+      if (created?.id && this.compensTotal() > 0) {
+        await this.applyCompensationsToCreatedInvoice(created.id);
       }
       this.deliveryDialogOpen.set(false);
       this.dialogOpen = false;
       this.pendingInvoicePayload = null;
-      this.availableCredits.set([]);
+      this.compensItems.set([]);
       this.reload();
     } catch (e) {
       // Immediate delivery rolls back atomically when stock is short (or any
@@ -1068,21 +1117,25 @@ export class InvoiceListPage implements OnInit {
     });
   }
 
-  private async applyCreditsToCreatedInvoice(invoiceId: string) {
-    // FIFO walk: consume each credit in order, stop once the invoice would be
-    // fully covered. The backend caps to min(invoice.balance, credit.remaining,
-    // amount) so requesting the full credit amount is safe.
-    for (const credit of this.availableCredits()) {
-      if (credit.amountOpen <= 0) continue;
+  private async applyCompensationsToCreatedInvoice(invoiceId: string) {
+    // The new sale invoice is the POSITIVE side; each selected item (credit or
+    // purchase invoice) is NEGATIVE. The engine caps every call to
+    // min(invoice.balance, item.open, amount), so once the invoice is fully
+    // covered later rows net to 0 — sequential best-effort is safe.
+    for (const item of this.compensItems()) {
+      if (!item.selected || (item.amount || 0) <= 0) continue;
       try {
-        await firstValueFrom(this.http.post('/api/v1/allocations/credit-to-invoice', {
-          creditId: credit.sourceId,
-          invoiceId,
-          amount: credit.amountOpen,
-        }));
+        await firstValueFrom(this.http.post(
+          `/api/v1/allocations/apply?partyId=${this.form.customerId}`, {
+            positiveType: 'INVOICE',
+            positiveId: invoiceId,
+            negativeType: item.sourceType,
+            negativeId: item.sourceId,
+            amount: item.amount,
+          }));
       } catch {
-        // Best-effort: a single credit failure shouldn't block the invoice
-        // from existing. The user can apply remaining credits manually later.
+        // Best-effort: a single failure shouldn't block the invoice from
+        // existing. The user can compensate the rest manually later.
       }
     }
   }

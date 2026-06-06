@@ -7,6 +7,10 @@ export const appRoutes: Routes = [
     loadChildren: () => import('./features/auth/auth.routes').then((m) => m.authRoutes),
   },
   {
+    path: 'register',
+    loadComponent: () => import('./features/registration/register.page').then((m) => m.RegisterPage),
+  },
+  {
     path: '',
     canActivate: [authGuard],
     loadComponent: () => import('./layout/main-layout.component').then((m) => m.MainLayoutComponent),
@@ -88,6 +92,11 @@ export const appRoutes: Routes = [
         path: 'products',
         loadComponent: () =>
           import('./features/products/product-list.page').then((m) => m.ProductListPage),
+      },
+      {
+        path: 'attributes',
+        loadComponent: () =>
+          import('./features/products/attribute-list.page').then((m) => m.AttributeListPage),
       },
       {
         path: 'warehouses',

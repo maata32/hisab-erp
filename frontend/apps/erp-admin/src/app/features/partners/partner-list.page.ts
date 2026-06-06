@@ -148,15 +148,15 @@ interface PartnerForm {
                 <td>{{ p.phone || '—' }}</td>
                 <td>{{ p.email || '—' }}</td>
                 <td class="text-right font-medium"
-                    [class.text-red-600]="debts(p) > 0">
-                  @if (debts(p) > 0) {
-                    {{ debts(p) | money }} {{ p.currency }}
+                    [class.text-red-600]="netBalance(p) < 0">
+                  @if (netBalance(p) < 0) {
+                    {{ (-netBalance(p)) | money }} {{ p.currency }}
                   } @else { — }
                 </td>
                 <td class="text-right font-medium"
-                    [class.text-amber-700]="creditOwed(p) > 0">
-                  @if (creditOwed(p) > 0) {
-                    {{ creditOwed(p) | money }} {{ p.currency }}
+                    [class.text-green-600]="netBalance(p) > 0">
+                  @if (netBalance(p) > 0) {
+                    {{ netBalance(p) | money }} {{ p.currency }}
                   } @else { — }
                 </td>
                 <td>
@@ -553,6 +553,10 @@ export class PartnerListPage implements OnInit {
     const supplierOwed = p.isSupplier ? Math.max(0, Number(p.supplierBalance) || 0) : 0;
     const customerCredit = p.isCustomer ? Math.max(0, Number(p.customerCreditBalance) || 0) : 0;
     return +(supplierOwed + customerCredit).toFixed(2);
+  }
+  /** Solde net du tiers : positif = on lui doit (crédit), négatif = il nous doit (dette). */
+  protected netBalance(p: Partner): number {
+    return +(this.creditOwed(p) - this.debts(p)).toFixed(2);
   }
   protected typeOptions: Array<{ value: string; label: string }> = [];
   protected roleOptions: Array<{ value: Role; label: string }> = [];
