@@ -21,7 +21,7 @@ public class StockTransferDto {
 
     public record LineResponse(
             UUID id,
-            UUID productId,
+            UUID variantId,
             UUID lotId,
             UUID uomId,
             BigDecimal quantityRequested,

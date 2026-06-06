@@ -31,6 +31,9 @@ class SaleLine extends TenantAwareEntity {
     @Column(name = "line_number", nullable = false)
     private int lineNumber;
 
+    @Column(name = "variant_id", columnDefinition = "uuid")
+    private UUID variantId;
+
     @Column(name = "product_id", columnDefinition = "uuid", nullable = false)
     private UUID productId;
 

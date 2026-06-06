@@ -28,6 +28,9 @@ class PurchaseCreditNoteLine extends TenantAwareEntity {
     @Column(name = "purchase_invoice_line_id", columnDefinition = "uuid")
     private UUID purchaseInvoiceLineId;
 
+    @Column(name = "variant_id", columnDefinition = "uuid")
+    private UUID variantId;
+
     @Column(name = "product_id", nullable = false, columnDefinition = "uuid")
     private UUID productId;
 

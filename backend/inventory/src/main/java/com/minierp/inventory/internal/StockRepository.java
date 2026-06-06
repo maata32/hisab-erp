@@ -13,14 +13,14 @@ import java.util.UUID;
 interface StockRepository extends JpaRepository<Stock, UUID> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT s FROM Stock s WHERE s.warehouseId = :w AND s.productId = :p")
-    Optional<Stock> lockByWarehouseAndProduct(@Param("w") UUID warehouseId, @Param("p") UUID productId);
+    @Query("SELECT s FROM Stock s WHERE s.warehouseId = :w AND s.variantId = :v")
+    Optional<Stock> lockByWarehouseAndVariant(@Param("w") UUID warehouseId, @Param("v") UUID variantId);
 
-    Optional<Stock> findByWarehouseIdAndProductId(UUID warehouseId, UUID productId);
+    Optional<Stock> findByWarehouseIdAndVariantId(UUID warehouseId, UUID variantId);
+
+    List<Stock> findByVariantId(UUID variantId);
 
     List<Stock> findByProductId(UUID productId);
-
-    List<Stock> findByWarehouseIdAndProductIdIn(UUID warehouseId, List<UUID> productIds);
 
     List<Stock> findByWarehouseId(UUID warehouseId);
 }

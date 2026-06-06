@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Stock is now kept per (warehouse, variant). We add variant_id to stocks and
+      stock_movements, backfill it from each product's default (or first) variant, keep
+      product_id denormalized for rollups, and swap the stocks unique key from
+      (warehouse_id, product_id) to (warehouse_id, variant_id).
+    -->
+    <changeSet id="0070-stocks-add-variant" author="mini-erp">
+        <addColumn tableName="stocks">
+            <column name="variant_id" type="uuid"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="0070-stocks-backfill-variant" author="mini-erp">
+        <sql>
+            UPDATE stocks s
+               SET variant_id = (
+                   SELECT v.id FROM product_variants v
+                    WHERE v.product_id = s.product_id
+                    ORDER BY v.is_default DESC, v.sku ASC
+                    LIMIT 1)
+             WHERE s.variant_id IS NULL;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0070-stocks-variant-constraints" author="mini-erp">
+        <addNotNullConstraint tableName="stocks" columnName="variant_id" columnDataType="uuid"/>
+        <dropUniqueConstraint tableName="stocks" constraintName="uk_stocks_warehouse_product"/>
+        <addUniqueConstraint tableName="stocks" columnNames="warehouse_id,variant_id"
+                             constraintName="uk_stocks_warehouse_variant"/>
+        <createIndex tableName="stocks" indexName="idx_stocks_variant">
+            <column name="variant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="0070-movements-add-variant" author="mini-erp">
+        <addColumn tableName="stock_movements">
+            <column name="variant_id" type="uuid"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="0070-movements-backfill-variant" author="mini-erp">
+        <sql>
+            UPDATE stock_movements m
+               SET variant_id = (
+                   SELECT v.id FROM product_variants v
+                    WHERE v.product_id = m.product_id
+                    ORDER BY v.is_default DESC, v.sku ASC
+                    LIMIT 1)
+             WHERE m.variant_id IS NULL;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0070-movements-variant-constraints" author="mini-erp">
+        <addNotNullConstraint tableName="stock_movements" columnName="variant_id" columnDataType="uuid"/>
+        <createIndex tableName="stock_movements" indexName="idx_stock_movements_warehouse_variant">
+            <column name="warehouse_id"/>
+            <column name="variant_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

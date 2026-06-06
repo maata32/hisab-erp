@@ -13,8 +13,10 @@ import java.util.UUID;
 
 interface ProductLotRepository extends JpaRepository<ProductLot, UUID> {
 
-    List<ProductLot> findByProductIdAndWarehouseIdAndStatusOrderByExpirationDateAsc(
-            UUID productId, UUID warehouseId, LotStatus status);
+    List<ProductLot> findByProductVariantIdAndWarehouseIdAndStatusOrderByExpirationDateAsc(
+            UUID productVariantId, UUID warehouseId, LotStatus status);
+
+    Page<ProductLot> findByProductVariantId(UUID productVariantId, Pageable pageable);
 
     Page<ProductLot> findByProductId(UUID productId, Pageable pageable);
 

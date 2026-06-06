@@ -20,7 +20,7 @@ public record CreateSaleRequest(
         @Valid PaymentRequest payment) {
 
     public record SaleLineRequest(
-            @NotNull UUID productId,
+            @NotNull UUID variantId,
             UUID uomId,
             @NotNull @DecimalMin("0.000001") BigDecimal quantity,
             @DecimalMin("0.0000") BigDecimal unitDiscount) {}

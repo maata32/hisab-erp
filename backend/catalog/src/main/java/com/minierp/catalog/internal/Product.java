@@ -82,6 +82,14 @@ class Product extends TenantAwareEntity {
     @Builder.Default
     private boolean active = true;
 
+    /**
+     * When true, every variant of this product shares the same price: editing the price
+     * fans out to all variants. When false, each variant carries its own price rows.
+     */
+    @Column(name = "uniform_pricing", nullable = false)
+    @Builder.Default
+    private boolean uniformPricing = true;
+
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 

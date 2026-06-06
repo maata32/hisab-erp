@@ -1,5 +1,6 @@
 package com.minierp.tenant.api;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,4 +17,7 @@ public interface TenantLookup {
 
     /** Returns the tenant's branding info (name, address, phone, email, logo) for PDF rendering. */
     Optional<TenantBranding> findBrandingById(UUID id);
+
+    /** Active subscription plans, for the public registration form. */
+    List<PlanView> listActivePlans();
 }

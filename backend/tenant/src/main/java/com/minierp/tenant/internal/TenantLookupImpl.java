@@ -1,6 +1,7 @@
 package com.minierp.tenant.internal;
 
 import com.minierp.tenant.api.PlanLimits;
+import com.minierp.tenant.api.PlanView;
 import com.minierp.tenant.api.TenantBranding;
 import com.minierp.tenant.api.TenantLookup;
 import com.minierp.tenant.api.TenantSnapshot;
@@ -8,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -49,6 +51,19 @@ class TenantLookupImpl implements TenantLookup {
                         p.getMaxCashRegisters(),
                         p.getMaxProductImages()))
                 .orElseGet(PlanLimits::defaults);
+    }
+
+    @Override
+    @Cacheable(value = "tenants:plans")
+    public List<PlanView> listActivePlans() {
+        return plans.findAllByActiveTrue().stream()
+                .map(p -> new PlanView(
+                        p.getCode(), p.getName(),
+                        p.getMonthlyPrice(), p.getAnnualPrice(),
+                        p.getMaxUsers(), p.getMaxProducts(),
+                        p.getMaxCashRegisters(), p.getMaxProductImages(),
+                        p.getEnabledModules()))
+                .toList();
     }
 
     private TenantSnapshot toSnapshot(Organization o) {

@@ -66,6 +66,7 @@ class CreditNoteReturnEventListener {
         for (CreditNoteReturnRequestedEvent.ReturnLine rl : event.lines()) {
             deliveryLines.save(DeliveryLine.builder()
                     .deliveryId(br.getId())
+                    .variantId(rl.variantId())
                     .productId(rl.productId())
                     .uomId(rl.uomId())
                     .quantityOrdered(rl.quantity())
@@ -75,7 +76,7 @@ class CreditNoteReturnEventListener {
                     .snapshotSku(rl.sku())
                     .build());
 
-            stockOps.receive(warehouseId, rl.productId(), rl.quantity(),
+            stockOps.receive(warehouseId, rl.variantId(), rl.quantity(),
                     rl.unitPrice(), StockMovementType.SALE_RETURN,
                     "DELIVERY", br.getId(), br.getNumber(),
                     "Return delivery " + br.getNumber(), null);

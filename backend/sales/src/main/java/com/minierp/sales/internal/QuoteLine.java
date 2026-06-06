@@ -22,6 +22,9 @@ class QuoteLine extends TenantAwareEntity {
     @Column(name = "line_number", nullable = false)
     private int lineNumber;
 
+    @Column(name = "variant_id", columnDefinition = "uuid")
+    private UUID variantId;
+
     @Column(name = "product_id", nullable = false, columnDefinition = "uuid")
     private UUID productId;
 

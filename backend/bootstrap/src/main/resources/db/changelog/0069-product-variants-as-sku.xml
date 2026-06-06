@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Promote the variant to the real SKU. Every product must own at least one variant:
+      a single default variant for attribute-less products. We add is_default + uniform
+      pricing, ensure variant SKUs are present and required, then backfill one default
+      variant for every existing product that has none. The pre-existing partial unique
+      index uk_product_variants_tenant_sku (WHERE sku IS NOT NULL) becomes a full unique
+      index once sku is NOT NULL, so no index change is needed.
+    -->
+    <changeSet id="0069-products-uniform-pricing" author="mini-erp">
+        <addColumn tableName="products">
+            <column name="uniform_pricing" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="0069-product-variants-is-default" author="mini-erp">
+        <addColumn tableName="product_variants">
+            <column name="is_default" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="0069-backfill-variant-sku" author="mini-erp">
+        <sql>
+            UPDATE product_variants
+               SET sku = 'V-' || substr(id::text, 1, 8)
+             WHERE sku IS NULL;
+        </sql>
+        <addNotNullConstraint tableName="product_variants" columnName="sku" columnDataType="varchar(64)"/>
+    </changeSet>
+
+    <changeSet id="0069-backfill-default-variants" author="mini-erp">
+        <sql>
+            INSERT INTO product_variants
+                (id, tenant_id, product_id, sku, is_default, is_active, created_at, updated_at, version)
+            SELECT uuid_generate_v4(), p.tenant_id, p.id, p.sku, true, true, now(), now(), 0
+              FROM products p
+             WHERE NOT EXISTS (
+                   SELECT 1 FROM product_variants v WHERE v.product_id = p.id);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

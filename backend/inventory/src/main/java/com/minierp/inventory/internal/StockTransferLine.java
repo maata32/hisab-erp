@@ -20,8 +20,8 @@ class StockTransferLine extends TenantAwareEntity {
     @JoinColumn(name = "transfer_id", nullable = false, columnDefinition = "uuid")
     private StockTransfer transfer;
 
-    @Column(name = "product_id", nullable = false, columnDefinition = "uuid")
-    private UUID productId;
+    @Column(name = "variant_id", nullable = false, columnDefinition = "uuid")
+    private UUID variantId;
 
     @Column(name = "lot_id", columnDefinition = "uuid")
     private UUID lotId;

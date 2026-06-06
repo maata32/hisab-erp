@@ -20,8 +20,8 @@ class InventoryCountLine extends TenantAwareEntity {
     @JoinColumn(name = "count_id", nullable = false, columnDefinition = "uuid")
     private InventoryCount count;
 
-    @Column(name = "product_id", nullable = false, columnDefinition = "uuid")
-    private UUID productId;
+    @Column(name = "variant_id", nullable = false, columnDefinition = "uuid")
+    private UUID variantId;
 
     @Column(name = "lot_id", columnDefinition = "uuid")
     private UUID lotId;

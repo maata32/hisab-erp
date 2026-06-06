@@ -19,6 +19,8 @@ import java.util.UUID;
 @Entity
 @Table(name = "stock_movements",
         indexes = {
+                @Index(name = "idx_stock_movements_warehouse_variant",
+                        columnList = "warehouse_id,variant_id"),
                 @Index(name = "idx_stock_movements_warehouse_product",
                         columnList = "warehouse_id,product_id"),
                 @Index(name = "idx_stock_movements_occurred", columnList = "occurred_at"),
@@ -38,6 +40,10 @@ class StockMovement extends TenantAwareEntity {
     @Column(name = "warehouse_id", columnDefinition = "uuid", nullable = false)
     private UUID warehouseId;
 
+    @Column(name = "variant_id", columnDefinition = "uuid", nullable = false)
+    private UUID variantId;
+
+    /** Denormalized parent product of {@link #variantId} for product-level history. */
     @Column(name = "product_id", columnDefinition = "uuid", nullable = false)
     private UUID productId;
 

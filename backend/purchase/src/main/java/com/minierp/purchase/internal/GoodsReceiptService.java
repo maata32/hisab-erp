@@ -98,6 +98,7 @@ public class GoodsReceiptService {
             if (lr.quantityOrdered() == null || lr.quantityOrdered().signum() <= 0) continue;
             receiptLines.save(GoodsReceiptLine.builder()
                     .goodsReceiptId(gr.getId())
+                    .variantId(lr.variantId())
                     .productId(lr.productId())
                     .uomId(lr.uomId())
                     .quantityOrdered(lr.quantityOrdered())
@@ -109,20 +110,30 @@ public class GoodsReceiptService {
         return toDto(gr);
     }
 
+    /** Outstanding reception lines for an invoice — the exact set the service would
+     *  seed on a create with no explicit lines. Lets the UI prefill the reception
+     *  dialog (product + remaining qty) the same way the sales BL dialog does. */
+    @Transactional(readOnly = true)
+    public List<GoodsReceiptDto.LineRequest> outstandingLines(UUID invoiceId) {
+        purchaseInvoices.findById(invoiceId)
+                .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", invoiceId));
+        return seedLinesFromInvoiceOutstanding(invoiceId);
+    }
+
     /** Seed reception lines from what the invoice still has outstanding (invoiced − already received). */
     private List<GoodsReceiptDto.LineRequest> seedLinesFromInvoiceOutstanding(UUID invoiceId) {
-        Map<UUID, BigDecimal> received = sumReceivedByProduct(invoiceId);
+        Map<UUID, BigDecimal> received = sumReceivedByVariant(invoiceId);
         Map<UUID, BigDecimal> acc = new HashMap<>();
         List<GoodsReceiptDto.LineRequest> out = new ArrayList<>();
         for (PurchaseInvoiceLine il : purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(invoiceId)) {
-            BigDecimal alreadyAttributed = acc.getOrDefault(il.getProductId(),
-                    received.getOrDefault(il.getProductId(), BigDecimal.ZERO));
+            BigDecimal alreadyAttributed = acc.getOrDefault(il.getVariantId(),
+                    received.getOrDefault(il.getVariantId(), BigDecimal.ZERO));
             BigDecimal remaining = il.getQuantity().subtract(alreadyAttributed).max(BigDecimal.ZERO);
             // never seed more than this line's own quantity
             remaining = remaining.min(il.getQuantity());
             if (remaining.signum() <= 0) continue;
-            acc.merge(il.getProductId(), remaining, BigDecimal::add);
-            out.add(new GoodsReceiptDto.LineRequest(il.getProductId(), il.getUomId(), remaining,
+            acc.merge(il.getVariantId(), remaining, BigDecimal::add);
+            out.add(new GoodsReceiptDto.LineRequest(il.getVariantId(), il.getProductId(), il.getUomId(), remaining,
                     il.getUnitCost(), il.getSnapshotName(), il.getSnapshotSku()));
         }
         return out;
@@ -157,8 +168,8 @@ public class GoodsReceiptService {
         Map<UUID, GoodsReceiptLine> linesById = new HashMap<>();
         for (GoodsReceiptLine l : receiptLines.findByGoodsReceiptId(id)) linesById.put(l.getId(), l);
 
-        Map<UUID, BigDecimal> invoicedByProduct = invoicedQtyByProduct(gr.getPurchaseInvoiceId());
-        Map<UUID, BigDecimal> acc = new HashMap<>(sumReceivedByProduct(gr.getPurchaseInvoiceId()));
+        Map<UUID, BigDecimal> invoicedByVariant = invoicedQtyByVariant(gr.getPurchaseInvoiceId());
+        Map<UUID, BigDecimal> acc = new HashMap<>(sumReceivedByVariant(gr.getPurchaseInvoiceId()));
 
         for (GoodsReceiptDto.LineReceived lr : req.lines()) {
             if (lr.quantityReceived() == null || lr.quantityReceived().signum() <= 0) continue;
@@ -171,14 +182,14 @@ public class GoodsReceiptService {
                 throw new BusinessException("error.reception.over_receipt",
                         Map.of("requested", lr.quantityReceived(), "remaining", remainingOnLine));
             }
-            BigDecimal invoiced = invoicedByProduct.getOrDefault(line.getProductId(), BigDecimal.ZERO);
-            BigDecimal alreadyForProduct = acc.getOrDefault(line.getProductId(), BigDecimal.ZERO);
-            if (alreadyForProduct.add(lr.quantityReceived()).compareTo(invoiced) > 0) {
+            BigDecimal invoiced = invoicedByVariant.getOrDefault(line.getVariantId(), BigDecimal.ZERO);
+            BigDecimal alreadyForVariant = acc.getOrDefault(line.getVariantId(), BigDecimal.ZERO);
+            if (alreadyForVariant.add(lr.quantityReceived()).compareTo(invoiced) > 0) {
                 throw new BusinessException("error.reception.over_receipt",
                         Map.of("requested", lr.quantityReceived(),
-                                "remaining", invoiced.subtract(alreadyForProduct).max(BigDecimal.ZERO)));
+                                "remaining", invoiced.subtract(alreadyForVariant).max(BigDecimal.ZERO)));
             }
-            acc.merge(line.getProductId(), lr.quantityReceived(), BigDecimal::add);
+            acc.merge(line.getVariantId(), lr.quantityReceived(), BigDecimal::add);
 
             ProductSnapshot product = catalog.findProductById(line.getProductId())
                     .orElseThrow(() -> NotFoundException.of("entity.product", line.getProductId()));
@@ -190,12 +201,12 @@ public class GoodsReceiptService {
                 }
                 // The lot's purchase_order_id FK references purchase_orders; reception
                 // is now invoice-anchored, so there is no PO to link — pass null.
-                lotId = lotOps.receiveLot(product.id(), warehouseId, product.baseUomId(),
+                lotId = lotOps.receiveLot(line.getVariantId(), warehouseId, product.baseUomId(),
                         lr.lotNumber(), lr.expirationDate(), lr.productionDate(),
                         lr.quantityReceived(), line.getUnitCost(),
                         gr.getPartyId(), null);
             }
-            stockOps.receive(warehouseId, product.id(), lr.quantityReceived(), line.getUnitCost(),
+            stockOps.receive(warehouseId, line.getVariantId(), lr.quantityReceived(), line.getUnitCost(),
                     StockMovementType.PURCHASE_RECEIPT,
                     "GOODS_RECEIPT", gr.getId(), gr.getNumber(),
                     "BRC " + gr.getNumber(), userId);
@@ -257,8 +268,8 @@ public class GoodsReceiptService {
 
     // ── Returns (called by the purchase credit-note flow) ─────────────────────
 
-    /** A product line to send back to the supplier as part of an avoir. */
-    record ReturnLine(UUID productId, UUID uomId, BigDecimal quantity, BigDecimal unitCost,
+    /** A variant line to send back to the supplier as part of an avoir. */
+    record ReturnLine(UUID variantId, UUID productId, UUID uomId, BigDecimal quantity, BigDecimal unitCost,
                       String productName, String sku) {}
 
     /**
@@ -290,6 +301,7 @@ public class GoodsReceiptService {
         for (ReturnLine rl : lines) {
             receiptLines.save(GoodsReceiptLine.builder()
                     .goodsReceiptId(gr.getId())
+                    .variantId(rl.variantId())
                     .productId(rl.productId())
                     .uomId(rl.uomId())
                     .quantityOrdered(rl.quantity())
@@ -299,7 +311,7 @@ public class GoodsReceiptService {
                     .snapshotName(rl.productName())
                     .snapshotSku(rl.sku())
                     .build());
-            stockOps.issue(warehouseId, rl.productId(), rl.quantity(),
+            stockOps.issue(warehouseId, rl.variantId(), rl.quantity(),
                     StockMovementType.PURCHASE_RETURN,
                     "GOODS_RECEIPT", gr.getId(), gr.getNumber(),
                     "Retour fournisseur " + gr.getNumber(), userId);
@@ -356,16 +368,16 @@ public class GoodsReceiptService {
         if (inv.getReceptionStatus() == PurchaseInvoiceReceptionStatus.RETURNED
                 && purchaseCreditNotes.countNonDraftByInvoiceId(invoiceId) > 0) return;
 
-        Map<UUID, BigDecimal> invoicedByProduct = invoicedQtyByProduct(invoiceId);
-        Map<UUID, BigDecimal> creditedByProduct = aggregate(purchaseCreditNoteLines.sumCreditedByProduct(invoiceId));
-        Map<UUID, BigDecimal> receivedByProduct = sumReceivedByProduct(invoiceId);
+        Map<UUID, BigDecimal> invoicedByVariant = invoicedQtyByVariant(invoiceId);
+        Map<UUID, BigDecimal> creditedByVariant = aggregate(purchaseCreditNoteLines.sumCreditedByVariant(invoiceId));
+        Map<UUID, BigDecimal> receivedByVariant = sumReceivedByVariant(invoiceId);
 
-        boolean allCovered = !invoicedByProduct.isEmpty();
+        boolean allCovered = !invoicedByVariant.isEmpty();
         boolean anyReceived = false;
-        for (Map.Entry<UUID, BigDecimal> e : invoicedByProduct.entrySet()) {
-            BigDecimal credited = creditedByProduct.getOrDefault(e.getKey(), BigDecimal.ZERO);
+        for (Map.Entry<UUID, BigDecimal> e : invoicedByVariant.entrySet()) {
+            BigDecimal credited = creditedByVariant.getOrDefault(e.getKey(), BigDecimal.ZERO);
             BigDecimal effectiveInvoiced = e.getValue().subtract(credited).max(BigDecimal.ZERO);
-            BigDecimal received = receivedByProduct.getOrDefault(e.getKey(), BigDecimal.ZERO);
+            BigDecimal received = receivedByVariant.getOrDefault(e.getKey(), BigDecimal.ZERO);
             if (received.signum() > 0) anyReceived = true;
             if (received.compareTo(effectiveInvoiced) < 0) allCovered = false;
         }
@@ -376,16 +388,16 @@ public class GoodsReceiptService {
         if (next != inv.getReceptionStatus()) inv.setReceptionStatus(next);
     }
 
-    private Map<UUID, BigDecimal> invoicedQtyByProduct(UUID invoiceId) {
+    private Map<UUID, BigDecimal> invoicedQtyByVariant(UUID invoiceId) {
         Map<UUID, BigDecimal> map = new HashMap<>();
         for (PurchaseInvoiceLine il : purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(invoiceId)) {
-            map.merge(il.getProductId(), il.getQuantity(), BigDecimal::add);
+            map.merge(il.getVariantId(), il.getQuantity(), BigDecimal::add);
         }
         return map;
     }
 
-    private Map<UUID, BigDecimal> sumReceivedByProduct(UUID invoiceId) {
-        return aggregate(receiptLines.sumReceivedByProductForInvoice(invoiceId));
+    private Map<UUID, BigDecimal> sumReceivedByVariant(UUID invoiceId) {
+        return aggregate(receiptLines.sumReceivedByVariantForInvoice(invoiceId));
     }
 
     private Map<UUID, BigDecimal> aggregate(List<Object[]> rows) {
@@ -403,7 +415,7 @@ public class GoodsReceiptService {
                 gr.getId(), gr.getNumber(), gr.getPartyId(), supplierName, gr.getPurchaseInvoiceId(),
                 gr.getWarehouseId(), gr.getStatus().name(), gr.getType().name(),
                 gr.getScheduledDate(), gr.getReceivedAt(), gr.getNotes(),
-                lines.stream().map(l -> new GoodsReceiptDto.LineDto(l.getId(), l.getProductId(), l.getUomId(),
+                lines.stream().map(l -> new GoodsReceiptDto.LineDto(l.getId(), l.getVariantId(), l.getProductId(), l.getUomId(),
                         l.getQuantityOrdered(), l.getQuantityReceived(), l.getUnitCost(), l.getLotId(),
                         l.getStatus().name(), l.getSnapshotName(), l.getSnapshotSku())).toList(),
                 gr.getCreatedAt());

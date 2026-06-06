@@ -19,6 +19,9 @@ class GoodsReceiptLine extends TenantAwareEntity {
     @Column(name = "goods_receipt_id", nullable = false, columnDefinition = "uuid")
     private UUID goodsReceiptId;
 
+    @Column(name = "variant_id", columnDefinition = "uuid")
+    private UUID variantId;
+
     @Column(name = "product_id", nullable = false, columnDefinition = "uuid")
     private UUID productId;
 

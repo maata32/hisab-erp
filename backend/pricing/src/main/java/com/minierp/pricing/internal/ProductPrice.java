@@ -9,16 +9,19 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /**
- * Price for a (product, optional packaging UoM, price tier) combination, valid in
- * an optional time window. Composite uniqueness on
- * (tenant_id, product_id, uom_id, price_tier_id, valid_from) prevents overlapping rows.
+ * Price for a (variant, optional packaging UoM, price tier) combination, valid in
+ * an optional time window. The variant is the real SKU; {@code product_id} is kept
+ * denormalized for the product-level grid and the uniform-pricing fallback. Composite
+ * uniqueness on (tenant_id, variant_id, uom_id, price_tier_id, valid_from) prevents
+ * overlapping rows.
  */
 @Entity
 @Table(name = "product_prices",
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_product_prices_unique",
-                columnNames = {"tenant_id", "product_id", "uom_id", "price_tier_id", "valid_from"}),
+                columnNames = {"tenant_id", "variant_id", "uom_id", "price_tier_id", "valid_from"}),
         indexes = {
+                @Index(name = "idx_product_prices_variant", columnList = "variant_id"),
                 @Index(name = "idx_product_prices_product", columnList = "product_id"),
                 @Index(name = "idx_product_prices_tier", columnList = "price_tier_id")
         })
@@ -34,6 +37,10 @@ class ProductPrice extends TenantAwareEntity {
     @Column(columnDefinition = "uuid")
     private UUID id;
 
+    @Column(name = "variant_id", columnDefinition = "uuid", nullable = false)
+    private UUID variantId;
+
+    /** Denormalized parent product of {@link #variantId} (product-level grid & fallback). */
     @Column(name = "product_id", columnDefinition = "uuid", nullable = false)
     private UUID productId;
 

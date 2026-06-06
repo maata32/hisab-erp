@@ -46,6 +46,14 @@ public class GoodsReceiptController {
         return service.get(id);
     }
 
+    /** Outstanding reception lines for an invoice (product + remaining qty) used to
+     *  prefill the reception create dialog, mirroring the sales BL dialog. */
+    @GetMapping("/outstanding-lines")
+    @PreAuthorize("hasAuthority('purchase:read')")
+    public java.util.List<GoodsReceiptDto.LineRequest> outstandingLines(@RequestParam UUID invoiceId) {
+        return service.outstandingLines(invoiceId);
+    }
+
     @PostMapping("/{id}/start")
     @PreAuthorize("hasAuthority('purchase:receive')")
     public GoodsReceiptDto.GoodsReceiptResponse start(@PathVariable UUID id) {

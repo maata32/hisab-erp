@@ -11,9 +11,10 @@ import java.util.UUID;
 @Entity
 @Table(name = "product_lots",
         uniqueConstraints = @UniqueConstraint(
-                name = "uk_product_lots_tenant_product_number_wh",
-                columnNames = {"tenant_id", "product_id", "lot_number", "warehouse_id"}),
+                name = "uk_product_lots_tenant_variant_number_wh",
+                columnNames = {"tenant_id", "product_variant_id", "lot_number", "warehouse_id"}),
         indexes = {
+                @Index(name = "idx_product_lots_variant", columnList = "product_variant_id"),
                 @Index(name = "idx_product_lots_product", columnList = "product_id"),
                 @Index(name = "idx_product_lots_expiration", columnList = "expiration_date"),
                 @Index(name = "idx_product_lots_status", columnList = "status"),
@@ -25,10 +26,12 @@ public class ProductLot extends TenantAwareEntity {
     @Id @GeneratedValue @Column(columnDefinition = "uuid")
     private UUID id;
 
+    /** Denormalized parent product of {@link #productVariantId}. */
     @Column(name = "product_id", nullable = false, columnDefinition = "uuid")
     private UUID productId;
 
-    @Column(name = "product_variant_id", columnDefinition = "uuid")
+    /** The variant (real SKU) this lot belongs to. */
+    @Column(name = "product_variant_id", nullable = false, columnDefinition = "uuid")
     private UUID productVariantId;
 
     @Column(name = "lot_number", nullable = false, length = 100)

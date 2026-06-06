@@ -14,7 +14,7 @@ public interface LotOperations {
      * FEFO selection: pick the minimum set of lots to satisfy requestedQty,
      * oldest-expiry-first.
      */
-    List<LotAllocation> selectFEFO(UUID productId, UUID warehouseId, BigDecimal requestedQty);
+    List<LotAllocation> selectFEFO(UUID variantId, UUID warehouseId, BigDecimal requestedQty);
 
     /**
      * Consume a previously calculated FEFO allocation — decrement remaining qty
@@ -25,7 +25,7 @@ public interface LotOperations {
     /**
      * Receive stock into a new or existing lot.
      */
-    UUID receiveLot(UUID productId, UUID warehouseId, UUID uomId,
+    UUID receiveLot(UUID variantId, UUID warehouseId, UUID uomId,
                     String lotNumber, java.time.LocalDate expirationDate,
                     java.time.LocalDate productionDate,
                     BigDecimal quantity, BigDecimal unitCost,

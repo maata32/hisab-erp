@@ -21,8 +21,10 @@ public record ProductDto(
         boolean sellable,
         boolean purchasable,
         boolean active,
+        boolean uniformPricing,
         String imageUrl,
         BigDecimal weightGrams,
+        List<UUID> attributeValueIds,
         List<ProductPackagingDto> packagings,
         List<ProductVariantDto> variants,
         List<ProductImageDto> images) {
@@ -43,6 +45,8 @@ public record ProductDto(
             String sku,
             String barcode,
             String attributes,
+            List<UUID> attributeValueIds,
+            boolean defaultVariant,
             boolean active) {}
 
     public record ProductImageDto(

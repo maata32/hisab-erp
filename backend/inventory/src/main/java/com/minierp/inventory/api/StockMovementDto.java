@@ -7,6 +7,7 @@ import java.util.UUID;
 public record StockMovementDto(
         UUID id,
         UUID warehouseId,
+        UUID variantId,
         UUID productId,
         StockMovementType type,
         BigDecimal qtySigned,

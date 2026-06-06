@@ -74,7 +74,7 @@ public class InventoryCountService {
             }
             count.getLines().add(InventoryCountLine.builder()
                     .count(count)
-                    .productId(s.getProductId())
+                    .variantId(s.getVariantId())
                     .uomId(uomId)
                     .theoreticalQty(s.getQtyOnHand())
                     .unitCost(s.getAverageCost())
@@ -115,7 +115,7 @@ public class InventoryCountService {
         count.getLines().stream()
                 .filter(l -> l.getCountedQty() != null && l.getDiscrepancy() != null
                         && l.getDiscrepancy().signum() != 0)
-                .forEach(l -> stockOps.adjust(count.getWarehouseId(), l.getProductId(),
+                .forEach(l -> stockOps.adjust(count.getWarehouseId(), l.getVariantId(),
                         l.getDiscrepancy(), l.getUnitCost(),
                         StockMovementType.INVENTORY_COUNT,
                         "Count " + count.getCountNumber(), userId));
@@ -132,7 +132,7 @@ public class InventoryCountService {
                 c.getStatus().name(), c.getCountDate(), c.getValidatedAt(), c.getValidatedBy(),
                 c.getNotes(),
                 c.getLines().stream().map(l -> new InventoryCountDto.LineResponse(
-                        l.getId(), l.getProductId(), l.getLotId(), l.getUomId(),
+                        l.getId(), l.getVariantId(), l.getLotId(), l.getUomId(),
                         l.getTheoreticalQty(), l.getCountedQty(), l.getDiscrepancy(),
                         l.getUnitCost(), l.getNotes()
                 )).toList());

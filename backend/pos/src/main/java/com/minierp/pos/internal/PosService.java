@@ -2,6 +2,8 @@ package com.minierp.pos.internal;
 
 import com.minierp.catalog.api.CatalogLookup;
 import com.minierp.catalog.api.ProductSnapshot;
+import com.minierp.catalog.api.VariantLookup;
+import com.minierp.catalog.api.VariantView;
 import com.minierp.inventory.api.StockMovementType;
 import com.minierp.inventory.api.StockOperations;
 import com.minierp.pos.api.CashRegisterDto;
@@ -50,6 +52,7 @@ public class PosService {
     private final SaleNumberSequenceRepository sequences;
 
     private final CatalogLookup catalog;
+    private final VariantLookup variants;
     private final UomLookup uomLookup;
     private final PriceResolver priceResolver;
     private final StockOperations stockOps;
@@ -253,24 +256,24 @@ public class PosService {
 
         for (int i = 0; i < req.lines().size(); i++) {
             var lr = req.lines().get(i);
-            ProductSnapshot product = catalog.findProductById(lr.productId())
-                    .orElseThrow(() -> NotFoundException.of("entity.product", lr.productId()));
+            VariantView variant = variants.require(lr.variantId());
 
-            UUID effectiveUomId = lr.uomId() != null ? lr.uomId() : product.baseUomId();
+            UUID effectiveUomId = lr.uomId() != null ? lr.uomId() : variant.baseUomId();
             ResolvedPrice price = priceResolver.resolve(
-                    lr.productId(), effectiveUomId,
+                    lr.variantId(), effectiveUomId,
                     register.getDefaultPriceTierId(),
                     lr.quantity(), saleDate, lr.unitDiscount());
 
-            BigDecimal baseQty = effectiveUomId.equals(product.baseUomId())
+            BigDecimal baseQty = effectiveUomId.equals(variant.baseUomId())
                     ? lr.quantity()
-                    : uomLookup.convert(lr.quantity(), effectiveUomId, product.baseUomId());
+                    : uomLookup.convert(lr.quantity(), effectiveUomId, variant.baseUomId());
 
             BigDecimal lineDiscount = lr.unitDiscount() != null ? lr.unitDiscount() : BigDecimal.ZERO;
 
             SaleLine line = SaleLine.builder()
                     .lineNumber(i + 1)
-                    .productId(lr.productId())
+                    .variantId(variant.id())
+                    .productId(variant.productId())
                     .uomId(effectiveUomId)
                     .quantity(lr.quantity())
                     .baseQuantity(baseQty.setScale(6, RoundingMode.HALF_UP))
@@ -281,8 +284,8 @@ public class PosService {
                     .taxAmount(price.taxAmount())
                     .total(price.total())
                     .taxInclusive(price.taxInclusive())
-                    .snapshotName(product.name())
-                    .snapshotSku(product.sku())
+                    .snapshotName(variant.displayLabel())
+                    .snapshotSku(variant.sku())
                     .build();
             builtLines.add(line);
 
@@ -340,7 +343,7 @@ public class PosService {
         // Decrement stock per line — permit negative per spec §3.1.3
         for (SaleLine line : builtLines) {
             stockOps.issueAllowNegative(
-                    register.getWarehouseId(), line.getProductId(), line.getBaseQuantity(),
+                    register.getWarehouseId(), line.getVariantId(), line.getBaseQuantity(),
                     StockMovementType.SALE, "SALE", sale.getId(), sale.getNumber(),
                     null, userId);
         }
@@ -403,9 +406,9 @@ public class PosService {
         // Reverse stock at the current CMP (kind = SALE_RETURN — does not move CMP).
         List<SaleLine> lines = saleLines.findBySaleIdOrderByLineNumberAsc(saleId);
         for (SaleLine line : lines) {
-            BigDecimal cmp = stockOps.getStock(sale.getWarehouseId(), line.getProductId())
+            BigDecimal cmp = stockOps.getStock(sale.getWarehouseId(), line.getVariantId())
                     .averageCost();
-            stockOps.adjust(sale.getWarehouseId(), line.getProductId(),
+            stockOps.adjust(sale.getWarehouseId(), line.getVariantId(),
                     line.getBaseQuantity(),
                     cmp == null ? BigDecimal.ZERO : cmp,
                     StockMovementType.SALE_RETURN,
@@ -447,7 +450,7 @@ public class PosService {
 
     private SaleDto toDto(Sale s) {
         var lines = saleLines.findBySaleIdOrderByLineNumberAsc(s.getId()).stream()
-                .map(l -> new SaleLineDto(l.getId(), l.getLineNumber(), l.getProductId(),
+                .map(l -> new SaleLineDto(l.getId(), l.getLineNumber(), l.getVariantId(), l.getProductId(),
                         l.getUomId(), l.getQuantity(), l.getBaseQuantity(),
                         l.getUnitPrice(), l.getUnitDiscount(), l.getTaxRate(),
                         l.getSubtotal(), l.getTaxAmount(), l.getTotal(),

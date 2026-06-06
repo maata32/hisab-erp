@@ -13,9 +13,26 @@ interface ProductPriceRepository extends JpaRepository<ProductPrice, UUID> {
 
     List<ProductPrice> findByProductId(UUID productId);
 
-    Optional<ProductPrice> findByProductIdAndUomIdAndPriceTierIdAndValidFrom(
-            UUID productId, UUID uomId, UUID priceTierId, LocalDate validFrom);
+    List<ProductPrice> findByVariantId(UUID variantId);
 
+    Optional<ProductPrice> findByVariantIdAndUomIdAndPriceTierIdAndValidFrom(
+            UUID variantId, UUID uomId, UUID priceTierId, LocalDate validFrom);
+
+    @Query("""
+            SELECT p FROM ProductPrice p
+             WHERE p.variantId = :variantId
+               AND p.uomId = :uomId
+               AND p.priceTierId = :tierId
+               AND p.validFrom <= :date
+               AND (p.validTo IS NULL OR p.validTo >= :date)
+             ORDER BY p.validFrom DESC, p.minQty DESC NULLS LAST
+            """)
+    List<ProductPrice> findActiveByVariant(@Param("variantId") UUID variantId,
+                                           @Param("uomId") UUID uomId,
+                                           @Param("tierId") UUID tierId,
+                                           @Param("date") LocalDate date);
+
+    /** Product-level fallback used for uniform pricing and freshly generated variants. */
     @Query("""
             SELECT p FROM ProductPrice p
              WHERE p.productId = :productId
@@ -25,8 +42,8 @@ interface ProductPriceRepository extends JpaRepository<ProductPrice, UUID> {
                AND (p.validTo IS NULL OR p.validTo >= :date)
              ORDER BY p.validFrom DESC, p.minQty DESC NULLS LAST
             """)
-    List<ProductPrice> findActive(@Param("productId") UUID productId,
-                                  @Param("uomId") UUID uomId,
-                                  @Param("tierId") UUID tierId,
-                                  @Param("date") LocalDate date);
+    List<ProductPrice> findActiveByProduct(@Param("productId") UUID productId,
+                                           @Param("uomId") UUID uomId,
+                                           @Param("tierId") UUID tierId,
+                                           @Param("date") LocalDate date);
 }

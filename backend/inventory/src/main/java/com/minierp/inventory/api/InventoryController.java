@@ -51,10 +51,10 @@ public class InventoryController {
         return warehouses.setDefault(id);
     }
 
-    @GetMapping("/stocks/{warehouseId}/{productId}")
+    @GetMapping("/stocks/{warehouseId}/{variantId}")
     @PreAuthorize("hasAuthority('stock:read')")
-    public StockDto getStock(@PathVariable UUID warehouseId, @PathVariable UUID productId) {
-        return stockOps.getStock(warehouseId, productId);
+    public StockDto getStock(@PathVariable UUID warehouseId, @PathVariable UUID variantId) {
+        return stockOps.getStock(warehouseId, variantId);
     }
 
     @GetMapping("/stocks/by-warehouse/{warehouseId}")
@@ -73,7 +73,7 @@ public class InventoryController {
     @PreAuthorize("hasAuthority('stock:adjust')")
     @ResponseStatus(HttpStatus.CREATED)
     public StockMovementDto receive(@Valid @RequestBody ReceiveStockRequest req) {
-        return stockOps.receive(req.warehouseId(), req.productId(), req.qty(), req.unitCost(),
+        return stockOps.receive(req.warehouseId(), req.variantId(), req.qty(), req.unitCost(),
                 req.type() == null ? StockMovementType.PURCHASE_RECEIPT : req.type(),
                 req.referenceType(), req.referenceId(), req.referenceNumber(),
                 req.note(), null);
@@ -83,7 +83,7 @@ public class InventoryController {
     @PreAuthorize("hasAuthority('stock:adjust')")
     @ResponseStatus(HttpStatus.CREATED)
     public StockMovementDto issue(@Valid @RequestBody IssueStockRequest req) {
-        return stockOps.issue(req.warehouseId(), req.productId(), req.qty(),
+        return stockOps.issue(req.warehouseId(), req.variantId(), req.qty(),
                 req.type() == null ? StockMovementType.ADJUSTMENT : req.type(),
                 req.referenceType(), req.referenceId(), req.referenceNumber(),
                 req.note(), null);
@@ -93,7 +93,7 @@ public class InventoryController {
     @PreAuthorize("hasAuthority('stock:adjust')")
     @ResponseStatus(HttpStatus.CREATED)
     public StockMovementDto adjust(@Valid @RequestBody AdjustStockRequest req) {
-        return stockOps.adjust(req.warehouseId(), req.productId(), req.qtySigned(),
+        return stockOps.adjust(req.warehouseId(), req.variantId(), req.qtySigned(),
                 req.unitCost(),
                 req.type() == null ? StockMovementType.ADJUSTMENT : req.type(),
                 req.note(), null);
@@ -102,10 +102,10 @@ public class InventoryController {
     @GetMapping("/stocks/movements")
     @PreAuthorize("hasAuthority('stock:read')")
     public PageResponse<StockMovementDto> listMovements(
-            @RequestParam UUID productId,
+            @RequestParam UUID variantId,
             @RequestParam(required = false) UUID warehouseId,
             @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return stockOps.listMovements(productId, warehouseId, pageable);
+        return stockOps.listMovements(variantId, warehouseId, pageable);
     }
 
     public record CreateWarehouseRequest(
@@ -123,7 +123,7 @@ public class InventoryController {
 
     public record ReceiveStockRequest(
             @NotNull UUID warehouseId,
-            @NotNull UUID productId,
+            @NotNull UUID variantId,
             @NotNull @DecimalMin("0.000001") BigDecimal qty,
             @NotNull @DecimalMin("0.00") BigDecimal unitCost,
             StockMovementType type,
@@ -134,7 +134,7 @@ public class InventoryController {
 
     public record IssueStockRequest(
             @NotNull UUID warehouseId,
-            @NotNull UUID productId,
+            @NotNull UUID variantId,
             @NotNull @DecimalMin("0.000001") BigDecimal qty,
             StockMovementType type,
             String referenceType,
@@ -144,7 +144,7 @@ public class InventoryController {
 
     public record AdjustStockRequest(
             @NotNull UUID warehouseId,
-            @NotNull UUID productId,
+            @NotNull UUID variantId,
             @NotNull BigDecimal qtySigned,
             BigDecimal unitCost,
             StockMovementType type,

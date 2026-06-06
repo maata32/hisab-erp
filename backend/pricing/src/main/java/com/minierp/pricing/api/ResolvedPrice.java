@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public record ResolvedPrice(
+        UUID variantId,
         UUID productId,
         UUID uomId,
         UUID priceTierId,

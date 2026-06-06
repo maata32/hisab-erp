@@ -17,7 +17,7 @@ public class PurchaseDto {
     // ── Lines ────────────────────────────────────────────────────────────────
 
     public record LineRequest(
-            @NotNull UUID productId,
+            @NotNull UUID variantId,
             UUID uomId,
             @NotNull @Positive BigDecimal quantity,
             @NotNull @PositiveOrZero BigDecimal unitCost,
@@ -27,6 +27,7 @@ public class PurchaseDto {
     public record LineDto(
             UUID id,
             int lineNumber,
+            UUID variantId,
             UUID productId,
             UUID uomId,
             BigDecimal quantity,
@@ -120,6 +121,7 @@ public class PurchaseDto {
     public record PurchaseCreditNoteLineDto(
             UUID id,
             int lineNumber,
+            UUID variantId,
             UUID productId,
             UUID uomId,
             BigDecimal quantity,
@@ -150,6 +152,7 @@ public class PurchaseDto {
     ) {}
 
     public record PurchaseCreditNoteReturnLineDto(
+            UUID variantId,
             UUID productId,
             String productName,
             String sku,

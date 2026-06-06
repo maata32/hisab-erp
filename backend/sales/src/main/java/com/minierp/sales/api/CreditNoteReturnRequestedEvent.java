@@ -19,6 +19,7 @@ public record CreditNoteReturnRequestedEvent(
         List<ReturnLine> lines
 ) {
     public record ReturnLine(
+            UUID variantId,
             UUID productId,
             UUID uomId,
             BigDecimal quantity,

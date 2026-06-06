@@ -125,6 +125,13 @@ app:
       refresh-token-ttl: ${JWT_REFRESH_TTL:P7D}
   pii:
     encryption-key: ${PII_ENCRYPTION_KEY:dev-pii-key-change-in-prod-32chars}
+  frontend:
+    url: ${APP_FRONTEND_URL:http://localhost:4200}
+  mail:
+    from: ${MAIL_FROM:noreply@minierp.local}
+  tenant:
+    grace-period-days: ${TENANT_GRACE_DAYS:7}
+    expiry-cron: ${TENANT_EXPIRY_CRON:0 0 7 * * *}
 
 logging:
   level:

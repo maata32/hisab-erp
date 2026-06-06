@@ -87,6 +87,7 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
             for (DeliveryDto.LineRequest lr : req.lines()) {
                 deliveryLines.save(DeliveryLine.builder()
                         .deliveryId(delivery.getId())
+                        .variantId(lr.variantId())
                         .productId(lr.productId())
                         .uomId(lr.uomId())
                         .quantityOrdered(lr.quantityOrdered())
@@ -128,7 +129,7 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
         for (DeliveryLine line : lines) {
             BigDecimal remaining = line.getQuantityOrdered().subtract(line.getQuantityDelivered());
             if (remaining.signum() > 0) {
-                stockOps.issue(warehouseId, line.getProductId(), remaining,
+                stockOps.issue(warehouseId, line.getVariantId(), remaining,
                         StockMovementType.SALE,
                         "DELIVERY", d.getId(), d.getNumber(),
                         "Delivery " + d.getNumber(), userId);
@@ -168,7 +169,7 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
         // it is settled in the same TX.
         List<DeliveryDto.LineRequest> blLines = invoice.lines().stream()
                 .map(l -> new DeliveryDto.LineRequest(
-                        l.productId(), l.uomId(), l.quantity(),
+                        l.variantId(), l.productId(), l.uomId(), l.quantity(),
                         l.productName(), l.sku()))
                 .toList();
         DeliveryDto.CreateDeliveryRequest createReq = new DeliveryDto.CreateDeliveryRequest(
@@ -241,7 +242,7 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
                 d.getStatus().name(), d.getType().name(),
                 d.getScheduledDate(), d.getDeliveredAt(),
                 d.getAddress(), d.getContactPhone(), d.getSignedBy(), d.getNotes(),
-                lines.stream().map(l -> new DeliveryDto.LineDto(l.getId(), l.getProductId(), l.getUomId(),
+                lines.stream().map(l -> new DeliveryDto.LineDto(l.getId(), l.getVariantId(), l.getProductId(), l.getUomId(),
                         l.getQuantityOrdered(), l.getQuantityDelivered(), l.getStatus().name(),
                         l.getSnapshotName(), l.getSnapshotSku())).toList(),
                 d.getCreatedAt());

@@ -4,8 +4,9 @@ import com.minierp.catalog.internal.ProductService;
 import com.minierp.catalog.internal.ProductService.CreateImageRequest;
 import com.minierp.catalog.internal.ProductService.CreatePackagingRequest;
 import com.minierp.catalog.internal.ProductService.CreateProductRequest;
-import com.minierp.catalog.internal.ProductService.CreateVariantRequest;
+import com.minierp.catalog.internal.ProductService.SetAttributeValuesRequest;
 import com.minierp.catalog.internal.ProductService.UpdateProductRequest;
+import com.minierp.catalog.internal.ProductService.UpdateVariantRequest;
 import com.minierp.shared.util.PageResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -89,20 +90,22 @@ public class ProductController {
         return service.addPackaging(id, req);
     }
 
-    @PostMapping("/{id}/variants")
+    /** Set the product's enabled attribute values and regenerate its variant matrix. */
+    @PutMapping("/{id}/attributes")
     @PreAuthorize("hasAuthority('product:update')")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ProductDto.ProductVariantDto addVariant(
+    public ProductDto setAttributeValues(
             @PathVariable UUID id,
-            @Valid @RequestBody CreateVariantRequest req) {
-        return service.addVariant(id, req);
+            @RequestBody SetAttributeValuesRequest req) {
+        return service.setAttributeValues(id, req.attributeValueIds());
     }
 
-    @DeleteMapping("/{id}/variants/{variantId}")
+    @PatchMapping("/{id}/variants/{variantId}")
     @PreAuthorize("hasAuthority('product:update')")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void removeVariant(@PathVariable UUID id, @PathVariable UUID variantId) {
-        service.removeVariant(id, variantId);
+    public ProductDto.ProductVariantDto updateVariant(
+            @PathVariable UUID id,
+            @PathVariable UUID variantId,
+            @RequestBody UpdateVariantRequest req) {
+        return service.updateVariant(id, variantId, req);
     }
 
     @PostMapping("/{id}/images")
