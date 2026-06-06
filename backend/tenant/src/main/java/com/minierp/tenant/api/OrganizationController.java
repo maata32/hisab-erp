@@ -27,11 +27,12 @@ public class OrganizationController {
 
     @GetMapping
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    @Operation(summary = "List all organizations (super-admin)")
+    @Operation(summary = "List organizations, optionally filtered by status (super-admin)")
     public PageResponse<OrganizationDto> list(
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return service.list(PageRequest.of(page, Math.min(size, 100),
+        return service.list(status, PageRequest.of(page, Math.min(size, 100),
                 Sort.by(Sort.Direction.DESC, "createdAt")));
     }
 
@@ -40,6 +41,37 @@ public class OrganizationController {
     @Operation(summary = "Create a new tenant organization")
     public OrganizationDto create(@Valid @RequestBody CreateOrganizationRequest req) {
         return service.create(req);
+    }
+
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Approve a PENDING registration — moves the tenant to TRIAL")
+    public OrganizationDto approve(@PathVariable UUID id) {
+        return service.approve(id);
+    }
+
+    @PostMapping("/{id}/reject")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Reject a PENDING registration — archives the tenant")
+    public OrganizationDto reject(@PathVariable UUID id, @RequestBody(required = false) ReasonRequest req) {
+        return service.reject(id, req == null ? null : req.reason());
+    }
+
+    @PostMapping("/{id}/activate")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Activate a paid subscription — moves the tenant to ACTIVE")
+    public OrganizationDto activate(@PathVariable UUID id, @RequestBody(required = false) ActivateRequest req) {
+        return service.activate(id,
+                req == null ? null : req.planCode(),
+                req == null ? null : req.billingCycle());
+    }
+
+    @PostMapping("/{id}/archive")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Archive a tenant (soft delete)")
+    public ResponseEntity<Void> archive(@PathVariable UUID id, @RequestBody(required = false) ReasonRequest req) {
+        service.archive(id, req == null ? null : req.reason());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
@@ -94,4 +126,10 @@ public class OrganizationController {
             @Size(max = 50) String timezone) {}
 
     public record SuspendRequest(@Size(max = 500) String reason) {}
+
+    public record ReasonRequest(@Size(max = 500) String reason) {}
+
+    public record ActivateRequest(
+            @Size(max = 50) String planCode,
+            @Size(max = 10) String billingCycle) {}
 }

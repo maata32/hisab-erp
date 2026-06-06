@@ -32,7 +32,8 @@
     "mustBePositive": "يجب أن تكون القيمة موجبة",
     "mustBeNonNegative": "لا يمكن أن تكون القيمة سالبة",
     "atLeastOneLine": "أضف سطراً واحداً على الأقل",
-    "confirm": "تأكيد"
+    "confirm": "تأكيد",
+    "actions": "إجراءات"
   },
   "error": {
     "allocation": {
@@ -109,7 +110,9 @@
       "email": "البريد الإلكتروني",
       "password": "كلمة المرور",
       "submit": "تسجيل الدخول",
-      "demo_hint": "العرض التوضيحي: المستأجر 'demo' / admin@demo.local / Admin1234!"
+      "demo_hint": "العرض التوضيحي: المستأجر 'demo' / admin@demo.local / Admin1234!",
+      "noAccount": "ليس لديك حساب؟",
+      "signUp": "إنشاء حساب"
     },
     "bad_credentials": "بيانات اعتماد غير صحيحة",
     "account_locked": "تم قفل الحساب. حاول مرة أخرى لاحقًا.",
@@ -264,6 +267,50 @@
     "empty": {
       "title": "لا توجد منظمات",
       "description": "أنشئ المنظمة الأولى عبر واجهة برمجة التطبيقات."
+    },
+    "create": "مستأجر جديد",
+    "plan": "الباقة",
+    "trialEnds": "نهاية التجربة",
+    "reason": "السبب",
+    "reasonPlaceholder": "اختياري",
+    "keepCurrentPlan": "الإبقاء على الباقة الحالية",
+    "billingCycle": "دورة الفوترة",
+    "filter": {
+      "all": "كل الحالات"
+    },
+    "statuses": {
+      "PENDING": "قيد الانتظار",
+      "TRIAL": "تجريبي",
+      "ACTIVE": "نشط",
+      "PAST_DUE": "متأخر السداد",
+      "SUSPENDED": "موقوف",
+      "ARCHIVED": "مؤرشف"
+    },
+    "actions": {
+      "approve": "موافقة",
+      "reject": "رفض",
+      "activate": "تفعيل الاشتراك",
+      "suspend": "إيقاف",
+      "reactivate": "إعادة تفعيل",
+      "archive": "أرشفة"
+    },
+    "cycles": {
+      "MONTHLY": "شهري",
+      "ANNUAL": "سنوي"
+    },
+    "confirm": {
+      "approve": "الموافقة على تسجيل «{{name}}»؟",
+      "reactivate": "إعادة تفعيل «{{name}}»؟"
+    },
+    "toast": {
+      "approved": "تمت الموافقة على المستأجر",
+      "rejected": "تم رفض الطلب",
+      "activated": "تم تفعيل الاشتراك",
+      "suspended": "تم إيقاف المستأجر",
+      "reactivated": "تمت إعادة تفعيل المستأجر",
+      "archived": "تمت أرشفة المستأجر",
+      "created": "تم إنشاء المستأجر",
+      "failed": "فشلت العملية"
     }
   },
   "users": {
@@ -1260,6 +1307,39 @@
       "IN_PROGRESS": "قيد التنفيذ",
       "RECEIVED": "مستلم",
       "CANCELLED": "ملغى"
+    }
+  },
+  "registration": {
+    "title": "أنشئ مؤسستك",
+    "subtitle": "ستتم مراجعة طلبك من قبل فريقنا قبل التفعيل.",
+    "section": {
+      "company": "المؤسسة",
+      "admin": "المسؤول"
+    },
+    "companyName": "اسم المؤسسة",
+    "tenantCode": "رمز الدخول",
+    "codeFormat": "أحرف صغيرة وأرقام وشرطات فقط.",
+    "codeHint": "يُستخدم لتسجيل الدخول (مثال: my-shop).",
+    "companyType": "النوع",
+    "plan": "الباقة",
+    "choosePlan": "اختر باقة",
+    "perMonth": "شهر",
+    "phone": "الهاتف",
+    "language": "اللغة",
+    "adminName": "الاسم الكامل",
+    "adminEmail": "البريد الإلكتروني",
+    "emailInvalid": "بريد إلكتروني غير صالح",
+    "password": "كلمة المرور",
+    "passwordShort": "8 أحرف على الأقل",
+    "submit": "إرسال الطلب",
+    "haveAccount": "لديك حساب بالفعل؟",
+    "signIn": "تسجيل الدخول",
+    "codeTaken": "رمز الدخول هذا مُستخدم بالفعل.",
+    "error": "فشل إرسال الطلب.",
+    "success": {
+      "title": "تم إرسال الطلب!",
+      "message": "تم استلام طلبك للرمز «{{code}}». ستتلقى بريدًا إلكترونيًا عند الموافقة عليه.",
+      "toLogin": "الذهاب لتسجيل الدخول"
     }
   }
 }

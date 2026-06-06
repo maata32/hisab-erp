@@ -32,7 +32,8 @@
     "mustBePositive": "Value must be positive",
     "mustBeNonNegative": "Value cannot be negative",
     "atLeastOneLine": "Add at least one line",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "actions": "Actions"
   },
   "error": {
     "allocation": {
@@ -109,7 +110,9 @@
       "email": "Email",
       "password": "Password",
       "submit": "Sign in",
-      "demo_hint": "Demo: tenant 'demo' / admin@demo.local / Admin1234!"
+      "demo_hint": "Demo: tenant 'demo' / admin@demo.local / Admin1234!",
+      "noAccount": "No account yet?",
+      "signUp": "Sign up"
     },
     "bad_credentials": "Invalid credentials",
     "account_locked": "Account locked. Try again later.",
@@ -264,6 +267,50 @@
     "empty": {
       "title": "No organizations",
       "description": "Create the first organization via the API."
+    },
+    "create": "New tenant",
+    "plan": "Plan",
+    "trialEnds": "Trial ends",
+    "reason": "Reason",
+    "reasonPlaceholder": "Optional",
+    "keepCurrentPlan": "Keep current plan",
+    "billingCycle": "Billing cycle",
+    "filter": {
+      "all": "All statuses"
+    },
+    "statuses": {
+      "PENDING": "Pending",
+      "TRIAL": "Trial",
+      "ACTIVE": "Active",
+      "PAST_DUE": "Past due",
+      "SUSPENDED": "Suspended",
+      "ARCHIVED": "Archived"
+    },
+    "actions": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "activate": "Activate subscription",
+      "suspend": "Suspend",
+      "reactivate": "Reactivate",
+      "archive": "Archive"
+    },
+    "cycles": {
+      "MONTHLY": "Monthly",
+      "ANNUAL": "Annual"
+    },
+    "confirm": {
+      "approve": "Approve registration of \"{{name}}\"?",
+      "reactivate": "Reactivate \"{{name}}\"?"
+    },
+    "toast": {
+      "approved": "Tenant approved",
+      "rejected": "Request rejected",
+      "activated": "Subscription activated",
+      "suspended": "Tenant suspended",
+      "reactivated": "Tenant reactivated",
+      "archived": "Tenant archived",
+      "created": "Tenant created",
+      "failed": "Operation failed"
     }
   },
   "users": {
@@ -1260,6 +1307,39 @@
       "IN_PROGRESS": "In progress",
       "RECEIVED": "Received",
       "CANCELLED": "Cancelled"
+    }
+  },
+  "registration": {
+    "title": "Create your business",
+    "subtitle": "Your request will be reviewed by our team before activation.",
+    "section": {
+      "company": "Company",
+      "admin": "Administrator"
+    },
+    "companyName": "Company name",
+    "tenantCode": "Login code",
+    "codeFormat": "Lowercase letters, digits and dashes only.",
+    "codeHint": "Used to sign in (e.g. my-shop).",
+    "companyType": "Type",
+    "plan": "Plan",
+    "choosePlan": "Choose a plan",
+    "perMonth": "mo",
+    "phone": "Phone",
+    "language": "Language",
+    "adminName": "Full name",
+    "adminEmail": "Email",
+    "emailInvalid": "Invalid email address",
+    "password": "Password",
+    "passwordShort": "At least 8 characters",
+    "submit": "Submit request",
+    "haveAccount": "Already have an account?",
+    "signIn": "Sign in",
+    "codeTaken": "This login code is already taken.",
+    "error": "Failed to submit the request.",
+    "success": {
+      "title": "Request sent!",
+      "message": "Your request for code \"{{code}}\" has been received. You'll get an email once it's approved.",
+      "toLogin": "Go to login"
     }
   }
 }

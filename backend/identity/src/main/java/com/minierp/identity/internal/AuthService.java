@@ -72,6 +72,13 @@ public class AuthService {
 
             user.setFailedLoginAttempts(0);
             user.setLockedUntil(null);
+
+            // Block login for non-operational tenants. Super-admins bypass so they
+            // can still sign in to recover/reactivate a suspended tenant.
+            if (!user.isSuperAdmin()) {
+                ensureTenantLoggable(tenant);
+            }
+
             user.setLastLoginAt(Instant.now());
 
             CurrentUser currentUser = toCurrentUser(user);
@@ -136,8 +143,24 @@ public class AuthService {
                         "tenant.not_found", Map.of("code", tenantCode)));
     }
 
+    /** Reject sign-in for tenants that are not in a usable state. PAST_DUE stays usable (grace period). */
+    private void ensureTenantLoggable(TenantSnapshot tenant) {
+        switch (tenant.status()) {
+            case "PENDING" -> throw new ForbiddenException("auth.tenant_pending");
+            case "SUSPENDED" -> throw new ForbiddenException("auth.tenant_suspended");
+            case "ARCHIVED" -> throw new ForbiddenException("auth.tenant_archived");
+            default -> { /* TRIAL, ACTIVE, PAST_DUE: allowed */ }
+        }
+    }
+
     private CurrentUser toCurrentUser(User user) {
-        Set<String> roleCodes = user.getRoles().stream().map(Role::getCode).collect(Collectors.toSet());
+        Set<String> roleCodes = user.getRoles().stream()
+                .map(Role::getCode).collect(Collectors.toCollection(java.util.HashSet::new));
+        // Platform super-admins carry the SUPER_ADMIN role (it is a flag on the user,
+        // not a tenant role) so @PreAuthorize("hasRole('SUPER_ADMIN')") endpoints work.
+        if (user.isSuperAdmin()) {
+            roleCodes.add("SUPER_ADMIN");
+        }
         Set<String> permCodes = user.getRoles().stream()
                 .flatMap(r -> r.getPermissions().stream())
                 .map(Permission::getCode)

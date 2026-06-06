@@ -67,4 +67,12 @@ class Organization extends AuditableEntity {
 
     @Column(name = "subscription_plan_id", columnDefinition = "uuid")
     private UUID subscriptionPlanId;
+
+    /** The admin user created during self-service registration; promoted to TENANT_ADMIN on approval. */
+    @Column(name = "primary_admin_user_id", columnDefinition = "uuid")
+    private UUID primaryAdminUserId;
+
+    /** When the tenant entered PAST_DUE; the grace period before SUSPENDED counts from here. */
+    @Column(name = "past_due_since")
+    private Instant pastDueSince;
 }

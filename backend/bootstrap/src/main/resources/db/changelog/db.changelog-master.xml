@@ -71,5 +71,6 @@
     <include file="db/changelog/0064-expense-category-caps.xml"/>
     <include file="db/changelog/0065-payment-types-collapse-refund.xml"/>
     <include file="db/changelog/0066-payments-bank-account-link.xml"/>
+    <include file="db/changelog/0076-tenant-lifecycle.xml"/>
 
 </databaseChangeLog>

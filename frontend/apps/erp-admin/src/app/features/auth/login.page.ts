@@ -110,6 +110,13 @@ import { LocaleService } from '@minierp/shared-i18n';
           <div class="text-center text-sm text-gray-500">
             {{ 'auth.login.demo_hint' | translate }}
           </div>
+
+          <div class="text-center text-sm text-gray-500">
+            {{ 'auth.login.noAccount' | translate }}
+            <a routerLink="/register" class="text-primary-600 hover:underline">
+              {{ 'auth.login.signUp' | translate }}
+            </a>
+          </div>
         </form>
       </main>
     </div>

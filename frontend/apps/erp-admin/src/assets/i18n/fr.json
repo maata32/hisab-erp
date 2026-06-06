@@ -32,7 +32,8 @@
     "required": "Ce champ est requis",
     "mustBePositive": "La valeur doit être positive",
     "mustBeNonNegative": "La valeur ne peut pas être négative",
-    "atLeastOneLine": "Ajoutez au moins une ligne"
+    "atLeastOneLine": "Ajoutez au moins une ligne",
+    "actions": "Actions"
   },
   "error": {
     "allocation": {
@@ -109,7 +110,9 @@
       "email": "Adresse email",
       "password": "Mot de passe",
       "submit": "Se connecter",
-      "demo_hint": "Démo : tenant 'demo' / admin@demo.local / Admin1234!"
+      "demo_hint": "Démo : tenant 'demo' / admin@demo.local / Admin1234!",
+      "noAccount": "Pas encore de compte ?",
+      "signUp": "S'inscrire"
     },
     "bad_credentials": "Identifiants invalides",
     "account_locked": "Compte verrouillé. Réessayez plus tard.",
@@ -264,6 +267,50 @@
     "empty": {
       "title": "Aucune organisation",
       "description": "Créez la première organisation depuis l'API."
+    },
+    "create": "Nouveau tenant",
+    "plan": "Formule",
+    "trialEnds": "Fin d'essai",
+    "reason": "Motif",
+    "reasonPlaceholder": "Optionnel",
+    "keepCurrentPlan": "Conserver la formule actuelle",
+    "billingCycle": "Cycle de facturation",
+    "filter": {
+      "all": "Tous les statuts"
+    },
+    "statuses": {
+      "PENDING": "En attente",
+      "TRIAL": "Essai",
+      "ACTIVE": "Actif",
+      "PAST_DUE": "Impayé",
+      "SUSPENDED": "Suspendu",
+      "ARCHIVED": "Archivé"
+    },
+    "actions": {
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "activate": "Activer l'abonnement",
+      "suspend": "Suspendre",
+      "reactivate": "Réactiver",
+      "archive": "Archiver"
+    },
+    "cycles": {
+      "MONTHLY": "Mensuel",
+      "ANNUAL": "Annuel"
+    },
+    "confirm": {
+      "approve": "Approuver l'inscription de « {{name}} » ?",
+      "reactivate": "Réactiver « {{name}} » ?"
+    },
+    "toast": {
+      "approved": "Tenant approuvé",
+      "rejected": "Demande rejetée",
+      "activated": "Abonnement activé",
+      "suspended": "Tenant suspendu",
+      "reactivated": "Tenant réactivé",
+      "archived": "Tenant archivé",
+      "created": "Tenant créé",
+      "failed": "L'opération a échoué"
     }
   },
   "users": {
@@ -1260,6 +1307,39 @@
       "IN_PROGRESS": "En cours",
       "RECEIVED": "Reçu",
       "CANCELLED": "Annulé"
+    }
+  },
+  "registration": {
+    "title": "Créer votre entreprise",
+    "subtitle": "Votre demande sera examinée par notre équipe avant activation.",
+    "section": {
+      "company": "Entreprise",
+      "admin": "Administrateur"
+    },
+    "companyName": "Nom de l'entreprise",
+    "tenantCode": "Code de connexion",
+    "codeFormat": "Minuscules, chiffres et tirets uniquement.",
+    "codeHint": "Servira à vous connecter (ex. : ma-boutique).",
+    "companyType": "Type",
+    "plan": "Formule",
+    "choosePlan": "Choisir une formule",
+    "perMonth": "mois",
+    "phone": "Téléphone",
+    "language": "Langue",
+    "adminName": "Nom complet",
+    "adminEmail": "E-mail",
+    "emailInvalid": "Adresse e-mail invalide",
+    "password": "Mot de passe",
+    "passwordShort": "8 caractères minimum",
+    "submit": "Envoyer ma demande",
+    "haveAccount": "Vous avez déjà un compte ?",
+    "signIn": "Se connecter",
+    "codeTaken": "Ce code de connexion est déjà pris.",
+    "error": "L'envoi de la demande a échoué.",
+    "success": {
+      "title": "Demande envoyée !",
+      "message": "Votre demande pour le code « {{code}} » a bien été reçue. Vous recevrez un e-mail dès son approbation.",
+      "toLogin": "Aller à la connexion"
     }
   }
 }

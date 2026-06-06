@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Tenant lifecycle + self-service registration.
+
+      Adds the columns the lifecycle engine needs on `organizations`:
+        - primary_admin_user_id: the TENANT_ADMIN user created during public
+          registration, promoted (role granted) when a SUPER_ADMIN approves.
+        - past_due_since: timestamp at which a tenant entered PAST_DUE, used by
+          TenantExpiryJob to suspend it after the configurable grace period.
+
+      The new PENDING / ARCHIVED statuses need no schema change: `status` is a
+      free-text varchar(20) with no CHECK constraint (see 0002-tenant.xml).
+    -->
+    <changeSet id="0076-organizations-lifecycle-columns" author="mini-erp">
+        <addColumn tableName="organizations">
+            <column name="primary_admin_user_id" type="uuid"
+                    remarks="The admin user created at registration; promoted to TENANT_ADMIN on approval"/>
+            <column name="past_due_since" type="timestamptz"
+                    remarks="When the tenant entered PAST_DUE; grace period counts from here"/>
+        </addColumn>
+        <createIndex tableName="organizations" indexName="idx_organizations_past_due_since">
+            <column name="past_due_since"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
