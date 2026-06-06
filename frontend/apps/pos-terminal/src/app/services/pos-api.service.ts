@@ -27,7 +27,7 @@ export interface CreateSaleRequest {
 }
 
 export interface SaleLineRequest {
-  productId: string;
+  variantId: string;
   uomId: string;
   quantity: number;
   unitDiscount?: number | null;
@@ -65,6 +65,12 @@ export interface ProductImageItem {
   altText: string | null;
 }
 
+export interface ProductVariantItem {
+  id: string;
+  defaultVariant: boolean;
+  active: boolean;
+}
+
 export interface ProductPageItem {
   id: string;
   sku: string;
@@ -75,6 +81,7 @@ export interface ProductPageItem {
   sellable: boolean;
   imageUrl: string | null;
   images: ProductImageItem[];
+  variants: ProductVariantItem[];
 }
 
 export interface ResolvedPrice {
@@ -202,13 +209,13 @@ export class PosApiService {
   }
 
   resolvePrice(
-    productId: string,
+    variantId: string,
     uomId: string,
     priceTierId: string | null,
     quantity: number,
   ): Observable<ResolvedPrice> {
     let params = new HttpParams()
-      .set('productId', productId)
+      .set('variantId', variantId)
       .set('uomId', uomId)
       .set('quantity', quantity);
     if (priceTierId) params = params.set('priceTierId', priceTierId);
@@ -217,7 +224,7 @@ export class PosApiService {
 
   bulkResolvePrice(
     priceTierId: string | null,
-    items: { productId: string; uomId: string }[],
+    items: { variantId: string; uomId: string }[],
   ): Observable<ResolvedPrice[]> {
     return this.http.post<ResolvedPrice[]>('/api/v1/pricing/resolve/bulk', {
       priceTierId,

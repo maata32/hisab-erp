@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      The Units-of-measure admin screen now manages units and categories fully
+      (create/update/delete), so we split write authority: uom:create stays for
+      creation, and uom:update / uom:delete gate edits and deletions. Mirrors the
+      0027 pattern: seed the permissions, then backfill grants to the roles that
+      already hold uom:create (TENANT_ADMIN, MANAGER). The mapping mirrors
+      TenantRolesBootstrapper after this changeset.
+    -->
+    <changeSet id="0067-seed-uom-update-delete-permissions" author="mini-erp">
+        <sql>
+            INSERT INTO permissions (id, code, resource, action, description) VALUES
+              (uuid_generate_v4(), 'uom:update', 'uom', 'update', 'Update units of measure or categories'),
+              (uuid_generate_v4(), 'uom:delete', 'uom', 'delete', 'Delete units of measure or categories')
+            ON CONFLICT (code) DO NOTHING;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0067-backfill-uom-update-delete-grants" author="mini-erp">
+        <sql splitStatements="false">
+            DO $$
+            DECLARE
+                grants jsonb := '[
+                  {"role": "TENANT_ADMIN", "perms": ["uom:update","uom:delete"]},
+                  {"role": "MANAGER",      "perms": ["uom:update","uom:delete"]}
+                ]'::jsonb;
+                entry jsonb;
+                rcode text;
+                pcodes text[];
+            BEGIN
+                FOR entry IN SELECT * FROM jsonb_array_elements(grants) LOOP
+                    rcode := entry->>'role';
+                    SELECT ARRAY(SELECT jsonb_array_elements_text(entry->'perms')) INTO pcodes;
+
+                    INSERT INTO role_permission (role_id, permission_id)
+                    SELECT r.id, p.id
+                    FROM roles r
+                    JOIN permissions p ON p.code = ANY(pcodes)
+                    WHERE r.code = rcode
+                    ON CONFLICT DO NOTHING;
+                END LOOP;
+            END $$;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

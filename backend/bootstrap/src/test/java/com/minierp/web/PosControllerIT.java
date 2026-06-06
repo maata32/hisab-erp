@@ -72,6 +72,14 @@ class PosControllerIT {
                         true, now(), now(), 0)
                 """, productId, tenantId, "POS-" + productId, uomId);
 
+        // Variant = SKU: POS resolves price + destocks by variant; seed the default
+        // variant reusing the product id.
+        jdbc.update("""
+                INSERT INTO product_variants (id, tenant_id, product_id, sku, is_default,
+                                              is_active, created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, true, true, now(), now(), 0)
+                """, productId, tenantId, productId, "POS-" + productId);
+
         UUID tierId = UUID.randomUUID();
         jdbc.update("""
                 INSERT INTO price_tiers (id, tenant_id, code, name, is_default, is_active,
@@ -80,12 +88,12 @@ class PosControllerIT {
                 """, tierId, tenantId);
 
         jdbc.update("""
-                INSERT INTO product_prices (id, tenant_id, product_id, uom_id, price_tier_id,
+                INSERT INTO product_prices (id, tenant_id, variant_id, product_id, uom_id, price_tier_id,
                                             amount, currency, tax_inclusive, valid_from,
                                             created_at, updated_at, version)
-                VALUES (uuid_generate_v4(), ?, ?, ?, ?, 100.00, 'MRU', false, '2000-01-01',
+                VALUES (uuid_generate_v4(), ?, ?, ?, ?, ?, 100.00, 'MRU', false, '2000-01-01',
                         now(), now(), 0)
-                """, tenantId, productId, uomId, tierId);
+                """, tenantId, productId, productId, uomId, tierId);
 
         UUID warehouseId = UUID.randomUUID();
         jdbc.update("""
@@ -144,7 +152,7 @@ class PosControllerIT {
                                   "idempotencyKey":"%s",
                                   "registerId":"%s",
                                   "sessionId":"%s",
-                                  "lines":[{"productId":"%s","uomId":"%s","quantity":1}],
+                                  "lines":[{"variantId":"%s","uomId":"%s","quantity":1}],
                                   "payment":{"cash":100.00}
                                 }
                                 """.formatted(idemKey, registerId, sessionId, productId, uomId)))
@@ -176,7 +184,7 @@ class PosControllerIT {
                                     "idempotencyKey":"SYNC-IT-%s",
                                     "registerId":"%s",
                                     "sessionId":"%s",
-                                    "lines":[{"productId":"%s","uomId":"%s","quantity":1}],
+                                    "lines":[{"variantId":"%s","uomId":"%s","quantity":1}],
                                     "payment":{"cash":100.00}
                                   }]
                                 }

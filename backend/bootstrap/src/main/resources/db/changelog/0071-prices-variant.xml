@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Move prices to the variant level. Each price row now belongs to a variant; product_id
+      stays denormalized for the grid and the uniform-pricing fallback. Existing rows are
+      backfilled to the product's default variant (or its first variant). The composite
+      unique key swaps product_id for variant_id.
+    -->
+    <changeSet id="0071-prices-add-variant" author="mini-erp">
+        <addColumn tableName="product_prices">
+            <column name="variant_id" type="uuid"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="0071-prices-backfill-variant" author="mini-erp">
+        <sql>
+            UPDATE product_prices pp
+               SET variant_id = (
+                   SELECT v.id FROM product_variants v
+                    WHERE v.product_id = pp.product_id
+                    ORDER BY v.is_default DESC, v.sku ASC
+                    LIMIT 1)
+             WHERE pp.variant_id IS NULL;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0071-prices-variant-constraints" author="mini-erp">
+        <addNotNullConstraint tableName="product_prices" columnName="variant_id" columnDataType="uuid"/>
+        <dropUniqueConstraint tableName="product_prices" constraintName="uk_product_prices_unique"/>
+        <addUniqueConstraint tableName="product_prices"
+                             columnNames="tenant_id,variant_id,uom_id,price_tier_id,valid_from"
+                             constraintName="uk_product_prices_unique"/>
+        <createIndex tableName="product_prices" indexName="idx_product_prices_variant">
+            <column name="variant_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

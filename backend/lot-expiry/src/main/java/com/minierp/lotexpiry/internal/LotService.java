@@ -2,8 +2,13 @@ package com.minierp.lotexpiry.internal;
 
 import com.minierp.catalog.api.CatalogLookup;
 import com.minierp.catalog.api.ProductSnapshot;
+import com.minierp.catalog.api.VariantLookup;
+import com.minierp.catalog.api.VariantView;
 import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
+import com.minierp.inventory.api.StockMovementDto;
+import com.minierp.inventory.api.StockMovementType;
+import com.minierp.inventory.api.StockOperations;
 import com.minierp.lotexpiry.api.LotAllocation;
 import com.minierp.lotexpiry.api.LotDto;
 import com.minierp.lotexpiry.api.LotOperations;
@@ -32,16 +37,18 @@ public class LotService implements LotOperations {
     private final ExpiredLotDestructionRepository destructions;
     private final ExpiryAlertConfigRepository alertConfigs;
     private final CatalogLookup catalog;
+    private final VariantLookup variants;
     private final DocumentRenderer documentRenderer;
+    private final StockOperations stockOps;
 
     // ─── LotOperations (public API used by other modules) ──────────────────
 
     @Override
     @Transactional(readOnly = true)
-    public List<LotAllocation> selectFEFO(UUID productId, UUID warehouseId, BigDecimal requestedQty) {
+    public List<LotAllocation> selectFEFO(UUID variantId, UUID warehouseId, BigDecimal requestedQty) {
         List<ProductLot> available = lots
-                .findByProductIdAndWarehouseIdAndStatusOrderByExpirationDateAsc(
-                        productId, warehouseId, LotStatus.ACTIVE);
+                .findByProductVariantIdAndWarehouseIdAndStatusOrderByExpirationDateAsc(
+                        variantId, warehouseId, LotStatus.ACTIVE);
 
         List<LotAllocation> allocations = new ArrayList<>();
         BigDecimal remaining = requestedQty;
@@ -58,7 +65,7 @@ public class LotService implements LotOperations {
 
         if (remaining.signum() > 0) {
             throw new BusinessException("error.lot.insufficient_lot_stock",
-                    Map.of("productId", productId, "shortage", remaining));
+                    Map.of("variantId", variantId, "shortage", remaining));
         }
         return allocations;
     }
@@ -87,12 +94,14 @@ public class LotService implements LotOperations {
 
     @Override
     @Transactional
-    public UUID receiveLot(UUID productId, UUID warehouseId, UUID uomId,
+    public UUID receiveLot(UUID variantId, UUID warehouseId, UUID uomId,
                            String lotNumber, LocalDate expirationDate,
                            LocalDate productionDate, BigDecimal quantity,
                            BigDecimal unitCost, UUID supplierId, UUID purchaseOrderId) {
+        VariantView variant = variants.require(variantId);
         ProductLot lot = ProductLot.builder()
-                .productId(productId)
+                .productId(variant.productId())
+                .productVariantId(variantId)
                 .warehouseId(warehouseId)
                 .uomId(uomId)
                 .lotNumber(lotNumber)
@@ -115,6 +124,37 @@ public class LotService implements LotOperations {
         return lot.getId();
     }
 
+    /**
+     * Opening balance for an expiry-tracked product: create the lot AND post the
+     * OPENING_BALANCE stock-in so the Stock row and the lot ledger stay in sync —
+     * mirrors what reception does. Lives here because this module is the only one
+     * (besides purchase) that can orchestrate both lots and stock without a cycle.
+     */
+    @Transactional
+    public StockMovementDto openingBalanceWithLot(UUID warehouseId, UUID variantId,
+                                                  BigDecimal quantity, BigDecimal unitCost,
+                                                  String lotNumber, LocalDate expirationDate,
+                                                  LocalDate productionDate, String note, UUID userId) {
+        VariantView variant = variants.require(variantId);
+        ProductSnapshot product = catalog.findProductById(variant.productId())
+                .orElseThrow(() -> NotFoundException.of("entity.product", variant.productId()));
+        // Defensive: a non-expiry product would never reach this path from the UI,
+        // but if it does, post the opening stock without a lot rather than failing.
+        if (!product.trackExpiry()) {
+            return stockOps.receive(warehouseId, variantId, quantity, unitCost,
+                    StockMovementType.OPENING_BALANCE, null, null, null, note, userId);
+        }
+        if (lotNumber == null || lotNumber.isBlank() || expirationDate == null) {
+            throw new BusinessException("error.reception.lot_data_required",
+                    Map.of("variantId", variantId));
+        }
+        UUID lotId = receiveLot(variantId, warehouseId, product.baseUomId(),
+                lotNumber, expirationDate, productionDate, quantity, unitCost, null, null);
+        return stockOps.receive(warehouseId, variantId, quantity, unitCost,
+                StockMovementType.OPENING_BALANCE,
+                "LOT", lotId, lotNumber, note, userId);
+    }
+
     @Override
     @Transactional
     public void blockLot(UUID lotId, String reason) {
@@ -135,9 +175,9 @@ public class LotService implements LotOperations {
     // ─── Service methods for the REST controller ────────────────────────────
 
     @Transactional(readOnly = true)
-    public Page<LotDto.LotResponse> listLots(UUID productId, UUID warehouseId, Pageable pageable) {
-        Page<ProductLot> page = productId != null
-                ? lots.findByProductId(productId, pageable)
+    public Page<LotDto.LotResponse> listLots(UUID variantId, UUID warehouseId, Pageable pageable) {
+        Page<ProductLot> page = variantId != null
+                ? lots.findByProductVariantId(variantId, pageable)
                 : lots.findForDashboard(warehouseId, pageable);
         return page.map(this::toLotDto);
     }
@@ -148,11 +188,11 @@ public class LotService implements LotOperations {
     }
 
     @Transactional
-    public LotDto.LotResponse createLot(UUID productId, UUID warehouseId, UUID uomId,
+    public LotDto.LotResponse createLot(UUID variantId, UUID warehouseId, UUID uomId,
                                         String lotNumber, LocalDate expirationDate,
                                         LocalDate productionDate, BigDecimal quantity,
                                         BigDecimal unitCost, UUID supplierId, String notes) {
-        UUID id = receiveLot(productId, warehouseId, uomId, lotNumber, expirationDate,
+        UUID id = receiveLot(variantId, warehouseId, uomId, lotNumber, expirationDate,
                 productionDate, quantity, unitCost, supplierId, null);
         ProductLot lot = lots.findById(id).orElseThrow();
         lot.setNotes(notes);
@@ -256,7 +296,7 @@ public class LotService implements LotOperations {
     private LotDto.LotResponse toLotDto(ProductLot lot) {
         long days = ChronoUnit.DAYS.between(LocalDate.now(), lot.getExpirationDate());
         return new LotDto.LotResponse(
-                lot.getId(), lot.getProductId(), lot.getWarehouseId(),
+                lot.getId(), lot.getProductId(), lot.getProductVariantId(), lot.getWarehouseId(),
                 lot.getLotNumber(), lot.getProductionDate(), lot.getExpirationDate(),
                 lot.getInitialQuantity(), lot.getQuantityRemaining(),
                 lot.getUomId(), lot.getStatus().name(), lot.getBlockedReason(),

@@ -54,10 +54,11 @@ interface InvoiceLite {
   status: string;
   deliveryStatus: string;
   creditNoteCount: number;
-  lines: { id: string; productId: string; uomId: string; quantity: number; productName: string; sku: string }[];
+  lines: { id: string; variantId: string; productId: string; uomId: string; quantity: number; productName: string; sku: string }[];
 }
 
 interface DeliveryLineForm {
+  variantId: string;
   productId: string;
   uomId: string;
   productName: string;
@@ -483,6 +484,7 @@ export class DeliveryListPage implements OnInit {
       if (remaining <= 0) continue;
       this.remainingByProduct[il.productId] = remaining;
       lines.push({
+        variantId: il.variantId,
         productId: il.productId,
         uomId: il.uomId,
         productName: il.productName,
@@ -527,7 +529,7 @@ export class DeliveryListPage implements OnInit {
         lines: this.form.lines
           .filter(l => (l.quantityOrdered ?? 0) > 0)
           .map(l => ({
-            productId: l.productId,
+            variantId: l.variantId,
             uomId: l.uomId,
             quantityOrdered: l.quantityOrdered,
             productName: l.productName,

@@ -50,7 +50,8 @@ interface PurchaseOrderLine {
 
 interface SupplierOpt { id: string; code: string; name: string; currency: string; }
 interface WarehouseOpt { id: string; code: string; name: string; active: boolean; }
-interface ProductOpt { id: string; sku: string; name: string; baseUomId: string; defaultTaxRate: number; trackExpiry: boolean; }
+interface ProductVariantOpt { id: string; defaultVariant: boolean; active: boolean; }
+interface ProductOpt { id: string; sku: string; name: string; baseUomId: string; defaultTaxRate: number; trackExpiry: boolean; variants: ProductVariantOpt[]; }
 interface ProductStockBreakdown {
   productId: string;
   warehouses: { warehouseId: string; warehouseCode: string; warehouseName: string; isDefault: boolean; qtyAvailable: number }[];
@@ -317,6 +318,14 @@ export class PurchaseOrderListPage implements OnInit {
   protected suppliers = signal<SupplierOpt[]>([]);
   protected warehouses = signal<WarehouseOpt[]>([]);
   protected products = signal<ProductOpt[]>([]);
+
+  /** Resolve the variant to order for a product: its default (or first active) variant. */
+  protected variantIdFor(productId: string | null): string | null {
+    if (!productId) return null;
+    const vs = this.products().find(p => p.id === productId)?.variants ?? [];
+    return (vs.find(v => v.defaultVariant && v.active)
+      ?? vs.find(v => v.active) ?? vs[0])?.id ?? null;
+  }
   protected stockBreakdown = signal<Record<string, number[]>>({});
 
   protected stockLabel(productId: string): string {
@@ -504,7 +513,7 @@ export class PurchaseOrderListPage implements OnInit {
         currency: this.form.currency || null,
         notes: this.form.notes || null,
         lines: this.form.lines.map(l => ({
-          productId: l.productId,
+          variantId: this.variantIdFor(l.productId),
           uomId: l.uomId,
           quantity: l.quantity,
           unitCost: l.unitCost,

@@ -149,6 +149,13 @@ class PosIdempotencyIT {
                 VALUES (?, ?, ?, 'Test Product', ?, 0.00, false, false, true, true,
                         true, now(), now(), 0)
                 """, id, tenantId, "SKU-" + id, baseUomId);
+        // Variant = SKU: POS resolves price + destocks by variant; seed the default
+        // variant reusing the product id.
+        jdbc.update("""
+                INSERT INTO product_variants (id, tenant_id, product_id, sku, is_default,
+                                              is_active, created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, true, true, now(), now(), 0)
+                """, id, tenantId, id, "SKU-" + id);
         return id;
     }
 
@@ -163,13 +170,14 @@ class PosIdempotencyIT {
     }
 
     private void insertProductPrice(UUID productId, UUID uomId, UUID tierId, BigDecimal amount) {
+        // Prices are variant-keyed (variant_id NOT NULL); reuse the product id as its variant id.
         jdbc.update("""
-                INSERT INTO product_prices (id, tenant_id, product_id, uom_id, price_tier_id,
+                INSERT INTO product_prices (id, tenant_id, variant_id, product_id, uom_id, price_tier_id,
                                             amount, currency, tax_inclusive, valid_from,
                                             created_at, updated_at, version)
-                VALUES (uuid_generate_v4(), ?, ?, ?, ?, ?, 'MRU', false, '2000-01-01',
+                VALUES (uuid_generate_v4(), ?, ?, ?, ?, ?, ?, 'MRU', false, '2000-01-01',
                         now(), now(), 0)
-                """, tenantId, productId, uomId, tierId, amount);
+                """, tenantId, productId, productId, uomId, tierId, amount);
     }
 
     private UUID insertWarehouse() {

@@ -31,7 +31,8 @@ interface StockRow {
 }
 
 interface WarehouseLite { id: string; code: string; name: string; defaultWarehouse: boolean; }
-interface ProductOpt { id: string; sku: string; name: string; }
+interface ProductVariantOpt { id: string; defaultVariant: boolean; active: boolean; }
+interface ProductOpt { id: string; sku: string; name: string; trackExpiry: boolean; variants: ProductVariantOpt[]; }
 interface StockMovement {
   id: string;
   warehouseId: string;
@@ -164,6 +165,33 @@ type TagSeverity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'co
               <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
             }
           </div>
+          @if (opening.product?.trackExpiry) {
+            <div class="p-3 bg-amber-50 border border-amber-200 rounded space-y-3">
+              <p class="text-xs text-amber-700">{{ 'stock.openingDialog.lotHelp' | translate }}</p>
+              <div>
+                <label class="block text-sm font-medium mb-1">{{ 'stock.fields.lotNumber' | translate }} *</label>
+                <input pInputText [(ngModel)]="opening.lotNumber" class="w-full"
+                       [class.ng-invalid]="openingLotInvalid()" [class.ng-dirty]="openingLotInvalid()" />
+                @if (openingLotInvalid()) {
+                  <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+                }
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-sm font-medium mb-1">{{ 'stock.fields.expirationDate' | translate }} *</label>
+                  <input pInputText type="date" [(ngModel)]="opening.expirationDate" class="w-full"
+                         [class.ng-invalid]="openingExpiryInvalid()" [class.ng-dirty]="openingExpiryInvalid()" />
+                  @if (openingExpiryInvalid()) {
+                    <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+                  }
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1">{{ 'stock.fields.productionDate' | translate }}</label>
+                  <input pInputText type="date" [(ngModel)]="opening.productionDate" class="w-full" />
+                </div>
+              </div>
+            </div>
+          }
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'stock.fields.qty' | translate }} *</label>
@@ -344,6 +372,12 @@ export class StockListPage implements OnInit {
   protected openingCostInvalid(): boolean {
     return this.submittedOpening() && (this.opening.unitCost == null || this.opening.unitCost < 0);
   }
+  protected openingLotInvalid(): boolean {
+    return this.submittedOpening() && !!this.opening.product?.trackExpiry && !this.opening.lotNumber?.trim();
+  }
+  protected openingExpiryInvalid(): boolean {
+    return this.submittedOpening() && !!this.opening.product?.trackExpiry && !this.opening.expirationDate;
+  }
   protected adjustQtyInvalid(): boolean {
     return this.submittedAdjust() && (this.adjust.qtySigned == null || this.adjust.qtySigned === 0);
   }
@@ -387,15 +421,32 @@ export class StockListPage implements OnInit {
     this.adjustOpen = true;
   }
 
+  /** Resolve a product's default (or first active) variant — stock is kept per variant. */
+  private async fetchDefaultVariantId(productId: string): Promise<string | null> {
+    try {
+      const p = await firstValueFrom(this.http.get<{ variants: ProductVariantOpt[] }>(`/api/v1/products/${productId}`));
+      const vs = p.variants ?? [];
+      return (vs.find(v => v.defaultVariant && v.active) ?? vs.find(v => v.active) ?? vs[0])?.id ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private variantIdOf(product: ProductOpt | null): string | null {
+    const vs = product?.variants ?? [];
+    return (vs.find(v => v.defaultVariant && v.active) ?? vs.find(v => v.active) ?? vs[0])?.id ?? null;
+  }
+
   protected async openHistory(row: StockRow) {
     this.historyTarget.set(row);
     this.historyRows.set([]);
     this.historyOpen = true;
     this.historyLoading.set(true);
     try {
+      const variantId = await this.fetchDefaultVariantId(row.productId);
       const res = await firstValueFrom(
         this.http.get<{ content: StockMovement[] }>(
-          `/api/v1/inventory/stocks/movements?productId=${row.productId}&warehouseId=${row.warehouseId}`
+          `/api/v1/inventory/stocks/movements?variantId=${variantId}&warehouseId=${row.warehouseId}`
         )
       );
       this.historyRows.set(res?.content ?? []);
@@ -442,17 +493,34 @@ export class StockListPage implements OnInit {
   protected async saveOpening() {
     this.submittedOpening.set(true);
     if (this.openingWarehouseInvalid() || this.openingProductInvalid()
-        || this.openingQtyInvalid() || this.openingCostInvalid()) return;
+        || this.openingQtyInvalid() || this.openingCostInvalid()
+        || this.openingLotInvalid() || this.openingExpiryInvalid()) return;
     this.saving.set(true);
     try {
-      await firstValueFrom(this.http.post('/api/v1/inventory/stocks/receive', {
-        warehouseId: this.opening.warehouseId,
-        productId: this.opening.product!.id,
-        qty: this.opening.qty,
-        unitCost: this.opening.unitCost,
-        type: 'OPENING_BALANCE',
-        note: this.opening.note || null,
-      }));
+      const product = this.opening.product!;
+      if (product.trackExpiry) {
+        // Expiry-tracked: create the lot AND post the opening stock in one call so the
+        // Stock row and the lot ledger stay in sync (otherwise FEFO has nothing to consume).
+        await firstValueFrom(this.http.post('/api/v1/lots/opening-balance', {
+          warehouseId: this.opening.warehouseId,
+          variantId: this.variantIdOf(product),
+          quantity: this.opening.qty,
+          unitCost: this.opening.unitCost,
+          lotNumber: this.opening.lotNumber.trim(),
+          expirationDate: this.opening.expirationDate,
+          productionDate: this.opening.productionDate || null,
+          notes: this.opening.note || null,
+        }));
+      } else {
+        await firstValueFrom(this.http.post('/api/v1/inventory/stocks/receive', {
+          warehouseId: this.opening.warehouseId,
+          variantId: this.variantIdOf(product),
+          qty: this.opening.qty,
+          unitCost: this.opening.unitCost,
+          type: 'OPENING_BALANCE',
+          note: this.opening.note || null,
+        }));
+      }
       this.toast.add({
         severity: 'success',
         summary: this.i18n.instant('common.success'),
@@ -474,9 +542,10 @@ export class StockListPage implements OnInit {
     if (this.adjustQtyInvalid() || this.adjustNoteInvalid()) return;
     this.saving.set(true);
     try {
+      const adjustVariantId = await this.fetchDefaultVariantId(target.productId);
       await firstValueFrom(this.http.post('/api/v1/inventory/stocks/adjust', {
         warehouseId: target.warehouseId,
-        productId: target.productId,
+        variantId: adjustVariantId,
         qtySigned: this.adjust.qtySigned,
         type: 'ADJUSTMENT',
         note: this.adjust.note,
@@ -525,6 +594,9 @@ export class StockListPage implements OnInit {
       qty: null as number | null,
       unitCost: null as number | null,
       note: '',
+      lotNumber: '',
+      expirationDate: '',
+      productionDate: '',
     };
   }
 

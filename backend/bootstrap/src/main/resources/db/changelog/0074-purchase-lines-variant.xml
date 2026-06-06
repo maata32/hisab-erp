@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Purchase document lines (orders, invoices, goods receipts, credit notes) carry the
+      variant they buy/receive. product_id stays for snapshots; variant_id is backfilled
+      on existing lines to the product's default (or first) variant. Kept nullable so
+      historical snapshots remain valid.
+    -->
+    <changeSet id="0074-po-lines-variant" author="mini-erp">
+        <addColumn tableName="purchase_order_lines">
+            <column name="variant_id" type="uuid"/>
+        </addColumn>
+        <sql>
+            UPDATE purchase_order_lines l
+               SET variant_id = (SELECT v.id FROM product_variants v
+                    WHERE v.product_id = l.product_id
+                    ORDER BY v.is_default DESC, v.sku ASC LIMIT 1)
+             WHERE l.variant_id IS NULL AND l.product_id IS NOT NULL;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0074-pinvoice-lines-variant" author="mini-erp">
+        <addColumn tableName="purchase_invoice_lines">
+            <column name="variant_id" type="uuid"/>
+        </addColumn>
+        <sql>
+            UPDATE purchase_invoice_lines l
+               SET variant_id = (SELECT v.id FROM product_variants v
+                    WHERE v.product_id = l.product_id
+                    ORDER BY v.is_default DESC, v.sku ASC LIMIT 1)
+             WHERE l.variant_id IS NULL AND l.product_id IS NOT NULL;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0074-goods-receipt-lines-variant" author="mini-erp">
+        <addColumn tableName="goods_receipt_lines">
+            <column name="variant_id" type="uuid"/>
+        </addColumn>
+        <sql>
+            UPDATE goods_receipt_lines l
+               SET variant_id = (SELECT v.id FROM product_variants v
+                    WHERE v.product_id = l.product_id
+                    ORDER BY v.is_default DESC, v.sku ASC LIMIT 1)
+             WHERE l.variant_id IS NULL AND l.product_id IS NOT NULL;
+        </sql>
+    </changeSet>
+
+    <changeSet id="0074-purchase-credit-note-lines-variant" author="mini-erp">
+        <addColumn tableName="purchase_credit_note_lines">
+            <column name="variant_id" type="uuid"/>
+        </addColumn>
+        <sql>
+            UPDATE purchase_credit_note_lines l
+               SET variant_id = (SELECT v.id FROM product_variants v
+                    WHERE v.product_id = l.product_id
+                    ORDER BY v.is_default DESC, v.sku ASC LIMIT 1)
+             WHERE l.variant_id IS NULL AND l.product_id IS NOT NULL;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

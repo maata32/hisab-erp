@@ -149,6 +149,13 @@ class Phase1ACrossTenantIT {
                 VALUES (?, ?, ?, 'Test Product', ?, 0.00, false, false, true, true,
                         true, now(), now(), 0)
                 """, id, tenantId, sku, baseUomId);
+        // Variant = SKU: stock ops resolve the product through its variant, so seed a
+        // default variant reusing the product id.
+        jdbc.update("""
+                INSERT INTO product_variants (id, tenant_id, product_id, sku, is_default,
+                                              is_active, created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, true, true, now(), now(), 0)
+                """, id, tenantId, id, sku);
         return id;
     }
 

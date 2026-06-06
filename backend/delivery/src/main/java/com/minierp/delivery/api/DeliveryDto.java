@@ -10,6 +10,7 @@ public class DeliveryDto {
 
     public record LineDto(
             UUID id,
+            UUID variantId,
             UUID productId,
             UUID uomId,
             BigDecimal quantityOrdered,
@@ -39,6 +40,7 @@ public class DeliveryDto {
     ) {}
 
     public record LineRequest(
+            UUID variantId,
             UUID productId,
             UUID uomId,
             BigDecimal quantityOrdered,

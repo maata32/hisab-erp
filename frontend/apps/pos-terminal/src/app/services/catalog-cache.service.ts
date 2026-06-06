@@ -35,13 +35,21 @@ export class CatalogCacheService {
     const sellable = resp.content.filter((p) => p.sellable);
     const defaultTier = tiers.find((t) => (t as any).defaultTier) ?? tiers[0] ?? null;
 
+    // The variant is the real SKU sold at the POS; use each product's default variant.
+    const variantOf = (p: typeof sellable[number]): string | null => {
+      const vs = p.variants ?? [];
+      return (vs.find((v) => v.defaultVariant && v.active) ?? vs.find((v) => v.active) ?? vs[0])?.id ?? null;
+    };
+
     const priceMap = new Map<string, { amount: number; currency: string; taxInclusive: boolean; taxRate: number }>();
     if (defaultTier && sellable.length > 0) {
       try {
         const prices = await firstValueFrom(
           this.api.bulkResolvePrice(
             defaultTier.id,
-            sellable.map((p) => ({ productId: p.id, uomId: p.baseUomId })),
+            sellable
+              .map((p) => ({ variantId: variantOf(p)!, uomId: p.baseUomId }))
+              .filter((it) => !!it.variantId),
           ),
         );
         for (const rp of prices) {
@@ -59,6 +67,7 @@ export class CatalogCacheService {
       const rp = priceMap.get(p.id);
       return {
         id: p.id,
+        variantId: variantOf(p) ?? p.id,
         sku: p.sku,
         barcode: p.barcode,
         name: p.name,

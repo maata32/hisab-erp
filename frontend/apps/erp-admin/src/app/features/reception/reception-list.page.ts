@@ -57,6 +57,17 @@ interface InvoiceLite {
   creditNoteCount: number;
 }
 
+interface ReceptionLineForm {
+  variantId: string;
+  productId: string;
+  uomId: string;
+  productName: string;
+  sku: string;
+  unitCost: number;
+  remaining: number;
+  quantityOrdered: number;
+}
+
 interface RecordLineForm {
   lineId: string;
   productId: string;
@@ -152,7 +163,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                         optionLabel="number" optionValue="id"
                         [filter]="true" filterBy="number,supplierName"
                         [placeholder]="'reception.pickInvoice' | translate"
-                        appendTo="body"
+                        appendTo="body" (onChange)="onInvoiceChange()"
                         [styleClass]="'w-full' + (invoiceInvalid() ? ' ng-invalid ng-dirty' : '')">
               <ng-template let-o pTemplate="item">
                 <div class="flex flex-col">
@@ -199,7 +210,44 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             <label class="block text-sm font-medium mb-1">{{ 'common.notes' | translate }}</label>
             <input pInputText [(ngModel)]="form.notes" class="w-full" />
           </div>
-          <p class="text-xs text-gray-500">{{ 'reception.createHint' | translate }}</p>
+
+          <div class="border rounded">
+            <div class="p-2 bg-gray-50 border-b font-medium text-sm">
+              {{ 'reception.linesToReceive' | translate }}
+            </div>
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 text-gray-600">
+                <tr>
+                  <th class="text-left p-2">{{ 'sales.product' | translate }}</th>
+                  <th class="text-right p-2 w-32">{{ 'reception.remaining' | translate }}</th>
+                  <th class="text-right p-2 w-32">{{ 'reception.quantityToReceive' | translate }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (l of form.lines; track l.productId) {
+                  <tr class="border-t">
+                    <td class="p-2">
+                      <div class="font-medium">{{ l.productName }}</div>
+                      <div class="text-xs text-gray-500 font-mono">{{ l.sku }}</div>
+                    </td>
+                    <td class="p-2 text-right text-gray-500">{{ l.remaining }}</td>
+                    <td class="p-1">
+                      <p-inputNumber [(ngModel)]="l.quantityOrdered" [min]="0" [max]="l.remaining"
+                                     [minFractionDigits]="0" [maxFractionDigits]="3"
+                                     inputStyleClass="w-full text-right"
+                                     [styleClass]="'w-full' + (createLinesInvalid() ? ' ng-invalid ng-dirty' : '')" />
+                    </td>
+                  </tr>
+                }
+                @if (form.lines.length === 0) {
+                  <tr><td colspan="3" class="p-4 text-center text-gray-400">{{ 'reception.pickInvoiceFirst' | translate }}</td></tr>
+                }
+              </tbody>
+            </table>
+            @if (createLinesInvalid()) {
+              <div class="px-2 py-2 text-xs text-red-600 border-t">{{ 'reception.atLeastOneLineQty' | translate }}</div>
+            }
+          </div>
         </div>
         <ng-template pTemplate="footer">
           <button pButton [label]="'common.cancel' | translate" class="p-button-text"
@@ -217,7 +265,6 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             <thead class="bg-gray-50 text-gray-600">
               <tr>
                 <th class="text-left p-2">{{ 'sales.product' | translate }}</th>
-                <th class="text-right p-2 w-20">{{ 'reception.expected' | translate }}</th>
                 <th class="text-right p-2 w-28">{{ 'reception.receivingNow' | translate }}</th>
                 <th class="p-2 w-40">{{ 'reception.lotNumber' | translate }}</th>
                 <th class="p-2 w-36">{{ 'reception.expirationDate' | translate }}</th>
@@ -230,12 +277,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                     <div class="font-medium">{{ l.productName }}</div>
                     <div class="text-xs text-gray-500 font-mono">{{ l.sku }}</div>
                   </td>
-                  <td class="p-2 text-right text-gray-500">{{ l.quantityPlanned }}</td>
-                  <td class="p-1">
-                    <p-inputNumber [(ngModel)]="l.quantityReceived" [min]="0" [max]="l.quantityPlanned"
-                                   [minFractionDigits]="0" [maxFractionDigits]="3"
-                                   inputStyleClass="w-full text-right" styleClass="w-full" />
-                  </td>
+                  <td class="p-2 text-right font-medium">{{ l.quantityReceived }}</td>
                   <td class="p-1">
                     @if (l.trackExpiry) {
                       <input pInputText [(ngModel)]="l.lotNumber" class="w-full"
@@ -301,7 +343,33 @@ export class ReceptionListPage implements OnInit {
     warehouseId: string | null;
     scheduledDate: Date;
     notes: string;
+    lines: ReceptionLineForm[];
   } = this.emptyForm();
+
+  protected createLinesInvalid(): boolean {
+    return this.submittedCreate() && !this.form.lines.some(l => (l.quantityOrdered ?? 0) > 0);
+  }
+
+  /** On invoice pick, prefill the lines with the invoice's outstanding (not-yet-
+   *  received) quantities — mirroring the sales BL create dialog. */
+  protected async onInvoiceChange() {
+    this.form.lines = [];
+    const invId = this.form.invoiceId;
+    if (!invId) return;
+    try {
+      const lines = await firstValueFrom(
+        this.http.get<{ variantId: string; productId: string; uomId: string; quantityOrdered: number;
+          unitCost: number; productName: string; sku: string }[]>(
+          `/api/v1/goods-receipts/outstanding-lines?invoiceId=${invId}`));
+      this.form.lines = (lines ?? []).map(l => {
+        const remaining = Number(l.quantityOrdered);
+        return {
+          variantId: l.variantId, productId: l.productId, uomId: l.uomId, productName: l.productName, sku: l.sku,
+          unitCost: Number(l.unitCost ?? 0), remaining, quantityOrdered: remaining,
+        };
+      });
+    } catch { this.form.lines = []; }
+  }
 
   protected recordForm: {
     receiptId: string | null;
@@ -315,6 +383,7 @@ export class ReceptionListPage implements OnInit {
       if (invoiceId && this.receivableInvoices().some(i => i.id === invoiceId)) {
         this.openCreate();
         this.form.invoiceId = invoiceId;
+        this.onInvoiceChange();
         // Drop the query param so a refresh doesn't re-trigger the dialog.
         this.router.navigate([], { queryParams: {}, replaceUrl: true });
       }
@@ -361,7 +430,8 @@ export class ReceptionListPage implements OnInit {
   }
 
   protected canSave(): boolean {
-    return !!this.form.invoiceId && !!this.form.warehouseId && !!this.form.scheduledDate;
+    return !!this.form.invoiceId && !!this.form.warehouseId && !!this.form.scheduledDate
+        && this.form.lines.length > 0 && this.form.lines.some(l => (l.quantityOrdered ?? 0) > 0);
   }
 
   protected async save() {
@@ -376,7 +446,16 @@ export class ReceptionListPage implements OnInit {
         warehouseId: this.form.warehouseId,
         scheduledDate: this.toIsoDate(this.form.scheduledDate),
         notes: this.form.notes || null,
-        lines: null,
+        lines: this.form.lines
+          .filter(l => (l.quantityOrdered ?? 0) > 0)
+          .map(l => ({
+            variantId: l.variantId,
+            uomId: l.uomId,
+            quantityOrdered: l.quantityOrdered,
+            unitCost: l.unitCost,
+            productName: l.productName,
+            sku: l.sku,
+          })),
       };
       await firstValueFrom(this.http.post('/api/v1/goods-receipts', payload));
       this.createOpen = false;
@@ -548,6 +627,7 @@ export class ReceptionListPage implements OnInit {
                    ?? null as string | null,
       scheduledDate: new Date(),
       notes: '',
+      lines: [] as ReceptionLineForm[],
     };
   }
 }

@@ -6,6 +6,7 @@ import java.util.UUID;
 
 public record ProductPriceDto(
         UUID id,
+        UUID variantId,
         UUID productId,
         UUID uomId,
         UUID priceTierId,

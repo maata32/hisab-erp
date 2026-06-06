@@ -35,6 +35,9 @@ public class ProductService {
     private final ProductPackagingRepository packagings;
     private final ProductVariantRepository variants;
     private final ProductImageRepository images;
+    private final ProductAttributeValueRepository productAttributeValues;
+    private final VariantAttributeValueRepository variantAttributeValues;
+    private final VariantGenerationService variantGeneration;
     private final BrandRepository brands;
     private final ProductCategoryRepository categories;
     private final UomLookup uomLookup;
@@ -89,6 +92,7 @@ public class ProductService {
                 .tracksSerial(Boolean.TRUE.equals(req.tracksSerial()))
                 .sellable(req.sellable() == null || req.sellable())
                 .purchasable(req.purchasable() == null || req.purchasable())
+                .uniformPricing(req.uniformPricing() == null || req.uniformPricing())
                 .imageUrl(req.imageUrl())
                 .weightGrams(req.weightGrams())
                 .build();
@@ -98,6 +102,14 @@ public class ProductService {
             for (CreatePackagingRequest cp : req.packagings()) {
                 addPackaging(p, cp);
             }
+        }
+
+        // Every product is backed by at least one variant (the real SKU). When attribute
+        // values are supplied we generate the matrix, otherwise a single default variant.
+        if (req.attributeValueIds() != null && !req.attributeValueIds().isEmpty()) {
+            variantGeneration.setAttributeValues(p.getId(), req.attributeValueIds());
+        } else {
+            variantGeneration.ensureDefaultVariant(p);
         }
 
         events.publishEvent(new ProductCreatedEvent(
@@ -124,6 +136,7 @@ public class ProductService {
             p.setBaseUomId(req.baseUomId());
         }
         if (req.defaultTaxRate() != null) p.setDefaultTaxRate(req.defaultTaxRate());
+        if (req.uniformPricing() != null) p.setUniformPricing(req.uniformPricing());
         if (req.trackExpiry() != null) p.setTrackExpiry(req.trackExpiry());
         if (req.shelfLifeDays() != null) p.setShelfLifeDays(req.shelfLifeDays());
         if (req.sellable() != null) p.setSellable(req.sellable());
@@ -190,25 +203,28 @@ public class ProductService {
         packagings.delete(pp);
     }
 
+    /** Set the product's enabled attribute values and regenerate its variant matrix. */
     @Transactional
-    public ProductVariantDto addVariant(UUID productId, CreateVariantRequest req) {
-        products.findById(productId).orElseThrow(() -> NotFoundException.of("entity.product", productId));
-        ProductVariant v = ProductVariant.builder()
-                .productId(productId)
-                .sku(blankToNull(req.sku()))
-                .barcode(blankToNull(req.barcode()))
-                .attributes(req.attributes())
-                .build();
-        variants.save(v);
-        return toVariantDto(v);
+    public ProductDto setAttributeValues(UUID productId, List<UUID> attributeValueIds) {
+        variantGeneration.setAttributeValues(productId, attributeValueIds);
+        return get(productId);
     }
 
+    /** Edit a single generated variant's SKU / barcode / active flag. */
     @Transactional
-    public void removeVariant(UUID productId, UUID variantId) {
+    public ProductVariantDto updateVariant(UUID productId, UUID variantId, UpdateVariantRequest req) {
         ProductVariant v = variants.findById(variantId)
                 .orElseThrow(() -> NotFoundException.of("entity.product_variant", variantId));
         if (!v.getProductId().equals(productId)) throw NotFoundException.of("entity.product_variant", variantId);
-        variants.delete(v);
+        if (req.sku() != null && !req.sku().isBlank() && !req.sku().equals(v.getSku())) {
+            if (variants.existsBySku(req.sku())) {
+                throw new ConflictException("error.data_integrity", Map.of("field", "sku", "value", req.sku()));
+            }
+            v.setSku(req.sku());
+        }
+        if (req.barcode() != null) v.setBarcode(blankToNull(req.barcode()));
+        if (req.active() != null) v.setActive(req.active());
+        return toVariantDto(v);
     }
 
     @Transactional
@@ -268,15 +284,21 @@ public class ProductService {
                 .map(this::toVariantDto).toList();
         var imageDtos = images.findByProductIdOrderByPositionAsc(p.getId()).stream()
                 .map(this::toImageDto).toList();
+        var attributeValueIds = productAttributeValues.findByProductId(p.getId()).stream()
+                .map(ProductAttributeValue::getAttributeValueId).toList();
         return new ProductDto(p.getId(), p.getSku(), p.getBarcode(), p.getName(),
                 p.getDescription(), p.getCategoryId(), p.getBrandId(), p.getBaseUomId(),
                 p.getDefaultTaxRate(), p.isTracksLots(), p.isTrackExpiry(), p.getShelfLifeDays(),
                 p.isTracksSerial(), p.isSellable(), p.isPurchasable(), p.isActive(),
-                p.getImageUrl(), p.getWeightGrams(), pkgs, variantDtos, imageDtos);
+                p.isUniformPricing(), p.getImageUrl(), p.getWeightGrams(), attributeValueIds,
+                pkgs, variantDtos, imageDtos);
     }
 
     private ProductVariantDto toVariantDto(ProductVariant v) {
-        return new ProductVariantDto(v.getId(), v.getSku(), v.getBarcode(), v.getAttributes(), v.isActive());
+        var valueIds = variantAttributeValues.findByVariantId(v.getId()).stream()
+                .map(VariantAttributeValue::getAttributeValueId).toList();
+        return new ProductVariantDto(v.getId(), v.getSku(), v.getBarcode(), v.getAttributes(),
+                valueIds, v.isDefaultVariant(), v.isActive());
     }
 
     private ProductImageDto toImageDto(ProductImage img) {
@@ -302,8 +324,10 @@ public class ProductService {
             Boolean tracksSerial,
             Boolean sellable,
             Boolean purchasable,
+            Boolean uniformPricing,
             String imageUrl,
             BigDecimal weightGrams,
+            List<UUID> attributeValueIds,
             List<CreatePackagingRequest> packagings) {}
 
     public record UpdateProductRequest(
@@ -314,6 +338,7 @@ public class ProductService {
             UUID brandId,
             UUID baseUomId,
             BigDecimal defaultTaxRate,
+            Boolean uniformPricing,
             Boolean trackExpiry,
             Integer shelfLifeDays,
             Boolean sellable,
@@ -332,10 +357,13 @@ public class ProductService {
             Integer sortOrder,
             Boolean active) {}
 
-    public record CreateVariantRequest(
+    public record SetAttributeValuesRequest(
+            List<UUID> attributeValueIds) {}
+
+    public record UpdateVariantRequest(
             String sku,
             String barcode,
-            String attributes) {}
+            Boolean active) {}
 
     public record CreateImageRequest(
             String url,

@@ -6,6 +6,7 @@ import java.util.UUID;
 public record StockDto(
         UUID id,
         UUID warehouseId,
+        UUID variantId,
         UUID productId,
         BigDecimal qtyOnHand,
         BigDecimal qtyReserved,

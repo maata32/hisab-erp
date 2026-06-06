@@ -46,7 +46,7 @@ public class StockTransferController {
         return service.create(req.fromWarehouseId(), req.toWarehouseId(),
                 req.scheduledDate(), req.notes(),
                 req.lines().stream().map(l -> new StockTransferService.LineRequest(
-                        l.productId(), l.lotId(), l.uomId(), l.quantityRequested())).toList());
+                        l.variantId(), l.lotId(), l.uomId(), l.quantityRequested())).toList());
     }
 
     @PostMapping("/{id}/execute")
@@ -69,7 +69,7 @@ public class StockTransferController {
             @NotNull List<LineReq> lines) {}
 
     public record LineReq(
-            @NotNull UUID productId,
+            @NotNull UUID variantId,
             UUID lotId,
             @NotNull UUID uomId,
             @NotNull BigDecimal quantityRequested) {}

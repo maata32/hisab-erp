@@ -8,14 +8,17 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * On-hand quantity for one (warehouse, product) pair, expressed in the product's base UoM.
+ * On-hand quantity for one (warehouse, variant) pair, expressed in the product's base UoM.
+ * The variant is the real SKU; {@code product_id} is kept denormalized so product-level
+ * rollups (e.g. the stock breakdown) need no variant lookup.
  * {@code averageCost} is the CMP (coût moyen pondéré) per base unit.
  */
 @Entity
 @Table(name = "stocks",
-        uniqueConstraints = @UniqueConstraint(name = "uk_stocks_warehouse_product",
-                columnNames = {"warehouse_id", "product_id"}),
+        uniqueConstraints = @UniqueConstraint(name = "uk_stocks_warehouse_variant",
+                columnNames = {"warehouse_id", "variant_id"}),
         indexes = {
+                @Index(name = "idx_stocks_variant", columnList = "variant_id"),
                 @Index(name = "idx_stocks_product", columnList = "product_id"),
                 @Index(name = "idx_stocks_warehouse", columnList = "warehouse_id")
         })
@@ -34,6 +37,10 @@ class Stock extends TenantAwareEntity {
     @Column(name = "warehouse_id", columnDefinition = "uuid", nullable = false)
     private UUID warehouseId;
 
+    @Column(name = "variant_id", columnDefinition = "uuid", nullable = false)
+    private UUID variantId;
+
+    /** Denormalized parent product of {@link #variantId} for product-level rollups. */
     @Column(name = "product_id", columnDefinition = "uuid", nullable = false)
     private UUID productId;
 

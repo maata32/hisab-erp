@@ -71,6 +71,15 @@
     <include file="db/changelog/0064-expense-category-caps.xml"/>
     <include file="db/changelog/0065-payment-types-collapse-refund.xml"/>
     <include file="db/changelog/0066-payments-bank-account-link.xml"/>
+    <include file="db/changelog/0067-uom-update-delete-permissions.xml"/>
+    <include file="db/changelog/0068-product-attributes.xml"/>
+    <include file="db/changelog/0069-product-variants-as-sku.xml"/>
+    <include file="db/changelog/0070-stocks-variant.xml"/>
+    <include file="db/changelog/0071-prices-variant.xml"/>
+    <include file="db/changelog/0072-lots-variant-required.xml"/>
+    <include file="db/changelog/0073-sales-lines-variant.xml"/>
+    <include file="db/changelog/0074-purchase-lines-variant.xml"/>
+    <include file="db/changelog/0075-inventory-lines-variant.xml"/>
     <include file="db/changelog/0076-tenant-lifecycle.xml"/>
 
 </databaseChangeLog>

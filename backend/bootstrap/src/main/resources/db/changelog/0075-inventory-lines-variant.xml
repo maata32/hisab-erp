@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Stock transfer and inventory count lines move from product to variant. Existing
+      lines are backfilled to the product's default (or first) variant, then product_id
+      is dropped since these tables now key purely on the variant SKU.
+    -->
+    <changeSet id="0075-transfer-lines-add-variant" author="mini-erp">
+        <addColumn tableName="stock_transfer_lines">
+            <column name="variant_id" type="uuid"/>
+        </addColumn>
+        <sql>
+            UPDATE stock_transfer_lines l
+               SET variant_id = (
+                   SELECT v.id FROM product_variants v
+                    WHERE v.product_id = l.product_id
+                    ORDER BY v.is_default DESC, v.sku ASC
+                    LIMIT 1)
+             WHERE l.variant_id IS NULL;
+        </sql>
+        <addNotNullConstraint tableName="stock_transfer_lines" columnName="variant_id" columnDataType="uuid"/>
+        <dropColumn tableName="stock_transfer_lines" columnName="product_id"/>
+    </changeSet>
+
+    <changeSet id="0075-count-lines-add-variant" author="mini-erp">
+        <addColumn tableName="inventory_count_lines">
+            <column name="variant_id" type="uuid"/>
+        </addColumn>
+        <sql>
+            UPDATE inventory_count_lines l
+               SET variant_id = (
+                   SELECT v.id FROM product_variants v
+                    WHERE v.product_id = l.product_id
+                    ORDER BY v.is_default DESC, v.sku ASC
+                    LIMIT 1)
+             WHERE l.variant_id IS NULL;
+        </sql>
+        <addNotNullConstraint tableName="inventory_count_lines" columnName="variant_id" columnDataType="uuid"/>
+        <dropColumn tableName="inventory_count_lines" columnName="product_id"/>
+    </changeSet>
+
+</databaseChangeLog>

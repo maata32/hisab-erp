@@ -13,6 +13,7 @@ public class GoodsReceiptDto {
 
     public record LineDto(
             UUID id,
+            UUID variantId,
             UUID productId,
             UUID uomId,
             BigDecimal quantityOrdered,
@@ -42,6 +43,7 @@ public class GoodsReceiptDto {
 
     /** One planned reception line. {@code quantityOrdered} = qty to receive in this BRC. */
     public record LineRequest(
+            UUID variantId,
             UUID productId,
             UUID uomId,
             BigDecimal quantityOrdered,

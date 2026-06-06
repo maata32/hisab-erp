@@ -1,5 +1,6 @@
 package com.minierp.inventory.internal;
 
+import com.minierp.catalog.api.VariantLookup;
 import com.minierp.inventory.api.ProductStockBreakdownDto;
 import com.minierp.inventory.api.ProductStockBreakdownDto.WarehouseStockEntry;
 import com.minierp.inventory.api.StockDto;
@@ -36,17 +37,18 @@ class StockOperationsImpl implements StockOperations {
     private final StockRepository stocks;
     private final StockMovementRepository movements;
     private final WarehouseRepository warehouses;
+    private final VariantLookup variants;
 
     @Override
     @Transactional
-    public StockMovementDto receive(UUID warehouseId, UUID productId, BigDecimal qty, BigDecimal unitCost,
+    public StockMovementDto receive(UUID warehouseId, UUID variantId, BigDecimal qty, BigDecimal unitCost,
                                     StockMovementType type, String referenceType, UUID referenceId,
                                     String referenceNumber, String note, UUID userId) {
         requirePositive(qty, "qty");
         requireNonNegative(unitCost, "unitCost");
         ensureWarehouse(warehouseId);
 
-        Stock stock = lockOrCreate(warehouseId, productId);
+        Stock stock = lockOrCreate(warehouseId, variantId);
 
         BigDecimal oldQty = stock.getQtyOnHand();
         BigDecimal oldCost = stock.getAverageCost();
@@ -61,40 +63,40 @@ class StockOperationsImpl implements StockOperations {
         stock.setQtyOnHand(newQty);
         stock.setAverageCost(newCost);
 
-        return persistMovement(warehouseId, productId, qty, unitCost, type,
+        return persistMovement(warehouseId, variantId, stock.getProductId(), qty, unitCost, type,
                 referenceType, referenceId, referenceNumber, note, userId);
     }
 
     @Override
     @Transactional
-    public StockMovementDto issue(UUID warehouseId, UUID productId, BigDecimal qty,
+    public StockMovementDto issue(UUID warehouseId, UUID variantId, BigDecimal qty,
                                   StockMovementType type, String referenceType, UUID referenceId,
                                   String referenceNumber, String note, UUID userId) {
         requirePositive(qty, "qty");
         ensureWarehouse(warehouseId);
 
-        Stock stock = lockOrCreate(warehouseId, productId);
+        Stock stock = lockOrCreate(warehouseId, variantId);
         BigDecimal available = stock.getQtyOnHand().subtract(stock.getQtyReserved());
         if (available.compareTo(qty) < 0) {
             throw new BusinessException("error.inventory.insufficient_stock",
-                    Map.of("requested", qty, "available", available, "productId", productId));
+                    Map.of("requested", qty, "available", available, "variantId", variantId));
         }
         stock.setQtyOnHand(stock.getQtyOnHand().subtract(qty));
 
-        return persistMovement(warehouseId, productId, qty.negate(), stock.getAverageCost(), type,
-                referenceType, referenceId, referenceNumber, note, userId);
+        return persistMovement(warehouseId, variantId, stock.getProductId(), qty.negate(),
+                stock.getAverageCost(), type, referenceType, referenceId, referenceNumber, note, userId);
     }
 
     @Override
     @Transactional
-    public StockMovementDto adjust(UUID warehouseId, UUID productId, BigDecimal qtySigned,
+    public StockMovementDto adjust(UUID warehouseId, UUID variantId, BigDecimal qtySigned,
                                    BigDecimal unitCost, StockMovementType type,
                                    String note, UUID userId) {
         if (qtySigned == null || qtySigned.signum() == 0) {
             throw new BusinessException("error.inventory.invalid_adjustment", Map.of());
         }
         ensureWarehouse(warehouseId);
-        Stock stock = lockOrCreate(warehouseId, productId);
+        Stock stock = lockOrCreate(warehouseId, variantId);
 
         BigDecimal newQty = stock.getQtyOnHand().add(qtySigned);
         if (newQty.signum() < 0) {
@@ -114,51 +116,46 @@ class StockOperationsImpl implements StockOperations {
             stock.setAverageCost(newCost);
         }
 
-        return persistMovement(warehouseId, productId, qtySigned,
+        return persistMovement(warehouseId, variantId, stock.getProductId(), qtySigned,
                 unitCost == null ? stock.getAverageCost() : unitCost,
                 type, null, null, null, note, userId);
     }
 
     @Override
     @Transactional
-    public StockMovementDto issueAllowNegative(UUID warehouseId, UUID productId, BigDecimal qty,
+    public StockMovementDto issueAllowNegative(UUID warehouseId, UUID variantId, BigDecimal qty,
                                                StockMovementType type, String referenceType, UUID referenceId,
                                                String referenceNumber, String note, UUID userId) {
         requirePositive(qty, "qty");
         ensureWarehouse(warehouseId);
 
-        Stock stock = lockOrCreate(warehouseId, productId);
+        Stock stock = lockOrCreate(warehouseId, variantId);
         BigDecimal newQty = stock.getQtyOnHand().subtract(qty);
         stock.setQtyOnHand(newQty);
 
         if (newQty.signum() < 0) {
-            log.warn("Stock went negative: warehouseId={}, productId={}, qtyOnHand={}",
-                    warehouseId, productId, newQty);
+            log.warn("Stock went negative: warehouseId={}, variantId={}, qtyOnHand={}",
+                    warehouseId, variantId, newQty);
         }
 
-        return persistMovement(warehouseId, productId, qty.negate(), stock.getAverageCost(), type,
-                referenceType, referenceId, referenceNumber, note, userId);
+        return persistMovement(warehouseId, variantId, stock.getProductId(), qty.negate(),
+                stock.getAverageCost(), type, referenceType, referenceId, referenceNumber, note, userId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public StockDto getStock(UUID warehouseId, UUID productId) {
-        Stock s = stocks.findByWarehouseIdAndProductId(warehouseId, productId)
+    public StockDto getStock(UUID warehouseId, UUID variantId) {
+        Stock s = stocks.findByWarehouseIdAndVariantId(warehouseId, variantId)
                 .orElseGet(() -> Stock.builder()
-                        .warehouseId(warehouseId).productId(productId).build());
-        return new StockDto(s.getId(), s.getWarehouseId(), s.getProductId(),
-                s.getQtyOnHand(), s.getQtyReserved(),
-                s.getQtyOnHand().subtract(s.getQtyReserved()), s.getAverageCost());
+                        .warehouseId(warehouseId).variantId(variantId)
+                        .productId(variants.require(variantId).productId()).build());
+        return toDto(s);
     }
 
     @Override
     @Transactional(readOnly = true)
     public java.util.List<StockDto> listByWarehouse(UUID warehouseId) {
-        return stocks.findByWarehouseId(warehouseId).stream()
-                .map(s -> new StockDto(s.getId(), s.getWarehouseId(), s.getProductId(),
-                        s.getQtyOnHand(), s.getQtyReserved(),
-                        s.getQtyOnHand().subtract(s.getQtyReserved()), s.getAverageCost()))
-                .toList();
+        return stocks.findByWarehouseId(warehouseId).stream().map(this::toDto).toList();
     }
 
     @Override
@@ -170,12 +167,13 @@ class StockOperationsImpl implements StockOperations {
                 .toList();
         Set<UUID> activeWarehouseIds = ordered.stream().map(Warehouse::getId).collect(Collectors.toSet());
 
+        // Roll up variant stock to the parent product per warehouse using the denormalized product_id.
         Map<UUID, Map<UUID, BigDecimal>> availableByProduct = new HashMap<>();
         for (Stock s : stocks.findAll()) {
             if (!activeWarehouseIds.contains(s.getWarehouseId())) continue;
             availableByProduct
                     .computeIfAbsent(s.getProductId(), k -> new HashMap<>())
-                    .put(s.getWarehouseId(), s.getQtyOnHand().subtract(s.getQtyReserved()));
+                    .merge(s.getWarehouseId(), s.getQtyOnHand().subtract(s.getQtyReserved()), BigDecimal::add);
         }
 
         return availableByProduct.entrySet().stream()
@@ -198,21 +196,18 @@ class StockOperationsImpl implements StockOperations {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<StockMovementDto> listMovements(UUID productId, UUID warehouseId, Pageable pageable) {
+    public PageResponse<StockMovementDto> listMovements(UUID variantId, UUID warehouseId, Pageable pageable) {
         var page = warehouseId == null
-                ? movements.findByProductIdOrderByOccurredAtDesc(productId, pageable)
-                : movements.findByProductIdAndWarehouseIdOrderByOccurredAtDesc(productId, warehouseId, pageable);
-        return PageResponse.of(page.map(m -> new StockMovementDto(
-                m.getId(), m.getWarehouseId(), m.getProductId(), m.getType(),
-                m.getQtySigned(), m.getUnitCost(),
-                m.getReferenceType(), m.getReferenceId(), m.getReferenceNumber(),
-                m.getNote(), m.getOccurredAt(), m.getUserId())));
+                ? movements.findByVariantIdOrderByOccurredAtDesc(variantId, pageable)
+                : movements.findByVariantIdAndWarehouseIdOrderByOccurredAtDesc(variantId, warehouseId, pageable);
+        return PageResponse.of(page.map(this::toMovementDto));
     }
 
-    private Stock lockOrCreate(UUID warehouseId, UUID productId) {
-        return stocks.lockByWarehouseAndProduct(warehouseId, productId)
+    private Stock lockOrCreate(UUID warehouseId, UUID variantId) {
+        return stocks.lockByWarehouseAndVariant(warehouseId, variantId)
                 .orElseGet(() -> stocks.save(Stock.builder()
-                        .warehouseId(warehouseId).productId(productId).build()));
+                        .warehouseId(warehouseId).variantId(variantId)
+                        .productId(variants.require(variantId).productId()).build()));
     }
 
     private void ensureWarehouse(UUID warehouseId) {
@@ -221,12 +216,13 @@ class StockOperationsImpl implements StockOperations {
         }
     }
 
-    private StockMovementDto persistMovement(UUID warehouseId, UUID productId, BigDecimal qtySigned,
-                                             BigDecimal unitCost, StockMovementType type,
+    private StockMovementDto persistMovement(UUID warehouseId, UUID variantId, UUID productId,
+                                             BigDecimal qtySigned, BigDecimal unitCost, StockMovementType type,
                                              String refType, UUID refId, String refNumber,
                                              String note, UUID userId) {
         StockMovement m = StockMovement.builder()
                 .warehouseId(warehouseId)
+                .variantId(variantId)
                 .productId(productId)
                 .type(type)
                 .qtySigned(qtySigned)
@@ -239,8 +235,18 @@ class StockOperationsImpl implements StockOperations {
                 .userId(userId)
                 .build();
         movements.save(m);
-        return new StockMovementDto(m.getId(), m.getWarehouseId(), m.getProductId(), m.getType(),
-                m.getQtySigned(), m.getUnitCost(),
+        return toMovementDto(m);
+    }
+
+    private StockDto toDto(Stock s) {
+        return new StockDto(s.getId(), s.getWarehouseId(), s.getVariantId(), s.getProductId(),
+                s.getQtyOnHand(), s.getQtyReserved(),
+                s.getQtyOnHand().subtract(s.getQtyReserved()), s.getAverageCost());
+    }
+
+    private StockMovementDto toMovementDto(StockMovement m) {
+        return new StockMovementDto(m.getId(), m.getWarehouseId(), m.getVariantId(), m.getProductId(),
+                m.getType(), m.getQtySigned(), m.getUnitCost(),
                 m.getReferenceType(), m.getReferenceId(), m.getReferenceNumber(),
                 m.getNote(), m.getOccurredAt(), m.getUserId());
     }

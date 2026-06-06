@@ -62,7 +62,7 @@ public class StockTransferService {
         lineRequests.forEach(lr -> transfer.getLines().add(
                 StockTransferLine.builder()
                         .transfer(transfer)
-                        .productId(lr.productId())
+                        .variantId(lr.variantId())
                         .lotId(lr.lotId())
                         .uomId(lr.uomId())
                         .quantityRequested(lr.quantityRequested())
@@ -85,10 +85,10 @@ public class StockTransferService {
 
         transfer.getLines().forEach(line -> {
             BigDecimal qty = line.getQuantityRequested();
-            stockOps.issue(transfer.getFromWarehouseId(), line.getProductId(), qty,
+            stockOps.issue(transfer.getFromWarehouseId(), line.getVariantId(), qty,
                     StockMovementType.TRANSFER_OUT, "STOCK_TRANSFER", transfer.getId(),
                     transfer.getTransferNumber(), null, userId);
-            stockOps.receive(transfer.getToWarehouseId(), line.getProductId(), qty,
+            stockOps.receive(transfer.getToWarehouseId(), line.getVariantId(), qty,
                     BigDecimal.ZERO, StockMovementType.TRANSFER_IN, "STOCK_TRANSFER",
                     transfer.getId(), transfer.getTransferNumber(), null, userId);
             line.setQuantityTransferred(qty);
@@ -129,10 +129,10 @@ public class StockTransferService {
                 t.getStatus().name(), t.getScheduledDate(), t.getCompletedAt(),
                 t.getNotes(),
                 t.getLines().stream().map(l -> new StockTransferDto.LineResponse(
-                        l.getId(), l.getProductId(), l.getLotId(), l.getUomId(),
+                        l.getId(), l.getVariantId(), l.getLotId(), l.getUomId(),
                         l.getQuantityRequested(), l.getQuantityTransferred(), l.getNotes()
                 )).toList());
     }
 
-    public record LineRequest(UUID productId, UUID lotId, UUID uomId, BigDecimal quantityRequested) {}
+    public record LineRequest(UUID variantId, UUID lotId, UUID uomId, BigDecimal quantityRequested) {}
 }

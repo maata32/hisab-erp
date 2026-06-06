@@ -34,6 +34,7 @@ public record SaleDto(
     public record SaleLineDto(
             UUID id,
             int lineNumber,
+            UUID variantId,
             UUID productId,
             UUID uomId,
             BigDecimal quantity,

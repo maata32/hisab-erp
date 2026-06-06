@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Lots now belong to a variant. product_variant_id (already present, nullable) is
+      backfilled to each product's default (or first) variant and made required, and the
+      lot-number uniqueness moves from (product, lot, warehouse) to (variant, lot, warehouse).
+    -->
+    <changeSet id="0072-lots-backfill-variant" author="mini-erp">
+        <sql>
+            UPDATE product_lots l
+               SET product_variant_id = (
+                   SELECT v.id FROM product_variants v
+                    WHERE v.product_id = l.product_id
+                    ORDER BY v.is_default DESC, v.sku ASC
+                    LIMIT 1)
+             WHERE l.product_variant_id IS NULL;
+        </sql>
+        <addNotNullConstraint tableName="product_lots" columnName="product_variant_id" columnDataType="uuid"/>
+    </changeSet>
+
+    <changeSet id="0072-lots-variant-unique" author="mini-erp">
+        <dropUniqueConstraint tableName="product_lots" constraintName="uk_product_lots_tenant_product_number_wh"/>
+        <addUniqueConstraint tableName="product_lots"
+                             columnNames="tenant_id,product_variant_id,lot_number,warehouse_id"
+                             constraintName="uk_product_lots_tenant_variant_number_wh"/>
+        <createIndex tableName="product_lots" indexName="idx_product_lots_variant">
+            <column name="product_variant_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

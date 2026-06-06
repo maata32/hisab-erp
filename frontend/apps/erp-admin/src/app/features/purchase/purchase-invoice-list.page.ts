@@ -64,8 +64,20 @@ interface PurchaseInvoiceDetail extends PurchaseInvoice {
 interface ReceptionLite { id: string; number: string; status: string; }
 interface PurchaseCreditNoteLite { id: string; number: string; total: number; currency: string; }
 
+/** A net-position open item (an opposite-chain sale invoice) the user can offset
+ *  against the purchase invoice being created. */
+interface CompensItem {
+  sourceType: string;
+  sourceId: string;
+  label: string;
+  amountOpen: number;
+  selected: boolean;
+  amount: number;
+}
+
 interface SupplierOpt { id: string; code: string; name: string; currency: string; }
-interface ProductOpt { id: string; sku: string; name: string; baseUomId: string; defaultTaxRate: number; }
+interface ProductVariantOpt { id: string; defaultVariant: boolean; active: boolean; }
+interface ProductOpt { id: string; sku: string; name: string; baseUomId: string; defaultTaxRate: number; variants: ProductVariantOpt[]; }
 interface ProductStockBreakdown {
   productId: string;
   warehouses: { warehouseId: string; warehouseCode: string; warehouseName: string; isDefault: boolean; qtyAvailable: number }[];
@@ -163,11 +175,6 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <button pButton icon="pi pi-wallet" class="p-button-sm p-button-text"
                           [pTooltip]="'purchaseInvoices.pay' | translate"
                           (click)="goToPay(inv)"></button>
-                }
-                @if (canCredit(inv)) {
-                  <button pButton icon="pi pi-replay" class="p-button-sm p-button-text p-button-warning"
-                          [pTooltip]="'purchaseInvoices.creditNote' | translate"
-                          (click)="openCreditNote(inv)"></button>
                 }
                 @if (canCancel(inv.status)) {
                   <button pButton icon="pi pi-times" class="p-button-sm p-button-text p-button-danger"
@@ -354,6 +361,46 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             <input pInputText [(ngModel)]="form.notes" class="w-full" />
           </div>
 
+          @if (compensItems().length > 0) {
+            <div class="border border-sky-300 rounded bg-sky-50">
+              <div class="flex items-center justify-between p-2 border-b border-sky-200">
+                <span class="font-medium text-sm text-sky-900">{{ 'compensate.title' | translate }}</span>
+                <span class="text-xs text-sky-800">{{ 'compensate.total' | translate }} :
+                  <strong>{{ compensTotal() | money }} {{ form.currency }}</strong></span>
+              </div>
+              <table class="w-full text-sm">
+                <thead class="text-sky-800">
+                  <tr>
+                    <th class="w-8 p-2"></th>
+                    <th class="text-left p-2">{{ 'partners.openItemsCol.type' | translate }}</th>
+                    <th class="text-left p-2">{{ 'partners.openItemsCol.ref' | translate }}</th>
+                    <th class="text-right p-2 w-28">{{ 'partners.openItemsCol.open' | translate }}</th>
+                    <th class="text-right p-2 w-32">{{ 'compensate.colImpute' | translate }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of compensItems(); track item.sourceId) {
+                    <tr class="border-t border-sky-200">
+                      <td class="p-2 text-center">
+                        <input type="checkbox" [(ngModel)]="item.selected" />
+                      </td>
+                      <td class="p-2">{{ ('partners.openItemsType.' + item.sourceType) | translate }}</td>
+                      <td class="p-2 font-mono text-xs">{{ item.label }}</td>
+                      <td class="p-2 text-right text-gray-700">{{ item.amountOpen | money }}</td>
+                      <td class="p-1">
+                        <p-inputNumber [(ngModel)]="item.amount" [min]="0" [max]="item.amountOpen"
+                                       [minFractionDigits]="2" [maxFractionDigits]="2"
+                                       [disabled]="!item.selected"
+                                       inputStyleClass="w-full text-right" styleClass="w-full" />
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+              <p class="text-xs text-sky-700 p-2 border-t border-sky-200">{{ 'compensate.hint' | translate }}</p>
+            </div>
+          }
+
           <div class="border rounded">
             <div class="flex items-center justify-between p-2 bg-gray-50 border-b">
               <span class="font-medium text-sm">{{ 'purchaseOrders.lines' | translate }}</span>
@@ -520,7 +567,20 @@ export class PurchaseInvoiceListPage implements OnInit {
   protected invoices = signal<PurchaseInvoice[]>([]);
   protected suppliers = signal<SupplierOpt[]>([]);
   protected products = signal<ProductOpt[]>([]);
+
+  /** Resolve the variant to invoice for a product: its default (or first active) variant. */
+  protected variantIdFor(productId: string | null): string | null {
+    if (!productId) return null;
+    const vs = this.products().find(p => p.id === productId)?.variants ?? [];
+    return (vs.find(v => v.defaultVariant && v.active)
+      ?? vs.find(v => v.active) ?? vs[0])?.id ?? null;
+  }
   protected stockBreakdown = signal<Record<string, number[]>>({});
+
+  // Net-position offset menu: the supplier's POSITIVE open items — our open sale
+  // invoices (INVOICE) when the party is also a customer — which can be netted
+  // against the purchase invoice (NEGATIVE) being created.
+  protected compensItems = signal<CompensItem[]>([]);
 
   protected stockLabel(productId: string): string {
     const arr = this.stockBreakdown()[productId];
@@ -707,12 +767,48 @@ export class PurchaseInvoiceListPage implements OnInit {
   protected openCreate() {
     this.form = this.emptyForm();
     this.submitted.set(false);
+    this.compensItems.set([]);
     this.createOpen = true;
   }
 
   protected onSupplierChange() {
     const s = this.suppliers().find(x => x.id === this.form.supplierId);
     if (s && !this.form.currency) this.form.currency = s.currency;
+    this.refreshCompensItems();
+  }
+
+  private async refreshCompensItems() {
+    if (!this.form.supplierId) {
+      this.compensItems.set([]);
+      return;
+    }
+    try {
+      const items = await firstValueFrom(
+        this.http.get<{ sourceType: string; sourceId: string; sign: string; amountOpen: number; label: string }[]>(
+          `/api/v1/allocations/open-items?partyId=${this.form.supplierId}`));
+      // A purchase invoice is NEGATIVE, so it nets against the party's POSITIVE
+      // items: our open sale invoices (when the supplier is also a customer).
+      const positives = (items ?? [])
+        .filter(i => i.sign === 'POSITIVE' && i.sourceType === 'INVOICE')
+        .map(i => ({
+          sourceType: i.sourceType,
+          sourceId: i.sourceId,
+          label: i.label,
+          amountOpen: Number(i.amountOpen),
+          selected: false,
+          amount: Number(i.amountOpen),
+        }));
+      this.compensItems.set(positives);
+    } catch {
+      this.compensItems.set([]);
+    }
+  }
+
+  protected compensTotal(): number {
+    return +this.compensItems()
+      .filter(i => i.selected)
+      .reduce((s, i) => s + (i.amount || 0), 0)
+      .toFixed(2);
   }
 
   protected addLine() {
@@ -756,18 +852,45 @@ export class PurchaseInvoiceListPage implements OnInit {
         currency: this.form.currency || null,
         notes: this.form.notes || null,
         lines: this.form.lines.map(l => ({
-          productId: l.productId,
+          variantId: this.variantIdFor(l.productId),
           uomId: l.uomId,
           quantity: l.quantity,
           unitCost: l.unitCost,
           taxRate: l.taxRate,
         })),
       };
-      await firstValueFrom(this.http.post('/api/v1/purchase-invoices', payload));
+      const created = await firstValueFrom(
+        this.http.post<{ id: string }>('/api/v1/purchase-invoices', payload));
+      if (created?.id && this.compensTotal() > 0) {
+        await this.applyCompensationsToCreatedInvoice(created.id);
+      }
       this.createOpen = false;
+      this.compensItems.set([]);
       this.reload();
     } finally {
       this.saving.set(false);
+    }
+  }
+
+  private async applyCompensationsToCreatedInvoice(purchaseInvoiceId: string) {
+    // The new purchase invoice is the NEGATIVE side; each selected sale invoice
+    // is POSITIVE. The engine caps every call to min(open balances, amount), so
+    // sequential best-effort is safe (later rows net to 0 once covered).
+    for (const item of this.compensItems()) {
+      if (!item.selected || (item.amount || 0) <= 0) continue;
+      try {
+        await firstValueFrom(this.http.post(
+          `/api/v1/allocations/apply?partyId=${this.form.supplierId}`, {
+            positiveType: item.sourceType,
+            positiveId: item.sourceId,
+            negativeType: 'PURCHASE_INVOICE',
+            negativeId: purchaseInvoiceId,
+            amount: item.amount,
+          }));
+      } catch {
+        // Best-effort: a single failure shouldn't block the invoice from
+        // existing. The user can compensate the rest manually later.
+      }
     }
   }
 

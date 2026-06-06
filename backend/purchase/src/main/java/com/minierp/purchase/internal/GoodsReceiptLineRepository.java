@@ -11,20 +11,19 @@ interface GoodsReceiptLineRepository extends JpaRepository<GoodsReceiptLine, UUI
     List<GoodsReceiptLine> findByGoodsReceiptId(UUID goodsReceiptId);
 
     /**
-     * Inbound received quantity per product across non-cancelled INBOUND receipts
+     * Inbound received quantity per variant across non-cancelled INBOUND receipts
      * of the invoice. RETURN-type receipts are excluded — they send goods back to
      * the supplier and would otherwise deflate the "received" total used by the
-     * invoice reception-status logic. Mirror of
-     * {@code DeliveryLineRepository.sumDeliveredByProductForInvoice}.
+     * invoice reception-status logic.
      */
     @Query("""
-            SELECT grl.productId, SUM(grl.quantityReceived)
+            SELECT grl.variantId, SUM(grl.quantityReceived)
             FROM GoodsReceiptLine grl, GoodsReceipt gr
             WHERE grl.goodsReceiptId = gr.id
               AND gr.purchaseInvoiceId = :invoiceId
               AND gr.status <> com.minierp.purchase.internal.GoodsReceiptStatus.CANCELLED
               AND gr.type = com.minierp.purchase.internal.GoodsReceiptType.INBOUND
-            GROUP BY grl.productId
+            GROUP BY grl.variantId
             """)
-    List<Object[]> sumReceivedByProductForInvoice(@Param("invoiceId") UUID invoiceId);
+    List<Object[]> sumReceivedByVariantForInvoice(@Param("invoiceId") UUID invoiceId);
 }

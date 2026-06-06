@@ -80,6 +80,9 @@ class CreditNoteReturnDeliveryIT {
                                       is_active, created_at, updated_at, version)
                 VALUES (?,?,?,?,?,0.00,false,false,true,true,true,now(),now(),0)
                 """, productId, tenantId, "SKU-CNRET", "Widget", uomId);
+        // Variant = SKU: default variant reuses the product id.
+        jdbc.update("INSERT INTO product_variants (id, tenant_id, product_id, sku, is_default, is_active, created_at, updated_at, version) " +
+                "VALUES (?,?,?,?,true,true,now(),now(),0)", productId, tenantId, productId, "SKU-CNRET");
         jdbc.update("INSERT INTO parties (id, tenant_id, code, name, is_customer, is_supplier, active, created_at, updated_at, version) " +
                 "VALUES (?,?,?,?,true,false,true,now(),now(),0)",
                 customerId, tenantId, "C-CNRET-" + customerId, "CN Return Customer");
@@ -88,10 +91,10 @@ class CreditNoteReturnDeliveryIT {
                 "type, created_at, updated_at, version) " +
                 "VALUES (?,?,?,?,true,true,'MAIN',now(),now(),0)",
                 warehouseId, tenantId, "WH-CNRET", "CN Return Warehouse");
-        jdbc.update("INSERT INTO stocks (id, tenant_id, warehouse_id, product_id, " +
+        jdbc.update("INSERT INTO stocks (id, tenant_id, warehouse_id, variant_id, product_id, " +
                 "qty_on_hand, qty_reserved, average_cost, created_at, updated_at, version) " +
-                "VALUES (uuid_generate_v4(),?,?,?,?,0,?,now(),now(),0)",
-                tenantId, warehouseId, productId,
+                "VALUES (uuid_generate_v4(),?,?,?,?,?,0,?,now(),now(),0)",
+                tenantId, warehouseId, productId, productId,
                 new BigDecimal("100"), new BigDecimal("100"));
     }
 
@@ -161,7 +164,7 @@ class CreditNoteReturnDeliveryIT {
     private void shipInvoiceFully(UUID invoiceId, BigDecimal shipQty) {
         DeliveryDto.CreateDeliveryRequest create = new DeliveryDto.CreateDeliveryRequest(
                 customerId, invoiceId, warehouseId, LocalDate.now(), null, null, null,
-                List.of(new DeliveryDto.LineRequest(productId, uomId, shipQty, "Widget", "SKU-CNRET")));
+                List.of(new DeliveryDto.LineRequest(productId, productId, uomId, shipQty, "Widget", "SKU-CNRET")));
         DeliveryDto.DeliveryResponse d = deliveryService.create(create, null);
         deliveryService.startDelivery(d.id(), null);
         UUID lineId = d.lines().get(0).id();

@@ -1,6 +1,8 @@
 package com.minierp.sales.internal;
 
 import com.minierp.catalog.api.CatalogLookup;
+import com.minierp.catalog.api.VariantLookup;
+import com.minierp.catalog.api.VariantView;
 import com.minierp.partner.api.ArBalanceOperations;
 import com.minierp.partner.api.PartnerLookup;
 import com.minierp.partner.api.PartnerSummary;
@@ -55,6 +57,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
     private final CreditNoteLineRepository creditNoteLines;
     private final NumberingService numbering;
     private final CatalogLookup catalog;
+    private final VariantLookup variants;
     private final PartnerLookup customerLookup;
     private final ArBalanceOperations balanceOps;
     private final CustomerCreditOperations customerCreditOps;
@@ -354,6 +357,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
             invoiceLines.save(InvoiceLine.builder()
                     .invoiceId(inv.getId())
                     .lineNumber(ql.getLineNumber())
+                    .variantId(ql.getVariantId())
                     .productId(ql.getProductId())
                     .uomId(ql.getUomId())
                     .quantity(ql.getQuantity())
@@ -466,7 +470,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
             throw new BusinessException("error.creditnote.invoice_has_no_lines",
                     Map.of("invoiceId", inv.getId()));
         }
-        Map<UUID, BigDecimal> deliveredByProduct = aggregateDeliveredByProductForInvoice(invoiceId);
+        Map<UUID, BigDecimal> deliveredByVariant = aggregateDeliveredByVariantForInvoice(invoiceId);
 
         String number = numbering.next(DocumentType.CREDIT_NOTE);
         CreditNote cn = CreditNote.builder()
@@ -489,22 +493,23 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
         int lineNo = 1;
         for (InvoiceLine il : invLines) {
             BigDecimal lineTotal = il.getLineTotal();
-            BigDecimal delivered = deliveredByProduct.getOrDefault(il.getProductId(), BigDecimal.ZERO);
-            BigDecimal alreadyAttributed = productReturnedAcc.getOrDefault(il.getProductId(), BigDecimal.ZERO);
-            // A product may appear on several lines; the delivered-pool is
-            // global per product, so spread it across lines in order to avoid
+            BigDecimal delivered = deliveredByVariant.getOrDefault(il.getVariantId(), BigDecimal.ZERO);
+            BigDecimal alreadyAttributed = productReturnedAcc.getOrDefault(il.getVariantId(), BigDecimal.ZERO);
+            // A variant may appear on several lines; the delivered-pool is
+            // global per variant, so spread it across lines in order to avoid
             // double-returning the same units.
             BigDecimal stockReturnQty = delivered.subtract(alreadyAttributed)
                     .max(BigDecimal.ZERO)
                     .min(il.getQuantity());
             if (stockReturnQty.signum() > 0) {
-                productReturnedAcc.merge(il.getProductId(), stockReturnQty, BigDecimal::add);
+                productReturnedAcc.merge(il.getVariantId(), stockReturnQty, BigDecimal::add);
             }
 
             CreditNoteLine cnl = CreditNoteLine.builder()
                     .creditNoteId(cn.getId())
                     .lineNumber(lineNo++)
                     .invoiceLineId(il.getId())
+                    .variantId(il.getVariantId())
                     .productId(il.getProductId())
                     .uomId(il.getUomId())
                     .quantity(il.getQuantity())
@@ -520,14 +525,14 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
             subtotalHt = subtotalHt.add(lineTotal);
         }
 
-        // Aggregate per-product stock-return rows for the BR event.
+        // Aggregate per-variant stock-return rows for the BR event.
         for (Map.Entry<UUID, BigDecimal> e : productReturnedAcc.entrySet()) {
             if (e.getValue().signum() <= 0) continue;
             InvoiceLine ref = invLines.stream()
-                    .filter(l -> l.getProductId().equals(e.getKey()))
+                    .filter(l -> e.getKey().equals(l.getVariantId()))
                     .findFirst().orElseThrow();
             returnLines.add(new CreditNoteReturnRequestedEvent.ReturnLine(
-                    ref.getProductId(), ref.getUomId(), e.getValue(),
+                    ref.getVariantId(), ref.getProductId(), ref.getUomId(), e.getValue(),
                     ref.getUnitPrice(), ref.getSnapshotName(), ref.getSnapshotSku()));
         }
 
@@ -607,7 +612,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
         }
     }
 
-    private Map<UUID, BigDecimal> aggregateDeliveredByProductForInvoice(UUID invoiceId) {
+    private Map<UUID, BigDecimal> aggregateDeliveredByVariantForInvoice(UUID invoiceId) {
         // Cross-module read: delivered quantities live in the delivery module's tables.
         // A direct JDBC read keeps sales free of a compile-time dep on delivery.
         // Only OUTBOUND BLs count: a RETURN BL means goods coming back, not goods
@@ -615,12 +620,12 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
         UUID tenant = TenantContext.require();
         Map<UUID, BigDecimal> map = new HashMap<>();
         jdbc.query("""
-                SELECT dl.product_id, COALESCE(SUM(dl.quantity_delivered), 0)
+                SELECT dl.variant_id, COALESCE(SUM(dl.quantity_delivered), 0)
                 FROM delivery_lines dl
                 JOIN deliveries d ON d.id = dl.delivery_id AND d.tenant_id = dl.tenant_id
                 WHERE d.tenant_id = ? AND d.invoice_id = ? AND d.status <> 'CANCELLED'
                   AND d.type = 'OUTBOUND'
-                GROUP BY dl.product_id
+                GROUP BY dl.variant_id
                 """, rs -> {
             map.put(rs.getObject(1, UUID.class), rs.getBigDecimal(2));
         }, tenant, invoiceId);
@@ -657,26 +662,26 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
         BigDecimal toCustomerCredit = creditAmount.subtract(balance).max(BigDecimal.ZERO);
 
         List<InvoiceLine> lines = invoiceLines.findByInvoiceIdOrderByLineNumberAsc(invoiceId);
-        Map<UUID, BigDecimal> deliveredByProduct = aggregateDeliveredByProductForInvoice(invoiceId);
-        // Same per-line product allocation rule as createCreditNote, so the
+        Map<UUID, BigDecimal> deliveredByVariant = aggregateDeliveredByVariantForInvoice(invoiceId);
+        // Same per-line variant allocation rule as createCreditNote, so the
         // preview matches the eventual BR row-for-row.
-        Map<UUID, BigDecimal> productReturnedAcc = new HashMap<>();
-        Map<UUID, InvoiceLine> firstLineByProduct = new HashMap<>();
+        Map<UUID, BigDecimal> variantReturnedAcc = new HashMap<>();
+        Map<UUID, InvoiceLine> firstLineByVariant = new HashMap<>();
         for (InvoiceLine il : lines) {
-            firstLineByProduct.putIfAbsent(il.getProductId(), il);
-            BigDecimal delivered = deliveredByProduct.getOrDefault(il.getProductId(), BigDecimal.ZERO);
-            BigDecimal alreadyAttributed = productReturnedAcc.getOrDefault(il.getProductId(), BigDecimal.ZERO);
+            firstLineByVariant.putIfAbsent(il.getVariantId(), il);
+            BigDecimal delivered = deliveredByVariant.getOrDefault(il.getVariantId(), BigDecimal.ZERO);
+            BigDecimal alreadyAttributed = variantReturnedAcc.getOrDefault(il.getVariantId(), BigDecimal.ZERO);
             BigDecimal qty = delivered.subtract(alreadyAttributed).max(BigDecimal.ZERO).min(il.getQuantity());
             if (qty.signum() > 0) {
-                productReturnedAcc.merge(il.getProductId(), qty, BigDecimal::add);
+                variantReturnedAcc.merge(il.getVariantId(), qty, BigDecimal::add);
             }
         }
         List<SalesDto.CreditNoteReturnLineDto> returnRows = new ArrayList<>();
-        for (Map.Entry<UUID, BigDecimal> e : productReturnedAcc.entrySet()) {
+        for (Map.Entry<UUID, BigDecimal> e : variantReturnedAcc.entrySet()) {
             if (e.getValue().signum() <= 0) continue;
-            InvoiceLine ref = firstLineByProduct.get(e.getKey());
+            InvoiceLine ref = firstLineByVariant.get(e.getKey());
             returnRows.add(new SalesDto.CreditNoteReturnLineDto(
-                    ref.getProductId(), ref.getSnapshotName(), ref.getSnapshotSku(),
+                    ref.getVariantId(), ref.getProductId(), ref.getSnapshotName(), ref.getSnapshotSku(),
                     ref.getUomId(), e.getValue()));
         }
 
@@ -746,17 +751,17 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
         List<QuoteLine> result = new ArrayList<>();
         int i = 1;
         for (SalesDto.LineRequest lr : lineReqs) {
-            var product = catalog.findProductById(lr.productId()).orElseThrow(
-                    () -> NotFoundException.of("entity.product", lr.productId()));
+            VariantView variant = variants.require(lr.variantId());
             BigDecimal disc = lr.discountPercent() != null ? lr.discountPercent() : BigDecimal.ZERO;
             BigDecimal discFactor = BigDecimal.ONE.subtract(disc.divide(BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP));
             BigDecimal lineTotal = lr.unitPrice().multiply(lr.quantity()).multiply(discFactor).setScale(2, RoundingMode.HALF_UP);
             QuoteLine line = QuoteLine.builder()
-                    .quoteId(quoteId).lineNumber(i++).productId(lr.productId())
-                    .uomId(lr.uomId() != null ? lr.uomId() : product.baseUomId())
+                    .quoteId(quoteId).lineNumber(i++)
+                    .variantId(variant.id()).productId(variant.productId())
+                    .uomId(lr.uomId() != null ? lr.uomId() : variant.baseUomId())
                     .quantity(lr.quantity()).unitPrice(lr.unitPrice())
                     .discountPercent(disc).taxRate(BigDecimal.ZERO).lineTotal(lineTotal)
-                    .snapshotName(product.name()).snapshotSku(product.sku())
+                    .snapshotName(variant.displayLabel()).snapshotSku(variant.sku())
                     .build();
             quoteLines.save(line);
             result.add(line);
@@ -768,17 +773,17 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
         List<InvoiceLine> result = new ArrayList<>();
         int i = 1;
         for (SalesDto.LineRequest lr : lineReqs) {
-            var product = catalog.findProductById(lr.productId()).orElseThrow(
-                    () -> NotFoundException.of("entity.product", lr.productId()));
+            VariantView variant = variants.require(lr.variantId());
             BigDecimal disc = lr.discountPercent() != null ? lr.discountPercent() : BigDecimal.ZERO;
             BigDecimal discFactor = BigDecimal.ONE.subtract(disc.divide(BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP));
             BigDecimal lineTotal = lr.unitPrice().multiply(lr.quantity()).multiply(discFactor).setScale(2, RoundingMode.HALF_UP);
             InvoiceLine line = InvoiceLine.builder()
-                    .invoiceId(invoiceId).lineNumber(i++).productId(lr.productId())
-                    .uomId(lr.uomId() != null ? lr.uomId() : product.baseUomId())
+                    .invoiceId(invoiceId).lineNumber(i++)
+                    .variantId(variant.id()).productId(variant.productId())
+                    .uomId(lr.uomId() != null ? lr.uomId() : variant.baseUomId())
                     .quantity(lr.quantity()).unitPrice(lr.unitPrice())
                     .discountPercent(disc).taxRate(BigDecimal.ZERO).lineTotal(lineTotal)
-                    .snapshotName(product.name()).snapshotSku(product.sku())
+                    .snapshotName(variant.displayLabel()).snapshotSku(variant.sku())
                     .build();
             invoiceLines.save(line);
             result.add(line);
@@ -802,13 +807,13 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
     // ── Mappers ───────────────────────────────────────────────────────────────
 
     private SalesDto.LineDto toLineDto(QuoteLine l) {
-        return new SalesDto.LineDto(l.getId(), l.getLineNumber(), l.getProductId(), l.getUomId(),
+        return new SalesDto.LineDto(l.getId(), l.getLineNumber(), l.getVariantId(), l.getProductId(), l.getUomId(),
                 l.getQuantity(), l.getUnitPrice(), l.getDiscountPercent(), l.getTaxRate(),
                 l.getLineTotal(), l.getSnapshotName(), l.getSnapshotSku());
     }
 
     private SalesDto.LineDto toLineDto(InvoiceLine l) {
-        return new SalesDto.LineDto(l.getId(), l.getLineNumber(), l.getProductId(), l.getUomId(),
+        return new SalesDto.LineDto(l.getId(), l.getLineNumber(), l.getVariantId(), l.getProductId(), l.getUomId(),
                 l.getQuantity(), l.getUnitPrice(), l.getDiscountPercent(), l.getTaxRate(),
                 l.getLineTotal(), l.getSnapshotName(), l.getSnapshotSku());
     }
@@ -850,7 +855,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
         List<SalesDto.CreditNoteLineDto> lineDtos = creditNoteLines
                 .findByCreditNoteIdOrderByLineNumberAsc(cn.getId()).stream()
                 .map(l -> new SalesDto.CreditNoteLineDto(
-                        l.getId(), l.getInvoiceLineId(), l.getProductId(), l.getUomId(),
+                        l.getId(), l.getInvoiceLineId(), l.getVariantId(), l.getProductId(), l.getUomId(),
                         l.getQuantity(), l.getUnitPrice(), l.getDiscountPercent(), l.getTaxRate(),
                         l.getLineTotal(), l.getReturnedToStockQty(),
                         l.getSnapshotName(), l.getSnapshotSku()))

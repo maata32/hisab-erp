@@ -63,7 +63,7 @@ export class ReceiptService {
       receiptWidthMm: widthMm,
       completedAt: sale.occurredAt,
       lines: sale.lines.map((l) => ({
-        name: l.productId,
+        name: l.variantId,
         sku: '',
         quantity: l.quantity,
         unitPrice: 0,

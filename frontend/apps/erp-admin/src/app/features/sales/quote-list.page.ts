@@ -38,12 +38,14 @@ interface CustomerOpt {
   currency: string;
   defaultPriceTierId: string | null;
 }
+interface ProductVariantOpt { id: string; defaultVariant: boolean; active: boolean; }
 interface ProductOpt {
   id: string;
   sku: string;
   name: string;
   baseUomId: string;
   defaultTaxRate: number;
+  variants: ProductVariantOpt[];
 }
 
 interface ProductStockBreakdown {
@@ -502,6 +504,14 @@ export class QuoteListPage implements OnInit {
         && this.form.lines.every(l => !!l.productId && (l.quantity || 0) > 0);
   }
 
+  /** Resolve the variant to sell for a product: its default (or first active) variant. */
+  protected variantIdFor(productId: string | null): string | null {
+    if (!productId) return null;
+    const vs = this.products().find(p => p.id === productId)?.variants ?? [];
+    return (vs.find(v => v.defaultVariant && v.active)
+      ?? vs.find(v => v.active) ?? vs[0])?.id ?? null;
+  }
+
   protected async save() {
     this.submitted.set(true);
     if (!this.canSave()) return;
@@ -509,7 +519,7 @@ export class QuoteListPage implements OnInit {
     try {
       const editingId = this.editingQuoteId();
       const lines = this.form.lines.map(l => ({
-        productId: l.productId,
+        variantId: this.variantIdFor(l.productId),
         uomId: l.uomId,
         quantity: l.quantity,
         unitPrice: l.unitPrice,

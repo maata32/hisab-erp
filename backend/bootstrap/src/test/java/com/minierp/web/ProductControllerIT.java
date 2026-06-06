@@ -71,6 +71,13 @@ class ProductControllerIT {
                         true, now(), now(), 0)
                 """, seededProductId, tenantId, "SEED-" + seededProductId, uomId);
 
+        // Variant = SKU: every product owns a default variant; seed one reusing the product id.
+        jdbc.update("""
+                INSERT INTO product_variants (id, tenant_id, product_id, sku, is_default,
+                                              is_active, created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, true, true, now(), now(), 0)
+                """, seededProductId, tenantId, seededProductId, "SEED-" + seededProductId);
+
         token = jwtService.issueAccessToken(new CurrentUser(
                 UUID.randomUUID(), tenantId, "test@test.local", "fr",
                 Set.of(), Set.of("product:read", "product:create")));

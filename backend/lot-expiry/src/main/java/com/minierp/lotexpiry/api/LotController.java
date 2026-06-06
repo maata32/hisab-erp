@@ -27,10 +27,10 @@ public class LotController {
     @GetMapping
     @PreAuthorize("hasAuthority('lot:read')")
     public PageResponse<LotDto.LotResponse> list(
-            @RequestParam(required = false) UUID productId,
+            @RequestParam(required = false) UUID variantId,
             @RequestParam(required = false) UUID warehouseId,
             @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return PageResponse.of(service.listLots(productId, warehouseId, pageable));
+        return PageResponse.of(service.listLots(variantId, warehouseId, pageable));
     }
 
     @GetMapping("/{id}")
@@ -43,9 +43,21 @@ public class LotController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('lot:create')")
     public LotDto.LotResponse create(@Valid @RequestBody LotDto.CreateLotRequest req) {
-        return service.createLot(req.productId(), req.warehouseId(), req.uomId(),
+        return service.createLot(req.variantId(), req.warehouseId(), req.uomId(),
                 req.lotNumber(), req.expirationDate(), req.productionDate(),
                 req.quantity(), req.unitCost(), req.supplierId(), req.notes());
+    }
+
+    /** Opening stock for an expiry-tracked product: posts the stock-in AND creates its lot. */
+    @PostMapping("/opening-balance")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('stock:adjust')")
+    public com.minierp.inventory.api.StockMovementDto openingBalance(
+            @Valid @RequestBody LotDto.OpeningBalanceRequest req) {
+        UUID userId = CurrentUserHolder.tryGet().map(u -> u.userId()).orElse(null);
+        return service.openingBalanceWithLot(req.warehouseId(), req.variantId(), req.quantity(),
+                req.unitCost(), req.lotNumber(), req.expirationDate(), req.productionDate(),
+                req.notes(), userId);
     }
 
     @PostMapping("/{id}/block")
@@ -65,7 +77,7 @@ public class LotController {
     @PostMapping("/select-fefo")
     @PreAuthorize("hasAuthority('lot:read')")
     public List<LotAllocation> selectFefo(@Valid @RequestBody LotDto.SelectFefoRequest req) {
-        return service.selectFEFO(req.productId(), req.warehouseId(), req.quantity());
+        return service.selectFEFO(req.variantId(), req.warehouseId(), req.quantity());
     }
 
     /** CDC §15.4 — lots expiring within N days. */

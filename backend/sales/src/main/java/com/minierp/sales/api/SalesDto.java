@@ -9,7 +9,7 @@ import java.util.UUID;
 public class SalesDto {
 
     public record LineRequest(
-            UUID productId,
+            UUID variantId,
             UUID uomId,
             BigDecimal quantity,
             BigDecimal unitPrice,
@@ -19,6 +19,7 @@ public class SalesDto {
     public record LineDto(
             UUID id,
             int lineNumber,
+            UUID variantId,
             UUID productId,
             UUID uomId,
             BigDecimal quantity,
@@ -80,6 +81,7 @@ public class SalesDto {
     public record CreditNoteLineDto(
             UUID id,
             UUID invoiceLineId,
+            UUID variantId,
             UUID productId,
             UUID uomId,
             BigDecimal quantity,
@@ -153,6 +155,7 @@ public class SalesDto {
      * never-shipped lines cancel without a stock movement.
      */
     public record CreditNoteReturnLineDto(
+            UUID variantId,
             UUID productId,
             String productName,
             String sku,

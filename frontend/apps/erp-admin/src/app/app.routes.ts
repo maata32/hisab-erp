@@ -94,6 +94,11 @@ export const appRoutes: Routes = [
           import('./features/products/product-list.page').then((m) => m.ProductListPage),
       },
       {
+        path: 'attributes',
+        loadComponent: () =>
+          import('./features/products/attribute-list.page').then((m) => m.AttributeListPage),
+      },
+      {
         path: 'warehouses',
         loadComponent: () =>
           import('./features/inventory/warehouse-list.page').then((m) => m.WarehouseListPage),

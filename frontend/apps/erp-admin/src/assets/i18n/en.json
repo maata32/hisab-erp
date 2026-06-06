@@ -1,4 +1,10 @@
 {
+  "compensate": {
+    "title": "On save, offset this invoice with:",
+    "colImpute": "Apply",
+    "total": "Total to apply",
+    "hint": "Checked rows are netted against this invoice once it is saved (net-position compensation)."
+  },
   "app": {
     "name": "Mini-ERP",
     "tagline": "Modular commercial ERP for Mauritania"
@@ -36,6 +42,16 @@
     "actions": "Actions"
   },
   "error": {
+    "data_integrity": "This value already exists.",
+    "uom": {
+      "in_use": "This unit is used by products or documents and cannot be deleted.",
+      "category_in_use": "This category still contains units and cannot be deleted.",
+      "immutable_in_use": "Code, ratio and base can no longer be changed: the unit is already in use.",
+      "base_required": "Cannot delete the base unit while the category still holds other units.",
+      "duplicate_base": "This category already has a base unit.",
+      "invalid_ratio": "Ratio must be greater than 0.",
+      "category_mismatch": "Conversion not possible: the two units belong to different categories."
+    },
     "allocation": {
       "party_mismatch": "The two entries do not belong to the same party.",
       "not_a_refund": "The target entry is not a customer refund.",
@@ -130,6 +146,7 @@
     "audit": "Audit log",
     "settings": "Settings",
     "products": "Products",
+    "attributes": "Attributes",
     "warehouses": "Warehouses",
     "stock": "Stock",
     "stockTransfers": "Stock transfers",
@@ -784,7 +801,39 @@
     "forbidden": "You do not have permission to access this page.",
     "back_home": "Back to home"
   },
+  "attributes": {
+    "title": "Attributes",
+    "subtitle": "Variant axes (color, size…) and their values",
+    "create": "New attribute",
+    "name": "Name",
+    "values": "Values",
+    "manage": "Manage",
+    "empty": "No attribute defined",
+    "editTitle": "Manage attribute",
+    "createTitle": "New attribute",
+    "sortOrder": "Order",
+    "valueLabel": "Value",
+    "code": "Code",
+    "noValues": "No value yet",
+    "createHint": "Save the attribute, then add its values.",
+    "confirmDelete": "Delete attribute « {{name}} »?",
+    "confirmDeleteValue": "Delete value « {{value}} »?",
+    "inUse": "This attribute is used by a product and cannot be deleted.",
+    "valueInUse": "This value is used and cannot be deleted."
+  },
   "products": {
+    "variants": {
+      "title": "Variants",
+      "uniformPricing": "Same price for all variants",
+      "help": "Pick attribute values to generate variants (the cartesian product). With no attribute, the product keeps a single default variant.",
+      "attributes": "Attribute values",
+      "selectValues": "Select values…",
+      "generate": "Generate",
+      "combination": "Combination",
+      "defaultVariant": "Default",
+      "none": "No variant yet — pick values and generate.",
+      "createHint": "Save the product first, then pick attribute values to generate its variants."
+    },
     "title": "Products",
     "subtitle": "Product catalog",
     "create": "New product",
@@ -872,11 +921,15 @@
       "qty": "Quantity",
       "unitCost": "Unit cost",
       "qtySigned": "Change (+/−)",
-      "note": "Reason / note"
+      "note": "Reason / note",
+      "lotNumber": "Lot no.",
+      "expirationDate": "Expiration date",
+      "productionDate": "Production date"
     },
     "openingDialog": {
       "title": "Opening stock",
-      "help": "Use when opening the shop to record the physical stock count. Unit cost feeds the weighted-average cost calculation."
+      "help": "Use when opening the shop to record the physical stock count. Unit cost feeds the weighted-average cost calculation.",
+      "lotHelp": "This product is lot-tracked: provide the lot number and expiration date of the stock being entered."
     },
     "adjustDialog": {
       "title": "Quantity adjustment",
@@ -946,6 +999,26 @@
       "IN_PROGRESS": "In progress",
       "VALIDATED": "Validated",
       "CANCELLED": "Cancelled"
+    },
+    "entry": {
+      "title": "Count entry",
+      "view": "View",
+      "enter": "Enter counts",
+      "help": "Enter the actual counted quantity for each product. Lines left blank are treated as matching the theoretical stock (no adjustment).",
+      "readonly": "Validated count — read only",
+      "sku": "Ref.",
+      "product": "Product",
+      "theoretical": "Theoretical",
+      "counted": "Counted",
+      "discrepancy": "Discrepancy",
+      "impact": "Impact",
+      "emptyLines": "No lines",
+      "summary": "{{counted}} / {{total}} products counted · {{gaps}} discrepancy(ies)",
+      "saveCount": "Save count",
+      "saved": "Count saved",
+      "validateConfirm": "Validate this count? Discrepancies will be applied to stock. This action is irreversible.",
+      "confirmValidate": "Confirm validation",
+      "validated": "Count validated"
     }
   },
   "lots": {
@@ -1053,7 +1126,8 @@
     "empty": "No units",
     "tabs": {
       "units": "Units",
-      "categories": "Categories"
+      "categories": "Categories",
+      "conversion": "Conversion"
     },
     "code": "Code",
     "name": "Name",
@@ -1062,7 +1136,33 @@
     "decimals": "Decimals",
     "base": "Base",
     "categoryCode": "Code",
-    "categoryName": "Name"
+    "categoryName": "Name",
+    "addUnit": "Add unit",
+    "addCategory": "Add category",
+    "dialogNew": "New unit",
+    "dialogEdit": "Edit unit",
+    "categoryDialogNew": "New category",
+    "categoryDialogEdit": "Edit category",
+    "isBaseLabel": "Base unit of the category",
+    "ratioHelp": "Quantity in the base unit per 1 of this unit.",
+    "lockedHelp": "This unit is already in use: code, ratio and base can no longer be changed. Only name and decimals stay editable.",
+    "inUseTip": "Used by products or documents",
+    "codeRequired": "Code is required",
+    "nameRequired": "Name is required",
+    "categoryRequired": "Category is required",
+    "ratioPositive": "Ratio must be greater than 0",
+    "deleteUnitConfirm": "Delete unit \"{{code}}\"?",
+    "deleteCategoryConfirm": "Delete category \"{{code}}\"?",
+    "saved": "Saved",
+    "deleted": "Deleted",
+    "conv": {
+      "help": "Convert a quantity between two units of the same category.",
+      "from": "From",
+      "to": "To",
+      "amount": "Quantity",
+      "result": "Result",
+      "convert": "Convert"
+    }
   },
   "priceTiers": {
     "title": "Price tiers",
@@ -1291,6 +1391,11 @@
     "status": "Status",
     "pickInvoice": "Pick an invoice",
     "pickWarehouse": "Pick a warehouse",
+    "linesToReceive": "Lines to receive",
+    "remaining": "Remaining",
+    "quantityToReceive": "Qty to receive",
+    "pickInvoiceFirst": "Pick an invoice first",
+    "atLeastOneLineQty": "Enter a quantity on at least one line",
     "record": "Record receipt",
     "recordTitle": "Record receipt",
     "confirmRecord": "Confirm receipt",

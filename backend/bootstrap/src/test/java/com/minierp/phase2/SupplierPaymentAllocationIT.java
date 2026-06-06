@@ -79,6 +79,14 @@ class SupplierPaymentAllocationIT {
                         true, true, now(), now(), 0)
                 """, productId, tenantId, uomId);
 
+        // Variant = SKU: purchase lines + receipt-to-stock resolve the variant; seed the
+        // default variant reusing the product id.
+        jdbc.update("""
+                INSERT INTO product_variants (id, tenant_id, product_id, sku, is_default,
+                                              is_active, created_at, updated_at, version)
+                VALUES (?, ?, ?, 'SKU-SUP-01', true, true, now(), now(), 0)
+                """, productId, tenantId, productId);
+
         supplierId = partnerService.create(new CreatePartnerRequest(
                 "E-SUP-0001",
                 false, true,

@@ -2,6 +2,8 @@ package com.minierp.purchase.internal;
 
 import com.minierp.catalog.api.CatalogLookup;
 import com.minierp.catalog.api.ProductSnapshot;
+import com.minierp.catalog.api.VariantLookup;
+import com.minierp.catalog.api.VariantView;
 import com.minierp.partner.api.ApBalanceOperations;
 import com.minierp.partner.api.PartnerLookup;
 import com.minierp.partner.api.PartnerSummary;
@@ -55,6 +57,7 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
     private final PartnerLookup supplierLookup;
     private final ApBalanceOperations supplierBalanceOps;
     private final CatalogLookup catalog;
+    private final VariantLookup variants;
     private final NumberingOperations numbering;
     private final DocumentRenderer renderer;
     private final TenantLookup tenantLookup;
@@ -165,6 +168,7 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
         for (PurchaseOrderLine pol : purchaseOrderLines.findByPurchaseOrderIdOrderByLineNumberAsc(orderId)) {
             purchaseInvoiceLines.save(PurchaseInvoiceLine.builder()
                     .purchaseInvoiceId(inv.getId()).lineNumber(i++)
+                    .variantId(pol.getVariantId())
                     .productId(pol.getProductId()).uomId(pol.getUomId())
                     .quantity(pol.getQuantity()).unitCost(pol.getUnitCost())
                     .taxRate(pol.getTaxRate()).lineTotal(pol.getLineTotal())
@@ -326,7 +330,7 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
             throw new BusinessException("error.purchase.creditnote.invoice_has_no_lines",
                     Map.of("invoiceId", inv.getId()));
         }
-        Map<UUID, BigDecimal> receivedByProduct = aggregate(goodsReceiptLines.sumReceivedByProductForInvoice(invoiceId));
+        Map<UUID, BigDecimal> receivedByVariant = aggregate(goodsReceiptLines.sumReceivedByVariantForInvoice(invoiceId));
 
         String number = numbering.nextPurchaseCreditNoteNumber();
         PurchaseCreditNote cn = PurchaseCreditNote.builder()
@@ -343,19 +347,20 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
         // Total avoir: one line per invoice line, full quantity. The stock return
         // is what has actually been received per product — never-received units
         // cancel without a return BRC.
-        Map<UUID, BigDecimal> productReturnedAcc = new HashMap<>();
+        Map<UUID, BigDecimal> variantReturnedAcc = new HashMap<>();
         int lineNo = 1;
         for (PurchaseInvoiceLine il : invLines) {
-            BigDecimal received = receivedByProduct.getOrDefault(il.getProductId(), BigDecimal.ZERO);
-            BigDecimal alreadyAttributed = productReturnedAcc.getOrDefault(il.getProductId(), BigDecimal.ZERO);
+            BigDecimal received = receivedByVariant.getOrDefault(il.getVariantId(), BigDecimal.ZERO);
+            BigDecimal alreadyAttributed = variantReturnedAcc.getOrDefault(il.getVariantId(), BigDecimal.ZERO);
             BigDecimal stockReturnQty = received.subtract(alreadyAttributed)
                     .max(BigDecimal.ZERO).min(il.getQuantity());
             if (stockReturnQty.signum() > 0) {
-                productReturnedAcc.merge(il.getProductId(), stockReturnQty, BigDecimal::add);
+                variantReturnedAcc.merge(il.getVariantId(), stockReturnQty, BigDecimal::add);
             }
             purchaseCreditNoteLines.save(PurchaseCreditNoteLine.builder()
                     .purchaseCreditNoteId(cn.getId()).lineNumber(lineNo++)
                     .purchaseInvoiceLineId(il.getId())
+                    .variantId(il.getVariantId())
                     .productId(il.getProductId()).uomId(il.getUomId())
                     .quantity(il.getQuantity()).unitCost(il.getUnitCost())
                     .taxRate(il.getTaxRate()).lineTotal(il.getLineTotal())
@@ -364,15 +369,15 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
                     .build());
         }
 
-        // Aggregate per-product return lines for the return BRC.
+        // Aggregate per-variant return lines for the return BRC.
         List<GoodsReceiptService.ReturnLine> returnLines = new ArrayList<>();
-        for (Map.Entry<UUID, BigDecimal> e : productReturnedAcc.entrySet()) {
+        for (Map.Entry<UUID, BigDecimal> e : variantReturnedAcc.entrySet()) {
             if (e.getValue().signum() <= 0) continue;
             PurchaseInvoiceLine ref = invLines.stream()
-                    .filter(l -> l.getProductId().equals(e.getKey()))
+                    .filter(l -> e.getKey().equals(l.getVariantId()))
                     .findFirst().orElseThrow();
             returnLines.add(new GoodsReceiptService.ReturnLine(
-                    ref.getProductId(), ref.getUomId(), e.getValue(),
+                    ref.getVariantId(), ref.getProductId(), ref.getUomId(), e.getValue(),
                     ref.getUnitCost(), ref.getSnapshotName(), ref.getSnapshotSku()));
         }
 
@@ -441,17 +446,17 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
         PurchaseInvoice inv = purchaseInvoices.findById(invoiceId)
                 .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", invoiceId));
         String blockReason = creditBlockReason(inv);
-        Map<UUID, BigDecimal> receivedByProduct = aggregate(goodsReceiptLines.sumReceivedByProductForInvoice(invoiceId));
+        Map<UUID, BigDecimal> receivedByVariant = aggregate(goodsReceiptLines.sumReceivedByVariantForInvoice(invoiceId));
         Map<UUID, BigDecimal> acc = new HashMap<>();
         List<PurchaseDto.PurchaseCreditNoteReturnLineDto> returnRows = new ArrayList<>();
         for (PurchaseInvoiceLine il : purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(invoiceId)) {
-            BigDecimal received = receivedByProduct.getOrDefault(il.getProductId(), BigDecimal.ZERO);
-            BigDecimal alreadyAttributed = acc.getOrDefault(il.getProductId(), BigDecimal.ZERO);
+            BigDecimal received = receivedByVariant.getOrDefault(il.getVariantId(), BigDecimal.ZERO);
+            BigDecimal alreadyAttributed = acc.getOrDefault(il.getVariantId(), BigDecimal.ZERO);
             BigDecimal qty = received.subtract(alreadyAttributed).max(BigDecimal.ZERO).min(il.getQuantity());
             if (qty.signum() <= 0) continue;
-            acc.merge(il.getProductId(), qty, BigDecimal::add);
+            acc.merge(il.getVariantId(), qty, BigDecimal::add);
             returnRows.add(new PurchaseDto.PurchaseCreditNoteReturnLineDto(
-                    il.getProductId(), il.getSnapshotName(), il.getSnapshotSku(), qty));
+                    il.getVariantId(), il.getProductId(), il.getSnapshotName(), il.getSnapshotSku(), qty));
         }
         return new PurchaseDto.PurchaseCreditNotePreviewDto(
                 inv.getId(), inv.getNumber(), inv.getTotal(), blockReason, inv.getPaidAmount(), returnRows);
@@ -531,17 +536,16 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
         List<PurchaseOrderLine> result = new ArrayList<>();
         int i = 1;
         for (PurchaseDto.LineRequest lr : lineReqs) {
-            ProductSnapshot product = catalog.findProductById(lr.productId())
-                    .orElseThrow(() -> NotFoundException.of("entity.product", lr.productId()));
+            VariantView variant = variants.require(lr.variantId());
             BigDecimal taxRate = lr.taxRate() != null ? lr.taxRate() : BigDecimal.ZERO;
             BigDecimal lineTotal = lr.unitCost().multiply(lr.quantity()).setScale(2, RoundingMode.HALF_UP);
             PurchaseOrderLine line = PurchaseOrderLine.builder()
                     .purchaseOrderId(poId).lineNumber(i++)
-                    .productId(lr.productId())
-                    .uomId(lr.uomId() != null ? lr.uomId() : product.baseUomId())
+                    .variantId(variant.id()).productId(variant.productId())
+                    .uomId(lr.uomId() != null ? lr.uomId() : variant.baseUomId())
                     .quantity(lr.quantity()).unitCost(lr.unitCost())
                     .taxRate(taxRate).lineTotal(lineTotal)
-                    .snapshotName(product.name()).snapshotSku(product.sku())
+                    .snapshotName(variant.displayLabel()).snapshotSku(variant.sku())
                     .build();
             purchaseOrderLines.save(line);
             result.add(line);
@@ -553,17 +557,16 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
         List<PurchaseInvoiceLine> result = new ArrayList<>();
         int i = 1;
         for (PurchaseDto.LineRequest lr : lineReqs) {
-            ProductSnapshot product = catalog.findProductById(lr.productId())
-                    .orElseThrow(() -> NotFoundException.of("entity.product", lr.productId()));
+            VariantView variant = variants.require(lr.variantId());
             BigDecimal taxRate = lr.taxRate() != null ? lr.taxRate() : BigDecimal.ZERO;
             BigDecimal lineTotal = lr.unitCost().multiply(lr.quantity()).setScale(2, RoundingMode.HALF_UP);
             PurchaseInvoiceLine line = PurchaseInvoiceLine.builder()
                     .purchaseInvoiceId(invoiceId).lineNumber(i++)
-                    .productId(lr.productId())
-                    .uomId(lr.uomId() != null ? lr.uomId() : product.baseUomId())
+                    .variantId(variant.id()).productId(variant.productId())
+                    .uomId(lr.uomId() != null ? lr.uomId() : variant.baseUomId())
                     .quantity(lr.quantity()).unitCost(lr.unitCost())
                     .taxRate(taxRate).lineTotal(lineTotal)
-                    .snapshotName(product.name()).snapshotSku(product.sku())
+                    .snapshotName(variant.displayLabel()).snapshotSku(variant.sku())
                     .build();
             purchaseInvoiceLines.save(line);
             result.add(line);
@@ -610,13 +613,13 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
     }
 
     private PurchaseDto.LineDto toLineDto(PurchaseOrderLine l) {
-        return new PurchaseDto.LineDto(l.getId(), l.getLineNumber(), l.getProductId(), l.getUomId(),
+        return new PurchaseDto.LineDto(l.getId(), l.getLineNumber(), l.getVariantId(), l.getProductId(), l.getUomId(),
                 l.getQuantity(), l.getUnitCost(), l.getTaxRate(),
                 l.getLineTotal(), l.getSnapshotName(), l.getSnapshotSku());
     }
 
     private PurchaseDto.LineDto toLineDto(PurchaseInvoiceLine l) {
-        return new PurchaseDto.LineDto(l.getId(), l.getLineNumber(), l.getProductId(), l.getUomId(),
+        return new PurchaseDto.LineDto(l.getId(), l.getLineNumber(), l.getVariantId(), l.getProductId(), l.getUomId(),
                 l.getQuantity(), l.getUnitCost(), l.getTaxRate(),
                 l.getLineTotal(), l.getSnapshotName(), l.getSnapshotSku());
     }
@@ -651,7 +654,7 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
         List<PurchaseDto.PurchaseCreditNoteLineDto> lineDtos = purchaseCreditNoteLines
                 .findByPurchaseCreditNoteIdOrderByLineNumberAsc(cn.getId()).stream()
                 .map(l -> new PurchaseDto.PurchaseCreditNoteLineDto(l.getId(), l.getLineNumber(),
-                        l.getProductId(), l.getUomId(), l.getQuantity(), l.getUnitCost(),
+                        l.getVariantId(), l.getProductId(), l.getUomId(), l.getQuantity(), l.getUnitCost(),
                         l.getTaxRate(), l.getLineTotal(), l.getReturnedToStockQty(),
                         l.getSnapshotName(), l.getSnapshotSku()))
                 .toList();

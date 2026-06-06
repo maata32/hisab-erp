@@ -37,17 +37,35 @@ public class PricingController {
         return service.createTier(req.code(), req.name(), req.defaultTier());
     }
 
+    /** All prices across the product's variants (per-variant pricing grid). */
     @GetMapping("/products/{productId}")
     @PreAuthorize("hasAuthority('product:read')")
     public List<ProductPriceDto> listForProduct(@PathVariable UUID productId) {
         return service.listForProduct(productId);
     }
 
+    /** Uniform pricing: write the same price to every active variant of the product. */
     @PutMapping("/products/{productId}")
     @PreAuthorize("hasAuthority('price:update')")
-    public ProductPriceDto upsert(@PathVariable UUID productId,
-                                  @Valid @RequestBody UpsertPriceRequest req) {
-        return service.upsertPrice(productId, req.uomId(), req.priceTierId(),
+    public List<ProductPriceDto> upsertForProduct(@PathVariable UUID productId,
+                                                  @Valid @RequestBody UpsertPriceRequest req) {
+        return service.upsertProductPrice(productId, req.uomId(), req.priceTierId(),
+                req.amount(), req.currency(), req.taxInclusive(),
+                req.validFrom(), req.validTo(), req.minQty());
+    }
+
+    @GetMapping("/variants/{variantId}")
+    @PreAuthorize("hasAuthority('product:read')")
+    public List<ProductPriceDto> listForVariant(@PathVariable UUID variantId) {
+        return service.listForVariant(variantId);
+    }
+
+    /** Per-variant pricing: write the price of a single variant. */
+    @PutMapping("/variants/{variantId}")
+    @PreAuthorize("hasAuthority('price:update')")
+    public ProductPriceDto upsertForVariant(@PathVariable UUID variantId,
+                                            @Valid @RequestBody UpsertPriceRequest req) {
+        return service.upsertVariantPrice(variantId, req.uomId(), req.priceTierId(),
                 req.amount(), req.currency(), req.taxInclusive(),
                 req.validFrom(), req.validTo(), req.minQty());
     }
@@ -58,7 +76,7 @@ public class PricingController {
         return req.items().stream()
                 .map((BulkResolveItem item) -> {
                     try {
-                        return resolver.resolve(item.productId(), item.uomId(),
+                        return resolver.resolve(item.variantId(), item.uomId(),
                                 req.priceTierId(), BigDecimal.ONE, null, null);
                     } catch (Exception e) {
                         return (ResolvedPrice) null;
@@ -71,13 +89,13 @@ public class PricingController {
     @GetMapping("/resolve")
     @PreAuthorize("hasAuthority('product:read')")
     public ResolvedPrice resolve(
-            @RequestParam UUID productId,
+            @RequestParam UUID variantId,
             @RequestParam(required = false) UUID uomId,
             @RequestParam(required = false) UUID priceTierId,
             @RequestParam BigDecimal quantity,
             @RequestParam(required = false) LocalDate date,
             @RequestParam(required = false) BigDecimal unitDiscount) {
-        return resolver.resolve(productId, uomId, priceTierId, quantity, date, unitDiscount);
+        return resolver.resolve(variantId, uomId, priceTierId, quantity, date, unitDiscount);
     }
 
     public record BulkResolveRequest(
@@ -85,7 +103,7 @@ public class PricingController {
             @NotEmpty @Valid List<BulkResolveItem> items) {}
 
     public record BulkResolveItem(
-            @NotNull UUID productId,
+            @NotNull UUID variantId,
             @NotNull UUID uomId) {}
 
     public record CreateTierRequest(

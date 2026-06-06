@@ -1,4 +1,10 @@
 {
+  "compensate": {
+    "title": "Compenser à l'enregistrement avec :",
+    "colImpute": "Imputer",
+    "total": "À imputer au total",
+    "hint": "Les lignes cochées seront imputées sur cette facture une fois enregistrée (compensation en position nette)."
+  },
   "app": {
     "name": "Mini-ERP",
     "tagline": "ERP commercial modulaire pour la Mauritanie"
@@ -36,6 +42,16 @@
     "actions": "Actions"
   },
   "error": {
+    "data_integrity": "Cette valeur existe déjà.",
+    "uom": {
+      "in_use": "Cette unité est utilisée par des produits ou des documents et ne peut pas être supprimée.",
+      "category_in_use": "Cette catégorie contient encore des unités et ne peut pas être supprimée.",
+      "immutable_in_use": "Le code, le ratio et la base ne sont plus modifiables : l'unité est déjà utilisée.",
+      "base_required": "Impossible de supprimer l'unité de base tant que la catégorie contient d'autres unités.",
+      "duplicate_base": "Cette catégorie a déjà une unité de base.",
+      "invalid_ratio": "Le ratio doit être supérieur à 0.",
+      "category_mismatch": "Conversion impossible : les deux unités appartiennent à des catégories différentes."
+    },
     "allocation": {
       "party_mismatch": "Les deux écritures n'appartiennent pas au même tiers.",
       "not_a_refund": "L'écriture ciblée n'est pas un remboursement client.",
@@ -130,6 +146,7 @@
     "audit": "Journal d'audit",
     "settings": "Paramètres",
     "products": "Produits",
+    "attributes": "Attributs",
     "warehouses": "Entrepôts",
     "stock": "Stock",
     "stockTransfers": "Transferts de stock",
@@ -784,7 +801,39 @@
     "forbidden": "Vous n'avez pas la permission d'accéder à cette page.",
     "back_home": "Retour à l'accueil"
   },
+  "attributes": {
+    "title": "Attributs",
+    "subtitle": "Axes de variantes (couleur, taille…) et leurs valeurs",
+    "create": "Nouvel attribut",
+    "name": "Nom",
+    "values": "Valeurs",
+    "manage": "Gérer",
+    "empty": "Aucun attribut défini",
+    "editTitle": "Gérer l'attribut",
+    "createTitle": "Nouvel attribut",
+    "sortOrder": "Ordre",
+    "valueLabel": "Valeur",
+    "code": "Code",
+    "noValues": "Aucune valeur",
+    "createHint": "Enregistrez l'attribut, puis ajoutez ses valeurs.",
+    "confirmDelete": "Supprimer l'attribut « {{name}} » ?",
+    "confirmDeleteValue": "Supprimer la valeur « {{value}} » ?",
+    "inUse": "Cet attribut est utilisé par un produit et ne peut pas être supprimé.",
+    "valueInUse": "Cette valeur est utilisée et ne peut pas être supprimée."
+  },
   "products": {
+    "variants": {
+      "title": "Variantes",
+      "uniformPricing": "Même prix pour toutes les variantes",
+      "help": "Choisissez des valeurs d'attributs pour générer les variantes (produit cartésien). Sans attribut, le produit garde une seule variante par défaut.",
+      "attributes": "Valeurs d'attributs",
+      "selectValues": "Choisir des valeurs…",
+      "generate": "Générer",
+      "combination": "Combinaison",
+      "defaultVariant": "Par défaut",
+      "none": "Aucune variante — choisissez des valeurs puis générez.",
+      "createHint": "Enregistrez d'abord le produit, puis choisissez des valeurs d'attributs pour générer ses variantes."
+    },
     "title": "Produits",
     "subtitle": "Catalogue produits",
     "create": "Nouveau produit",
@@ -872,11 +921,15 @@
       "qty": "Quantité",
       "unitCost": "Coût unitaire",
       "qtySigned": "Variation (+/−)",
-      "note": "Motif / note"
+      "note": "Motif / note",
+      "lotNumber": "N° de lot",
+      "expirationDate": "Date d'expiration",
+      "productionDate": "Date de production"
     },
     "openingDialog": {
       "title": "Stock initial",
-      "help": "À utiliser à l'ouverture de la boutique pour saisir le stock physique constaté. Le coût unitaire sert au calcul du coût moyen pondéré."
+      "help": "À utiliser à l'ouverture de la boutique pour saisir le stock physique constaté. Le coût unitaire sert au calcul du coût moyen pondéré.",
+      "lotHelp": "Ce produit suit les lots : renseignez le n° de lot et la date d'expiration de la marchandise saisie."
     },
     "adjustDialog": {
       "title": "Ajustement de quantité",
@@ -946,6 +999,26 @@
       "IN_PROGRESS": "En cours",
       "VALIDATED": "Validé",
       "CANCELLED": "Annulé"
+    },
+    "entry": {
+      "title": "Saisie du comptage",
+      "view": "Consulter",
+      "enter": "Saisir le comptage",
+      "help": "Saisissez la quantité réellement comptée pour chaque produit. Les lignes laissées vides sont considérées conformes au stock théorique (aucun ajustement).",
+      "readonly": "Inventaire validé — lecture seule",
+      "sku": "Réf.",
+      "product": "Produit",
+      "theoretical": "Théorique",
+      "counted": "Compté",
+      "discrepancy": "Écart",
+      "impact": "Impact",
+      "emptyLines": "Aucune ligne",
+      "summary": "{{counted}} / {{total}} produits comptés · {{gaps}} écart(s)",
+      "saveCount": "Enregistrer le comptage",
+      "saved": "Comptage enregistré",
+      "validateConfirm": "Valider cet inventaire ? Les écarts seront appliqués au stock. Cette action est irréversible.",
+      "confirmValidate": "Confirmer la validation",
+      "validated": "Inventaire validé"
     }
   },
   "lots": {
@@ -1053,7 +1126,8 @@
     "empty": "Aucune unité",
     "tabs": {
       "units": "Unités",
-      "categories": "Catégories"
+      "categories": "Catégories",
+      "conversion": "Conversion"
     },
     "code": "Code",
     "name": "Nom",
@@ -1062,7 +1136,33 @@
     "decimals": "Décimales",
     "base": "Base",
     "categoryCode": "Code",
-    "categoryName": "Nom"
+    "categoryName": "Nom",
+    "addUnit": "Ajouter une unité",
+    "addCategory": "Ajouter une catégorie",
+    "dialogNew": "Nouvelle unité",
+    "dialogEdit": "Modifier l'unité",
+    "categoryDialogNew": "Nouvelle catégorie",
+    "categoryDialogEdit": "Modifier la catégorie",
+    "isBaseLabel": "Unité de base de la catégorie",
+    "ratioHelp": "Quantité dans l'unité de base pour 1 de cette unité.",
+    "lockedHelp": "Cette unité est déjà utilisée : le code, le ratio et la base ne sont plus modifiables. Seuls le nom et les décimales restent éditables.",
+    "inUseTip": "Utilisée par des produits ou des documents",
+    "codeRequired": "Le code est requis",
+    "nameRequired": "Le nom est requis",
+    "categoryRequired": "La catégorie est requise",
+    "ratioPositive": "Le ratio doit être supérieur à 0",
+    "deleteUnitConfirm": "Supprimer l'unité « {{code}} » ?",
+    "deleteCategoryConfirm": "Supprimer la catégorie « {{code}} » ?",
+    "saved": "Enregistré",
+    "deleted": "Supprimé",
+    "conv": {
+      "help": "Convertir une quantité entre deux unités d'une même catégorie.",
+      "from": "De",
+      "to": "Vers",
+      "amount": "Quantité",
+      "result": "Résultat",
+      "convert": "Convertir"
+    }
   },
   "priceTiers": {
     "title": "Tarifs",
@@ -1291,6 +1391,11 @@
     "status": "Statut",
     "pickInvoice": "Choisir une facture",
     "pickWarehouse": "Choisir un entrepôt",
+    "linesToReceive": "Lignes à réceptionner",
+    "remaining": "Reliquat",
+    "quantityToReceive": "Quantité à recevoir",
+    "pickInvoiceFirst": "Sélectionnez d'abord une facture",
+    "atLeastOneLineQty": "Saisissez une quantité sur au moins une ligne",
     "record": "Enregistrer la réception",
     "recordTitle": "Enregistrer la réception",
     "confirmRecord": "Valider la réception",
