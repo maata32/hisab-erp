@@ -6,5 +6,7 @@ enum BankTransactionType {
     /** Withdrawal to the central vault from this bank account. */
     WITHDRAWAL_TO_VAULT,
     /** Manual reconciliation after a bank statement (signed amount). */
-    ADJUSTMENT
+    ADJUSTMENT,
+    /** A confirmed non-cash payment: positive for a cash-in, negative for a cash-out. */
+    PAYMENT
 }

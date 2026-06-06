@@ -203,6 +203,17 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                           optionLabel="label" optionValue="value" styleClass="w-full" />
             </div>
           </div>
+          @if (needsBankAccount()) {
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'payments.bankAccount' | translate }} *</label>
+              <p-dropdown [(ngModel)]="form.bankAccountId" [options]="bankAccounts()"
+                          optionLabel="name" optionValue="id"
+                          [styleClass]="'w-full' + (bankAccountInvalid() ? ' ng-invalid ng-dirty' : '')" />
+              @if (bankAccountInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+              }
+            </div>
+          }
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'payments.party' | translate }} *</label>
             <p-dropdown [(ngModel)]="form.partyId" [options]="parties()"
@@ -485,6 +496,7 @@ export class PaymentListPage implements OnInit {
 
   protected payments = signal<Payment[]>([]);
   protected parties = signal<PartnerLite[]>([]);
+  protected bankAccounts = signal<{ id: string; name: string }[]>([]);
   protected openInvoices = signal<OpenInvoice[]>([]);
   @ViewChild('table') private table?: Table;
   protected readonly pageSize = 50;
@@ -681,6 +693,7 @@ export class PaymentListPage implements OnInit {
 
   ngOnInit() {
     this.loadCustomers();
+    this.loadBankAccounts();
     this.refreshDirectionOptions();
     this.i18n.onLangChange.subscribe(() => this.refreshDirectionOptions());
     // Payments are fetched on demand via the p-table's onLazyLoad.
@@ -930,9 +943,16 @@ export class PaymentListPage implements OnInit {
     return +(amount - this.totalAllocated()).toFixed(2);
   }
 
+  /** Non-cash methods settle on a bank account; cash hits the vault. */
+  protected needsBankAccount(): boolean { return this.form.method !== 'CASH'; }
+  protected bankAccountInvalid(): boolean {
+    return this.submitted() && this.needsBankAccount() && !this.form.bankAccountId;
+  }
+
   protected canSave(): boolean {
     return !!this.form.partyId
         && !!this.form.amount && this.form.amount > 0
+        && (!this.needsBankAccount() || !!this.form.bankAccountId)
         && this.allocationValid();
   }
 
@@ -980,6 +1000,7 @@ export class PaymentListPage implements OnInit {
         method: this.form.method,
         reference: this.form.reference || null,
         bankAccount: null,
+        bankAccountId: this.needsBankAccount() ? this.form.bankAccountId : null,
         notes: this.form.notes || null,
         allocations,
       }));
@@ -1238,6 +1259,18 @@ export class PaymentListPage implements OnInit {
     }
   }
 
+  /** Active treasury bank accounts — the target for non-cash payment settlement. */
+  private async loadBankAccounts() {
+    try {
+      const list = await firstValueFrom(
+        this.http.get<{ id: string; name: string }[]>('/api/v1/treasury/bank-accounts')
+      );
+      this.bankAccounts.set(list ?? []);
+    } catch {
+      this.bankAccounts.set([]);
+    }
+  }
+
   private emptyForm() {
     return {
       direction: 'IN' as Direction,
@@ -1245,6 +1278,7 @@ export class PaymentListPage implements OnInit {
       amount: 0,
       paymentDate: '',
       method: 'CASH',
+      bankAccountId: null as string | null,
       reference: '',
       notes: '',
       allocations: [] as AllocationForm[],

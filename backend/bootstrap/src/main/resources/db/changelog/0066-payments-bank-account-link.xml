@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Treasury wiring: a confirmed payment now moves the central vault (CASH method)
+      or a bank account (BANK_TRANSFER/CHECK/CARD/MOBILE_MONEY). This adds the link
+      from the payment to the treasury bank account it debits/credits. NULL for cash
+      and paper (CREDIT_USAGE/COMPENSATION) settlements.
+    -->
+    <changeSet id="0066-payments-bank-account-link" author="mini-erp">
+        <addColumn tableName="payments">
+            <column name="bank_account_id" type="uuid"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

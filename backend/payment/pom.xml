@@ -43,5 +43,9 @@
             <groupId>com.minierp</groupId>
             <artifactId>expense</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.minierp</groupId>
+            <artifactId>treasury</artifactId>
+        </dependency>
     </dependencies>
 </project>

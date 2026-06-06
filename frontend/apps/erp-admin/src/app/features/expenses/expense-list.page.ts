@@ -177,6 +177,13 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               <input pInputText type="date" [(ngModel)]="payForm.paymentDate" class="w-full" />
             </div>
           </div>
+          @if (payNeedsBankAccount()) {
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'payments.bankAccount' | translate }} *</label>
+              <p-dropdown [(ngModel)]="payForm.bankAccountId" [options]="bankAccounts()"
+                          optionLabel="name" optionValue="id" styleClass="w-full" />
+            </div>
+          }
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'expenses.reference' | translate }}</label>
             <input pInputText [(ngModel)]="payForm.reference" class="w-full" />
@@ -186,7 +193,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
           <button pButton [label]="'common.cancel' | translate" class="p-button-text"
                   (click)="payOpen = false" [disabled]="paying()"></button>
           <button pButton [label]="'expenses.pay' | translate" icon="pi pi-check"
-                  (click)="confirmPay()" [loading]="paying()"></button>
+                  (click)="confirmPay()" [loading]="paying()" [disabled]="!canConfirmPay()"></button>
         </ng-template>
       </p-dialog>
     </div>
@@ -197,6 +204,7 @@ export class ExpenseListPage implements OnInit {
 
   protected expenses = signal<Expense[]>([]);
   protected categories = signal<Category[]>([]);
+  protected bankAccounts = signal<{ id: string; name: string }[]>([]);
   @ViewChild('table') private table?: Table;
   protected readonly pageSize = 50;
   protected total = signal(0);
@@ -235,10 +243,17 @@ export class ExpenseListPage implements OnInit {
   protected payOpen = false;
   protected paying = signal(false);
   protected payExpense = signal<Expense | null>(null);
-  protected payForm = { method: 'CASH', paymentDate: '', reference: '' };
+  protected payForm = { method: 'CASH', paymentDate: '', reference: '', bankAccountId: null as string | null };
+
+  /** Non-cash methods settle on a bank account; cash hits the vault. */
+  protected payNeedsBankAccount(): boolean { return this.payForm.method !== 'CASH'; }
+  protected canConfirmPay(): boolean {
+    return this.payAmount() > 0 && (!this.payNeedsBankAccount() || !!this.payForm.bankAccountId);
+  }
 
   ngOnInit() {
     this.loadCategories();
+    this.loadBankAccounts();
     // auto-loaded by p-table lazy
   }
 
@@ -304,7 +319,7 @@ export class ExpenseListPage implements OnInit {
 
   protected openPay(e: Expense) {
     this.payExpense.set(e);
-    this.payForm = { method: 'CASH', paymentDate: new Date().toISOString().slice(0, 10), reference: '' };
+    this.payForm = { method: 'CASH', paymentDate: new Date().toISOString().slice(0, 10), reference: '', bankAccountId: null };
     this.payOpen = true;
   }
 
@@ -314,7 +329,7 @@ export class ExpenseListPage implements OnInit {
     const e = this.payExpense();
     if (!e) return;
     const amount = this.payAmount();
-    if (amount <= 0) return;
+    if (amount <= 0 || !this.canConfirmPay()) return;
     this.paying.set(true);
     try {
       const created = await firstValueFrom(this.http.post<{ id: string }>('/api/v1/payments', {
@@ -326,6 +341,7 @@ export class ExpenseListPage implements OnInit {
         method: this.payForm.method,
         reference: this.payForm.reference || null,
         bankAccount: null,
+        bankAccountId: this.payNeedsBankAccount() ? this.payForm.bankAccountId : null,
         notes: null,
         allocations: [{ targetType: 'EXPENSE', targetId: e.id, allocatedAmount: amount }],
       }));
@@ -376,6 +392,16 @@ export class ExpenseListPage implements OnInit {
       );
       this.categories.set(list ?? []);
     } catch { this.categories.set([]); }
+  }
+
+  /** Active treasury bank accounts — target for non-cash expense settlement. */
+  private async loadBankAccounts() {
+    try {
+      const list = await firstValueFrom(
+        this.http.get<{ id: string; name: string }[]>('/api/v1/treasury/bank-accounts')
+      );
+      this.bankAccounts.set(list ?? []);
+    } catch { this.bankAccounts.set([]); }
   }
 
   private emptyForm() {

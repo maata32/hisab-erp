@@ -671,6 +671,7 @@
     "subtitle": "Customer receipts and supplier disbursements",
     "party": "Party",
     "expensePayment": "Expense",
+    "bankAccount": "Bank account",
     "date": "Date",
     "amount": "Amount",
     "method": "Method",

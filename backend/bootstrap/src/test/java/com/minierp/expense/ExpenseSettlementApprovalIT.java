@@ -7,6 +7,8 @@ import com.minierp.payment.api.PaymentDto;
 import com.minierp.payment.internal.PaymentService;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.tenant.TenantContext;
+import com.minierp.treasury.api.TreasuryDto;
+import com.minierp.treasury.internal.TreasuryService;
 import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,6 +39,7 @@ class ExpenseSettlementApprovalIT {
 
     @Autowired ExpenseService expenseService;
     @Autowired PaymentService paymentService;
+    @Autowired TreasuryService treasuryService;
     @Autowired JdbcTemplate jdbc;
 
     @PersistenceContext EntityManager em;
@@ -106,6 +109,32 @@ class ExpenseSettlementApprovalIT {
         assertThat(settled.paymentStatus()).isEqualTo("PAID");
         assertThat(settled.paidAmount()).isEqualByComparingTo("500.00");
         assertThat(settled.balance()).isEqualByComparingTo("0.00");
+
+        // The cash-out lowers the central vault (starts at 0 for a fresh tenant).
+        assertThat(treasuryService.getOrCreateTenantVault().balance()).isEqualByComparingTo("-500.00");
+    }
+
+    @Test
+    @DisplayName("A non-cash expense payment debits the chosen bank account, not the vault")
+    void payExpenseToBankAccountMovesBank() {
+        TreasuryDto.BankAccountResponse bank = treasuryService.createBankAccount(
+                new TreasuryDto.CreateBankAccountRequest("Compte test", null, null, "MRU", new BigDecimal("1000.00")));
+        UUID catId = expenseService.createCategory("BankSettle", null, null, null, null).id();
+        ExpenseDto.ExpenseResponse e = expenseService.create(
+                catId, null, new BigDecimal("300.00"), LocalDate.now(), null, "UNPAID", null, null);
+
+        PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
+                "CASH_OUT", null, new BigDecimal("300.00"), "MRU", LocalDate.now(), "BANK_TRANSFER",
+                null, null, bank.id(), null,
+                List.of(new PaymentDto.AllocationRequest("EXPENSE", e.id(), new BigDecimal("300.00"), null))));
+        paymentService.confirm(pay.id(), null);
+
+        BigDecimal bankBalance = treasuryService.listBankAccounts(false).stream()
+                .filter(b -> b.id().equals(bank.id())).findFirst().orElseThrow().balance();
+        assertThat(bankBalance).isEqualByComparingTo("700.00");
+        assertThat(expenseService.get(e.id()).paymentStatus()).isEqualTo("PAID");
+        // Vault untouched by a bank-method payment.
+        assertThat(treasuryService.getOrCreateTenantVault().balance()).isEqualByComparingTo("0.00");
     }
 
     @Test

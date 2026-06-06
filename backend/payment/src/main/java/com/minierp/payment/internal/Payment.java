@@ -55,6 +55,11 @@ class Payment extends TenantAwareEntity {
     @Column(name = "bank_account", length = 100)
     private String bankAccount;
 
+    /** Treasury bank account this payment debits/credits on confirm (non-cash
+     *  methods). NULL for cash (→ vault) and paper settlements. */
+    @Column(name = "bank_account_id", columnDefinition = "uuid")
+    private UUID bankAccountId;
+
     @Column(name = "session_id", columnDefinition = "uuid")
     private UUID sessionId;
 

@@ -20,6 +20,7 @@ import com.minierp.shared.error.NotFoundException;
 import com.minierp.shared.tenant.TenantContext;
 import com.minierp.shared.util.PageResponse;
 import com.minierp.tenant.api.TenantLookup;
+import com.minierp.treasury.api.TreasuryOperations;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -54,6 +55,7 @@ public class PaymentService implements PaymentLookup {
     private final NumberingOperations numbering;
     private final DocumentRenderer renderer;
     private final TenantLookup tenantLookup;
+    private final TreasuryOperations treasuryOps;
     private final org.springframework.context.ApplicationEventPublisher events;
 
     // ── PaymentLookup (used by the customer-statement aggregator) ──────────
@@ -96,6 +98,7 @@ public class PaymentService implements PaymentLookup {
                 .method(PaymentMethod.valueOf(req.method()))
                 .reference(req.reference())
                 .bankAccount(req.bankAccount())
+                .bankAccountId(req.bankAccountId())
                 .notes(req.notes())
                 .status(PaymentStatus.DRAFT)
                 .build();
@@ -137,6 +140,8 @@ public class PaymentService implements PaymentLookup {
         p.setStatus(PaymentStatus.CONFIRMED);
         p.setConfirmedAt(Instant.now());
         p.setConfirmedBy(userId);
+
+        recordTreasuryMovement(p, userId);
 
         // Phase 5: surface the just-confirmed allocations in the unified
         // engine table. Subscribers run synchronously inside this transaction
@@ -231,6 +236,27 @@ public class PaymentService implements PaymentLookup {
                     "Payment " + p.getNumber(), p.getId());
             case EXPENSE -> expenseOps.applyPayment(targetId, amount);
             default -> { /* SALE, SALARY: no-op or handled elsewhere */ }
+        }
+    }
+
+    /**
+     * Move the treasury on confirm so the cash actually leaves/enters the books:
+     * a CASH_IN raises the balance, a CASH_OUT lowers it. CASH method hits the
+     * central vault; bank/check/card/mobile hit the linked bank account (skipped
+     * if none); paper settlements (CREDIT_USAGE/COMPENSATION) move nothing.
+     */
+    private void recordTreasuryMovement(Payment p, UUID userId) {
+        BigDecimal signed = p.getType() == PaymentType.CASH_IN
+                ? p.getAmount() : p.getAmount().negate();
+        switch (p.getMethod()) {
+            case CASH -> treasuryOps.recordVaultMovement(signed, "PAYMENT", p.getId(), userId, p.getNumber());
+            case BANK_TRANSFER, CHECK, CARD, MOBILE_MONEY -> {
+                if (p.getBankAccountId() != null) {
+                    treasuryOps.recordBankMovement(p.getBankAccountId(), signed, "PAYMENT",
+                            p.getId(), userId, p.getNumber());
+                }
+            }
+            case CREDIT_USAGE, COMPENSATION -> { /* paper settlement — no cash/bank movement */ }
         }
     }
 

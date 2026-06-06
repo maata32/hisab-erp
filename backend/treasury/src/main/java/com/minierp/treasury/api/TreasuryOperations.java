@@ -16,4 +16,19 @@ public interface TreasuryOperations {
      * once a vault manager validates the cashier's deposit (see PosService#validateSession).
      */
     void depositFromPosSession(UUID sessionId, BigDecimal amount, UUID userId);
+
+    /**
+     * Move the central vault by a signed amount as part of a cash payment confirm
+     * (positive = cash-in, negative = cash-out). No-op for a zero/null amount.
+     * Joins the caller's transaction so it rolls back with the payment.
+     */
+    void recordVaultMovement(BigDecimal amountSigned, String referenceType, UUID referenceId,
+                             UUID userId, String note);
+
+    /**
+     * Move a bank account by a signed amount as part of a non-cash payment confirm
+     * (positive = cash-in, negative = cash-out). No-op for a zero/null amount.
+     */
+    void recordBankMovement(UUID bankAccountId, BigDecimal amountSigned, String referenceType,
+                            UUID referenceId, UUID userId, String note);
 }

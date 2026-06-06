@@ -168,6 +168,31 @@ public class TreasuryService implements TreasuryOperations {
                 amount, "POS_SESSION", sessionId, userId, null);
     }
 
+    // ── Payment hooks (TreasuryOperations) ──────────────────────────────────
+
+    @Override
+    @Transactional
+    public void recordVaultMovement(BigDecimal amountSigned, String referenceType, UUID referenceId,
+                                    UUID userId, String note) {
+        if (amountSigned == null || amountSigned.signum() == 0) return; // no-op
+        Vault v = lockVault();
+        v.setBalance(v.getBalance().add(amountSigned));
+        persistVaultMovement(v.getId(), VaultMovementType.PAYMENT,
+                amountSigned, referenceType, referenceId, userId, note);
+    }
+
+    @Override
+    @Transactional
+    public void recordBankMovement(UUID bankAccountId, BigDecimal amountSigned, String referenceType,
+                                   UUID referenceId, UUID userId, String note) {
+        if (amountSigned == null || amountSigned.signum() == 0) return; // no-op
+        BankAccount b = bankAccounts.lockById(bankAccountId)
+                .orElseThrow(() -> NotFoundException.of("entity.bank_account", bankAccountId));
+        b.setBalance(b.getBalance().add(amountSigned));
+        persistBankTransaction(b.getId(), BankTransactionType.PAYMENT,
+                amountSigned, null, note, Instant.now(), userId, note);
+    }
+
     // ── History ─────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)

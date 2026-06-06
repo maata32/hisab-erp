@@ -55,9 +55,19 @@ public class PaymentDto {
             @NotBlank String method,
             String reference,
             String bankAccount,
+            UUID bankAccountId,
             String notes,
             List<AllocationRequest> allocations
-    ) {}
+    ) {
+        /** Back-compat constructor (no treasury bank account) — keeps existing
+         *  callers compiling; the canonical 11-arg form is used by JSON binding. */
+        public CreatePaymentRequest(String type, UUID partyId, BigDecimal amount, String currency,
+                                    LocalDate paymentDate, String method, String reference,
+                                    String bankAccount, String notes, List<AllocationRequest> allocations) {
+            this(type, partyId, amount, currency, paymentDate, method, reference,
+                    bankAccount, null, notes, allocations);
+        }
+    }
 
     public record AutoAllocateRequest(
             @NotNull UUID customerId,

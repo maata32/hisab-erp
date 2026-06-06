@@ -671,6 +671,7 @@
     "subtitle": "Encaissements clients et décaissements fournisseurs",
     "party": "Tiers",
     "expensePayment": "Dépense",
+    "bankAccount": "Compte bancaire",
     "date": "Date",
     "amount": "Montant",
     "method": "Mode",
