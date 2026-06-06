@@ -426,6 +426,7 @@ export class SalePage implements OnInit {
         ...lines,
         {
           productId: product.id,
+          variantId: product.variantId,
           productName: product.name,
           productSku: product.sku,
           uomId: product.baseUomId,
@@ -479,7 +480,7 @@ export class SalePage implements OnInit {
 
     const idempotencyKey = crypto.randomUUID();
     const lines = this.cartLines().map((l) => ({
-      productId: l.productId,
+      variantId: l.variantId,
       uomId: l.uomId,
       quantity: l.quantity,
       unitDiscount: l.unitDiscount > 0 ? l.unitDiscount : null,

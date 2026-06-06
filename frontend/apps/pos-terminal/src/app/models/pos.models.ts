@@ -5,6 +5,7 @@ export interface CachedProductImage {
 
 export interface CachedProduct {
   id: string;
+  variantId: string;
   sku: string;
   barcode: string | null;
   name: string;
@@ -58,6 +59,7 @@ export interface CashSession {
 
 export interface CartLine {
   productId: string;
+  variantId: string;
   productName: string;
   productSku: string;
   uomId: string;
@@ -70,7 +72,7 @@ export interface CartLine {
 }
 
 export interface PendingSaleLine {
-  productId: string;
+  variantId: string;
   uomId: string;
   quantity: number;
   unitDiscount: number | null;

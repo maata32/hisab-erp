@@ -76,7 +76,8 @@ interface CompensItem {
 }
 
 interface SupplierOpt { id: string; code: string; name: string; currency: string; }
-interface ProductOpt { id: string; sku: string; name: string; baseUomId: string; defaultTaxRate: number; }
+interface ProductVariantOpt { id: string; defaultVariant: boolean; active: boolean; }
+interface ProductOpt { id: string; sku: string; name: string; baseUomId: string; defaultTaxRate: number; variants: ProductVariantOpt[]; }
 interface ProductStockBreakdown {
   productId: string;
   warehouses: { warehouseId: string; warehouseCode: string; warehouseName: string; isDefault: boolean; qtyAvailable: number }[];
@@ -566,6 +567,14 @@ export class PurchaseInvoiceListPage implements OnInit {
   protected invoices = signal<PurchaseInvoice[]>([]);
   protected suppliers = signal<SupplierOpt[]>([]);
   protected products = signal<ProductOpt[]>([]);
+
+  /** Resolve the variant to invoice for a product: its default (or first active) variant. */
+  protected variantIdFor(productId: string | null): string | null {
+    if (!productId) return null;
+    const vs = this.products().find(p => p.id === productId)?.variants ?? [];
+    return (vs.find(v => v.defaultVariant && v.active)
+      ?? vs.find(v => v.active) ?? vs[0])?.id ?? null;
+  }
   protected stockBreakdown = signal<Record<string, number[]>>({});
 
   // Net-position offset menu: the supplier's POSITIVE open items — our open sale
@@ -843,7 +852,7 @@ export class PurchaseInvoiceListPage implements OnInit {
         currency: this.form.currency || null,
         notes: this.form.notes || null,
         lines: this.form.lines.map(l => ({
-          productId: l.productId,
+          variantId: this.variantIdFor(l.productId),
           uomId: l.uomId,
           quantity: l.quantity,
           unitCost: l.unitCost,

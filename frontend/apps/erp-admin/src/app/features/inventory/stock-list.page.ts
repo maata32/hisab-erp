@@ -31,7 +31,8 @@ interface StockRow {
 }
 
 interface WarehouseLite { id: string; code: string; name: string; defaultWarehouse: boolean; }
-interface ProductOpt { id: string; sku: string; name: string; trackExpiry: boolean; }
+interface ProductVariantOpt { id: string; defaultVariant: boolean; active: boolean; }
+interface ProductOpt { id: string; sku: string; name: string; trackExpiry: boolean; variants: ProductVariantOpt[]; }
 interface StockMovement {
   id: string;
   warehouseId: string;
@@ -420,15 +421,32 @@ export class StockListPage implements OnInit {
     this.adjustOpen = true;
   }
 
+  /** Resolve a product's default (or first active) variant — stock is kept per variant. */
+  private async fetchDefaultVariantId(productId: string): Promise<string | null> {
+    try {
+      const p = await firstValueFrom(this.http.get<{ variants: ProductVariantOpt[] }>(`/api/v1/products/${productId}`));
+      const vs = p.variants ?? [];
+      return (vs.find(v => v.defaultVariant && v.active) ?? vs.find(v => v.active) ?? vs[0])?.id ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private variantIdOf(product: ProductOpt | null): string | null {
+    const vs = product?.variants ?? [];
+    return (vs.find(v => v.defaultVariant && v.active) ?? vs.find(v => v.active) ?? vs[0])?.id ?? null;
+  }
+
   protected async openHistory(row: StockRow) {
     this.historyTarget.set(row);
     this.historyRows.set([]);
     this.historyOpen = true;
     this.historyLoading.set(true);
     try {
+      const variantId = await this.fetchDefaultVariantId(row.productId);
       const res = await firstValueFrom(
         this.http.get<{ content: StockMovement[] }>(
-          `/api/v1/inventory/stocks/movements?productId=${row.productId}&warehouseId=${row.warehouseId}`
+          `/api/v1/inventory/stocks/movements?variantId=${variantId}&warehouseId=${row.warehouseId}`
         )
       );
       this.historyRows.set(res?.content ?? []);
@@ -485,7 +503,7 @@ export class StockListPage implements OnInit {
         // Stock row and the lot ledger stay in sync (otherwise FEFO has nothing to consume).
         await firstValueFrom(this.http.post('/api/v1/lots/opening-balance', {
           warehouseId: this.opening.warehouseId,
-          productId: product.id,
+          variantId: this.variantIdOf(product),
           quantity: this.opening.qty,
           unitCost: this.opening.unitCost,
           lotNumber: this.opening.lotNumber.trim(),
@@ -496,7 +514,7 @@ export class StockListPage implements OnInit {
       } else {
         await firstValueFrom(this.http.post('/api/v1/inventory/stocks/receive', {
           warehouseId: this.opening.warehouseId,
-          productId: product.id,
+          variantId: this.variantIdOf(product),
           qty: this.opening.qty,
           unitCost: this.opening.unitCost,
           type: 'OPENING_BALANCE',
@@ -524,9 +542,10 @@ export class StockListPage implements OnInit {
     if (this.adjustQtyInvalid() || this.adjustNoteInvalid()) return;
     this.saving.set(true);
     try {
+      const adjustVariantId = await this.fetchDefaultVariantId(target.productId);
       await firstValueFrom(this.http.post('/api/v1/inventory/stocks/adjust', {
         warehouseId: target.warehouseId,
-        productId: target.productId,
+        variantId: adjustVariantId,
         qtySigned: this.adjust.qtySigned,
         type: 'ADJUSTMENT',
         note: this.adjust.note,

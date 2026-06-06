@@ -58,6 +58,7 @@ interface InvoiceLite {
 }
 
 interface ReceptionLineForm {
+  variantId: string;
   productId: string;
   uomId: string;
   productName: string;
@@ -357,13 +358,13 @@ export class ReceptionListPage implements OnInit {
     if (!invId) return;
     try {
       const lines = await firstValueFrom(
-        this.http.get<{ productId: string; uomId: string; quantityOrdered: number;
+        this.http.get<{ variantId: string; productId: string; uomId: string; quantityOrdered: number;
           unitCost: number; productName: string; sku: string }[]>(
           `/api/v1/goods-receipts/outstanding-lines?invoiceId=${invId}`));
       this.form.lines = (lines ?? []).map(l => {
         const remaining = Number(l.quantityOrdered);
         return {
-          productId: l.productId, uomId: l.uomId, productName: l.productName, sku: l.sku,
+          variantId: l.variantId, productId: l.productId, uomId: l.uomId, productName: l.productName, sku: l.sku,
           unitCost: Number(l.unitCost ?? 0), remaining, quantityOrdered: remaining,
         };
       });
@@ -448,7 +449,7 @@ export class ReceptionListPage implements OnInit {
         lines: this.form.lines
           .filter(l => (l.quantityOrdered ?? 0) > 0)
           .map(l => ({
-            productId: l.productId,
+            variantId: l.variantId,
             uomId: l.uomId,
             quantityOrdered: l.quantityOrdered,
             unitCost: l.unitCost,
