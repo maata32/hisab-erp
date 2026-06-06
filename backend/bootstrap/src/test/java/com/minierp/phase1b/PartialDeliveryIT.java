@@ -98,7 +98,7 @@ class PartialDeliveryIT {
     void recordingShipsFullQuantityAndMarksDelivered() {
         DeliveryDto.CreateDeliveryRequest create = new DeliveryDto.CreateDeliveryRequest(
                 customerId, invoiceId, warehouseId, LocalDate.now(), null, null, null,
-                List.of(new DeliveryDto.LineRequest(productId, uomId, new BigDecimal("10"), "Widget", "SKU-001"))
+                List.of(new DeliveryDto.LineRequest(productId, productId, uomId, new BigDecimal("10"), "Widget", "SKU-001"))
         );
         DeliveryDto.DeliveryResponse delivery = deliveryService.create(create, null);
         deliveryService.startDelivery(delivery.id(), null);

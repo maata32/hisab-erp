@@ -161,7 +161,7 @@ class CreditNoteReturnDeliveryIT {
     private void shipInvoiceFully(UUID invoiceId, BigDecimal shipQty) {
         DeliveryDto.CreateDeliveryRequest create = new DeliveryDto.CreateDeliveryRequest(
                 customerId, invoiceId, warehouseId, LocalDate.now(), null, null, null,
-                List.of(new DeliveryDto.LineRequest(productId, uomId, shipQty, "Widget", "SKU-CNRET")));
+                List.of(new DeliveryDto.LineRequest(productId, productId, uomId, shipQty, "Widget", "SKU-CNRET")));
         DeliveryDto.DeliveryResponse d = deliveryService.create(create, null);
         deliveryService.startDelivery(d.id(), null);
         UUID lineId = d.lines().get(0).id();
