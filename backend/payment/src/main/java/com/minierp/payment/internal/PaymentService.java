@@ -395,13 +395,13 @@ public class PaymentService implements PaymentLookup {
      * Receipt wording keyed purely to the cash direction — a cash-in is a
      * cash-in and a cash-out is a cash-out, whatever the party. The refund
      * notion is not surfaced.
-     *   CASH_IN  / CASH_IN_REFUND  -> "REÇU DE PAIEMENT" / "Montant reçu"
-     *   CASH_OUT / CASH_OUT_REFUND -> "BON DE PAIEMENT"  / "Montant payé"
+     *   CASH_IN  -> "REÇU DE PAYEMENT"    / "Montant reçu"
+     *   CASH_OUT -> "BON DE DÉCAISSEMENT" / "Montant payé"
      */
     private ReceiptLabels receiptLabels(PaymentType type) {
         return switch (type) {
-            case CASH_IN -> new ReceiptLabels("REÇU DE PAIEMENT", "Montant reçu");
-            case CASH_OUT -> new ReceiptLabels("BON DE PAIEMENT", "Montant payé");
+            case CASH_IN -> new ReceiptLabels("REÇU DE PAYEMENT", "Montant reçu");
+            case CASH_OUT -> new ReceiptLabels("BON DE DÉCAISSEMENT", "Montant payé");
         };
     }
 

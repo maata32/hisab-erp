@@ -1110,12 +1110,14 @@
       "FROM_POS_SESSION": "من الصندوق",
       "TO_BANK": "إيداع بنك",
       "FROM_BANK": "سحب بنك",
-      "ADJUSTMENT": "تسوية"
+      "ADJUSTMENT": "تسوية",
+      "PAYMENT": "دفعة"
     },
     "bankType": {
       "DEPOSIT_FROM_VAULT": "إيداع من الخزينة",
       "WITHDRAWAL_TO_VAULT": "سحب إلى الخزينة",
-      "ADJUSTMENT": "تسوية"
+      "ADJUSTMENT": "تسوية",
+      "PAYMENT": "دفعة"
     }
   },
   "suppliers": {

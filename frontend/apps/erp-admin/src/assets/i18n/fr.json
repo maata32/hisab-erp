@@ -1110,12 +1110,14 @@
       "FROM_POS_SESSION": "Retour caisse",
       "TO_BANK": "Dépôt banque",
       "FROM_BANK": "Retrait banque",
-      "ADJUSTMENT": "Ajustement"
+      "ADJUSTMENT": "Ajustement",
+      "PAYMENT": "Paiement"
     },
     "bankType": {
       "DEPOSIT_FROM_VAULT": "Dépôt du coffre",
       "WITHDRAWAL_TO_VAULT": "Retrait vers coffre",
-      "ADJUSTMENT": "Ajustement"
+      "ADJUSTMENT": "Ajustement",
+      "PAYMENT": "Paiement"
     }
   },
   "suppliers": {

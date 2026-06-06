@@ -1110,12 +1110,14 @@
       "FROM_POS_SESSION": "From POS",
       "TO_BANK": "Bank deposit",
       "FROM_BANK": "Bank withdrawal",
-      "ADJUSTMENT": "Adjustment"
+      "ADJUSTMENT": "Adjustment",
+      "PAYMENT": "Payment"
     },
     "bankType": {
       "DEPOSIT_FROM_VAULT": "Deposit from vault",
       "WITHDRAWAL_TO_VAULT": "Withdrawal to vault",
-      "ADJUSTMENT": "Adjustment"
+      "ADJUSTMENT": "Adjustment",
+      "PAYMENT": "Payment"
     }
   },
   "suppliers": {

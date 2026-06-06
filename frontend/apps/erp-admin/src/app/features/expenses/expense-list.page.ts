@@ -90,10 +90,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <button pButton icon="pi pi-wallet" class="p-button-sm p-button-text"
                           (click)="openPay(e)" [pTooltip]="'expenses.pay' | translate"></button>
                 }
-                <a [href]="'/api/v1/expenses/' + e.id + '/receipt.pdf'" target="_blank"
-                   class="p-button p-button-sm p-button-text" [title]="'expenses.pdf' | translate">
-                  <i class="pi pi-file-pdf"></i>
-                </a>
+                <button pButton icon="pi pi-file-pdf" class="p-button-sm p-button-text"
+                        [pTooltip]="'expenses.pdf' | translate"
+                        (click)="printPdf('/api/v1/expenses/' + e.id + '/receipt.pdf')"></button>
               </td>
             </tr>
           </ng-template>
@@ -350,6 +349,19 @@ export class ExpenseListPage implements OnInit {
       this.reload();
     } finally {
       this.paying.set(false);
+    }
+  }
+
+  /** Fetch the PDF through HttpClient so the auth interceptor attaches the JWT
+   *  (a plain anchor navigation would 401), then open it in a new tab. */
+  protected async printPdf(url: string) {
+    try {
+      const blob = await firstValueFrom(this.http.get(url, { responseType: 'blob' }));
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+    } catch (e) {
+      console.error('PDF fetch failed', e);
     }
   }
 
