@@ -73,6 +73,9 @@ class PaymentOverpaymentIT {
                                       is_active, created_at, updated_at, version)
                 VALUES (?,?,?,?,?,0.00,false,false,true,true,true,now(),now(),0)
                 """, productId, tenantId, "SKU-OVP", "Overpayment Test Product", uomId);
+        // Variant = SKU: default variant reuses the product id (sales lines resolve the variant).
+        jdbc.update("INSERT INTO product_variants (id, tenant_id, product_id, sku, is_default, is_active, created_at, updated_at, version) " +
+                "VALUES (?,?,?,?,true,true,now(),now(),0)", productId, tenantId, productId, "SKU-OVP");
         jdbc.update("INSERT INTO parties (id, tenant_id, code, name, is_customer, is_supplier, active, created_at, updated_at, version) " +
                 "VALUES (?,?,?,?,true,false,true,now(),now(),0)",
                 customerId, tenantId, "C-OVP-" + customerId, "Overpayment Test Customer");

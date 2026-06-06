@@ -86,6 +86,12 @@ class CreditNoteIT {
                                       is_active, created_at, updated_at, version)
                 VALUES (?,?,?,?,?,0.00,false,false,true,true,true,now(),now(),0)
                 """, productBId, tenantId, "SKU-CN-B", "Product B", uomId);
+        // Variant = SKU: seed each product's default variant reusing the product id so
+        // sales lines (SalesService resolves the variant) resolve to a real variant.
+        jdbc.update("INSERT INTO product_variants (id, tenant_id, product_id, sku, is_default, is_active, created_at, updated_at, version) " +
+                "VALUES (?,?,?,?,true,true,now(),now(),0)", productAId, tenantId, productAId, "SKU-CN-A");
+        jdbc.update("INSERT INTO product_variants (id, tenant_id, product_id, sku, is_default, is_active, created_at, updated_at, version) " +
+                "VALUES (?,?,?,?,true,true,now(),now(),0)", productBId, tenantId, productBId, "SKU-CN-B");
         jdbc.update("INSERT INTO parties (id, tenant_id, code, name, is_customer, is_supplier, active, created_at, updated_at, version) " +
                 "VALUES (?,?,?,?,true,false,true,now(),now(),0)",
                 customerId, tenantId, "C-CNTEST-" + customerId, "CreditNote Test Customer");

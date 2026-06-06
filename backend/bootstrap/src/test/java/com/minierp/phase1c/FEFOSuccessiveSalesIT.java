@@ -75,6 +75,13 @@ class FEFOSuccessiveSalesIT {
                         true, true, now(), now(), 0)
                 """, productId, tenantId, uomId);
 
+        // Variant = SKU: lot ops are per-variant; seed the default variant reusing the product id.
+        jdbc.update("""
+                INSERT INTO product_variants (id, tenant_id, product_id, sku, is_default,
+                                              is_active, created_at, updated_at, version)
+                VALUES (?, ?, ?, 'LOT-PROD-01', true, true, now(), now(), 0)
+                """, productId, tenantId, productId);
+
         warehouseId = UUID.randomUUID();
         jdbc.update("""
                 INSERT INTO warehouses (id, tenant_id, code, name, type, is_default, is_active,

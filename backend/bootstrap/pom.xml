@@ -14,6 +14,12 @@
     <name>Mini-ERP :: Bootstrap</name>
     <description>Spring Boot application entry point — wires every module</description>
 
+    <properties>
+        <!-- Extra JVM args for the forked test JVM. Empty by default (Linux/CI);
+             overridden by the mac-aarch64 profile so JNA can find Homebrew's libargon2. -->
+        <test.argline></test.argline>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.minierp</groupId>
@@ -174,6 +180,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
+                    <argLine>${test.argline}</argLine>
                     <includes>
                         <include>**/*IT.java</include>
                     </includes>
@@ -210,4 +217,23 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Apple Silicon: argon2-jvm-nolibs relies on the system libargon2, which
+             Homebrew installs under /opt/homebrew/lib — a path JNA does not search by
+             default. Point the forked test JVM at it so password-hashing ITs (tenant
+             registration) can load the native lib. No effect on Linux/CI. -->
+        <profile>
+            <id>mac-aarch64-jna</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <properties>
+                <test.argline>-Djna.library.path=/opt/homebrew/lib</test.argline>
+            </properties>
+        </profile>
+    </profiles>
 </project>

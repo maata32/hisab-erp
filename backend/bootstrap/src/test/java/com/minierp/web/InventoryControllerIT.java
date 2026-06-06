@@ -71,6 +71,14 @@ class InventoryControllerIT {
                         true, now(), now(), 0)
                 """, productId, tenantId, "INV-" + productId, uomId);
 
+        // Variant = SKU model: every product owns a default variant. Tests reuse the
+        // product id as its default variant id so seeds/payloads keep one identifier.
+        jdbc.update("""
+                INSERT INTO product_variants (id, tenant_id, product_id, sku, is_default,
+                                              is_active, created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, true, true, now(), now(), 0)
+                """, productId, tenantId, productId, "INV-V-" + productId);
+
         warehouseId = UUID.randomUUID();
         jdbc.update("""
                 INSERT INTO warehouses (id, tenant_id, code, name, is_default, is_active,
@@ -111,11 +119,11 @@ class InventoryControllerIT {
     @DisplayName("POST /inventory/counts returns 201 and persists line with count_id")
     void createInventoryCount_persistsLines() throws Exception {
         jdbc.update("""
-                INSERT INTO stocks (id, tenant_id, warehouse_id, product_id,
+                INSERT INTO stocks (id, tenant_id, warehouse_id, variant_id, product_id,
                                     qty_on_hand, qty_reserved, average_cost,
                                     created_at, updated_at, version)
-                VALUES (uuid_generate_v4(), ?, ?, ?, 10, 0, 5, now(), now(), 0)
-                """, tenantId, warehouseId, productId);
+                VALUES (uuid_generate_v4(), ?, ?, ?, ?, 10, 0, 5, now(), now(), 0)
+                """, tenantId, warehouseId, productId, productId);
 
         mockMvc.perform(post("/api/v1/inventory/counts")
                         .header("Authorization", "Bearer " + token)
@@ -125,7 +133,7 @@ class InventoryControllerIT {
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.status").value("DRAFT"))
                 .andExpect(jsonPath("$.lines.length()").value(1))
-                .andExpect(jsonPath("$.lines[0].productId").value(productId.toString()))
+                .andExpect(jsonPath("$.lines[0].variantId").value(productId.toString()))
                 .andExpect(jsonPath("$.lines[0].theoreticalQty").value(10));
 
         Integer linesWithNullParent = jdbc.queryForObject(
