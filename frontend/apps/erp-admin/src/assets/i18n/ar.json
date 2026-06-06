@@ -670,6 +670,7 @@
     "title": "المدفوعات",
     "subtitle": "تحصيلات العملاء ومدفوعات الموردين",
     "party": "الطرف",
+    "expensePayment": "مصروف",
     "date": "التاريخ",
     "amount": "المبلغ",
     "method": "الطريقة",
@@ -944,7 +945,11 @@
     "approval": "الموافقة",
     "pdf": "سند PDF",
     "recurrence": "التكرار",
-    "recurrenceHint": "Cron"
+    "recurrenceHint": "Cron",
+    "reference": "مرجع",
+    "pay": "دفع",
+    "payTitle": "تسديد المصروف",
+    "payAmount": "المبلغ المطلوب"
   },
   "reporting": {
     "title": "لوحات المعلومات",
@@ -1047,7 +1052,13 @@
     "color": "اللون",
     "status": "الحالة",
     "showInactive": "تضمين غير النشطة",
-    "empty": "لا توجد فئات"
+    "empty": "لا توجد فئات",
+    "caps": "الحدود",
+    "dailyLimit": "الحد اليومي",
+    "monthlyLimit": "الحد الشهري",
+    "perDay": "/يوم",
+    "perMonth": "/شهر",
+    "limitsHint": "اتركه فارغًا لعدم اشتراط الموافقة."
   },
   "treasury": {
     "title": "الخزينة",

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Unified net-position ledger: the refund nuance is no longer carried by
+        the payment type (a cash-in is a cash-in, a cash-out is a cash-out,
+        whatever the party). Collapse the 4 generalized values down to 2.
+            CASH_IN_REFUND  -> CASH_IN
+            CASH_OUT_REFUND -> CASH_OUT
+        Pure data update on payments.type (VARCHAR, no CHECK constraint).
+    -->
+
+    <changeSet id="0065-payment-types-collapse-refund" author="mini-erp">
+        <sql splitStatements="false"><![CDATA[
+            UPDATE payments SET type = 'CASH_IN'  WHERE type = 'CASH_IN_REFUND';
+            UPDATE payments SET type = 'CASH_OUT' WHERE type = 'CASH_OUT_REFUND';
+        ]]></sql>
+    </changeSet>
+
+</databaseChangeLog>

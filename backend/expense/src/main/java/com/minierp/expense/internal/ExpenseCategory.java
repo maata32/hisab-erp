@@ -4,6 +4,7 @@ import com.minierp.shared.persistence.TenantAwareEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
@@ -23,6 +24,16 @@ class ExpenseCategory extends TenantAwareEntity {
 
     @Column(length = 20)
     private String color;
+
+    /** Daily spend cap; a new expense pushing the category's day-to-date total
+     *  over this value is created PENDING approval. NULL = no daily cap. */
+    @Column(name = "daily_limit", precision = 19, scale = 2)
+    private BigDecimal dailyLimit;
+
+    /** Monthly spend cap; same rule as {@link #dailyLimit} over the calendar month.
+     *  NULL = no monthly cap. */
+    @Column(name = "monthly_limit", precision = 19, scale = 2)
+    private BigDecimal monthlyLimit;
 
     @Column(nullable = false)
     @Builder.Default

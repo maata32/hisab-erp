@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Per-category spend caps. When a new expense pushes the category's cumulative
+      spend (non-rejected) over the daily and/or monthly cap, the expense is created
+      PENDING approval instead of NOT_REQUIRED. A NULL cap disables that period.
+    -->
+    <changeSet id="0064-expense-category-caps" author="mini-erp">
+        <addColumn tableName="expense_categories">
+            <column name="daily_limit" type="numeric(19,2)"/>
+            <column name="monthly_limit" type="numeric(19,2)"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

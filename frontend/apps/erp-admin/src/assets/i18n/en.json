@@ -670,6 +670,7 @@
     "title": "Payments",
     "subtitle": "Customer receipts and supplier disbursements",
     "party": "Party",
+    "expensePayment": "Expense",
     "date": "Date",
     "amount": "Amount",
     "method": "Method",
@@ -944,7 +945,11 @@
     "approval": "Approval",
     "pdf": "Voucher PDF",
     "recurrence": "Recurrence",
-    "recurrenceHint": "Cron (e.g. 0 0 1 * *)"
+    "recurrenceHint": "Cron (e.g. 0 0 1 * *)",
+    "reference": "Reference",
+    "pay": "Pay",
+    "payTitle": "Pay expense",
+    "payAmount": "Amount to pay"
   },
   "reporting": {
     "title": "Dashboards",
@@ -1047,7 +1052,13 @@
     "color": "Color",
     "status": "Status",
     "showInactive": "Include inactive",
-    "empty": "No categories"
+    "empty": "No categories",
+    "caps": "Caps",
+    "dailyLimit": "Daily cap",
+    "monthlyLimit": "Monthly cap",
+    "perDay": "/d",
+    "perMonth": "/mo",
+    "limitsHint": "Leave blank for no approval requirement."
   },
   "treasury": {
     "title": "Treasury",

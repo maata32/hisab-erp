@@ -45,6 +45,21 @@ public interface AllocationEngine {
     AllocationProposal propose(UUID partyId, String sourceType, UUID sourceId, BigDecimal amount);
 
     /**
+     * Generic netting of any POSITIVE open item against any NEGATIVE one for the
+     * same party (unified net ledger): customer invoice ↔ supplier invoice
+     * (compensation), payment ↔ invoice on either side, credit ↔ invoice, two
+     * payments, etc. Caps to {@code min(amount, positive.open, negative.open)},
+     * reduces each side's open balance through the owning module, and records one
+     * row in {@code allocations}. Amounts stay positive — the sign is the side.
+     *
+     * @return the amount actually netted.
+     */
+    BigDecimal apply(UUID partyId,
+                     String positiveType, UUID positiveId,
+                     String negativeType, UUID negativeId,
+                     BigDecimal amount);
+
+    /**
      * Apply a customer credit (positive) against an invoice (negative): reduces
      * the invoice balance via the sales-side {@code applyCredit} flow, marks
      * the credit row as partly or fully consumed, and persists one row in the

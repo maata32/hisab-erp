@@ -9,6 +9,7 @@ import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
+import { InputNumberModule } from 'primeng/inputnumber';
 import { DropdownModule } from 'primeng/dropdown';
 import { TooltipModule } from 'primeng/tooltip';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -19,6 +20,8 @@ interface ExpenseCategory {
   name: string;
   parentId: string | null;
   color: string | null;
+  dailyLimit: number | null;
+  monthlyLimit: number | null;
   active: boolean;
 }
 
@@ -26,6 +29,8 @@ interface CategoryForm {
   name: string;
   parentId: string | null;
   color: string;
+  dailyLimit: number | null;
+  monthlyLimit: number | null;
   active: boolean;
 }
 
@@ -34,7 +39,7 @@ interface CategoryForm {
   standalone: true,
   imports: [
     CommonModule, FormsModule, TranslateModule, TableModule, TagModule, ButtonModule,
-    DialogModule, InputTextModule, DropdownModule, TooltipModule, CheckboxModule,
+    DialogModule, InputTextModule, InputNumberModule, DropdownModule, TooltipModule, CheckboxModule,
   ],
   template: `
     <div class="space-y-4">
@@ -61,6 +66,7 @@ interface CategoryForm {
               <th>{{ 'expenseCategories.name' | translate }}</th>
               <th>{{ 'expenseCategories.parent' | translate }}</th>
               <th>{{ 'expenseCategories.color' | translate }}</th>
+              <th class="text-right">{{ 'expenseCategories.caps' | translate }}</th>
               <th>{{ 'expenseCategories.status' | translate }}</th>
               <th></th>
             </tr>
@@ -79,6 +85,15 @@ interface CategoryForm {
                   —
                 }
               </td>
+              <td class="text-right text-sm">
+                @if (c.dailyLimit != null || c.monthlyLimit != null) {
+                  <span class="text-gray-700">
+                    @if (c.dailyLimit != null) { <span>{{ c.dailyLimit | number:'1.0-2' }}{{ 'expenseCategories.perDay' | translate }}</span> }
+                    @if (c.dailyLimit != null && c.monthlyLimit != null) { <span class="text-gray-300"> · </span> }
+                    @if (c.monthlyLimit != null) { <span>{{ c.monthlyLimit | number:'1.0-2' }}{{ 'expenseCategories.perMonth' | translate }}</span> }
+                  </span>
+                } @else { <span class="text-gray-300">—</span> }
+              </td>
               <td>
                 <p-tag [value]="(c.active ? 'common.active' : 'common.inactive') | translate"
                        [severity]="c.active ? 'success' : 'secondary'" />
@@ -96,7 +111,7 @@ interface CategoryForm {
             </tr>
           </ng-template>
           <ng-template pTemplate="emptymessage">
-            <tr><td colspan="5" class="text-center text-gray-400 py-8">
+            <tr><td colspan="6" class="text-center text-gray-400 py-8">
               {{ 'expenseCategories.empty' | translate }}
             </td></tr>
           </ng-template>
@@ -130,6 +145,19 @@ interface CategoryForm {
               <input pInputText [(ngModel)]="form.color" placeholder="#3B82F6" class="flex-1" />
             </div>
           </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'expenseCategories.dailyLimit' | translate }}</label>
+              <p-inputNumber [(ngModel)]="form.dailyLimit" mode="decimal" [maxFractionDigits]="2"
+                             [min]="0" styleClass="w-full" inputStyleClass="w-full" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'expenseCategories.monthlyLimit' | translate }}</label>
+              <p-inputNumber [(ngModel)]="form.monthlyLimit" mode="decimal" [maxFractionDigits]="2"
+                             [min]="0" styleClass="w-full" inputStyleClass="w-full" />
+            </div>
+          </div>
+          <p class="text-xs text-gray-500">{{ 'expenseCategories.limitsHint' | translate }}</p>
           @if (editing()) {
             <div class="flex items-center gap-2">
               <p-checkbox [(ngModel)]="form.active" [binary]="true" inputId="catActive" />
@@ -192,6 +220,8 @@ export class ExpenseCategoryListPage implements OnInit {
       name: c.name,
       parentId: c.parentId,
       color: c.color ?? '#3B82F6',
+      dailyLimit: c.dailyLimit,
+      monthlyLimit: c.monthlyLimit,
       active: c.active,
     };
     this.submitted.set(false);
@@ -207,6 +237,8 @@ export class ExpenseCategoryListPage implements OnInit {
         name: this.form.name.trim(),
         parentId: this.form.parentId,
         color: this.form.color || null,
+        dailyLimit: this.form.dailyLimit ?? null,
+        monthlyLimit: this.form.monthlyLimit ?? null,
         active: this.form.active,
       };
       const current = this.editing();
@@ -251,6 +283,6 @@ export class ExpenseCategoryListPage implements OnInit {
   }
 
   private emptyForm(): CategoryForm {
-    return { name: '', parentId: null, color: '#3B82F6', active: true };
+    return { name: '', parentId: null, color: '#3B82F6', dailyLimit: null, monthlyLimit: null, active: true };
   }
 }

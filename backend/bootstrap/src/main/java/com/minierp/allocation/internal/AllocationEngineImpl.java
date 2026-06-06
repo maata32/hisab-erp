@@ -7,6 +7,7 @@ import com.minierp.allocation.api.AllocationProposal;
 import com.minierp.allocation.api.OpenItem;
 import com.minierp.allocation.api.OpenItem.Sign;
 import com.minierp.partner.api.CustomerCreditOperations;
+import com.minierp.purchase.api.PurchaseInvoiceOperations;
 import com.minierp.sales.api.InvoiceOperations;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.tenant.TenantContext;
@@ -48,6 +49,7 @@ class AllocationEngineImpl implements AllocationEngine {
     private final JdbcTemplate jdbc;
     private final AllocationRepository allocationsRepo;
     private final InvoiceOperations invoiceOps;
+    private final PurchaseInvoiceOperations purchaseInvoiceOps;
     private final CustomerCreditOperations customerCreditOps;
 
     // Source-type constants — also persisted into allocations.positive_type /
@@ -69,7 +71,6 @@ class AllocationEngineImpl implements AllocationEngine {
         items.addAll(openPayments(tenant, partyId));
         items.addAll(openCustomerCredits(tenant, partyId));
         items.addAll(openPurchaseInvoices(tenant, partyId));
-        items.addAll(openSupplierPayments(tenant, partyId));
         items.sort(Comparator.comparing(OpenItem::dateRef));
         return items;
     }
@@ -223,124 +224,94 @@ class AllocationEngineImpl implements AllocationEngine {
 
     @Override
     @Transactional
-    public BigDecimal applyCreditToInvoice(UUID creditId, UUID invoiceId, BigDecimal amount) {
-        if (amount == null || amount.signum() <= 0) {
-            return BigDecimal.ZERO;
+    public BigDecimal apply(UUID partyId,
+                            String positiveType, UUID positiveId,
+                            String negativeType, UUID negativeId,
+                            BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0) return BigDecimal.ZERO;
+        List<OpenItem> items = findOpenItemsByParty(partyId);
+        OpenItem pos = findOpen(items, positiveType, positiveId, Sign.POSITIVE);
+        OpenItem neg = findOpen(items, negativeType, negativeId, Sign.NEGATIVE);
+        if (pos == null || neg == null) {
+            throw new BusinessException("error.allocation.item_not_open",
+                    java.util.Map.of("positiveId", positiveId, "negativeId", negativeId));
         }
-        // Resolve the credit's owning party so we can persist allocations.party_id
-        // and so the engine can sanity-check that the invoice belongs to the
-        // same party before mutating either row.
-        UUID partyId = jdbc.queryForObject(
-                "SELECT party_id FROM customer_credits WHERE id = ?", UUID.class, creditId);
-        UUID invoiceParty = jdbc.queryForObject(
-                "SELECT party_id FROM invoices WHERE id = ?", UUID.class, invoiceId);
-        if (partyId == null || invoiceParty == null || !partyId.equals(invoiceParty)) {
-            throw new BusinessException("error.allocation.party_mismatch",
-                    java.util.Map.of("creditId", creditId, "invoiceId", invoiceId));
-        }
+        BigDecimal capped = amount.min(pos.amountOpen()).min(neg.amountOpen());
+        if (capped.signum() <= 0) return BigDecimal.ZERO;
 
-        // invoiceOps.applyCredit caps to invoice.balance and returns the actual
-        // amount imputed; customerCreditOps.consumeCredit caps to credit.remaining.
-        // We apply the engine's "amount" through both so the audit row reflects
-        // the true min(invoice.balance, credit.remaining, amount).
-        BigDecimal imputed = invoiceOps.applyCredit(invoiceId, amount);
-        if (imputed.signum() <= 0) return BigDecimal.ZERO;
-        BigDecimal consumed = customerCreditOps.consumeCredit(creditId, imputed,
-                "Applied to invoice " + invoiceId);
+        // Reduce each side's open balance through the owning module.
+        reduceOpen(positiveType, positiveId, negativeType, capped);
+        reduceOpen(negativeType, negativeId, positiveType, capped);
 
         allocationsRepo.save(Allocation.builder()
                 .partyId(partyId)
-                .positiveType(T_CUSTOMER_CREDIT)
-                .positiveId(creditId)
-                .negativeType(T_INVOICE)
-                .negativeId(invoiceId)
-                .amount(consumed)
+                .positiveType(positiveType).positiveId(positiveId)
+                .negativeType(negativeType).negativeId(negativeId)
+                .amount(capped)
                 .build());
-        return consumed;
+        return capped;
+    }
+
+    private OpenItem findOpen(List<OpenItem> items, String type, UUID id, Sign sign) {
+        return items.stream()
+                .filter(i -> i.sourceType().equals(type) && i.sourceId().equals(id) && i.sign() == sign)
+                .findFirst().orElse(null);
+    }
+
+    /** Reduce one side's open balance by {@code amount}. Invoices and credits carry
+     *  a real balance to mutate through the owning module; cash payments track
+     *  their residual via the {@code allocations} rows only (no balance column). */
+    private void reduceOpen(String type, UUID id, String counterpartType, BigDecimal amount) {
+        switch (type) {
+            case T_INVOICE -> {
+                // Settling by a customer credit goes through the credit path;
+                // anything else (cash payment, compensation) reduces the balance.
+                if (T_CUSTOMER_CREDIT.equals(counterpartType)) invoiceOps.applyCredit(id, amount);
+                else invoiceOps.applyPayment(id, amount);
+            }
+            case T_PURCHASE_INVOICE -> purchaseInvoiceOps.applyPayment(id, amount);
+            case T_CUSTOMER_CREDIT -> customerCreditOps.consumeCredit(id, amount, "Allocation");
+            default -> { /* PAYMENT: residual tracked via allocations, nothing to mutate */ }
+        }
+    }
+
+    @Override
+    @Transactional
+    public BigDecimal applyCreditToInvoice(UUID creditId, UUID invoiceId, BigDecimal amount) {
+        UUID party = jdbc.queryForObject("SELECT party_id FROM customer_credits WHERE id = ?", UUID.class, creditId);
+        UUID invoiceParty = jdbc.queryForObject("SELECT party_id FROM invoices WHERE id = ?", UUID.class, invoiceId);
+        if (party == null || invoiceParty == null || !party.equals(invoiceParty)) {
+            throw new BusinessException("error.allocation.party_mismatch",
+                    java.util.Map.of("creditId", creditId, "invoiceId", invoiceId));
+        }
+        // Sale invoice = POSITIVE, customer credit = NEGATIVE.
+        return apply(party, T_INVOICE, invoiceId, T_CUSTOMER_CREDIT, creditId, amount);
     }
 
     @Override
     @Transactional
     public BigDecimal applyCreditToRefund(UUID creditId, UUID refundPaymentId, BigDecimal amount) {
-        if (amount == null || amount.signum() <= 0) {
-            return BigDecimal.ZERO;
-        }
-        UUID creditParty = jdbc.queryForObject(
-                "SELECT party_id FROM customer_credits WHERE id = ?", UUID.class, creditId);
-        // Verify the target payment is a CASH_OUT_REFUND and belongs to the
-        // same party; reject anything else.
-        var paymentMeta = jdbc.queryForMap(
-                "SELECT party_id, type, amount FROM payments WHERE id = ?", refundPaymentId);
-        UUID paymentParty = (UUID) paymentMeta.get("party_id");
-        String paymentType = (String) paymentMeta.get("type");
-        java.math.BigDecimal paymentAmount = (java.math.BigDecimal) paymentMeta.get("amount");
+        UUID creditParty = jdbc.queryForObject("SELECT party_id FROM customer_credits WHERE id = ?", UUID.class, creditId);
+        UUID paymentParty = jdbc.queryForObject("SELECT party_id FROM payments WHERE id = ?", UUID.class, refundPaymentId);
         if (creditParty == null || paymentParty == null || !creditParty.equals(paymentParty)) {
             throw new BusinessException("error.allocation.party_mismatch",
                     java.util.Map.of("creditId", creditId, "paymentId", refundPaymentId));
         }
-        if (!"CASH_OUT_REFUND".equals(paymentType)) {
-            throw new BusinessException("error.allocation.not_a_refund",
-                    java.util.Map.of("paymentId", refundPaymentId, "type", paymentType));
-        }
-        // Cap to the payment's own amount so we never claim more than the
-        // refund actually paid out.
-        BigDecimal cappedToPayment = amount.min(paymentAmount);
-        BigDecimal consumed = customerCreditOps.consumeCredit(creditId, cappedToPayment,
-                "Settled by refund payment " + refundPaymentId);
-
-        allocationsRepo.save(Allocation.builder()
-                .partyId(creditParty)
-                .positiveType(T_CUSTOMER_CREDIT)
-                .positiveId(creditId)
-                .negativeType(T_PAYMENT)
-                .negativeId(refundPaymentId)
-                .amount(consumed)
-                .build());
-        return consumed;
+        // Refund payment = CASH_OUT (POSITIVE); customer credit = NEGATIVE.
+        return apply(creditParty, T_PAYMENT, refundPaymentId, T_CUSTOMER_CREDIT, creditId, amount);
     }
 
     @Override
     @Transactional
     public BigDecimal applySupplierRefundToRetrait(UUID refundPaymentId, UUID retraitPaymentId, BigDecimal amount) {
-        if (amount == null || amount.signum() <= 0) {
-            return BigDecimal.ZERO;
-        }
-        var refundMeta = jdbc.queryForMap(
-                "SELECT party_id, type, amount FROM payments WHERE id = ?", refundPaymentId);
-        var retraitMeta = jdbc.queryForMap(
-                "SELECT party_id, type, amount FROM payments WHERE id = ?", retraitPaymentId);
-        UUID refundParty = (UUID) refundMeta.get("party_id");
-        UUID retraitParty = (UUID) retraitMeta.get("party_id");
+        UUID refundParty = jdbc.queryForObject("SELECT party_id FROM payments WHERE id = ?", UUID.class, refundPaymentId);
+        UUID retraitParty = jdbc.queryForObject("SELECT party_id FROM payments WHERE id = ?", UUID.class, retraitPaymentId);
         if (refundParty == null || retraitParty == null || !refundParty.equals(retraitParty)) {
             throw new BusinessException("error.allocation.party_mismatch",
                     java.util.Map.of("refundPaymentId", refundPaymentId, "retraitPaymentId", retraitPaymentId));
         }
-        if (!"CASH_IN_REFUND".equals(refundMeta.get("type"))) {
-            throw new BusinessException("error.allocation.not_a_supplier_refund",
-                    java.util.Map.of("paymentId", refundPaymentId, "type", String.valueOf(refundMeta.get("type"))));
-        }
-        if (!"CASH_OUT".equals(retraitMeta.get("type"))) {
-            throw new BusinessException("error.allocation.not_a_supplier_retrait",
-                    java.util.Map.of("paymentId", retraitPaymentId, "type", String.valueOf(retraitMeta.get("type"))));
-        }
-        BigDecimal refundAmount = (BigDecimal) refundMeta.get("amount");
-        BigDecimal retraitAmount = (BigDecimal) retraitMeta.get("amount");
-        // Open residual of the versement = its amount minus what it has already
-        // been imputed on (positive-side rows in `allocations`, reversed excluded).
-        BigDecimal refundOpen = refundAmount.subtract(
-                allocationsRepo.sumByPositive(T_SUPPLIER_PAYMENT, refundPaymentId));
-        BigDecimal consumed = amount.min(refundOpen).min(retraitAmount);
-        if (consumed.signum() <= 0) return BigDecimal.ZERO;
-
-        allocationsRepo.save(Allocation.builder()
-                .partyId(refundParty)
-                .positiveType(T_SUPPLIER_PAYMENT)
-                .positiveId(refundPaymentId)
-                .negativeType(T_SUPPLIER_PAYMENT)
-                .negativeId(retraitPaymentId)
-                .amount(consumed)
-                .build());
-        return consumed;
+        // Versement = CASH_IN (NEGATIVE), retrait = CASH_OUT (POSITIVE).
+        return apply(refundParty, T_PAYMENT, retraitPaymentId, T_PAYMENT, refundPaymentId, amount);
     }
 
     // ── Queries ──────────────────────────────────────────────────────────────
@@ -358,7 +329,7 @@ class AllocationEngineImpl implements AllocationEngine {
                 """, (rs, i) -> new OpenItem(
                         T_INVOICE,
                         rs.getObject("id", UUID.class),
-                        Sign.NEGATIVE,
+                        Sign.POSITIVE,
                         rs.getBigDecimal("total"),
                         rs.getBigDecimal("balance"),
                         rs.getObject("issue_date", java.time.LocalDate.class),
@@ -369,28 +340,19 @@ class AllocationEngineImpl implements AllocationEngine {
     }
 
     private List<OpenItem> openPayments(UUID tenant, UUID partyId) {
-        // Customer payments that brought cash in and still have unallocated
-        // residual. The unified `allocations` table is now authoritative for the
-        // invoice-settling part (kept in sync by the Phase-5 double-write, the
-        // 0052 backfill, and the #1 refund soft-void — reversed rows excluded).
-        //
-        // A payment's amount is consumed by exactly three things, each read from
-        // its own source of truth — no GREATEST hack, no double-count:
-        //   1. invoice-settling allocations (active rows in `allocations`);
-        //   2. surplus routed to a customer credit, materialized on
-        //      customer_credits.source_payment_id (initial_amount is immutable,
-        //      so it reflects what the payment minted even after the credit is
-        //      spent);
-        //   3. the legacy CUSTOMER_BALANCE surplus shortcut — the only path not
-        //      modeled in `allocations`. Dead in the current UI (surplus now
-        //      always goes to CUSTOMER_CREDIT) but kept here so historical rows
-        //      don't regress.
+        // Unified net-position payments (party-agnostic): a CASH_IN sits on the
+        // NEGATIVE side (cash received reduces what the party owes us), a CASH_OUT
+        // on the POSITIVE side (cash paid out). Residual = amount − allocations
+        // consuming this payment (on EITHER side, reversed excluded) − surplus
+        // minted as a customer credit (customer_credits.source_payment_id) − the
+        // legacy CUSTOMER_BALANCE shortcut.
         List<OpenItem> out = new ArrayList<>();
         jdbc.query("""
-                SELECT p.id, p.number, p.payment_date, p.amount, p.status,
+                SELECT p.id, p.number, p.payment_date, p.amount, p.status, p.type,
                        p.amount
                        - COALESCE((SELECT SUM(amount) FROM allocations
-                                   WHERE positive_type = 'PAYMENT' AND positive_id = p.id
+                                   WHERE ((positive_type = 'PAYMENT' AND positive_id = p.id)
+                                       OR (negative_type = 'PAYMENT' AND negative_id = p.id))
                                      AND reversed_at IS NULL), 0)
                        - COALESCE((SELECT SUM(initial_amount) FROM customer_credits
                                    WHERE source_payment_id = p.id), 0)
@@ -400,14 +362,14 @@ class AllocationEngineImpl implements AllocationEngine {
                 FROM payments p
                 WHERE p.tenant_id = ? AND p.party_id = ?
                   AND p.status = 'CONFIRMED'
-                  AND p.type = 'CASH_IN'
+                  AND p.type IN ('CASH_IN','CASH_OUT')
                 """, (ResultSet rs) -> {
                     BigDecimal open = rs.getBigDecimal("amount_open");
                     if (open == null || open.signum() <= 0) return;
                     out.add(new OpenItem(
                             T_PAYMENT,
                             rs.getObject("id", UUID.class),
-                            Sign.POSITIVE,
+                            "CASH_IN".equals(rs.getString("type")) ? Sign.NEGATIVE : Sign.POSITIVE,
                             rs.getBigDecimal("amount"),
                             open,
                             rs.getObject("payment_date", java.time.LocalDate.class),
@@ -429,7 +391,7 @@ class AllocationEngineImpl implements AllocationEngine {
                 """, (rs, i) -> new OpenItem(
                         T_CUSTOMER_CREDIT,
                         rs.getObject("id", UUID.class),
-                        Sign.POSITIVE,
+                        Sign.NEGATIVE,
                         rs.getBigDecimal("initial_amount"),
                         rs.getBigDecimal("remaining_amount"),
                         rs.getObject("dt", java.time.LocalDate.class),
@@ -461,43 +423,5 @@ class AllocationEngineImpl implements AllocationEngine {
                         rs.getString("status"),
                         rs.getString("number")),
                 tenant, partyId);
-    }
-
-    private List<OpenItem> openSupplierPayments(UUID tenant, UUID partyId) {
-        // Mirror of openPayments, minus the customer-credit term: supplier
-        // payments never mint credits (grantCredit is customer-only). The amount
-        // is consumed by (1) invoice-settling allocations (authoritative in the
-        // `allocations` table) and (2) the legacy CUSTOMER_BALANCE → supplier
-        // balance surplus shortcut, the only path not modeled in `allocations`.
-        // Only CONFIRMED rows are real cash movements.
-        List<OpenItem> out = new ArrayList<>();
-        jdbc.query("""
-                SELECT p.id, p.number, p.payment_date, p.amount, p.status,
-                       p.amount
-                       - COALESCE((SELECT SUM(amount) FROM allocations
-                                   WHERE positive_type = 'SUPPLIER_PAYMENT' AND positive_id = p.id
-                                     AND reversed_at IS NULL), 0)
-                       - COALESCE((SELECT SUM(allocated_amount) FROM payment_allocations
-                                   WHERE payment_id = p.id AND target_type = 'CUSTOMER_BALANCE'), 0)
-                       AS amount_open
-                FROM payments p
-                WHERE p.tenant_id = ? AND p.party_id = ?
-                  AND p.status = 'CONFIRMED'
-                  AND p.type IN ('CASH_OUT','CASH_IN_REFUND')
-                """, (ResultSet rs) -> {
-                    BigDecimal open = rs.getBigDecimal("amount_open");
-                    if (open == null || open.signum() <= 0) return;
-                    out.add(new OpenItem(
-                            T_SUPPLIER_PAYMENT,
-                            rs.getObject("id", UUID.class),
-                            Sign.POSITIVE,
-                            rs.getBigDecimal("amount"),
-                            open,
-                            rs.getObject("payment_date", java.time.LocalDate.class),
-                            null,
-                            rs.getString("status"),
-                            rs.getString("number")));
-                }, tenant, partyId);
-        return out;
     }
 }

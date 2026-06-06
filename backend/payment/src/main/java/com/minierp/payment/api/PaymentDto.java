@@ -46,7 +46,9 @@ public class PaymentDto {
 
     public record CreatePaymentRequest(
             @NotNull String type,
-            @NotNull UUID partyId,
+            // Nullable for expense payments (all-EXPENSE allocation set); required
+            // for partner payments — validated in PaymentService.create().
+            UUID partyId,
             @NotNull @DecimalMin("0.01") BigDecimal amount,
             String currency,
             LocalDate paymentDate,

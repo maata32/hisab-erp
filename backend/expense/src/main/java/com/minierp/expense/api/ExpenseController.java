@@ -38,7 +38,8 @@ public class ExpenseController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('expense:create')")
     public ExpenseDto.CategoryResponse createCategory(@Valid @RequestBody ExpenseDto.CreateCategoryRequest req) {
-        return service.createCategory(req.name(), req.parentId(), req.color());
+        return service.createCategory(req.name(), req.parentId(), req.color(),
+                req.dailyLimit(), req.monthlyLimit());
     }
 
     @PutMapping("/api/v1/expense-categories/{id}")

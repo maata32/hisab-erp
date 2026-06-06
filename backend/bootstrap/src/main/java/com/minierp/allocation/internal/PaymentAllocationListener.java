@@ -7,6 +7,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 /**
  * Phase 5 — when a payment confirm fires {@link PaymentConfirmedEvent}, mirror
  * each invoice-side allocation into the unified {@code allocations} table so
@@ -31,27 +33,31 @@ class PaymentAllocationListener {
     @Transactional(propagation = Propagation.MANDATORY)
     public void on(PaymentConfirmedEvent event) {
         for (var line : event.allocations()) {
-            // Derive both sides from the allocation TARGET, not the payment type:
-            // settling a sale invoice is a customer payment (T_PAYMENT), settling
-            // a purchase invoice is a supplier payment (T_SUPPLIER_PAYMENT). This
-            // is unambiguous even for the party-agnostic CASH_OUT type. Only
+            // Net-position convention: a sale invoice is POSITIVE (the customer
+            // owes us) settled by a CASH_IN payment (NEGATIVE); a purchase invoice
+            // is NEGATIVE (we owe the supplier) settled by a CASH_OUT payment
+            // (POSITIVE). Payments use the unified T_PAYMENT tag. Only
             // invoice-shaped targets are mirrored into the engine.
-            String positiveType;
-            String negativeType;
+            String positiveType, negativeType;
+            UUID positiveId, negativeId;
             switch (line.targetType()) {
-                case "SALE_INVOICE" -> { positiveType = AllocationEngineImpl.T_PAYMENT;
-                                         negativeType = AllocationEngineImpl.T_INVOICE; }
-                case "PURCHASE_INVOICE" -> { positiveType = AllocationEngineImpl.T_SUPPLIER_PAYMENT;
-                                             negativeType = AllocationEngineImpl.T_PURCHASE_INVOICE; }
+                case "SALE_INVOICE" -> {
+                    positiveType = AllocationEngineImpl.T_INVOICE;          positiveId = line.targetId();
+                    negativeType = AllocationEngineImpl.T_PAYMENT;          negativeId = event.paymentId();
+                }
+                case "PURCHASE_INVOICE" -> {
+                    positiveType = AllocationEngineImpl.T_PAYMENT;          positiveId = event.paymentId();
+                    negativeType = AllocationEngineImpl.T_PURCHASE_INVOICE; negativeId = line.targetId();
+                }
                 default -> { continue; }
             }
 
             allocations.save(Allocation.builder()
                     .partyId(event.partyId())
                     .positiveType(positiveType)
-                    .positiveId(event.paymentId())
+                    .positiveId(positiveId)
                     .negativeType(negativeType)
-                    .negativeId(line.targetId())
+                    .negativeId(negativeId)
                     .amount(line.amount())
                     .build());
         }

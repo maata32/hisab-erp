@@ -23,6 +23,7 @@ interface Expense {
   paymentMethod: string;
   paymentStatus: string;
   paidAmount: number;
+  balance: number;
   approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | 'NOT_REQUIRED';
   recurring: boolean;
 }
@@ -84,6 +85,10 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                           (click)="approve(e.id)" [pTooltip]="'common.approve' | translate"></button>
                   <button pButton icon="pi pi-times" class="p-button-sm p-button-text p-button-danger"
                           (click)="reject(e.id)" [pTooltip]="'common.reject' | translate"></button>
+                }
+                @if (canPay(e)) {
+                  <button pButton icon="pi pi-wallet" class="p-button-sm p-button-text"
+                          (click)="openPay(e)" [pTooltip]="'expenses.pay' | translate"></button>
                 }
                 <a [href]="'/api/v1/expenses/' + e.id + '/receipt.pdf'" target="_blank"
                    class="p-button p-button-sm p-button-text" [title]="'expenses.pdf' | translate">
@@ -152,6 +157,38 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   (click)="save()" [loading]="saving()"></button>
         </ng-template>
       </p-dialog>
+
+      <!-- Pay (settle) an expense via a party-less CASH_OUT payment -->
+      <p-dialog [(visible)]="payOpen" [modal]="true" [style]="{ width: '440px' }"
+                [header]="'expenses.payTitle' | translate" [closable]="!paying()">
+        <div class="space-y-3">
+          <div class="flex items-center justify-between bg-gray-50 border rounded p-3">
+            <span class="text-sm text-gray-600">{{ 'expenses.payAmount' | translate }}</span>
+            <span class="font-bold text-lg">{{ payAmount() | number:'1.0-2' }}</span>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'expenses.paymentMethod' | translate }}</label>
+              <p-dropdown [(ngModel)]="payForm.method" [options]="payMethods"
+                          optionLabel="label" optionValue="value" styleClass="w-full" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'expenses.date' | translate }}</label>
+              <input pInputText type="date" [(ngModel)]="payForm.paymentDate" class="w-full" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ 'expenses.reference' | translate }}</label>
+            <input pInputText [(ngModel)]="payForm.reference" class="w-full" />
+          </div>
+        </div>
+        <ng-template pTemplate="footer">
+          <button pButton [label]="'common.cancel' | translate" class="p-button-text"
+                  (click)="payOpen = false" [disabled]="paying()"></button>
+          <button pButton [label]="'expenses.pay' | translate" icon="pi pi-check"
+                  (click)="confirmPay()" [loading]="paying()"></button>
+        </ng-template>
+      </p-dialog>
     </div>
   `,
 })
@@ -182,7 +219,23 @@ export class ExpenseListPage implements OnInit {
     { value: 'UNPAID', label: 'Non payée' },
   ];
 
+  // Cash methods for the settlement (Payer) dialog — these map to the payment
+  // module's PaymentMethod enum (note BANK_TRANSFER, not BANK).
+  protected readonly payMethods = [
+    { value: 'CASH', label: 'Espèces' },
+    { value: 'BANK_TRANSFER', label: 'Virement' },
+    { value: 'CHECK', label: 'Chèque' },
+    { value: 'MOBILE_MONEY', label: 'Mobile Money' },
+    { value: 'CARD', label: 'Carte' },
+  ];
+
   protected form = this.emptyForm();
+
+  // ── Pay (settle) an expense ─────────────────────────────────────────────────
+  protected payOpen = false;
+  protected paying = signal(false);
+  protected payExpense = signal<Expense | null>(null);
+  protected payForm = { method: 'CASH', paymentDate: '', reference: '' };
 
   ngOnInit() {
     this.loadCategories();
@@ -234,6 +287,54 @@ export class ExpenseListPage implements OnInit {
   protected async reject(id: string) {
     await firstValueFrom(this.http.post(`/api/v1/expenses/${id}/reject`, {}));
     this.reload();
+  }
+
+  /** An expense is payable once it's UNPAID and either needs no approval or is
+   *  approved — PENDING/REJECTED expenses are not settleable. */
+  protected canPay(e: Expense): boolean {
+    return e.paymentStatus === 'UNPAID'
+        && (e.approvalStatus === 'APPROVED' || e.approvalStatus === 'NOT_REQUIRED');
+  }
+
+  protected payAmount(): number {
+    const e = this.payExpense();
+    if (!e) return 0;
+    return e.balance ?? (e.amount - (e.paidAmount || 0));
+  }
+
+  protected openPay(e: Expense) {
+    this.payExpense.set(e);
+    this.payForm = { method: 'CASH', paymentDate: new Date().toISOString().slice(0, 10), reference: '' };
+    this.payOpen = true;
+  }
+
+  /** Settle the expense by creating + confirming a party-less CASH_OUT payment
+   *  allocated to the expense. The confirm callback marks the expense PAID. */
+  protected async confirmPay() {
+    const e = this.payExpense();
+    if (!e) return;
+    const amount = this.payAmount();
+    if (amount <= 0) return;
+    this.paying.set(true);
+    try {
+      const created = await firstValueFrom(this.http.post<{ id: string }>('/api/v1/payments', {
+        type: 'CASH_OUT',
+        partyId: null,
+        amount,
+        currency: 'MRU',
+        paymentDate: this.payForm.paymentDate || null,
+        method: this.payForm.method,
+        reference: this.payForm.reference || null,
+        bankAccount: null,
+        notes: null,
+        allocations: [{ targetType: 'EXPENSE', targetId: e.id, allocatedAmount: amount }],
+      }));
+      await firstValueFrom(this.http.post(`/api/v1/payments/${created.id}/confirm`, {}));
+      this.payOpen = false;
+      this.reload();
+    } finally {
+      this.paying.set(false);
+    }
   }
 
   protected async loadChunk(event: TableLazyLoadEvent) {

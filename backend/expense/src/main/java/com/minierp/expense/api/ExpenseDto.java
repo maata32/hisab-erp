@@ -16,17 +16,22 @@ public final class ExpenseDto {
 
     // ── Expense Category ──────────────────────────────────────────────────────
 
-    public record CategoryResponse(UUID id, String name, UUID parentId, String color, boolean active) {}
+    public record CategoryResponse(UUID id, String name, UUID parentId, String color,
+                                   BigDecimal dailyLimit, BigDecimal monthlyLimit, boolean active) {}
 
     public record CreateCategoryRequest(
             @NotBlank String name,
             UUID parentId,
-            String color) {}
+            String color,
+            BigDecimal dailyLimit,
+            BigDecimal monthlyLimit) {}
 
     public record UpdateCategoryRequest(
             @NotBlank String name,
             UUID parentId,
             String color,
+            BigDecimal dailyLimit,
+            BigDecimal monthlyLimit,
             Boolean active) {}
 
     // ── Income Category ───────────────────────────────────────────────────────

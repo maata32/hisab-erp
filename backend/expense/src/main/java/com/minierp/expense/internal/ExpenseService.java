@@ -3,6 +3,7 @@ package com.minierp.expense.internal;
 import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
 import com.minierp.expense.api.ExpenseDto;
+import com.minierp.expense.api.ExpenseOperations;
 import com.minierp.shared.error.NotFoundException;
 import com.minierp.shared.security.CurrentUserHolder;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class ExpenseService {
+public class ExpenseService implements ExpenseOperations {
 
     private final ExpenseRepository expenses;
     private final ExpenseCategoryRepository categories;
@@ -47,9 +48,11 @@ public class ExpenseService {
     }
 
     @Transactional
-    public ExpenseDto.CategoryResponse createCategory(String name, UUID parentId, String color) {
+    public ExpenseDto.CategoryResponse createCategory(String name, UUID parentId, String color,
+                                                      BigDecimal dailyLimit, BigDecimal monthlyLimit) {
         return toCategoryDto(categories.save(ExpenseCategory.builder()
-                .name(name).parentId(parentId).color(color).build()));
+                .name(name).parentId(parentId).color(color)
+                .dailyLimit(dailyLimit).monthlyLimit(monthlyLimit).build()));
     }
 
     @Transactional
@@ -59,6 +62,8 @@ public class ExpenseService {
         cat.setName(req.name());
         cat.setParentId(req.parentId());
         cat.setColor(req.color());
+        cat.setDailyLimit(req.dailyLimit());
+        cat.setMonthlyLimit(req.monthlyLimit());
         if (req.active() != null) cat.setActive(req.active());
         return toCategoryDto(cat);
     }
@@ -103,10 +108,11 @@ public class ExpenseService {
         String number = generateExpenseNumber();
         ExpensePaymentMethod method = paymentMethod != null
                 ? ExpensePaymentMethod.valueOf(paymentMethod) : ExpensePaymentMethod.UNPAID;
+        LocalDate effectiveDate = expenseDate != null ? expenseDate : LocalDate.now();
 
         LocalDate nextRecurrence = null;
         if (recurrenceRule != null && !recurrenceRule.isBlank()) {
-            nextRecurrence = computeNextRecurrence(expenseDate != null ? expenseDate : LocalDate.now(), recurrenceRule);
+            nextRecurrence = computeNextRecurrence(effectiveDate, recurrenceRule);
         }
 
         Expense expense = Expense.builder()
@@ -114,13 +120,14 @@ public class ExpenseService {
                 .categoryId(categoryId)
                 .partyId(supplierId)
                 .amount(amount)
-                .expenseDate(expenseDate != null ? expenseDate : LocalDate.now())
+                .expenseDate(effectiveDate)
                 .description(description)
                 .paymentMethod(method)
                 .balance(amount)
                 .recurring(recurrenceRule != null && !recurrenceRule.isBlank())
                 .recurrenceRule(recurrenceRule)
                 .nextRecurrenceDate(nextRecurrence)
+                .approvalStatus(resolveApprovalStatus(categoryId, effectiveDate, amount))
                 .build();
         return toExpenseDto(expenses.save(expense));
     }
@@ -151,6 +158,21 @@ public class ExpenseService {
         Expense expense = getEntity(id);
         expense.setApprovalStatus(ApprovalStatus.REJECTED);
         return toExpenseDto(expense);
+    }
+
+    // ── Settlement (called by the payment module when a CASH_OUT confirms) ─────
+
+    @Override
+    @Transactional
+    public void applyPayment(UUID expenseId, BigDecimal amount) {
+        Expense e = getEntity(expenseId);
+        BigDecimal paid = e.getPaidAmount().add(amount);
+        e.setPaidAmount(paid);
+        e.setBalance(e.getAmount().subtract(paid).max(BigDecimal.ZERO));
+        // No partial state for expenses: UNPAID until fully covered, then PAID.
+        if (paid.compareTo(e.getAmount()) >= 0) {
+            e.setPaymentStatus(ExpensePaymentStatus.PAID);
+        }
     }
 
     /** CDC §4.1 — expense voucher PDF (justificatif de dépense). */
@@ -239,6 +261,32 @@ public class ExpenseService {
                 .orElseThrow(() -> NotFoundException.of("entity.expense", id));
     }
 
+    /**
+     * Per-category cap check. The expense is PENDING when its category's committed
+     * (non-rejected) spend — for the day and/or the month the expense falls in —
+     * plus this new amount tops the configured cap. A NULL cap disables that
+     * period; no cap at all ⇒ NOT_REQUIRED.
+     */
+    private ApprovalStatus resolveApprovalStatus(UUID categoryId, LocalDate date, BigDecimal amount) {
+        ExpenseCategory cat = categories.findById(categoryId).orElse(null);
+        if (cat == null) return ApprovalStatus.NOT_REQUIRED;
+        BigDecimal incoming = amount != null ? amount : BigDecimal.ZERO;
+
+        if (cat.getDailyLimit() != null) {
+            BigDecimal dayTotal = expenses.sumAmountByCategoryInPeriod(
+                    categoryId, date, date, ApprovalStatus.REJECTED).add(incoming);
+            if (dayTotal.compareTo(cat.getDailyLimit()) > 0) return ApprovalStatus.PENDING;
+        }
+        if (cat.getMonthlyLimit() != null) {
+            LocalDate first = date.withDayOfMonth(1);
+            LocalDate last = date.withDayOfMonth(date.lengthOfMonth());
+            BigDecimal monthTotal = expenses.sumAmountByCategoryInPeriod(
+                    categoryId, first, last, ApprovalStatus.REJECTED).add(incoming);
+            if (monthTotal.compareTo(cat.getMonthlyLimit()) > 0) return ApprovalStatus.PENDING;
+        }
+        return ApprovalStatus.NOT_REQUIRED;
+    }
+
     private String generateExpenseNumber() {
         int year = Year.now().getValue();
         long seq = expenses.count() + 1;
@@ -258,7 +306,8 @@ public class ExpenseService {
     }
 
     private ExpenseDto.CategoryResponse toCategoryDto(ExpenseCategory c) {
-        return new ExpenseDto.CategoryResponse(c.getId(), c.getName(), c.getParentId(), c.getColor(), c.isActive());
+        return new ExpenseDto.CategoryResponse(c.getId(), c.getName(), c.getParentId(), c.getColor(),
+                c.getDailyLimit(), c.getMonthlyLimit(), c.isActive());
     }
 
     private ExpenseDto.IncomeCategoryResponse toIncomeCategoryDto(IncomeCategory c) {

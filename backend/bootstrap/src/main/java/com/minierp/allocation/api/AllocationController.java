@@ -42,6 +42,15 @@ public class AllocationController {
         return engine.findAllocationHistoryByParty(partyId);
     }
 
+    @PostMapping("/apply")
+    @PreAuthorize("hasAuthority('customer:read') or hasAuthority('supplier:read')")
+    public ApplyResponse apply(@RequestParam UUID partyId, @Valid @RequestBody ApplyRequest req) {
+        BigDecimal consumed = engine.apply(partyId,
+                req.positiveType(), req.positiveId(),
+                req.negativeType(), req.negativeId(), req.amount());
+        return new ApplyResponse(consumed);
+    }
+
     @PostMapping("/credit-to-invoice")
     @PreAuthorize("hasAuthority('sales:update') and hasAuthority('customer:read')")
     public ApplyResponse applyCreditToInvoice(@Valid @RequestBody ApplyCreditToInvoiceRequest req) {
@@ -65,6 +74,13 @@ public class AllocationController {
                 req.refundPaymentId(), req.retraitPaymentId(), req.amount());
         return new ApplyResponse(consumed);
     }
+
+    public record ApplyRequest(
+            @NotNull String positiveType,
+            @NotNull UUID positiveId,
+            @NotNull String negativeType,
+            @NotNull UUID negativeId,
+            @NotNull @Positive BigDecimal amount) {}
 
     public record ApplyCreditToInvoiceRequest(
             @NotNull UUID creditId,

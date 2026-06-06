@@ -30,7 +30,10 @@ class Payment extends TenantAwareEntity {
     @Column(nullable = false, length = 40)
     private PaymentType type;
 
-    @Column(name = "party_id", nullable = false, columnDefinition = "uuid")
+    // Nullable: an expense payment (party-less CASH_OUT settling an EXPENSE
+    // allocation) carries no customer/supplier. Partner payments still require a
+    // party — enforced in PaymentService.create().
+    @Column(name = "party_id", columnDefinition = "uuid")
     private UUID partyId;
 
     @Column(nullable = false, precision = 19, scale = 2)

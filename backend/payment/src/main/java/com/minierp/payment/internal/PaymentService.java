@@ -7,6 +7,7 @@ import com.minierp.partner.api.ApBalanceOperations;
 import com.minierp.partner.api.CustomerCreditOperations;
 import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
+import com.minierp.expense.api.ExpenseOperations;
 import com.minierp.payment.api.PaymentDto;
 import com.minierp.payment.api.PaymentLookup;
 import com.minierp.payment.api.StatementPaymentEntry;
@@ -49,6 +50,7 @@ public class PaymentService implements PaymentLookup {
     private final CustomerCreditOperations customerCreditOps;
     private final InvoiceOperations invoiceOps;
     private final PurchaseInvoiceOperations purchaseInvoiceOps;
+    private final ExpenseOperations expenseOps;
     private final NumberingOperations numbering;
     private final DocumentRenderer renderer;
     private final TenantLookup tenantLookup;
@@ -82,6 +84,7 @@ public class PaymentService implements PaymentLookup {
 
     @Transactional
     public PaymentDto.PaymentResponse create(PaymentDto.CreatePaymentRequest req) {
+        requirePartyUnlessExpense(req);
         String number = numbering.nextPaymentReceiptNumber();
         Payment p = Payment.builder()
                 .number(number)
@@ -226,7 +229,19 @@ public class PaymentService implements PaymentLookup {
             }
             case CUSTOMER_CREDIT -> customerCreditOps.grantCredit(targetId, amount, "OVERPAYMENT",
                     "Payment " + p.getNumber(), p.getId());
-            default -> { /* SALE, EXPENSE, SALARY: no-op or handled elsewhere */ }
+            case EXPENSE -> expenseOps.applyPayment(targetId, amount);
+            default -> { /* SALE, SALARY: no-op or handled elsewhere */ }
+        }
+    }
+
+    /** Party-less payments are allowed only for an expense settlement (a non-empty,
+     *  all-EXPENSE allocation set). Every partner payment must carry a party. */
+    private void requirePartyUnlessExpense(PaymentDto.CreatePaymentRequest req) {
+        if (req.partyId() != null) return;
+        boolean expensePayment = req.allocations() != null && !req.allocations().isEmpty()
+                && req.allocations().stream().allMatch(a -> "EXPENSE".equals(a.targetType()));
+        if (!expensePayment) {
+            throw new BusinessException("error.payment.party_required", Map.of());
         }
     }
 
@@ -299,16 +314,19 @@ public class PaymentService implements PaymentLookup {
                 p.getCreatedAt());
     }
 
-    /** Party display name from the single unified partner table. Returns "" if unresolved. */
+    /** Party display name from the single unified partner table. Returns "" if
+     *  unresolved or party-less (expense payment). */
     private String resolvePartyName(Payment p) {
+        if (p.getPartyId() == null) return "";
         return customerLookup.findById(p.getPartyId())
                 .map(PartnerSummary::name)
                 .orElseGet(() -> supplierLookup.findById(p.getPartyId()).map(PartnerSummary::name).orElse(""));
     }
 
     /** True when the payment's party carries the supplier role (the customer/supplier
-     *  nature is no longer encoded in the payment type). */
+     *  nature is no longer encoded in the payment type). False for party-less payments. */
     private boolean isSupplierParty(UUID partyId) {
+        if (partyId == null) return false;
         return customerLookup.findById(partyId)
                 .map(PartnerSummary::isSupplier)
                 .orElseGet(() -> supplierLookup.findById(partyId).map(PartnerSummary::isSupplier).orElse(false));
@@ -339,7 +357,9 @@ public class PaymentService implements PaymentLookup {
         vars.put("docTitle", labels.docTitle());
         vars.put("amountLabel", labels.amountLabel());
         // Party row label now comes from the party role, not the payment type.
-        vars.put("partyLabel", isSupplierParty(p.getPartyId()) ? "Fournisseur" : "Client");
+        // A party-less payment is an expense settlement.
+        vars.put("partyLabel", p.getPartyId() == null ? "Dépense"
+                : (isSupplierParty(p.getPartyId()) ? "Fournisseur" : "Client"));
         return vars;
     }
 
@@ -354,10 +374,8 @@ public class PaymentService implements PaymentLookup {
      */
     private ReceiptLabels receiptLabels(PaymentType type) {
         return switch (type) {
-            case CASH_IN, CASH_IN_REFUND ->
-                    new ReceiptLabels("REÇU DE PAIEMENT", "Montant reçu");
-            case CASH_OUT, CASH_OUT_REFUND ->
-                    new ReceiptLabels("BON DE PAIEMENT", "Montant payé");
+            case CASH_IN -> new ReceiptLabels("REÇU DE PAIEMENT", "Montant reçu");
+            case CASH_OUT -> new ReceiptLabels("BON DE PAIEMENT", "Montant payé");
         };
     }
 

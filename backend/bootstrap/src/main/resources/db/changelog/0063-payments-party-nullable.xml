@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Expense payments are party-less: an expense (rent, petty cash) is settled by a
+      CASH_OUT payment that carries no customer/supplier. Partner payments still
+      require a party — that invariant is now enforced in PaymentService.create()
+      (party may be null only for an all-EXPENSE allocation set) rather than by the
+      column constraint.
+    -->
+    <changeSet id="0063-payments-party-nullable" author="mini-erp">
+        <dropNotNullConstraint tableName="payments" columnName="party_id" columnDataType="uuid"/>
+    </changeSet>
+
+</databaseChangeLog>

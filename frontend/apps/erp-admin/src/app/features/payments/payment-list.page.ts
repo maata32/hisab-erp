@@ -133,7 +133,10 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                        [severity]="typeSeverity(p.type)"
                        [styleClass]="typeTagClass(p.type)" />
               </td>
-              <td>{{ p.partyName }}</td>
+              <td>
+                @if (p.partyId) { {{ p.partyName }} }
+                @else { <p-tag [value]="'payments.expensePayment' | translate" severity="warning" /> }
+              </td>
               <td>{{ p.paymentDate | date:'mediumDate' }}</td>
               <td class="text-right font-medium">{{ p.amount | money }} {{ p.currency }}</td>
               <td>{{ 'payments.methods.' + p.method | translate }}</td>

@@ -670,6 +670,7 @@
     "title": "Paiements",
     "subtitle": "Encaissements clients et décaissements fournisseurs",
     "party": "Tiers",
+    "expensePayment": "Dépense",
     "date": "Date",
     "amount": "Montant",
     "method": "Mode",
@@ -944,7 +945,11 @@
     "approval": "Approbation",
     "pdf": "Justificatif PDF",
     "recurrence": "Récurrence",
-    "recurrenceHint": "Cron (ex: 0 0 1 * *)"
+    "recurrenceHint": "Cron (ex: 0 0 1 * *)",
+    "reference": "Référence",
+    "pay": "Payer",
+    "payTitle": "Régler la dépense",
+    "payAmount": "Montant à régler"
   },
   "reporting": {
     "title": "Tableaux de bord",
@@ -1047,7 +1052,13 @@
     "color": "Couleur",
     "status": "Statut",
     "showInactive": "Inclure inactives",
-    "empty": "Aucune catégorie"
+    "empty": "Aucune catégorie",
+    "caps": "Plafonds",
+    "dailyLimit": "Plafond / jour",
+    "monthlyLimit": "Plafond / mois",
+    "perDay": "/j",
+    "perMonth": "/mois",
+    "limitsHint": "Laisser vide pour ne pas exiger d'approbation."
   },
   "treasury": {
     "title": "Trésorerie",
