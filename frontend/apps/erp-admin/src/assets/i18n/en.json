@@ -822,6 +822,18 @@
     "valueInUse": "This value is used and cannot be deleted."
   },
   "products": {
+    "variants": {
+      "title": "Variants",
+      "uniformPricing": "Same price for all variants",
+      "help": "Pick attribute values to generate variants (the cartesian product). With no attribute, the product keeps a single default variant.",
+      "attributes": "Attribute values",
+      "selectValues": "Select values…",
+      "generate": "Generate",
+      "combination": "Combination",
+      "defaultVariant": "Default",
+      "none": "No variant yet — pick values and generate.",
+      "createHint": "Save the product first, then pick attribute values to generate its variants."
+    },
     "title": "Products",
     "subtitle": "Product catalog",
     "create": "New product",

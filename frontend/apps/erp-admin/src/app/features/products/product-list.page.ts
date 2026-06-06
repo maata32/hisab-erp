@@ -14,6 +14,7 @@ import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DropdownModule } from 'primeng/dropdown';
+import { MultiSelectModule } from 'primeng/multiselect';
 import { TooltipModule } from 'primeng/tooltip';
 import { OverlayPanelModule, OverlayPanel } from 'primeng/overlaypanel';
 import { firstValueFrom } from 'rxjs';
@@ -23,6 +24,30 @@ interface ProductImageDto {
   url: string;
   position: number;
   altText: string | null;
+}
+
+interface ProductVariantLite {
+  id: string;
+  sku: string;
+  barcode: string | null;
+  attributes: string | null;
+  attributeValueIds: string[];
+  defaultVariant: boolean;
+  active: boolean;
+}
+
+interface AttributeValueLite {
+  id: string;
+  attributeId: string;
+  value: string;
+  active: boolean;
+}
+
+interface AttributeLite {
+  id: string;
+  name: string;
+  active: boolean;
+  values: AttributeValueLite[];
 }
 
 interface Product {
@@ -39,6 +64,9 @@ interface Product {
   sellable: boolean;
   purchasable: boolean;
   active: boolean;
+  uniformPricing: boolean;
+  attributeValueIds: string[];
+  variants: ProductVariantLite[];
   images: ProductImageDto[];
 }
 
@@ -76,7 +104,7 @@ const CURRENCY = 'MRU';
   imports: [
     CommonModule, FormsModule, TranslateModule, TableModule, TagModule,
     ButtonModule, InputTextModule, DialogModule, InputNumberModule,
-    CheckboxModule, DropdownModule, TooltipModule, OverlayPanelModule,
+    CheckboxModule, DropdownModule, MultiSelectModule, TooltipModule, OverlayPanelModule,
   ],
   template: `
     <div class="space-y-4">
@@ -262,6 +290,69 @@ const CURRENCY = 'MRU';
                         [label]="'products.purchasable' | translate" />
           </div>
 
+          <div class="pt-2 border-t border-gray-100 space-y-3">
+            <div class="flex items-center justify-between">
+              <label class="block text-sm font-medium">{{ 'products.variants.title' | translate }}</label>
+              <p-checkbox [(ngModel)]="form.uniformPricing" [binary]="true"
+                          [label]="'products.variants.uniformPricing' | translate" />
+            </div>
+            <p class="text-xs text-gray-500">{{ 'products.variants.help' | translate }}</p>
+            <div class="flex items-end gap-2">
+              <div class="flex-1">
+                <label class="block text-xs text-gray-600 mb-1">{{ 'products.variants.attributes' | translate }}</label>
+                <p-multiSelect [(ngModel)]="form.attributeValueIds" [options]="attributeValueOptions()"
+                               [group]="true" optionGroupLabel="label" optionGroupChildren="items"
+                               optionLabel="label" optionValue="value" appendTo="body"
+                               [placeholder]="'products.variants.selectValues' | translate"
+                               styleClass="w-full" [filter]="true" display="chip" />
+              </div>
+              @if (editingId()) {
+                <button pButton type="button" icon="pi pi-sync"
+                        [label]="'products.variants.generate' | translate"
+                        class="p-button-sm p-button-outlined" [loading]="generatingVariants()"
+                        (click)="generateVariants()"></button>
+              }
+            </div>
+
+            @if (editingId()) {
+              @if (dialogVariants().length) {
+                <div class="border rounded overflow-hidden">
+                  <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-gray-500 text-xs">
+                      <tr>
+                        <th class="text-left p-2">{{ 'products.variants.combination' | translate }}</th>
+                        <th class="text-left p-2">{{ 'products.sku' | translate }}</th>
+                        <th class="text-left p-2">{{ 'products.barcode' | translate }}</th>
+                        <th class="p-2">{{ 'common.active' | translate }}</th>
+                        <th class="p-2"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (v of dialogVariants(); track v.id) {
+                        <tr class="border-t" [class.opacity-50]="!v.active">
+                          <td class="p-2 whitespace-nowrap">{{ variantAttrLabel(v) }}</td>
+                          <td class="p-2"><input pInputText [(ngModel)]="v.sku" class="w-full p-inputtext-sm" /></td>
+                          <td class="p-2"><input pInputText [(ngModel)]="v.barcode" class="w-full p-inputtext-sm" /></td>
+                          <td class="p-2 text-center"><p-checkbox [(ngModel)]="v.active" [binary]="true" /></td>
+                          <td class="p-2 text-right">
+                            <button pButton type="button" icon="pi pi-check"
+                                    class="p-button-xs p-button-text"
+                                    [loading]="savingVariantId() === v.id"
+                                    (click)="saveVariantRow(v)"></button>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <p class="text-xs text-gray-400">{{ 'products.variants.none' | translate }}</p>
+              }
+            } @else {
+              <p class="text-xs text-gray-400">{{ 'products.variants.createHint' | translate }}</p>
+            }
+          </div>
+
           @if (!editingId() && canAdjustStock) {
             <div class="pt-2 border-t border-gray-100">
               <p-checkbox [(ngModel)]="form.openingStockEnabled" [binary]="true"
@@ -395,6 +486,10 @@ export class ProductListPage implements OnInit {
 
   protected defaultTierId: string | null = null;
   protected defaultTierName = signal<string | null>(null);
+  protected attributes = signal<AttributeLite[]>([]);
+  protected dialogVariants = signal<ProductVariantLite[]>([]);
+  protected generatingVariants = signal(false);
+  protected savingVariantId = signal<string | null>(null);
   protected readonly currencyLabel = CURRENCY;
   protected lastQuery: string | undefined;
   private pendingSeq = 0;
@@ -412,6 +507,8 @@ export class ProductListPage implements OnInit {
     trackExpiry: boolean;
     sellable: boolean;
     purchasable: boolean;
+    uniformPricing: boolean;
+    attributeValueIds: string[];
     openingStockEnabled: boolean;
     openingWarehouseId: string | null;
     openingQty: number | null;
@@ -426,6 +523,7 @@ export class ProductListPage implements OnInit {
     this.loadSettings();
     this.loadDefaultTier();
     this.loadLimits();
+    this.loadAttributes();
     if (this.canAdjustStock) this.loadWarehouses();
   }
 
@@ -453,6 +551,7 @@ export class ProductListPage implements OnInit {
     this.form = this.emptyForm();
     this.submitted.set(false);
     this.dialogImages.set([]);
+    this.dialogVariants.set([]);
     this.clearPendingImages();
     this.dialogOpen = true;
     if (this.canAdjustStock) {
@@ -475,6 +574,8 @@ export class ProductListPage implements OnInit {
       trackExpiry: p.trackExpiry,
       sellable: p.sellable,
       purchasable: p.purchasable,
+      uniformPricing: p.uniformPricing ?? true,
+      attributeValueIds: [...(p.attributeValueIds ?? [])],
       openingStockEnabled: false,
       openingWarehouseId: null,
       openingQty: null,
@@ -482,6 +583,7 @@ export class ProductListPage implements OnInit {
     };
     this.submitted.set(false);
     this.dialogImages.set(p.images ?? []);
+    this.dialogVariants.set([...(p.variants ?? [])]);
     this.clearPendingImages();
     this.dialogOpen = true;
     await this.loadCurrentPrice(p);
@@ -515,6 +617,7 @@ export class ProductListPage implements OnInit {
       const taxRate = this.taxEnabled() ? (this.form.taxRatePercent ?? 0) / 100 : 0;
       const id = this.editingId();
       let productId: string;
+      let openingVariantId: string | null = null;
       if (id) {
         await firstValueFrom(this.http.patch(`/api/v1/products/${id}`, {
           name: this.form.name,
@@ -525,7 +628,11 @@ export class ProductListPage implements OnInit {
           shelfLifeDays: this.form.shelfLifeDays,
           sellable: this.form.sellable,
           purchasable: this.form.purchasable,
+          uniformPricing: this.form.uniformPricing,
         }));
+        // Regenerate the variant matrix from the current attribute-value selection.
+        await firstValueFrom(this.http.put(`/api/v1/products/${id}/attributes`,
+          { attributeValueIds: this.form.attributeValueIds }));
         productId = id;
       } else {
         const created = await firstValueFrom(this.http.post<Product>('/api/v1/products', {
@@ -538,11 +645,15 @@ export class ProductListPage implements OnInit {
           shelfLifeDays: this.form.shelfLifeDays,
           sellable: this.form.sellable,
           purchasable: this.form.purchasable,
+          uniformPricing: this.form.uniformPricing,
+          attributeValueIds: this.form.attributeValueIds,
         }));
         productId = created.id;
+        const variants = created.variants ?? [];
+        openingVariantId = (variants.find((v) => v.defaultVariant) ?? variants[0])?.id ?? null;
       }
       await this.savePriceIfChanged(productId);
-      if (!id) await this.saveOpeningStockIfProvided(productId);
+      if (!id && openingVariantId) await this.saveOpeningStockIfProvided(openingVariantId);
       await this.uploadPendingImages(productId);
       this.dialogOpen = false;
       this.clearPendingImages();
@@ -746,6 +857,7 @@ export class ProductListPage implements OnInit {
       sku: '', name: '', barcode: '', baseUomId: null,
       taxRatePercent: 16, shelfLifeDays: null, sellingPrice: null,
       trackExpiry: false, sellable: true, purchasable: true,
+      uniformPricing: true, attributeValueIds: [] as string[],
       openingStockEnabled: false,
       openingWarehouseId: null, openingQty: null, openingUnitCost: null,
     };
@@ -762,16 +874,74 @@ export class ProductListPage implements OnInit {
     }
   }
 
-  private async saveOpeningStockIfProvided(productId: string) {
+  private async saveOpeningStockIfProvided(variantId: string) {
     if (!this.form.openingStockEnabled) return;
     await firstValueFrom(this.http.post('/api/v1/inventory/stocks/receive', {
       warehouseId: this.form.openingWarehouseId,
-      productId,
+      variantId,
       qty: this.form.openingQty,
       unitCost: this.form.openingUnitCost,
       type: 'OPENING_BALANCE',
       note: 'Stock initial saisi à la création du produit',
     }));
+  }
+
+  private async loadAttributes() {
+    try {
+      const list = await firstValueFrom(this.http.get<AttributeLite[]>('/api/v1/attributes'));
+      this.attributes.set((list ?? []).filter((a) => a.active));
+    } catch {
+      this.attributes.set([]);
+    }
+  }
+
+  /** Flat "Attribute: Value" options for the attribute-value multiselect, grouped by attribute. */
+  protected attributeValueOptions() {
+    return this.attributes().map((a) => ({
+      label: a.name,
+      value: a.id,
+      items: (a.values ?? []).filter((v) => v.active).map((v) => ({
+        label: `${a.name}: ${v.value}`,
+        value: v.id,
+      })),
+    }));
+  }
+
+  protected variantAttrLabel(v: ProductVariantLite): string {
+    if (!v.attributes) return this.i18n.instant('products.variants.defaultVariant');
+    try {
+      const map = JSON.parse(v.attributes) as Record<string, string>;
+      return Object.values(map).join(' / ');
+    } catch {
+      return '—';
+    }
+  }
+
+  /** Persist the current attribute selection and refresh the generated variant matrix. */
+  protected async generateVariants() {
+    const id = this.editingId();
+    if (!id) return;
+    this.generatingVariants.set(true);
+    try {
+      const updated = await firstValueFrom(this.http.put<Product>(
+        `/api/v1/products/${id}/attributes`, { attributeValueIds: this.form.attributeValueIds }));
+      this.dialogVariants.set([...(updated.variants ?? [])]);
+    } finally {
+      this.generatingVariants.set(false);
+    }
+  }
+
+  protected async saveVariantRow(v: ProductVariantLite) {
+    const id = this.editingId();
+    if (!id) return;
+    this.savingVariantId.set(v.id);
+    try {
+      await firstValueFrom(this.http.patch(`/api/v1/products/${id}/variants/${v.id}`, {
+        sku: v.sku, barcode: v.barcode || null, active: v.active,
+      }));
+    } finally {
+      this.savingVariantId.set(null);
+    }
   }
 
   private validateOpeningStockFields(): boolean {

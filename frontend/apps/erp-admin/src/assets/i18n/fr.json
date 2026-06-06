@@ -822,6 +822,18 @@
     "valueInUse": "Cette valeur est utilisée et ne peut pas être supprimée."
   },
   "products": {
+    "variants": {
+      "title": "Variantes",
+      "uniformPricing": "Même prix pour toutes les variantes",
+      "help": "Choisissez des valeurs d'attributs pour générer les variantes (produit cartésien). Sans attribut, le produit garde une seule variante par défaut.",
+      "attributes": "Valeurs d'attributs",
+      "selectValues": "Choisir des valeurs…",
+      "generate": "Générer",
+      "combination": "Combinaison",
+      "defaultVariant": "Par défaut",
+      "none": "Aucune variante — choisissez des valeurs puis générez.",
+      "createHint": "Enregistrez d'abord le produit, puis choisissez des valeurs d'attributs pour générer ses variantes."
+    },
     "title": "Produits",
     "subtitle": "Catalogue produits",
     "create": "Nouveau produit",
