@@ -36,7 +36,9 @@ class InvoicePaymentsDetachedListener {
     @EventListener
     @Transactional(propagation = Propagation.MANDATORY)
     public void on(InvoicePaymentsDetachedEvent event) {
-        List<Allocation> rows = allocations.findActiveByNegative(
+        // Net-position model: a sale invoice is POSITIVE, its CASH_IN payments
+        // NEGATIVE → the rows to soft-void are positive=INVOICE / negative=PAYMENT.
+        List<Allocation> rows = allocations.findActiveByPositiveSide(
                 AllocationEngineImpl.T_INVOICE, event.invoiceId(), List.of(AllocationEngineImpl.T_PAYMENT));
         Instant now = Instant.now();
         for (Allocation row : rows) {
@@ -45,7 +47,7 @@ class InvoicePaymentsDetachedListener {
             customerCreditOps.grantCredit(
                     event.partyId(), row.getAmount(), "OVERPAYMENT",
                     "Avoir " + event.creditNoteNumber() + " — paiement détaché",
-                    row.getPositiveId());
+                    row.getNegativeId());
         }
     }
 }

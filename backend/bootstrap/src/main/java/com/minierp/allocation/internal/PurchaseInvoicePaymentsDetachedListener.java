@@ -35,7 +35,7 @@ class PurchaseInvoicePaymentsDetachedListener {
     public void on(PurchaseInvoicePaymentsDetachedEvent event) {
         List<Allocation> rows = allocations.findActiveByNegative(
                 AllocationEngineImpl.T_PURCHASE_INVOICE, event.purchaseInvoiceId(),
-                List.of(AllocationEngineImpl.T_SUPPLIER_PAYMENT));
+                List.of(AllocationEngineImpl.T_PAYMENT));
         Instant now = Instant.now();
         for (Allocation row : rows) {
             row.setReversedAt(now);

@@ -216,7 +216,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             @if (form.partyId) {
               <p class="text-xs text-gray-500 mt-1">
                 {{ 'payments.derivedTypeHint' | translate }}
-                <strong>{{ 'payments.types.' + derivedType() | translate }}</strong>
+                <strong>{{ 'payments.types.' + backendType() | translate }}</strong>
               </p>
             }
           </div>
@@ -548,6 +548,14 @@ export class PaymentListPage implements OnInit {
   /** True when the derived type is a customer refund (can be settled from credit). */
   protected isCustomerRefundFlow(): boolean { return this.derivedType() === 'CASH_OUT_REFUND'; }
 
+  /** The backend stores only 2 directional types: a cash-in is a cash-in and a
+   *  cash-out is a cash-out, whatever the party. The 4-way derivedType() above is
+   *  kept internally only to drive the dialog's invoice/refund flow logic. */
+  protected backendType(): string {
+    const t = this.derivedType();
+    return (t === 'CASH_IN' || t === 'CASH_IN_REFUND') ? 'CASH_IN' : 'CASH_OUT';
+  }
+
   protected selectedCustomerCredit(): number {
     return Number(this.selectedParty()?.customerCreditBalance ?? 0);
   }
@@ -610,7 +618,7 @@ export class PaymentListPage implements OnInit {
           `/api/v1/payments?partyId=${this.form.partyId}&size=200`)),
       ]);
       const refundIds = new Set((pays.content ?? [])
-        .filter(p => p.type === 'CASH_IN_REFUND')
+        .filter(p => p.type === 'CASH_IN')
         .map(p => p.id));
       this.supplierRefunds = (items ?? [])
         .filter(i => i.sourceType === 'SUPPLIER_PAYMENT' && refundIds.has(i.sourceId))
@@ -964,7 +972,7 @@ export class PaymentListPage implements OnInit {
     this.saving.set(true);
     try {
       const created = await firstValueFrom(this.http.post<{ id: string }>('/api/v1/payments', {
-        type,
+        type: this.backendType(),
         partyId: this.form.partyId,
         amount: this.form.amount,
         currency: 'MRU',

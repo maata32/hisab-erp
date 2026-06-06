@@ -829,12 +829,11 @@ export class PartnerListPage implements OnInit {
     return +Math.min(Number(pos.amountOpen), Number(neg.amountOpen)).toFixed(2);
   }
 
-  /** Only CUSTOMER_CREDIT (+) → INVOICE (−) is reachable via the allocation
-   *  controller, so that is the one supported pair from this dialog. */
+  /** The unified engine nets any POSITIVE item against any NEGATIVE one for the
+   *  same party, so any pair the user selects is valid (sale invoice ↔ purchase
+   *  invoice compensation, payment ↔ invoice, credit ↔ invoice, …). */
   protected imputePairSupported(): boolean {
-    const pos = this.impSelectedPositive();
-    const neg = this.impSelectedNegative();
-    return pos?.sourceType === 'CUSTOMER_CREDIT' && neg?.sourceType === 'INVOICE';
+    return !!this.impSelectedPositive() && !!this.impSelectedNegative();
   }
 
   protected canImpute(): boolean {
@@ -845,12 +844,15 @@ export class PartnerListPage implements OnInit {
     const pos = this.impSelectedPositive();
     const neg = this.impSelectedNegative();
     const amount = this.imputeAmount();
-    if (!pos || !neg || !this.imputePairSupported() || amount <= 0) return;
+    const party = this.openItemsPartner();
+    if (!pos || !neg || !party || amount <= 0) return;
     this.imputing.set(true);
     try {
-      await firstValueFrom(this.http.post('/api/v1/allocations/credit-to-invoice', {
-        creditId: pos.sourceId,
-        invoiceId: neg.sourceId,
+      await firstValueFrom(this.http.post(`/api/v1/allocations/apply?partyId=${party.id}`, {
+        positiveType: pos.sourceType,
+        positiveId: pos.sourceId,
+        negativeType: neg.sourceType,
+        negativeId: neg.sourceId,
         amount,
       }));
       this.toast.add({

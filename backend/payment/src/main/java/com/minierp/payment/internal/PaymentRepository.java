@@ -22,7 +22,7 @@ interface PaymentRepository extends JpaRepository<Payment, UUID> {
      */
     @Query("SELECT p FROM Payment p WHERE p.partyId = :partyId " +
            "AND p.status = 'CONFIRMED' " +
-           "AND p.type IN ('CASH_IN','CASH_OUT_REFUND') " +
+           "AND p.type = 'CASH_IN' " +
            "AND p.paymentDate >= :from AND p.paymentDate <= :to " +
            "ORDER BY p.paymentDate ASC")
     List<Payment> findConfirmedForCustomerStatement(UUID partyId, LocalDate from, LocalDate to);

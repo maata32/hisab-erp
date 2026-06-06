@@ -23,12 +23,14 @@ class CreditNoteAllocationListener {
     @Transactional(propagation = Propagation.MANDATORY)
     public void on(CreditNoteAppliedEvent event) {
         if (event.imputedAmount() == null || event.imputedAmount().signum() <= 0) return;
+        // Net-position model: the sale invoice is POSITIVE (the customer owes us),
+        // the sale credit note NEGATIVE (we owe the customer back).
         allocations.save(Allocation.builder()
                 .partyId(event.partyId())
-                .positiveType(AllocationEngineImpl.T_CREDIT_NOTE)
-                .positiveId(event.creditNoteId())
-                .negativeType(AllocationEngineImpl.T_INVOICE)
-                .negativeId(event.invoiceId())
+                .positiveType(AllocationEngineImpl.T_INVOICE)
+                .positiveId(event.invoiceId())
+                .negativeType(AllocationEngineImpl.T_CREDIT_NOTE)
+                .negativeId(event.creditNoteId())
                 .amount(event.imputedAmount())
                 .notes("Credit note " + event.creditNoteNumber())
                 .build());

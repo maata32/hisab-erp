@@ -93,8 +93,8 @@ class AllocationEngineIT {
     class FindOpenItems {
 
         @Test
-        @DisplayName("returns unpaid invoices as NEGATIVE items")
-        void invoicesAreNegative() {
+        @DisplayName("returns unpaid sale invoices as POSITIVE items (the customer owes us)")
+        void invoicesArePositive() {
             UUID inv1 = createInvoice(new BigDecimal("100.00"), LocalDate.now().minusDays(10));
             UUID inv2 = createInvoice(new BigDecimal("200.00"), LocalDate.now().minusDays(5));
 
@@ -103,15 +103,15 @@ class AllocationEngineIT {
                     .collect(Collectors.toMap(OpenItem::sourceId, i -> i));
 
             assertThat(byId).containsKeys(inv1, inv2);
-            assertThat(byId.get(inv1).sign()).isEqualTo(OpenItem.Sign.NEGATIVE);
+            assertThat(byId.get(inv1).sign()).isEqualTo(OpenItem.Sign.POSITIVE);
             assertThat(byId.get(inv1).sourceType()).isEqualTo("INVOICE");
             assertThat(byId.get(inv1).amountOpen()).isEqualByComparingTo("100.00");
             assertThat(byId.get(inv2).amountOpen()).isEqualByComparingTo("200.00");
         }
 
         @Test
-        @DisplayName("payment surplus → CUSTOMER_CREDIT surfaces as POSITIVE item")
-        void surplusCreditIsPositive() {
+        @DisplayName("payment surplus → CUSTOMER_CREDIT surfaces as NEGATIVE item (we owe the customer)")
+        void surplusCreditIsNegative() {
             // 100 invoice + 500 payment with explicit surplus CUSTOMER_CREDIT
             // allocation (mimics the front-end "Nouveau paiement" save path).
             UUID inv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
@@ -131,7 +131,7 @@ class AllocationEngineIT {
                     .findFirst()
                     .orElseThrow();
 
-            assertThat(credit.sign()).isEqualTo(OpenItem.Sign.POSITIVE);
+            assertThat(credit.sign()).isEqualTo(OpenItem.Sign.NEGATIVE);
             assertThat(credit.amountOpen()).isEqualByComparingTo("400.00");
 
             // #4 regression guard: the payment itself must be FULLY consumed
@@ -157,16 +157,16 @@ class AllocationEngineIT {
 
             // Before confirm: no engine row.
             assertThat(jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM allocations WHERE positive_id = ?",
-                    Long.class, pay.id())).isZero();
+                    "SELECT COUNT(*) FROM allocations WHERE positive_id = ? OR negative_id = ?",
+                    Long.class, pay.id(), pay.id())).isZero();
 
             paymentService.confirm(pay.id(), null);
 
-            // After confirm: one engine row pointing PAYMENT → INVOICE.
+            // After confirm: one engine row pointing INVOICE (positive) → PAYMENT (negative).
             assertThat(jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM allocations WHERE positive_type = 'PAYMENT' " +
-                    "AND positive_id = ? AND negative_type = 'INVOICE' AND negative_id = ?",
-                    Long.class, pay.id(), inv)).isEqualTo(1L);
+                    "SELECT COUNT(*) FROM allocations WHERE positive_type = 'INVOICE' " +
+                    "AND positive_id = ? AND negative_type = 'PAYMENT' AND negative_id = ?",
+                    Long.class, inv, pay.id())).isEqualTo(1L);
 
             // Legacy payment_allocations row also exists (double-write, not replace).
             assertThat(jdbc.queryForObject(
@@ -189,10 +189,10 @@ class AllocationEngineIT {
             var rows = engine.findAllocationHistoryByParty(customerId);
             assertThat(rows).hasSize(1);
             var row = rows.get(0);
-            assertThat(row.positiveType()).isEqualTo("PAYMENT");
-            assertThat(row.negativeType()).isEqualTo("INVOICE");
-            assertThat(row.positiveLabel()).isEqualTo(pay.number());
-            assertThat(row.negativeLabel()).isNotBlank();
+            assertThat(row.positiveType()).isEqualTo("INVOICE");
+            assertThat(row.negativeType()).isEqualTo("PAYMENT");
+            assertThat(row.negativeLabel()).isEqualTo(pay.number());
+            assertThat(row.positiveLabel()).isNotBlank();
             assertThat(row.amount()).isEqualByComparingTo("100.00");
             assertThat(row.reversedAt()).isNull();
         }
@@ -207,12 +207,12 @@ class AllocationEngineIT {
 
             assertThat(jdbc.queryForObject(
                     "SELECT COUNT(*) FROM allocations " +
-                    "WHERE positive_type = 'CREDIT_NOTE' AND positive_id = ? " +
-                    "  AND negative_type = 'INVOICE' AND negative_id = ?",
-                    Long.class, cn.id(), inv)).isEqualTo(1L);
+                    "WHERE positive_type = 'INVOICE' AND positive_id = ? " +
+                    "  AND negative_type = 'CREDIT_NOTE' AND negative_id = ?",
+                    Long.class, inv, cn.id())).isEqualTo(1L);
             assertThat(jdbc.queryForObject(
                     "SELECT amount FROM allocations " +
-                    "WHERE positive_type = 'CREDIT_NOTE' AND positive_id = ?",
+                    "WHERE negative_type = 'CREDIT_NOTE' AND negative_id = ?",
                     BigDecimal.class, cn.id())).isEqualByComparingTo("250.00");
         }
 
@@ -234,16 +234,16 @@ class AllocationEngineIT {
             var cn = salesService.createCreditNote(inv,
                     new SalesDto.CreateCreditNoteRequest("test avoir on prepaid"));
 
-            // The avoir now letters the invoice (full 100).
+            // The avoir now letters the invoice (full 100): INVOICE (+) ↔ CREDIT_NOTE (−).
             assertThat(jdbc.queryForObject(
-                    "SELECT amount FROM allocations WHERE positive_type = 'CREDIT_NOTE' AND positive_id = ? " +
-                    "AND negative_type = 'INVOICE' AND negative_id = ? AND reversed_at IS NULL",
-                    BigDecimal.class, cn.id(), inv)).isEqualByComparingTo("100.00");
-            // The payment → invoice row is soft-voided (detached).
+                    "SELECT amount FROM allocations WHERE positive_type = 'INVOICE' AND positive_id = ? " +
+                    "AND negative_type = 'CREDIT_NOTE' AND negative_id = ? AND reversed_at IS NULL",
+                    BigDecimal.class, inv, cn.id())).isEqualByComparingTo("100.00");
+            // The invoice → payment row is soft-voided (detached).
             assertThat(jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM allocations WHERE positive_type = 'PAYMENT' AND positive_id = ? " +
-                    "AND negative_type = 'INVOICE' AND negative_id = ? AND reversed_at IS NOT NULL",
-                    Long.class, pay.id(), inv)).isEqualTo(1L);
+                    "SELECT COUNT(*) FROM allocations WHERE positive_type = 'INVOICE' AND positive_id = ? " +
+                    "AND negative_type = 'PAYMENT' AND negative_id = ? AND reversed_at IS NOT NULL",
+                    Long.class, inv, pay.id())).isEqualTo(1L);
             // The freed cash is now a refundable OVERPAYMENT credit stamped with the payment id.
             assertThat(jdbc.queryForObject(
                     "SELECT remaining_amount FROM customer_credits " +
@@ -278,14 +278,15 @@ class AllocationEngineIT {
                                     new BigDecimal("400.00"), null))));
             paymentService.confirm(pay.id(), null);
 
-            // INVOICE allocation got mirrored.
+            // INVOICE allocation got mirrored (INVOICE positive ↔ PAYMENT negative).
             assertThat(jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM allocations WHERE positive_id = ? AND negative_type = 'INVOICE'",
+                    "SELECT COUNT(*) FROM allocations WHERE negative_id = ? AND positive_type = 'INVOICE'",
                     Long.class, pay.id())).isEqualTo(1L);
             // CUSTOMER_CREDIT target did NOT.
             assertThat(jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM allocations WHERE positive_id = ? AND negative_type = 'CUSTOMER_CREDIT'",
-                    Long.class, pay.id())).isZero();
+                    "SELECT COUNT(*) FROM allocations WHERE (positive_id = ? OR negative_id = ?) " +
+                    "AND (positive_type = 'CUSTOMER_CREDIT' OR negative_type = 'CUSTOMER_CREDIT')",
+                    Long.class, pay.id(), pay.id())).isZero();
         }
 
         @Test
@@ -316,10 +317,11 @@ class AllocationEngineIT {
 
             List<OpenItem> items = engine.findOpenItemsByParty(supplierId);
             OpenItem payment = items.stream()
-                    .filter(i -> "SUPPLIER_PAYMENT".equals(i.sourceType()))
+                    .filter(i -> "PAYMENT".equals(i.sourceType()) && pay.id().equals(i.sourceId()))
                     .findFirst()
                     .orElseThrow();
 
+            // A CASH_OUT (we paid the supplier) is POSITIVE in the net ledger.
             assertThat(payment.sign()).isEqualTo(OpenItem.Sign.POSITIVE);
             assertThat(payment.amountOpen()).isEqualByComparingTo("500.00");
             // The purchase invoice was fully paid (1000 of 1000) → no longer open.
@@ -327,27 +329,27 @@ class AllocationEngineIT {
         }
 
         @Test
-        @DisplayName("#3: a CASH_IN_REFUND created without allocation surfaces as a POSITIVE open item")
-        void supplierRefundIsPositiveOpenItem() {
-            // The new UI lets a supplier-side "Versement" create a CASH_IN_REFUND
-            // with no allocation: money received from a supplier becomes a free
-            // positive item the engine can re-impute later (e.g. against a future
-            // retrait, or against a sale invoice if the party is also a customer).
+        @DisplayName("#3: a CASH_IN from a supplier surfaces as a NEGATIVE open item (cash received)")
+        void supplierRefundIsNegativeOpenItem() {
+            // A supplier-side "Encaissement" (CASH_IN: the supplier gave us money
+            // back) is a free NEGATIVE item the engine can re-impute later — e.g.
+            // against a future cash-out, or against a sale invoice if the party is
+            // also a customer.
             UUID supplierId = UUID.randomUUID();
             jdbc.update("INSERT INTO parties (id, tenant_id, code, name, is_customer, is_supplier, active, created_at, updated_at, version) " +
                     "VALUES (?,?,?,?,false,true,true,now(),now(),0)",
                     supplierId, tenantId, "S-REFUND-" + supplierId, "Supplier Refund Test");
 
             PaymentDto.PaymentResponse pay = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "CASH_IN_REFUND", supplierId, new BigDecimal("750.00"), "MRU",
+                    "CASH_IN", supplierId, new BigDecimal("750.00"), "MRU",
                     LocalDate.now(), "BANK_TRANSFER", null, null, "Refund from supplier", null));
             paymentService.confirm(pay.id(), null);
 
             OpenItem refund = engine.findOpenItemsByParty(supplierId).stream()
-                    .filter(i -> "SUPPLIER_PAYMENT".equals(i.sourceType()) && pay.id().equals(i.sourceId()))
+                    .filter(i -> "PAYMENT".equals(i.sourceType()) && pay.id().equals(i.sourceId()))
                     .findFirst()
                     .orElseThrow();
-            assertThat(refund.sign()).isEqualTo(OpenItem.Sign.POSITIVE);
+            assertThat(refund.sign()).isEqualTo(OpenItem.Sign.NEGATIVE);
             assertThat(refund.amountOpen()).isEqualByComparingTo("750.00");
         }
 
@@ -359,13 +361,13 @@ class AllocationEngineIT {
                     "VALUES (?,?,?,?,false,true,true,now(),now(),0)",
                     supplierId, tenantId, "S-IMPUTE-" + supplierId, "Supplier Impute Test");
 
-            // Versement: the supplier gave us back 750 (open positive item).
+            // Versement: the supplier gave us back 750 (open NEGATIVE item).
             PaymentDto.PaymentResponse versement = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "CASH_IN_REFUND", supplierId, new BigDecimal("750.00"), "MRU",
+                    "CASH_IN", supplierId, new BigDecimal("750.00"), "MRU",
                     LocalDate.now(), "BANK_TRANSFER", null, null, "Versement fournisseur", null));
             paymentService.confirm(versement.id(), null);
 
-            // Retrait: we pay the supplier 1000 (cash out).
+            // Retrait: we pay the supplier 1000 (cash out → POSITIVE).
             PaymentDto.PaymentResponse retrait = paymentService.create(new PaymentDto.CreatePaymentRequest(
                     "CASH_OUT", supplierId, new BigDecimal("1000.00"), "MRU",
                     LocalDate.now(), "CASH", null, null, "Retrait fournisseur", null));
@@ -376,24 +378,23 @@ class AllocationEngineIT {
                     versement.id(), retrait.id(), new BigDecimal("400.00"));
             assertThat(consumed).isEqualByComparingTo("400.00");
 
-            // Audit row: versement (positive) → retrait (negative), amount 400.
+            // Audit row: retrait (positive) ↔ versement (negative), amount 400.
             assertThat(jdbc.queryForObject(
                     "SELECT COUNT(*) FROM allocations " +
-                    "WHERE positive_type = 'SUPPLIER_PAYMENT' AND positive_id = ? " +
-                    "  AND negative_type = 'SUPPLIER_PAYMENT' AND negative_id = ?",
-                    Long.class, versement.id(), retrait.id())).isEqualTo(1L);
+                    "WHERE positive_type = 'PAYMENT' AND positive_id = ? " +
+                    "  AND negative_type = 'PAYMENT' AND negative_id = ?",
+                    Long.class, retrait.id(), versement.id())).isEqualTo(1L);
 
-            // Versement residual consumed: 750 → 350 (still open, reusable).
+            // Both residuals drop by the netted 400 (they offset each other).
             OpenItem versementOpen = engine.findOpenItemsByParty(supplierId).stream()
-                    .filter(i -> "SUPPLIER_PAYMENT".equals(i.sourceType()) && versement.id().equals(i.sourceId()))
+                    .filter(i -> "PAYMENT".equals(i.sourceType()) && versement.id().equals(i.sourceId()))
                     .findFirst().orElseThrow();
             assertThat(versementOpen.amountOpen()).isEqualByComparingTo("350.00");
 
-            // Retrait is on the NEGATIVE side → its cash residual is unchanged (1000).
             OpenItem retraitOpen = engine.findOpenItemsByParty(supplierId).stream()
-                    .filter(i -> "SUPPLIER_PAYMENT".equals(i.sourceType()) && retrait.id().equals(i.sourceId()))
+                    .filter(i -> "PAYMENT".equals(i.sourceType()) && retrait.id().equals(i.sourceId()))
                     .findFirst().orElseThrow();
-            assertThat(retraitOpen.amountOpen()).isEqualByComparingTo("1000.00");
+            assertThat(retraitOpen.amountOpen()).isEqualByComparingTo("600.00");
         }
 
         @Test
@@ -409,6 +410,45 @@ class AllocationEngineIT {
 
             List<OpenItem> items = engine.findOpenItemsByParty(customerId);
             assertThat(items.stream().map(OpenItem::sourceId)).doesNotContain(paid);
+        }
+
+        @Test
+        @DisplayName("compensation: a sale invoice (+) nets a purchase invoice (−) for a dual-role party")
+        void compensateSaleAgainstPurchaseInvoice() {
+            // A party that is both customer and supplier: a single net ledger.
+            UUID partyId = UUID.randomUUID();
+            jdbc.update("INSERT INTO parties (id, tenant_id, code, name, is_customer, is_supplier, active, created_at, updated_at, version) " +
+                    "VALUES (?,?,?,?,true,true,true,now(),now(),0)",
+                    partyId, tenantId, "DUAL-" + partyId, "Dual Role Party");
+
+            // Sale invoice 5000 (they owe us → POSITIVE).
+            UUID saleInv = salesService.createInvoice(new SalesDto.CreateInvoiceRequest(
+                    partyId, null, LocalDate.now(), LocalDate.now().plusDays(30), null, "MRU", null,
+                    List.of(new SalesDto.LineRequest(productId, uomId, BigDecimal.ONE,
+                            new BigDecimal("5000.00"), BigDecimal.ZERO)))).id();
+            // Purchase invoice 3000 (we owe them → NEGATIVE).
+            UUID purchaseInv = purchaseService.createInvoice(new PurchaseDto.CreatePurchaseInvoiceRequest(
+                    partyId, null, "SUP-COMP-1", LocalDate.now(), LocalDate.now().plusDays(30),
+                    "MRU", "Compensation",
+                    List.of(new PurchaseDto.LineRequest(productId, uomId, BigDecimal.ONE,
+                            new BigDecimal("3000.00"), BigDecimal.ZERO)))).id();
+
+            // Net 3000 of the sale invoice against the purchase invoice (no cash).
+            BigDecimal netted = engine.apply(partyId, "INVOICE", saleInv,
+                    "PURCHASE_INVOICE", purchaseInv, new BigDecimal("3000.00"));
+            assertThat(netted).isEqualByComparingTo("3000.00");
+
+            // Both balances dropped by the netted amount.
+            assertThat(jdbc.queryForObject("SELECT balance FROM invoices WHERE id = ?",
+                    BigDecimal.class, saleInv)).isEqualByComparingTo("2000.00");
+            assertThat(jdbc.queryForObject("SELECT balance FROM purchase_invoices WHERE id = ?",
+                    BigDecimal.class, purchaseInv)).isEqualByComparingTo("0.00");
+
+            // One audit row INVOICE (+) ↔ PURCHASE_INVOICE (−).
+            assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM allocations WHERE positive_type = 'INVOICE' AND positive_id = ? " +
+                    "AND negative_type = 'PURCHASE_INVOICE' AND negative_id = ?",
+                    Long.class, saleInv, purchaseInv)).isEqualTo(1L);
         }
     }
 
@@ -429,7 +469,7 @@ class AllocationEngineIT {
         @DisplayName("returns surplus when no opposite item exists")
         void noOppositeSide() {
             UUID inv = createInvoice(new BigDecimal("100.00"), LocalDate.now());
-            // INVOICE is NEGATIVE; opposite = POSITIVE. No payment / credit exists.
+            // INVOICE is POSITIVE; opposite = NEGATIVE. No payment / credit exists.
             AllocationProposal p = engine.propose(customerId, "INVOICE", inv, new BigDecimal("100.00"));
             assertThat(p.lines()).isEmpty();
             assertThat(p.surplus()).isEqualByComparingTo("100.00");
@@ -481,12 +521,12 @@ class AllocationEngineIT {
                     "SELECT status FROM customer_credits WHERE id = ?",
                     String.class, creditId)).isEqualTo("ACTIVE");
 
-            // One audit row in allocations.
+            // One audit row in allocations (INVOICE positive ↔ CUSTOMER_CREDIT negative).
             Long count = jdbc.queryForObject(
                     "SELECT COUNT(*) FROM allocations " +
-                    "WHERE positive_type = 'CUSTOMER_CREDIT' AND positive_id = ? " +
-                    "  AND negative_type = 'INVOICE' AND negative_id = ?",
-                    Long.class, creditId, newInv);
+                    "WHERE positive_type = 'INVOICE' AND positive_id = ? " +
+                    "  AND negative_type = 'CUSTOMER_CREDIT' AND negative_id = ?",
+                    Long.class, newInv, creditId);
             assertThat(count).isEqualTo(1L);
         }
 
@@ -508,9 +548,9 @@ class AllocationEngineIT {
                     "SELECT id FROM customer_credits WHERE party_id = ? AND status = 'ACTIVE'",
                     UUID.class, customerId);
 
-            // Operator pays the customer back 400 via a CASH_OUT_REFUND payment.
+            // Operator pays the customer back 400 via a CASH_OUT payment.
             PaymentDto.PaymentResponse refund = paymentService.create(new PaymentDto.CreatePaymentRequest(
-                    "CASH_OUT_REFUND", customerId, new BigDecimal("400.00"), "MRU",
+                    "CASH_OUT", customerId, new BigDecimal("400.00"), "MRU",
                     LocalDate.now(), "CASH", null, null, "Customer cash refund", null));
             paymentService.confirm(refund.id(), null);
 
@@ -525,12 +565,12 @@ class AllocationEngineIT {
                     "SELECT remaining_amount FROM customer_credits WHERE id = ?",
                     BigDecimal.class, creditId)).isEqualByComparingTo("0.00");
 
-            // One audit row pointing CREDIT → REFUND payment.
+            // One audit row pointing refund PAYMENT (positive) ↔ CUSTOMER_CREDIT (negative).
             Long count = jdbc.queryForObject(
                     "SELECT COUNT(*) FROM allocations " +
-                    "WHERE positive_type = 'CUSTOMER_CREDIT' AND positive_id = ? " +
-                    "  AND negative_type = 'PAYMENT' AND negative_id = ?",
-                    Long.class, creditId, refund.id());
+                    "WHERE positive_type = 'PAYMENT' AND positive_id = ? " +
+                    "  AND negative_type = 'CUSTOMER_CREDIT' AND negative_id = ?",
+                    Long.class, refund.id(), creditId);
             assertThat(count).isEqualTo(1L);
         }
 
