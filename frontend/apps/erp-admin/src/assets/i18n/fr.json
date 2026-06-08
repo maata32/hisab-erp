@@ -832,7 +832,8 @@
       "combination": "Combinaison",
       "defaultVariant": "Par défaut",
       "none": "Aucune variante — choisissez des valeurs puis générez.",
-      "createHint": "Enregistrez d'abord le produit, puis choisissez des valeurs d'attributs pour générer ses variantes."
+      "createHint": "Enregistrez d'abord le produit, puis choisissez des valeurs d'attributs pour générer ses variantes.",
+      "perVariantPricing": "Prix par variante"
     },
     "title": "Produits",
     "subtitle": "Catalogue produits",
@@ -871,7 +872,8 @@
     "errors": {
       "skuRequired": "SKU requis",
       "nameRequired": "Nom requis",
-      "baseUomRequired": "Unité de base requise"
+      "baseUomRequired": "Unité de base requise",
+      "priceRequired": "Prix requis (≥ 0)"
     }
   },
   "warehouses": {
@@ -921,6 +923,7 @@
       "qty": "Quantité",
       "unitCost": "Coût unitaire",
       "qtySigned": "Variation (+/−)",
+      "variant": "Variante",
       "note": "Motif / note",
       "lotNumber": "N° de lot",
       "expirationDate": "Date d'expiration",

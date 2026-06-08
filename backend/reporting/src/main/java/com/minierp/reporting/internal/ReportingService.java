@@ -65,18 +65,23 @@ public class ReportingService {
     public List<ReportingDto.StockRow> stock(UUID warehouseId) {
         UUID tenant = TenantContext.require();
         return jdbc.query("""
-                SELECT warehouse_id, product_id, product_name, sku,
+                SELECT warehouse_id, warehouse_name, product_id, product_name, sku,
+                       variant_id, variant_sku, variant_attributes,
                        qty_on_hand, qty_reserved, qty_available,
                        average_cost, stock_value, is_low_stock
                 FROM v_report_stock
                 WHERE tenant_id = ?
                   AND (?::uuid IS NULL OR warehouse_id = ?::uuid)
-                ORDER BY is_low_stock DESC, product_name
+                ORDER BY is_low_stock DESC, product_name, variant_sku
                 """, (rs, i) -> new ReportingDto.StockRow(
                 rs.getObject("warehouse_id", UUID.class),
+                rs.getString("warehouse_name"),
                 rs.getObject("product_id", UUID.class),
                 rs.getString("product_name"),
                 rs.getString("sku"),
+                rs.getObject("variant_id", UUID.class),
+                rs.getString("variant_sku"),
+                rs.getString("variant_attributes"),
                 rs.getBigDecimal("qty_on_hand"),
                 rs.getBigDecimal("qty_reserved"),
                 rs.getBigDecimal("qty_available"),

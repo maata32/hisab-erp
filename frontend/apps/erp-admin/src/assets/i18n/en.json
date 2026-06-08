@@ -832,7 +832,8 @@
       "combination": "Combination",
       "defaultVariant": "Default",
       "none": "No variant yet — pick values and generate.",
-      "createHint": "Save the product first, then pick attribute values to generate its variants."
+      "createHint": "Save the product first, then pick attribute values to generate its variants.",
+      "perVariantPricing": "Per-variant price"
     },
     "title": "Products",
     "subtitle": "Product catalog",
@@ -871,7 +872,8 @@
     "errors": {
       "skuRequired": "SKU required",
       "nameRequired": "Name required",
-      "baseUomRequired": "Base UoM required"
+      "baseUomRequired": "Base UoM required",
+      "priceRequired": "Price required (≥ 0)"
     }
   },
   "warehouses": {
@@ -921,6 +923,7 @@
       "qty": "Quantity",
       "unitCost": "Unit cost",
       "qtySigned": "Change (+/−)",
+      "variant": "Variant",
       "note": "Reason / note",
       "lotNumber": "Lot no.",
       "expirationDate": "Expiration date",

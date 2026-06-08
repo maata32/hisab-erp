@@ -81,5 +81,6 @@
     <include file="db/changelog/0074-purchase-lines-variant.xml"/>
     <include file="db/changelog/0075-inventory-lines-variant.xml"/>
     <include file="db/changelog/0076-tenant-lifecycle.xml"/>
+    <include file="db/changelog/0077-report-stock-variant.xml"/>
 
 </databaseChangeLog>

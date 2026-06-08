@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Stock has been kept per (warehouse, variant) since 0070, but v_report_stock still
+      exposed only the product sku/name — so every variant of a product appeared as an
+      identical row in the stock report. Surface the variant (sku + attributes) and the
+      warehouse name so the rows are distinguishable. runOnChange so the view is refreshed.
+    -->
+    <changeSet id="0077-view-stock-variant" author="mini-erp" runOnChange="true">
+        <createView viewName="v_report_stock" replaceIfExists="true">
+            SELECT
+                st.tenant_id,
+                st.warehouse_id,
+                w.name                              AS warehouse_name,
+                st.product_id,
+                p.name                              AS product_name,
+                p.sku,
+                st.variant_id,
+                pv.sku                              AS variant_sku,
+                pv.attributes                       AS variant_attributes,
+                st.qty_on_hand,
+                st.qty_reserved,
+                (st.qty_on_hand - st.qty_reserved)  AS qty_available,
+                st.average_cost,
+                (st.qty_on_hand * st.average_cost)  AS stock_value,
+                CASE WHEN (st.qty_on_hand - st.qty_reserved) &lt;= 0
+                     THEN true ELSE false END        AS is_low_stock
+            FROM stocks st
+            JOIN products p ON p.id = st.product_id
+            LEFT JOIN product_variants pv ON pv.id = st.variant_id
+            LEFT JOIN warehouses w ON w.id = st.warehouse_id
+        </createView>
+    </changeSet>
+
+</databaseChangeLog>
