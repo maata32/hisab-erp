@@ -19,9 +19,13 @@ import { firstValueFrom } from 'rxjs';
 
 interface StockRow {
   warehouseId: string;
+  warehouseName: string | null;
   productId: string;
   productName: string;
   sku: string;
+  variantId: string | null;
+  variantSku: string | null;
+  attributes: string | null;
   qtyOnHand: number;
   qtyReserved: number;
   qtyAvailable: number;
@@ -31,7 +35,7 @@ interface StockRow {
 }
 
 interface WarehouseLite { id: string; code: string; name: string; defaultWarehouse: boolean; }
-interface ProductVariantOpt { id: string; defaultVariant: boolean; active: boolean; }
+interface ProductVariantOpt { id: string; sku: string; attributes: string | null; defaultVariant: boolean; active: boolean; }
 interface ProductOpt { id: string; sku: string; name: string; trackExpiry: boolean; variants: ProductVariantOpt[]; }
 interface StockMovement {
   id: string;
@@ -87,6 +91,9 @@ type TagSeverity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'co
             <tr>
               <th>{{ 'stock.sku' | translate }}</th>
               <th>{{ 'stock.product' | translate }}</th>
+              @if (!selectedWarehouseId) {
+                <th>{{ 'stock.fields.warehouse' | translate }}</th>
+              }
               <th class="text-right">{{ 'stock.qtyOnHand' | translate }}</th>
               <th class="text-right">{{ 'stock.qtyReserved' | translate }}</th>
               <th class="text-right">{{ 'stock.qtyAvailable' | translate }}</th>
@@ -98,8 +105,16 @@ type TagSeverity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'co
           </ng-template>
           <ng-template pTemplate="body" let-r>
             <tr>
-              <td><span class="font-mono text-sm">{{ r.sku }}</span></td>
-              <td class="font-medium">{{ r.productName }}</td>
+              <td><span class="font-mono text-sm">{{ r.variantSku || r.sku }}</span></td>
+              <td class="font-medium">
+                {{ r.productName }}
+                @if (variantLabel(r)) {
+                  <div class="text-xs text-gray-500 font-normal">{{ variantLabel(r) }}</div>
+                }
+              </td>
+              @if (!selectedWarehouseId) {
+                <td class="text-gray-600">{{ r.warehouseName }}</td>
+              }
               <td class="text-right">{{ r.qtyOnHand | number:'1.0-3' }}</td>
               <td class="text-right text-gray-500">{{ r.qtyReserved | number:'1.0-3' }}</td>
               <td class="text-right font-semibold">{{ r.qtyAvailable | number:'1.0-3' }}</td>
@@ -125,7 +140,7 @@ type TagSeverity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'co
             </tr>
           </ng-template>
           <ng-template pTemplate="emptymessage">
-            <tr><td colspan="9" class="text-center text-gray-400 py-8">
+            <tr><td [attr.colspan]="selectedWarehouseId ? 9 : 10" class="text-center text-gray-400 py-8">
               {{ 'stock.empty' | translate }}
             </td></tr>
           </ng-template>
@@ -151,6 +166,7 @@ type TagSeverity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'co
             <p-autoComplete [(ngModel)]="opening.product" [suggestions]="productSugg()"
                             (completeMethod)="searchProducts($event)" field="name"
                             [forceSelection]="true" [minLength]="1"
+                            (onSelect)="onOpeningProductSelect()" (onClear)="opening.variantId = null"
                             [placeholder]="'stock.searchPlaceholder' | translate"
                             appendTo="body" inputStyleClass="w-full"
                             [styleClass]="'w-full' + (openingProductInvalid() ? ' ng-invalid ng-dirty' : '')">
@@ -165,6 +181,17 @@ type TagSeverity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'co
               <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
             }
           </div>
+          @if (openingVariantOptions().length > 1) {
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'stock.fields.variant' | translate }} *</label>
+              <p-dropdown [(ngModel)]="opening.variantId" [options]="openingVariantOptions()"
+                          optionLabel="label" optionValue="id" appendTo="body"
+                          [styleClass]="'w-full' + (openingVariantInvalid() ? ' ng-invalid ng-dirty' : '')" />
+              @if (openingVariantInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+              }
+            </div>
+          }
           @if (opening.product?.trackExpiry) {
             <div class="p-3 bg-amber-50 border border-amber-200 rounded space-y-3">
               <p class="text-xs text-amber-700">{{ 'stock.openingDialog.lotHelp' | translate }}</p>
@@ -232,7 +259,10 @@ type TagSeverity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'co
           <div class="mb-3 p-3 bg-gray-50 rounded text-sm">
             <div><span class="text-gray-500">{{ 'stock.fields.product' | translate }} :</span>
               <span class="font-medium ml-2">{{ adjustTarget()!.productName }}</span>
-              <span class="font-mono text-xs text-gray-500 ml-2">({{ adjustTarget()!.sku }})</span>
+              <span class="font-mono text-xs text-gray-500 ml-2">({{ adjustTarget()!.variantSku || adjustTarget()!.sku }})</span>
+              @if (variantLabel(adjustTarget()!)) {
+                <span class="text-xs text-gray-500 ml-2">· {{ variantLabel(adjustTarget()!) }}</span>
+              }
             </div>
             <div class="mt-1"><span class="text-gray-500">{{ 'stock.qtyOnHand' | translate }} :</span>
               <span class="font-semibold ml-2">{{ adjustTarget()!.qtyOnHand | number:'1.0-3' }}</span>
@@ -277,7 +307,10 @@ type TagSeverity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'co
         @if (historyTarget()) {
           <div class="mb-3 p-3 bg-gray-50 rounded text-sm flex gap-4 flex-wrap">
             <div><span class="text-gray-500">{{ 'stock.sku' | translate }} :</span>
-              <span class="font-mono ml-2">{{ historyTarget()!.sku }}</span>
+              <span class="font-mono ml-2">{{ historyTarget()!.variantSku || historyTarget()!.sku }}</span>
+              @if (variantLabel(historyTarget()!)) {
+                <span class="text-gray-500 ml-2">· {{ variantLabel(historyTarget()!) }}</span>
+              }
             </div>
             <div><span class="text-gray-500">{{ 'stock.qtyOnHand' | translate }} :</span>
               <span class="font-semibold ml-2">{{ historyTarget()!.qtyOnHand | number:'1.0-3' }}</span>
@@ -437,13 +470,48 @@ export class StockListPage implements OnInit {
     return (vs.find(v => v.defaultVariant && v.active) ?? vs.find(v => v.active) ?? vs[0])?.id ?? null;
   }
 
+  /** Default the variant to the product's default (or first active) one when a product is picked. */
+  protected onOpeningProductSelect() {
+    this.opening.variantId = this.variantIdOf(this.opening.product);
+  }
+
+  /** Active variants of the selected product, labelled by their attribute combination. */
+  protected openingVariantOptions(): { id: string; label: string }[] {
+    return (this.opening.product?.variants ?? [])
+      .filter(v => v.active)
+      .map(v => ({ id: v.id, label: this.variantOptLabel(v) }));
+  }
+
+  private variantOptLabel(v: ProductVariantOpt): string {
+    return this.attributesLabel(v.attributes) || v.sku || this.i18n.instant('products.variants.defaultVariant');
+  }
+
+  /** Variant combination for a stock row, e.g. "Taille: L · Couleur: Rouge" ('' if none). */
+  protected variantLabel(r: StockRow): string {
+    return this.attributesLabel(r.attributes);
+  }
+
+  private attributesLabel(attributes: string | null): string {
+    if (!attributes) return '';
+    try {
+      return Object.entries(JSON.parse(attributes) as Record<string, string>)
+        .map(([name, value]) => `${name}: ${value}`).join(' · ');
+    } catch {
+      return '';
+    }
+  }
+
+  protected openingVariantInvalid(): boolean {
+    return this.submittedOpening() && this.openingVariantOptions().length > 1 && !this.opening.variantId;
+  }
+
   protected async openHistory(row: StockRow) {
     this.historyTarget.set(row);
     this.historyRows.set([]);
     this.historyOpen = true;
     this.historyLoading.set(true);
     try {
-      const variantId = await this.fetchDefaultVariantId(row.productId);
+      const variantId = row.variantId ?? await this.fetchDefaultVariantId(row.productId);
       const res = await firstValueFrom(
         this.http.get<{ content: StockMovement[] }>(
           `/api/v1/inventory/stocks/movements?variantId=${variantId}&warehouseId=${row.warehouseId}`
@@ -492,7 +560,7 @@ export class StockListPage implements OnInit {
 
   protected async saveOpening() {
     this.submittedOpening.set(true);
-    if (this.openingWarehouseInvalid() || this.openingProductInvalid()
+    if (this.openingWarehouseInvalid() || this.openingProductInvalid() || this.openingVariantInvalid()
         || this.openingQtyInvalid() || this.openingCostInvalid()
         || this.openingLotInvalid() || this.openingExpiryInvalid()) return;
     this.saving.set(true);
@@ -503,7 +571,7 @@ export class StockListPage implements OnInit {
         // Stock row and the lot ledger stay in sync (otherwise FEFO has nothing to consume).
         await firstValueFrom(this.http.post('/api/v1/lots/opening-balance', {
           warehouseId: this.opening.warehouseId,
-          variantId: this.variantIdOf(product),
+          variantId: this.opening.variantId ?? this.variantIdOf(product),
           quantity: this.opening.qty,
           unitCost: this.opening.unitCost,
           lotNumber: this.opening.lotNumber.trim(),
@@ -514,7 +582,7 @@ export class StockListPage implements OnInit {
       } else {
         await firstValueFrom(this.http.post('/api/v1/inventory/stocks/receive', {
           warehouseId: this.opening.warehouseId,
-          variantId: this.variantIdOf(product),
+          variantId: this.opening.variantId ?? this.variantIdOf(product),
           qty: this.opening.qty,
           unitCost: this.opening.unitCost,
           type: 'OPENING_BALANCE',
@@ -542,7 +610,7 @@ export class StockListPage implements OnInit {
     if (this.adjustQtyInvalid() || this.adjustNoteInvalid()) return;
     this.saving.set(true);
     try {
-      const adjustVariantId = await this.fetchDefaultVariantId(target.productId);
+      const adjustVariantId = target.variantId ?? await this.fetchDefaultVariantId(target.productId);
       await firstValueFrom(this.http.post('/api/v1/inventory/stocks/adjust', {
         warehouseId: target.warehouseId,
         variantId: adjustVariantId,
@@ -591,6 +659,7 @@ export class StockListPage implements OnInit {
     return {
       warehouseId: null as string | null,
       product: null as ProductOpt | null,
+      variantId: null as string | null,
       qty: null as number | null,
       unitCost: null as number | null,
       note: '',

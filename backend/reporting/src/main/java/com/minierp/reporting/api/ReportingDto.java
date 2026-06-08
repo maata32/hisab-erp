@@ -31,9 +31,13 @@ public final class ReportingDto {
     /** v_report_stock — stock value + low stock flag per product/warehouse */
     public record StockRow(
             UUID warehouseId,
+            String warehouseName,
             UUID productId,
             String productName,
             String sku,
+            UUID variantId,
+            String variantSku,
+            String attributes,
             BigDecimal qtyOnHand,
             BigDecimal qtyReserved,
             BigDecimal qtyAvailable,
