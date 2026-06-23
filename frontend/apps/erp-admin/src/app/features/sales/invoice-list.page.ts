@@ -779,7 +779,7 @@ export class InvoiceListPage implements OnInit {
 
   private async loadSettings() {
     try {
-      const s = await firstValueFrom(this.http.get<any>('/api/v1/settings'));
+      const s = await firstValueFrom(this.http.get<{ invoiceSettings?: { taxEnabled?: boolean } }>('/api/v1/settings'));
       const enabled = s?.invoiceSettings?.taxEnabled;
       if (typeof enabled === 'boolean') this.taxEnabled.set(enabled);
     } catch { /* keep default true */ }
@@ -804,7 +804,7 @@ export class InvoiceListPage implements OnInit {
     try {
       await firstValueFrom(this.http.post(`/api/v1/invoices/${inv.id}/issue`, {}));
       this.reload();
-    } catch { /* global error handler */ }
+    } catch { /* errors handled globally */ }
   }
 
   protected cancelInvoice(inv: Invoice) {
@@ -816,7 +816,7 @@ export class InvoiceListPage implements OnInit {
         try {
           await firstValueFrom(this.http.post(`/api/v1/invoices/${inv.id}/cancel`, {}));
           this.reload();
-        } catch { /* global error handler */ }
+        } catch { /* errors handled globally */ }
       },
     });
   }
@@ -1210,7 +1210,7 @@ export class InvoiceListPage implements OnInit {
       const res = await firstValueFrom(
         this.http.get<{ content: ProductOpt[] }>('/api/v1/products?size=500')
       );
-      this.products.set((res.content ?? []).filter((p: any) => p.active !== false && p.sellable !== false));
+      this.products.set((res.content ?? []).filter((p: ProductOpt & { active?: boolean; sellable?: boolean }) => p.active !== false && p.sellable !== false));
     } catch {
       this.products.set([]);
     }

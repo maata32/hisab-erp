@@ -441,11 +441,13 @@ export class SessionPage implements OnInit {
       this.voidDialogOpen = false;
       await this.loadSessionSales();
       await this.sessionSvc.refreshSession();
-    } catch (e: any) {
+    } catch (e: unknown) {
       this.msg.add({
         severity: 'error',
         summary: 'Erreur',
-        detail: e?.error?.message || 'Annulation impossible',
+        detail:
+          (e as { error?: { message?: string } } | null)?.error?.message ||
+          'Annulation impossible',
         life: 4000,
       });
     } finally {

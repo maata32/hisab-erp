@@ -294,8 +294,9 @@ export class RegisterPage implements OnInit {
       );
       this.submittedCode.set(v.tenantCode);
       this.done.set(true);
-    } catch (err: any) {
-      const apiError = isApiError(err?.error) ? err.error : null;
+    } catch (err: unknown) {
+      const body = (err as { error?: unknown })?.error;
+      const apiError = isApiError(body) ? body : null;
       if (apiError?.code === 'error.data_integrity') {
         this.errorMessage.set(this.translate.instant('registration.codeTaken'));
       } else {

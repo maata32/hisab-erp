@@ -8,8 +8,8 @@ import {
 import { inject } from '@angular/core';
 import { Observable, catchError, switchMap, throwError } from 'rxjs';
 import { Router } from '@angular/router';
-import { AUTH_SERVICE, AuthServicePort } from '@minierp/shared-auth';
-import { API_CONFIG } from './api-config.token';
+import { API_CONFIG } from '@minierp/shared-api';
+import { AUTH_SERVICE, AuthServicePort } from './auth.port';
 
 export const apiInterceptor: HttpInterceptorFn = (
   req: HttpRequest<unknown>,

@@ -590,8 +590,8 @@ export class TreasuryPage implements OnInit {
       await firstValueFrom(this.http.post(`/api/v1/pos/sessions/${s.id}/validate`, {}));
       this.msg.add({ severity: 'success', summary: 'Session validée', life: 2500 });
       await Promise.all([this.loadPendingSessions(), this.loadVault(), this.loadVaultMovements()]);
-    } catch (e: any) {
-      this.msg.add({ severity: 'error', summary: 'Erreur', detail: e?.error?.message ?? 'Échec', life: 4000 });
+    } catch (e: unknown) {
+      this.msg.add({ severity: 'error', summary: 'Erreur', detail: (e as { error?: { message?: string } })?.error?.message ?? 'Échec', life: 4000 });
     } finally {
       this.validatingId.set(null);
     }
@@ -696,8 +696,8 @@ export class TreasuryPage implements OnInit {
       this.msg.add({ severity: 'success', summary: 'OK', life: 2500 });
       this.bankDialogOpen = false;
       await this.loadBanks();
-    } catch (e: any) {
-      this.msg.add({ severity: 'error', summary: 'Erreur', detail: e?.error?.message ?? 'Échec', life: 4000 });
+    } catch (e: unknown) {
+      this.msg.add({ severity: 'error', summary: 'Erreur', detail: (e as { error?: { message?: string } })?.error?.message ?? 'Échec', life: 4000 });
     } finally {
       this.saving.set(false);
     }
@@ -726,8 +726,8 @@ export class TreasuryPage implements OnInit {
       this.msg.add({ severity: 'success', summary: 'Dépôt enregistré', life: 2500 });
       this.depositDialogOpen = false;
       await Promise.all([this.loadVault(), this.loadBanks(), this.loadVaultMovements()]);
-    } catch (e: any) {
-      this.msg.add({ severity: 'error', summary: 'Erreur', detail: e?.error?.message ?? 'Échec', life: 4000 });
+    } catch (e: unknown) {
+      this.msg.add({ severity: 'error', summary: 'Erreur', detail: (e as { error?: { message?: string } })?.error?.message ?? 'Échec', life: 4000 });
     } finally {
       this.saving.set(false);
     }
@@ -742,8 +742,8 @@ export class TreasuryPage implements OnInit {
       this.msg.add({ severity: 'success', summary: 'Retrait enregistré', life: 2500 });
       this.withdrawDialogOpen = false;
       await Promise.all([this.loadVault(), this.loadBanks(), this.loadVaultMovements()]);
-    } catch (e: any) {
-      this.msg.add({ severity: 'error', summary: 'Erreur', detail: e?.error?.message ?? 'Échec', life: 4000 });
+    } catch (e: unknown) {
+      this.msg.add({ severity: 'error', summary: 'Erreur', detail: (e as { error?: { message?: string } })?.error?.message ?? 'Échec', life: 4000 });
     } finally {
       this.saving.set(false);
     }
@@ -783,8 +783,8 @@ export class TreasuryPage implements OnInit {
       this.adjustDialogOpen = false;
       await Promise.all([this.loadVault(), this.loadBanks(), this.loadVaultMovements()]);
       if (this.selectedBankIdForHistory) await this.loadBankTxns();
-    } catch (e: any) {
-      this.msg.add({ severity: 'error', summary: 'Erreur', detail: e?.error?.message ?? 'Échec', life: 4000 });
+    } catch (e: unknown) {
+      this.msg.add({ severity: 'error', summary: 'Erreur', detail: (e as { error?: { message?: string } })?.error?.message ?? 'Échec', life: 4000 });
     } finally {
       this.saving.set(false);
     }

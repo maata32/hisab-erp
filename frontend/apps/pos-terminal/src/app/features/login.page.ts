@@ -73,7 +73,7 @@ export class PosLoginPage {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.loading.set(true);
     this.errorMessage.set(null);
-    this.auth.login(this.form.getRawValue() as any).subscribe({
+    this.auth.login(this.form.getRawValue() as { tenantCode: string; email: string; password: string }).subscribe({
       next: () => { this.loading.set(false); this.router.navigateByUrl('/sale'); },
       error: (err) => {
         this.loading.set(false);

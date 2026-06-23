@@ -77,7 +77,6 @@ interface KpiGroup {
   cards: KpiCard[];
 }
 
-interface PhaseItem { key: string; }
 interface Phase {
   key: string;
   state: 'delivered' | 'next';

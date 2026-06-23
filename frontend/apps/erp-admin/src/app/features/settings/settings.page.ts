@@ -351,7 +351,7 @@ export class SettingsPage implements OnInit {
   private async loadOrg(): Promise<void> {
     try {
       const org = await firstValueFrom(
-        this.http.get<any>('/api/v1/organizations/me')
+        this.http.get<Partial<OrgProfile> & { id: string; code: string }>('/api/v1/organizations/me')
       );
       this.org = {
         id: org.id,
@@ -372,7 +372,11 @@ export class SettingsPage implements OnInit {
   private async loadSettings(): Promise<void> {
     try {
       const settings = await firstValueFrom(
-        this.http.get<any>('/api/v1/settings')
+        this.http.get<{
+          posSettings?: Partial<PosSettings>;
+          invoiceSettings?: Partial<InvoiceSettings>;
+          paymentSettings?: Partial<PaymentSettings>;
+        }>('/api/v1/settings')
       );
       if (settings.posSettings) {
         this.posSettings = { ...this.posSettings, ...settings.posSettings };

@@ -902,7 +902,9 @@ export class ProductListPage implements OnInit {
 
   private async loadSettings() {
     try {
-      const settings = await firstValueFrom(this.http.get<any>('/api/v1/settings'));
+      const settings = await firstValueFrom(
+        this.http.get<{ invoiceSettings?: { taxEnabled?: boolean } }>('/api/v1/settings')
+      );
       const enabled = settings?.invoiceSettings?.taxEnabled;
       if (typeof enabled === 'boolean') this.taxEnabled.set(enabled);
     } catch {

@@ -423,14 +423,28 @@ export class QuoteListPage implements OnInit {
 
   protected async openEdit(q: Quote) {
     try {
-      const full = await firstValueFrom(this.http.get<any>(`/api/v1/quotes/${q.id}`));
+      const full = await firstValueFrom(this.http.get<{
+        customerId: string;
+        issueDate?: string | null;
+        validUntil?: string | null;
+        currency?: string | null;
+        notes?: string | null;
+        lines?: {
+          productId: string | null;
+          uomId: string | null;
+          quantity: number | string;
+          unitPrice: number | string;
+          discountPercent: number | string;
+          taxRate: number | string;
+        }[];
+      }>(`/api/v1/quotes/${q.id}`));
       this.form = {
         customerId: full.customerId,
         issueDate: full.issueDate ? new Date(full.issueDate) : new Date(),
         validUntil: full.validUntil ? new Date(full.validUntil) : new Date(),
         currency: full.currency ?? '',
         notes: full.notes ?? '',
-        lines: (full.lines ?? []).map((l: any) => ({
+        lines: (full.lines ?? []).map((l) => ({
           productId: l.productId,
           uomId: l.uomId,
           quantity: Number(l.quantity),
@@ -606,7 +620,7 @@ export class QuoteListPage implements OnInit {
       const res = await firstValueFrom(
         this.http.get<{ content: ProductOpt[] }>('/api/v1/products?size=500')
       );
-      this.products.set((res.content ?? []).filter((p: any) => p.active !== false && p.sellable !== false));
+      this.products.set((res.content ?? []).filter((p) => (p as { active?: boolean; sellable?: boolean }).active !== false && (p as { active?: boolean; sellable?: boolean }).sellable !== false));
     } catch {
       this.products.set([]);
     }

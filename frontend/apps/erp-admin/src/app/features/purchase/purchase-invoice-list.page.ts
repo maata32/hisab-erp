@@ -943,7 +943,7 @@ export class PurchaseInvoiceListPage implements OnInit {
   private async loadProducts() {
     try {
       const res = await firstValueFrom(this.http.get<{ content: ProductOpt[] }>('/api/v1/products?size=500'));
-      this.products.set((res.content ?? []).filter((p: any) => p.active !== false));
+      this.products.set((res.content ?? []).filter((p) => (p as { active?: boolean }).active !== false));
     } catch { this.products.set([]); }
     this.loadStockBreakdown();
   }

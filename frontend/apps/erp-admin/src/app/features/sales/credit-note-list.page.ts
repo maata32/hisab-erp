@@ -211,7 +211,7 @@ export class CreditNoteListPage implements OnInit {
 
   private async loadSettings() {
     try {
-      const s = await firstValueFrom(this.http.get<any>('/api/v1/settings'));
+      const s = await firstValueFrom(this.http.get<{ invoiceSettings?: { taxEnabled?: boolean } }>('/api/v1/settings'));
       const enabled = s?.invoiceSettings?.taxEnabled;
       if (typeof enabled === 'boolean') this.taxEnabled.set(enabled);
     } catch { /* keep default true */ }
