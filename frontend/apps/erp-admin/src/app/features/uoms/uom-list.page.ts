@@ -317,8 +317,12 @@ export class UomListPage implements OnInit {
     const byCat = new Map<string, ConvGroup>();
     for (const u of this.groupedUoms()) {
       const key = u.categoryCode ?? '—';
-      if (!byCat.has(key)) byCat.set(key, { label: key, items: [] });
-      byCat.get(key)!.items.push({ label: `${u.code} — ${u.name}`, value: u.id });
+      let group = byCat.get(key);
+      if (!group) {
+        group = { label: key, items: [] };
+        byCat.set(key, group);
+      }
+      group.items.push({ label: `${u.code} — ${u.name}`, value: u.id });
     }
     return [...byCat.values()];
   });

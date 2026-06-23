@@ -203,7 +203,8 @@ export class NotificationsConfigPage implements OnInit {
       this.configs.set(list ?? []);
       const byCode = new Map(list.map((c) => [c.eventCode, c.enabled] as const));
       for (const e of this.events()) {
-        this.enabledMap[e.code] = byCode.has(e.code) ? byCode.get(e.code)! : e.defaultEnabled;
+        const configured = byCode.get(e.code);
+        this.enabledMap[e.code] = configured ?? e.defaultEnabled;
       }
     } catch { this.configs.set([]); }
   }

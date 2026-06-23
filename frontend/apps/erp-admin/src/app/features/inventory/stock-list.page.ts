@@ -565,7 +565,8 @@ export class StockListPage implements OnInit {
         || this.openingLotInvalid() || this.openingExpiryInvalid()) return;
     this.saving.set(true);
     try {
-      const product = this.opening.product!;
+      const product = this.opening.product;
+      if (!product) return;
       if (product.trackExpiry) {
         // Expiry-tracked: create the lot AND post the opening stock in one call so the
         // Stock row and the lot ledger stay in sync (otherwise FEFO has nothing to consume).

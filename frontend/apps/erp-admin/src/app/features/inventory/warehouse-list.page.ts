@@ -172,7 +172,7 @@ export class WarehouseListPage implements OnInit {
             this.http.post(`/api/v1/inventory/warehouses/${w.id}/set-default`, {})
           );
           this.load();
-        } catch { /* global error handler */ }
+        } catch { /* errors handled globally */ }
       },
     });
   }

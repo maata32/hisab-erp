@@ -5,8 +5,8 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { MessageService, ConfirmationService } from 'primeng/api';
 
 import { appRoutes } from './app.routes';
-import { apiInterceptor, API_CONFIG } from '@minierp/shared-api';
-import { AUTH_SERVICE, AuthService } from '@minierp/shared-auth';
+import { API_CONFIG } from '@minierp/shared-api';
+import { AUTH_SERVICE, AuthService, apiInterceptor } from '@minierp/shared-auth';
 import { provideAppI18n } from '@minierp/shared-i18n';
 import { environment } from '../environments/environment';
 

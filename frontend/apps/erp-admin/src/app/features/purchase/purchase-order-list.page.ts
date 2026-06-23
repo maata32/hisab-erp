@@ -461,7 +461,7 @@ export class PurchaseOrderListPage implements OnInit {
     this.form = this.emptyForm();
     this.submitted.set(false);
     this.createOpen = true;
-    const wDefault = this.warehouses().find(w => (w as any).defaultWarehouse) ?? this.warehouses()[0];
+    const wDefault = this.warehouses().find(w => (w as { defaultWarehouse?: boolean }).defaultWarehouse) ?? this.warehouses()[0];
     if (wDefault) this.form.warehouseId = wDefault.id;
   }
 
@@ -584,7 +584,7 @@ export class PurchaseOrderListPage implements OnInit {
   private async loadProducts() {
     try {
       const res = await firstValueFrom(this.http.get<{ content: ProductOpt[] }>('/api/v1/products?size=500'));
-      this.products.set((res.content ?? []).filter((p: any) => p.active !== false));
+      this.products.set((res.content ?? []).filter(p => (p as { active?: boolean }).active !== false));
     } catch { this.products.set([]); }
     this.loadStockBreakdown();
   }

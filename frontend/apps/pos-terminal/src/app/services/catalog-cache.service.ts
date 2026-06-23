@@ -15,7 +15,7 @@ export class CatalogCacheService {
     const now = Date.now();
     const stale = !oldest || now - oldest.cachedAt > CACHE_TTL_MS;
     // Legacy records cached before the images field was introduced lack it — force refresh.
-    const schemaOutdated = !!oldest && !Array.isArray((oldest as any).images);
+    const schemaOutdated = !!oldest && !Array.isArray((oldest as { images?: unknown }).images);
     if (stale || schemaOutdated) {
       await this.refresh();
     }
@@ -33,7 +33,7 @@ export class CatalogCacheService {
     ]);
 
     const sellable = resp.content.filter((p) => p.sellable);
-    const defaultTier = tiers.find((t) => (t as any).defaultTier) ?? tiers[0] ?? null;
+    const defaultTier = tiers.find((t) => (t as { defaultTier?: boolean }).defaultTier) ?? tiers[0] ?? null;
 
     // The variant is the real SKU sold at the POS; use each product's default variant.
     const variantOf = (p: typeof sellable[number]): string | null => {
@@ -47,9 +47,10 @@ export class CatalogCacheService {
         const prices = await firstValueFrom(
           this.api.bulkResolvePrice(
             defaultTier.id,
-            sellable
-              .map((p) => ({ variantId: variantOf(p)!, uomId: p.baseUomId }))
-              .filter((it) => !!it.variantId),
+            sellable.flatMap((p) => {
+              const variantId = variantOf(p);
+              return variantId ? [{ variantId, uomId: p.baseUomId }] : [];
+            }),
           ),
         );
         for (const rp of prices) {
@@ -93,7 +94,7 @@ export class CatalogCacheService {
       id: t.id,
       code: t.code,
       name: t.name,
-      isDefault: (t as any).defaultTier ?? false,
+      isDefault: (t as { defaultTier?: boolean }).defaultTier ?? false,
     }));
     await posDb.priceTiers.clear();
     await posDb.priceTiers.bulkPut(rows);

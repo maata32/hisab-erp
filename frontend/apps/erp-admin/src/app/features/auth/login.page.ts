@@ -10,7 +10,7 @@ import { MessageService } from 'primeng/api';
 import { AUTH_SERVICE } from '@minierp/shared-auth';
 import { isApiError } from '@minierp/shared-api';
 import { LocaleSwitcherComponent } from '@minierp/shared-ui';
-import { LocaleService } from '@minierp/shared-i18n';
+import { LocaleService, SupportedLocale } from '@minierp/shared-i18n';
 
 @Component({
   selector: 'erp-admin-login-page',
@@ -153,12 +153,12 @@ export class LoginPage {
     }
     this.loading.set(true);
     this.errorMessage.set(null);
-    this.auth.login(this.form.getRawValue() as any).subscribe({
+    this.auth.login(this.form.getRawValue()).subscribe({
       next: (res) => {
         this.loading.set(false);
         if (res.user.preferredLanguage) {
           this.auth.setCurrentLanguage(res.user.preferredLanguage);
-          this.locale.use(res.user.preferredLanguage as any);
+          this.locale.use(res.user.preferredLanguage as SupportedLocale);
         }
         const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') ?? '/';
         this.router.navigateByUrl(returnUrl);

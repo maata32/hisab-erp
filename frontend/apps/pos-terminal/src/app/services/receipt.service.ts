@@ -26,6 +26,19 @@ interface ReceiptLine {
   total: number;
 }
 
+interface UsbDeviceLike {
+  configuration: unknown;
+  open(): Promise<void>;
+  selectConfiguration(value: number): Promise<void>;
+  claimInterface(interfaceNumber: number): Promise<void>;
+  transferOut(endpointNumber: number, data: BufferSource): Promise<unknown>;
+  close(): Promise<void>;
+}
+
+interface UsbLike {
+  requestDevice(options: { filters: { classCode: number }[] }): Promise<UsbDeviceLike>;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ReceiptService {
 
@@ -83,7 +96,7 @@ export class ReceiptService {
   async printEscPos(data: ReceiptData): Promise<boolean> {
     try {
       if ('usb' in navigator) {
-        const device = await (navigator as any).usb.requestDevice({
+        const device = await (navigator as Navigator & { usb: UsbLike }).usb.requestDevice({
           filters: [{ classCode: 0x07 }],
         });
         const bytes = this.encodeEscPos(data);
@@ -116,7 +129,6 @@ export class ReceiptService {
   }
 
   private buildHtmlReceipt(data: ReceiptData, cols: number): string {
-    const sep = '─'.repeat(cols);
     const fmt = (n: number) => n.toFixed(2);
     const pad = (left: string, right: string, w: number) => {
       const gap = w - left.length - right.length;

@@ -18,7 +18,7 @@ import { SyncService } from '../services/sync.service';
 import { ReceiptService } from '../services/receipt.service';
 import { PosApiService } from '../services/pos-api.service';
 import { OnlineStatusService } from '../services/online-status.service';
-import { CachedProduct, CachedProductImage, CartLine, PendingSale } from '../models/pos.models';
+import { CachedProduct, CachedProductImage, CartLine, PendingSale, SyncedSale } from '../models/pos.models';
 import { PosSettingsService } from '../services/pos-settings.service';
 
 @Component({
@@ -330,7 +330,7 @@ export class SalePage implements OnInit {
   protected readonly payMobile = signal(0);
   protected readonly payCredit = signal(0);
 
-  private lastSaleSynced: any = null;
+  private lastSaleSynced: SyncedSale | null = null;
   private lastSalePending: PendingSale | null = null;
 
   protected readonly cartSubtotal = computed(() =>
@@ -505,7 +505,7 @@ export class SalePage implements OnInit {
           note: null,
           lines,
           payment,
-        })) as any;
+        }));
         this.lastSaleSynced = sale;
         this.lastSaleNumber.set(sale?.number ?? null);
       } else {
