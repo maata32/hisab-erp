@@ -19,7 +19,7 @@ class CustomerCreditUsage extends AuditableEntity {
     @Column(name = "customer_credit_id", nullable = false, columnDefinition = "uuid")
     private UUID customerCreditId;
 
-    @Column(name = "payment_id", nullable = false, columnDefinition = "uuid")
+    @Column(name = "payment_id", columnDefinition = "uuid")
     private UUID paymentId;
 
     @Column(name = "amount_used", precision = 19, scale = 2, nullable = false)

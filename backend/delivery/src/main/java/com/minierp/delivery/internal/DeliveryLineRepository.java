@@ -26,4 +26,19 @@ interface DeliveryLineRepository extends JpaRepository<DeliveryLine, UUID> {
             GROUP BY dl.productId
             """)
     List<Object[]> sumDeliveredByProductForInvoice(@Param("invoiceId") UUID invoiceId);
+
+    /**
+     * Outbound shipped quantity per VARIANT across non-cancelled forward BLs of the
+     * invoice — used to cap a new BL's ordered quantity at the invoiced amount (BUG-15).
+     */
+    @Query("""
+            SELECT dl.variantId, SUM(dl.quantityDelivered)
+            FROM DeliveryLine dl, Delivery d
+            WHERE dl.deliveryId = d.id
+              AND d.invoiceId = :invoiceId
+              AND d.status <> com.minierp.delivery.internal.DeliveryStatus.CANCELLED
+              AND d.type = com.minierp.delivery.internal.DeliveryType.OUTBOUND
+            GROUP BY dl.variantId
+            """)
+    List<Object[]> sumDeliveredByVariantForInvoice(@Param("invoiceId") UUID invoiceId);
 }
