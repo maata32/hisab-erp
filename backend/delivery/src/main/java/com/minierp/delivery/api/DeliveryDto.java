@@ -72,6 +72,17 @@ public class DeliveryDto {
 
     public record LineDelivered(
             UUID lineId,
-            BigDecimal quantityDelivered
-    ) {}
+            BigDecimal quantityDelivered,
+            /** Optional manual lot selection for this line (overrides FEFO at ship time). The sum
+             *  must equal the line's shipped quantity and each lot must be a valid ACTIVE lot of the
+             *  line's variant/warehouse. */
+            List<LotAllocationRequest> lotAllocations
+    ) {
+        /** Backwards-compatible constructor (no manual lot selection → automatic FEFO). */
+        public LineDelivered(UUID lineId, BigDecimal quantityDelivered) {
+            this(lineId, quantityDelivered, null);
+        }
+    }
+
+    public record LotAllocationRequest(UUID lotId, BigDecimal quantity) {}
 }

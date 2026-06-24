@@ -62,6 +62,7 @@
       "tax": "Tax",
       "total": "Total",
       "pay": "Pay",
+      "lot_fefo": "FEFO (auto)",
       "payment": {
         "title": "Payment",
         "cash": "Cash",

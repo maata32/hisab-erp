@@ -440,7 +440,7 @@ public class PosService {
                     StockMovementType.SALE_RETURN,
                     "VOID " + sale.getNumber(), userId);
             // Restore consumed lots for lot/expiry-tracked variants (no-op otherwise).
-            lotOps.restoreLotsOnReturn(line.getVariantId(), sale.getWarehouseId(),
+            lotOps.restoreLotsOnReturn(line.getProductId(), line.getVariantId(), sale.getWarehouseId(),
                     line.getBaseQuantity(), "POS_VOID", sale.getId());
         }
 

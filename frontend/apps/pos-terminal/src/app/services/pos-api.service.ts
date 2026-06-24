@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { PageResponse } from '@minierp/shared-api';
 import { CashRegister, CashSession, SyncedSale } from '../models/pos.models';
 
@@ -31,6 +31,15 @@ export interface SaleLineRequest {
   uomId: string;
   quantity: number;
   unitDiscount?: number | null;
+  lotAllocations?: { lotId: string; quantity: number }[] | null;
+}
+
+export interface PosLot {
+  id: string;
+  lotNumber: string;
+  expirationDate: string | null;
+  quantityRemaining: number;
+  status: string;
 }
 
 export interface PaymentRequest {
@@ -238,5 +247,16 @@ export class PosApiService {
 
   listStocksByWarehouse(warehouseId: string): Observable<StockSnapshotItem[]> {
     return this.http.get<StockSnapshotItem[]>(`/api/v1/inventory/stocks/by-warehouse/${warehouseId}`);
+  }
+
+  /** Active lots for a variant in a warehouse, for manual lot selection (online only). */
+  listLots(variantId: string, warehouseId: string): Observable<PosLot[]> {
+    const params = new HttpParams()
+      .set('variantId', variantId)
+      .set('warehouseId', warehouseId)
+      .set('size', '100');
+    return this.http
+      .get<PageResponse<PosLot>>('/api/v1/lots', { params })
+      .pipe(map((p) => (p.content ?? []).filter((l) => l.status === 'ACTIVE' && l.quantityRemaining > 0)));
   }
 }

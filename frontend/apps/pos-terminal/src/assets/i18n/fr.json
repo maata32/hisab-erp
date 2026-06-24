@@ -74,6 +74,7 @@
       "tax": "TVA",
       "total": "Total",
       "pay": "Encaisser",
+      "lot_fefo": "FEFO (auto)",
       "payment": {
         "title": "Paiement",
         "cash": "Espèces",

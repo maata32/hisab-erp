@@ -193,12 +193,26 @@ class FEFOSuccessiveSalesIT {
         lotOps.consumeFefoIfTracked(productId, warehouseId, BigDecimal.valueOf(5), "DELIVERY", UUID.randomUUID());
         assertThat(statusOf(lotAId)).isEqualTo("EXHAUSTED");
 
-        lotOps.restoreLotsOnReturn(productId, warehouseId, BigDecimal.valueOf(3), "DELIVERY", UUID.randomUUID());
+        lotOps.restoreLotsOnReturn(productId, productId, warehouseId, BigDecimal.valueOf(3), "DELIVERY", UUID.randomUUID());
         assertThat(qtyOf(lotAId)).isEqualByComparingTo("3");
         assertThat(statusOf(lotAId)).isEqualTo("ACTIVE");
         Integer returnIns = jdbc.queryForObject(
                 "SELECT count(*) FROM lot_movements WHERE lot_id=? AND type='RETURN_IN'", Integer.class, lotAId);
         assertThat(returnIns).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("restoreLotsOnReturn: creates a fresh return lot when none survives (tracked product)")
+    void restoreLotsOnReturn_createsNewLotWhenNoneSurvives() {
+        // No lots exist for this variant; the seeded product is track_expiry=true → a return lot is created.
+        lotOps.restoreLotsOnReturn(productId, productId, warehouseId, BigDecimal.valueOf(4), "DELIVERY", UUID.randomUUID());
+        Integer lotCount = jdbc.queryForObject(
+                "SELECT count(*) FROM product_lots WHERE product_variant_id=?", Integer.class, productId);
+        assertThat(lotCount).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT quantity_remaining FROM product_lots WHERE product_variant_id=?",
+                BigDecimal.class, productId)).isEqualByComparingTo("4");
+        assertThat(jdbc.queryForObject("SELECT status FROM product_lots WHERE product_variant_id=?",
+                String.class, productId)).isEqualTo("ACTIVE");
     }
 
     @Test

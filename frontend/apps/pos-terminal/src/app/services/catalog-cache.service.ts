@@ -75,6 +75,8 @@ export class CatalogCacheService {
         baseUomId: p.baseUomId,
         defaultTaxRate: rp?.taxRate ?? p.defaultTaxRate,
         sellable: p.sellable,
+        tracksLots: !!((p as { tracksLots?: boolean; trackExpiry?: boolean }).tracksLots
+          ?? (p as { trackExpiry?: boolean }).trackExpiry),
         imageUrl: p.imageUrl,
         images: (p.images ?? []).map((img) => ({ id: img.id, url: img.url })),
         price: rp?.amount ?? 0,

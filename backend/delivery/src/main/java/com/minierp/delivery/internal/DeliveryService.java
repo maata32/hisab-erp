@@ -7,6 +7,7 @@ import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
 import com.minierp.inventory.api.StockMovementType;
 import com.minierp.inventory.api.StockOperations;
+import com.minierp.lotexpiry.api.LotAllocation;
 import com.minierp.lotexpiry.api.LotOperations;
 import com.minierp.sales.api.InvoiceOperations;
 import com.minierp.sales.api.InvoiceSummary;
@@ -161,9 +162,20 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
                     Map.of("deliveryId", d.getId()));
         }
 
+        // Optional manual lot selection per line (overrides FEFO), keyed by delivery line id.
+        Map<UUID, List<LotAllocation>> manualLots = new HashMap<>();
+        if (req.lines() != null) {
+            for (DeliveryDto.LineDelivered ld : req.lines()) {
+                if (ld.lineId() != null && ld.lotAllocations() != null && !ld.lotAllocations().isEmpty()) {
+                    manualLots.put(ld.lineId(), ld.lotAllocations().stream()
+                            .map(a -> new LotAllocation(a.lotId(), a.quantity())).toList());
+                }
+            }
+        }
+
         // Business rule: a delivery is recorded all-or-nothing — there is no PARTIAL
         // delivery status. Each line ships its full remaining quantity in one call.
-        // Caller-supplied per-line quantities are ignored.
+        // Caller-supplied per-line quantities are ignored (only optional lot selection is honoured).
         for (DeliveryLine line : lines) {
             BigDecimal remaining = line.getQuantityOrdered().subtract(line.getQuantityDelivered());
             if (remaining.signum() > 0) {
@@ -171,9 +183,16 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
                         StockMovementType.SALE,
                         "DELIVERY", d.getId(), d.getNumber(),
                         "Delivery " + d.getNumber(), userId);
-                // FEFO lot consumption for lot/expiry-tracked variants (no-op otherwise).
-                lotOps.consumeFefoIfTracked(line.getVariantId(), warehouseId, remaining,
-                        "DELIVERY", d.getId());
+                List<LotAllocation> manual = manualLots.get(line.getId());
+                if (manual != null) {
+                    // Manual lot selection (LOT-15) — consume exactly the designated lots.
+                    lotOps.consumeExplicitLots(line.getVariantId(), warehouseId, remaining,
+                            manual, "DELIVERY", d.getId());
+                } else {
+                    // Automatic FEFO consumption for lot/expiry-tracked variants (no-op otherwise).
+                    lotOps.consumeFefoIfTracked(line.getVariantId(), warehouseId, remaining,
+                            "DELIVERY", d.getId());
+                }
                 line.setQuantityDelivered(line.getQuantityOrdered());
             }
             line.setStatus(DeliveryLineStatus.COMPLETED);
