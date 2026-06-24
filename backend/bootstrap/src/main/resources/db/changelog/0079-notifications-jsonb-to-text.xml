@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      BUG-3 (NOTIF-02): channels / recipients / payload were declared jsonb (0026) but the
+      entities map them as opaque java.lang.String (no @JdbcTypeCode(SqlTypes.JSON)). Hibernate
+      therefore binds them as VARCHAR, which PostgreSQL refuses to cast to jsonb implicitly
+      ("column is of type jsonb but expression is of type character varying") — so EVERY write
+      to these tables fails with an InvalidDataAccessResourceUsageException → HTTP 500.
+      Nothing in the codebase queries inside these documents (they are stored/returned as plain
+      strings, like the sibling default_channels varchar on the event catalog), so convert the
+      columns to text to match their actual usage and unbreak the writes.
+    -->
+    <changeSet id="0079-notifications-jsonb-to-text" author="mini-erp">
+        <sql>
+            ALTER TABLE tenant_notification_configs   ALTER COLUMN channels   TYPE text USING channels::text;
+            ALTER TABLE tenant_notification_configs   ALTER COLUMN recipients TYPE text USING recipients::text;
+            ALTER TABLE user_notification_preferences ALTER COLUMN channels   TYPE text USING channels::text;
+            ALTER TABLE notification_logs             ALTER COLUMN payload    TYPE text USING payload::text;
+        </sql>
+        <rollback>
+            ALTER TABLE tenant_notification_configs   ALTER COLUMN channels   TYPE jsonb USING channels::jsonb;
+            ALTER TABLE tenant_notification_configs   ALTER COLUMN recipients TYPE jsonb USING recipients::jsonb;
+            ALTER TABLE user_notification_preferences ALTER COLUMN channels   TYPE jsonb USING channels::jsonb;
+            ALTER TABLE notification_logs             ALTER COLUMN payload    TYPE jsonb USING payload::jsonb;
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

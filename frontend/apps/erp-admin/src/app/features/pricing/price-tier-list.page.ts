@@ -11,8 +11,7 @@ interface PriceTier {
   id: string;
   code: string;
   name: string;
-  isDefault: boolean;
-  sortOrder: number;
+  defaultTier: boolean;
   active: boolean;
 }
 
@@ -34,7 +33,6 @@ interface PriceTier {
               <th>{{ 'priceTiers.code' | translate }}</th>
               <th>{{ 'priceTiers.name' | translate }}</th>
               <th>{{ 'priceTiers.default' | translate }}</th>
-              <th class="text-right">{{ 'priceTiers.sortOrder' | translate }}</th>
               <th>{{ 'common.active' | translate }}</th>
             </tr>
           </ng-template>
@@ -43,11 +41,10 @@ interface PriceTier {
               <td><span class="font-mono text-sm">{{ t.code }}</span></td>
               <td class="font-medium">{{ t.name }}</td>
               <td>
-                @if (t.isDefault) {
+                @if (t.defaultTier) {
                   <p-tag [value]="'priceTiers.isDefault' | translate" severity="info" icon="pi pi-star-fill" />
                 }
               </td>
-              <td class="text-right">{{ t.sortOrder }}</td>
               <td>
                 <p-tag [value]="(t.active ? 'common.active' : 'common.inactive') | translate"
                        [severity]="t.active ? 'success' : 'secondary'" />
@@ -55,7 +52,7 @@ interface PriceTier {
             </tr>
           </ng-template>
           <ng-template pTemplate="emptymessage">
-            <tr><td colspan="5" class="text-center text-gray-400 py-8">
+            <tr><td colspan="4" class="text-center text-gray-400 py-8">
               {{ 'priceTiers.empty' | translate }}
             </td></tr>
           </ng-template>
@@ -76,7 +73,7 @@ export class PriceTierListPage implements OnInit {
     this.loading.set(true);
     try {
       const list = await firstValueFrom(
-        this.http.get<PriceTier[]>('/api/v1/pricing/price-tiers')
+        this.http.get<PriceTier[]>('/api/v1/pricing/tiers')
       );
       this.tiers.set(list ?? []);
     } catch { this.tiers.set([]); }

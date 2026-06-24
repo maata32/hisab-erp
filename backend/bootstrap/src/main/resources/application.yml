@@ -67,6 +67,12 @@ spring:
   mvc:
     problemdetails:
       enabled: false
+  servlet:
+    multipart:
+      # Align Spring's multipart ceiling with app.storage.max-file-size-bytes (5 MB). Beyond this,
+      # MaxUploadSizeExceededException is mapped to 422 error.attachment.too_large (BUG-4).
+      max-file-size: 5MB
+      max-request-size: 10MB
 
 server:
   port: ${SERVER_PORT:8080}

@@ -325,7 +325,13 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
     @Transactional
     public SalesDto.QuoteDto updateQuoteStatus(UUID id, String status) {
         Quote q = loadQuoteInTenant(id);
-        q.setStatus(QuoteStatus.valueOf(status));
+        QuoteStatus newStatus;
+        try {
+            newStatus = QuoteStatus.valueOf(status);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException("error.quote.invalid_status", Map.of("status", String.valueOf(status)));
+        }
+        q.setStatus(newStatus);
         String name = customerLookup.findById(q.getPartyId()).map(PartnerSummary::name).orElse("");
         return toQuoteDto(q, quoteLines.findByQuoteIdOrderByLineNumberAsc(id), name);
     }

@@ -32,6 +32,12 @@ public class InventoryController {
         return warehouses.list();
     }
 
+    @GetMapping("/warehouses/{id}")
+    @PreAuthorize("hasAuthority('stock:read')")
+    public WarehouseDto getWarehouse(@PathVariable UUID id) {
+        return warehouses.get(id);
+    }
+
     @PostMapping("/warehouses")
     @PreAuthorize("hasAuthority('warehouse:manage')")
     @ResponseStatus(HttpStatus.CREATED)

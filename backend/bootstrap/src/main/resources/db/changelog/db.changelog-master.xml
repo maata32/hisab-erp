@@ -83,5 +83,6 @@
     <include file="db/changelog/0076-tenant-lifecycle.xml"/>
     <include file="db/changelog/0077-report-stock-variant.xml"/>
     <include file="db/changelog/0078-grant-app-role.xml"/>
+    <include file="db/changelog/0079-notifications-jsonb-to-text.xml"/>
 
 </databaseChangeLog>

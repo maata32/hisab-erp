@@ -18,9 +18,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.time.Instant;
 import java.util.List;
@@ -125,6 +127,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(OptimisticLockingFailureException.class)
     public ResponseEntity<ApiError> optimisticLock(OptimisticLockingFailureException e, HttpServletRequest req) {
         return simpleError(HttpStatus.CONFLICT, "error.optimistic_lock", req);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiError> methodNotAllowed(HttpRequestMethodNotSupportedException e, HttpServletRequest req) {
+        return simpleError(HttpStatus.METHOD_NOT_ALLOWED, "error.method_not_allowed", req);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> maxUploadSize(MaxUploadSizeExceededException e, HttpServletRequest req) {
+        return simpleError(HttpStatus.UNPROCESSABLE_ENTITY, "error.attachment.too_large", req);
     }
 
     @ExceptionHandler(Exception.class)

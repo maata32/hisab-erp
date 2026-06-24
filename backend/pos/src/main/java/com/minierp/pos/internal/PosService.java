@@ -83,6 +83,11 @@ public class PosService {
         return registers.findByActiveTrue().stream().map(this::toRegisterDto).toList();
     }
 
+    @Transactional(readOnly = true)
+    public CashRegisterDto getRegister(UUID registerId) {
+        return toRegisterDto(loadRegisterInTenant(registerId));
+    }
+
     // ── Sessions ─────────────────────────────────────────────────────────────
 
     /**

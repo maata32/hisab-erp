@@ -55,7 +55,7 @@ class NotificationLog extends AuditableEntity {
     @Column(length = 10)
     private String locale;
 
-    @Column(columnDefinition = "jsonb")
+    @Column(columnDefinition = "text")
     private String payload;
 
     @Column(nullable = false, length = 20)
