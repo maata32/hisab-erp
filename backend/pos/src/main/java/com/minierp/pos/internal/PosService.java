@@ -6,6 +6,7 @@ import com.minierp.catalog.api.VariantLookup;
 import com.minierp.catalog.api.VariantView;
 import com.minierp.inventory.api.StockMovementType;
 import com.minierp.inventory.api.StockOperations;
+import com.minierp.lotexpiry.api.LotAllocation;
 import com.minierp.lotexpiry.api.LotOperations;
 import com.minierp.pos.api.CashRegisterDto;
 import com.minierp.pos.api.CashSessionDto;
@@ -349,15 +350,27 @@ public class PosService {
         session.setTotalSales(session.getTotalSales().add(total));
         session.setTotalCashIn(session.getTotalCashIn().add(paidCash.subtract(changeDue)));
 
-        // Decrement stock per line — permit negative per spec §3.1.3
-        for (SaleLine line : builtLines) {
+        // Decrement stock per line — permit negative per spec §3.1.3.
+        // builtLines is in the same order as req.lines(), so we index back to pick up the
+        // optional manual lot selection.
+        for (int i = 0; i < builtLines.size(); i++) {
+            SaleLine line = builtLines.get(i);
+            var lr = req.lines().get(i);
             stockOps.issueAllowNegative(
                     register.getWarehouseId(), line.getVariantId(), line.getBaseQuantity(),
                     StockMovementType.SALE, "SALE", sale.getId(), sale.getNumber(),
                     null, userId);
-            // FEFO lot consumption for lot/expiry-tracked variants (no-op otherwise).
-            lotOps.consumeFefoIfTracked(line.getVariantId(), register.getWarehouseId(),
-                    line.getBaseQuantity(), "POS_SALE", sale.getId());
+            if (lr.lotAllocations() != null && !lr.lotAllocations().isEmpty()) {
+                // Manual lot selection (LOT-15): consume exactly the designated lots, overriding FEFO.
+                List<LotAllocation> allocs = lr.lotAllocations().stream()
+                        .map(a -> new LotAllocation(a.lotId(), a.quantity())).toList();
+                lotOps.consumeExplicitLots(line.getVariantId(), register.getWarehouseId(),
+                        line.getBaseQuantity(), allocs, "POS_SALE", sale.getId());
+            } else {
+                // Automatic FEFO consumption for lot/expiry-tracked variants (no-op otherwise).
+                lotOps.consumeFefoIfTracked(line.getVariantId(), register.getWarehouseId(),
+                        line.getBaseQuantity(), "POS_SALE", sale.getId());
+            }
         }
 
         return toDto(sale);

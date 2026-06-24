@@ -43,6 +43,16 @@ public interface LotOperations {
                              String referenceType, UUID referenceId);
 
     /**
+     * Manual lot selection (overrides FEFO): consume the exact {@code allocations} (lotId + quantity)
+     * for the given variant/warehouse. Validates that each lot is an ACTIVE lot of this
+     * variant+warehouse with enough remaining and that the allocations sum to {@code expectedQty},
+     * then decrements them and records SALE_OUT movements. Throws a 422 BusinessException on any
+     * validation failure (so the sale/delivery is rejected rather than silently mis-consumed).
+     */
+    void consumeExplicitLots(UUID variantId, UUID warehouseId, BigDecimal expectedQty,
+                             List<LotAllocation> allocations, String referenceType, UUID referenceId);
+
+    /**
      * Receive stock into a new or existing lot.
      */
     UUID receiveLot(UUID variantId, UUID warehouseId, UUID uomId,

@@ -23,7 +23,21 @@ public record CreateSaleRequest(
             @NotNull UUID variantId,
             UUID uomId,
             @NotNull @DecimalMin("0.000001") BigDecimal quantity,
-            @DecimalMin("0.0000") BigDecimal unitDiscount) {}
+            @DecimalMin("0.0000") BigDecimal unitDiscount,
+            /** Optional manual lot selection (overrides FEFO). When set, the sum of the allocation
+             *  quantities must equal the line's base quantity and each lot must be a valid ACTIVE lot
+             *  of this variant/warehouse with enough remaining. */
+            @Valid List<LotAllocationRequest> lotAllocations) {
+
+        /** Backwards-compatible constructor (no manual lot selection → automatic FEFO). */
+        public SaleLineRequest(UUID variantId, UUID uomId, BigDecimal quantity, BigDecimal unitDiscount) {
+            this(variantId, uomId, quantity, unitDiscount, null);
+        }
+    }
+
+    public record LotAllocationRequest(
+            @NotNull UUID lotId,
+            @NotNull @DecimalMin("0.000001") BigDecimal quantity) {}
 
     public record PaymentRequest(
             @DecimalMin("0.00") BigDecimal cash,
