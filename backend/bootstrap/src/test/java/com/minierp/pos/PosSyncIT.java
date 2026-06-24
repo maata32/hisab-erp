@@ -100,6 +100,37 @@ class PosSyncIT {
         assertThat(dbCount).isEqualTo(1000);
     }
 
+    @Test
+    @DisplayName("Batch with one failing sale: the others still commit (no rollback-only poisoning)")
+    void sync_batch_isolates_failing_sale() {
+        UUID unpricedVariant = insertProduct(uomId); // product + variant, but NO price seeded → no_price
+        String goodKey = "OK-" + tenantId;
+        String badKey = "BAD-" + tenantId;
+        List<CreateSaleRequest> batch = List.of(
+                new CreateSaleRequest(goodKey, registerId, sessionId, null, null, null, null,
+                        List.of(new SaleLineRequest(productId, uomId, BigDecimal.ONE, null)),
+                        new PaymentRequest(new BigDecimal("10.00"), null, null, null)),
+                new CreateSaleRequest(badKey, registerId, sessionId, null, null, null, null,
+                        List.of(new SaleLineRequest(unpricedVariant, uomId, BigDecimal.ONE, null)),
+                        new PaymentRequest(new BigDecimal("10.00"), null, null, null)));
+
+        // Must NOT throw (previously the failing sale marked the shared tx rollback-only → 500).
+        SyncSalesResponse resp = posService.syncSales(batch, cashierUserId);
+
+        SyncSalesResponse.SyncResult good = resp.results().stream()
+                .filter(r -> goodKey.equals(r.idempotencyKey())).findFirst().orElseThrow();
+        SyncSalesResponse.SyncResult bad = resp.results().stream()
+                .filter(r -> badKey.equals(r.idempotencyKey())).findFirst().orElseThrow();
+        assertThat(good.status()).isEqualTo("ACCEPTED");
+        assertThat(good.saleId()).isNotNull();
+        assertThat(bad.status()).isEqualTo("ERROR");
+
+        // The good sale is persisted despite the bad one failing in the same batch.
+        Integer dbCount = jdbc.queryForObject("SELECT COUNT(*) FROM sales WHERE session_id = ?",
+                Integer.class, sessionId);
+        assertThat(dbCount).isEqualTo(1);
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private List<CreateSaleRequest> buildBatch(int count) {

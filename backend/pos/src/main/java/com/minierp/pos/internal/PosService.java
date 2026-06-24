@@ -26,6 +26,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -60,6 +62,11 @@ public class PosService {
     private final StockOperations stockOps;
     private final LotOperations lotOps;
     private final TreasuryOperations treasury;
+
+    // Self-reference (proxy) so syncSales can invoke createSale through its @Transactional
+    // boundary — each batched sale gets its own transaction. @Lazy breaks the construction cycle.
+    @Autowired @Lazy
+    private PosService self;
 
     // ── Registers ───────────────────────────────────────────────────────────
 
@@ -356,12 +363,15 @@ public class PosService {
         return toDto(sale);
     }
 
-    @Transactional
+    // NOT @Transactional: each sale is processed in its OWN transaction via self.createSale (the
+    // proxy applies createSale's @Transactional). A sale that fails rolls back only its own
+    // transaction — the others still commit. (Previously this method was @Transactional and a single
+    // failing sale marked the shared transaction rollback-only, 500-ing the whole /sync batch.)
     public SyncSalesResponse syncSales(List<CreateSaleRequest> batch, UUID userId) {
         List<SyncSalesResponse.SyncResult> results = new ArrayList<>();
         for (CreateSaleRequest req : batch) {
             try {
-                SaleDto dto = createSale(req, userId);
+                SaleDto dto = self.createSale(req, userId);
                 results.add(new SyncSalesResponse.SyncResult(
                         req.idempotencyKey(), dto.id(), dto.number(), "ACCEPTED", null));
             } catch (Exception ex) {
