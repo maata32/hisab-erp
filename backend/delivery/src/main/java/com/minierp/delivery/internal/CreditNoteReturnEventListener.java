@@ -2,6 +2,7 @@ package com.minierp.delivery.internal;
 
 import com.minierp.inventory.api.StockMovementType;
 import com.minierp.inventory.api.StockOperations;
+import com.minierp.lotexpiry.api.LotOperations;
 import com.minierp.sales.api.CreditNoteReturnRequestedEvent;
 import com.minierp.sales.api.NumberingOperations;
 import com.minierp.shared.error.BusinessException;
@@ -36,6 +37,7 @@ class CreditNoteReturnEventListener {
     private final DeliveryLineRepository deliveryLines;
     private final NumberingOperations numbering;
     private final StockOperations stockOps;
+    private final LotOperations lotOps;
     private final JdbcTemplate jdbc;
 
     @EventListener
@@ -80,6 +82,9 @@ class CreditNoteReturnEventListener {
                     rl.unitPrice(), StockMovementType.SALE_RETURN,
                     "DELIVERY", br.getId(), br.getNumber(),
                     "Return delivery " + br.getNumber(), null);
+            // Restore lots for lot/expiry-tracked variants (no-op otherwise).
+            lotOps.restoreLotsOnReturn(rl.variantId(), warehouseId, rl.quantity(),
+                    "DELIVERY", br.getId());
         }
     }
 

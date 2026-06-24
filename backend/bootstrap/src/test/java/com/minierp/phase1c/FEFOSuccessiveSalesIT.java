@@ -159,4 +159,67 @@ class FEFOSuccessiveSalesIT {
         assertThat(alloc.get(1).lotId()).isEqualTo(lotBId);
         assertThat(alloc.get(1).quantity()).isEqualByComparingTo("5");
     }
+
+    @Test
+    @DisplayName("consumeFefoIfTracked: nearest-expiry first, exhausts oldest, tolerant on shortfall")
+    void consumeFefoIfTracked_fefoAndTolerant() {
+        LocalDate today = LocalDate.now();
+        UUID lotAId = lotOps.receiveLot(productId, warehouseId, uomId, "LOT-A", today.plusDays(10), null,
+                BigDecimal.valueOf(5), BigDecimal.ONE, null, null);
+        UUID lotBId = lotOps.receiveLot(productId, warehouseId, uomId, "LOT-B", today.plusDays(30), null,
+                BigDecimal.valueOf(10), BigDecimal.ONE, null, null);
+
+        // Consume 7 → LOT-A fully (5, EXHAUSTED) then LOT-B (2). productId doubles as variantId here.
+        lotOps.consumeFefoIfTracked(productId, warehouseId, BigDecimal.valueOf(7), "DELIVERY", UUID.randomUUID());
+        assertThat(qtyOf(lotAId)).isEqualByComparingTo("0");
+        assertThat(statusOf(lotAId)).isEqualTo("EXHAUSTED");
+        assertThat(qtyOf(lotBId)).isEqualByComparingTo("8");
+        assertThat(saleOutCount(lotAId)).isEqualTo(1);
+
+        // Tolerant: request 100 (> remaining 8) → consumes the 8 available, no exception thrown.
+        lotOps.consumeFefoIfTracked(productId, warehouseId, BigDecimal.valueOf(100), "DELIVERY", UUID.randomUUID());
+        assertThat(qtyOf(lotBId)).isEqualByComparingTo("0");
+        assertThat(statusOf(lotBId)).isEqualTo("EXHAUSTED");
+    }
+
+    @Test
+    @DisplayName("restoreLotsOnReturn: revives an exhausted lot and records RETURN_IN")
+    void restoreLotsOnReturn_revivesLot() {
+        LocalDate today = LocalDate.now();
+        UUID lotAId = lotOps.receiveLot(productId, warehouseId, uomId, "LOT-A", today.plusDays(10), null,
+                BigDecimal.valueOf(5), BigDecimal.ONE, null, null);
+        lotOps.consumeFefoIfTracked(productId, warehouseId, BigDecimal.valueOf(5), "DELIVERY", UUID.randomUUID());
+        assertThat(statusOf(lotAId)).isEqualTo("EXHAUSTED");
+
+        lotOps.restoreLotsOnReturn(productId, warehouseId, BigDecimal.valueOf(3), "DELIVERY", UUID.randomUUID());
+        assertThat(qtyOf(lotAId)).isEqualByComparingTo("3");
+        assertThat(statusOf(lotAId)).isEqualTo("ACTIVE");
+        Integer returnIns = jdbc.queryForObject(
+                "SELECT count(*) FROM lot_movements WHERE lot_id=? AND type='RETURN_IN'", Integer.class, lotAId);
+        assertThat(returnIns).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("consumeFefoIfTracked: no-op for a non-tracked / unknown variant")
+    void consumeFefoIfTracked_noopWhenNotTracked() {
+        UUID unknownVariant = UUID.randomUUID();
+        // must not throw and must not create or touch any lot
+        lotOps.consumeFefoIfTracked(unknownVariant, warehouseId, BigDecimal.valueOf(5), "DELIVERY", UUID.randomUUID());
+        Integer lotCount = jdbc.queryForObject(
+                "SELECT count(*) FROM product_lots WHERE product_variant_id=?", Integer.class, unknownVariant);
+        assertThat(lotCount).isEqualTo(0);
+    }
+
+    private BigDecimal qtyOf(UUID lotId) {
+        return jdbc.queryForObject("SELECT quantity_remaining FROM product_lots WHERE id=?", BigDecimal.class, lotId);
+    }
+
+    private String statusOf(UUID lotId) {
+        return jdbc.queryForObject("SELECT status FROM product_lots WHERE id=?", String.class, lotId);
+    }
+
+    private Integer saleOutCount(UUID lotId) {
+        return jdbc.queryForObject(
+                "SELECT count(*) FROM lot_movements WHERE lot_id=? AND type='SALE_OUT'", Integer.class, lotId);
+    }
 }

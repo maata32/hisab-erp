@@ -1,0 +1,76 @@
+# Synthèse — Rejeu complet de la recette sur `main` (2026-06-24)
+
+**Verdict : 413 OK · 0 KO · 5 Bloqué · 1 N/A sur 419 cas. Les 19 cas KO du 2026-06-24 sont
+tous confirmés corrigés. Aucune régression.**
+
+> Mise à jour (suite) : sur les 9 cas Bloqué initiaux, **4 ont été débloqués** lors du suivi —
+> POS-10/POS-24 (hors-ligne POS rejoué via Playwright) et LOT-13/LOT-14 (moteur FEFO désormais
+> câblé dans vente/livraison/POS). Il reste **5 Bloqué** (jobs planifiés, sélection manuelle de lot,
+> garde inatteignable). Voir les sections « Approfondissement » et « Suivi » plus bas.
+
+## Contexte & méthode
+- **Branche testée** : `main` (correctifs P0→P2 de la recette du 2026-06-24 mergés, commit `a355ca7`). Vérifié en amont sur l'app live : `/pricing/tiers`→200 (BUG-9), `/inventory/transfers`→200 (BUG-10), route inconnue→404 (durcissement), produit cross-tenant→404 (BUG-2).
+- **Tenant isolé neuf** : `recette2` (« Recette Main 0624 », MIXTE, plan ENTERPRISE, MRU/fr), provisionné par le vrai flux *inscription → approbation super-admin (`root`) → activation*, puis seedé (UoM, 3 grilles tarifaires, 2 entrepôts, client + fournisseur, 5 produits dont un périssable, stock d'ouverture).
+- **Exécution** : API réelle (Node `fetch`) + visuel **Playwright** (login UI réel, ~140 captures). Un agent par domaine a rejoué chaque cas contre l'app live (backend :8080, admin :4200, POS :4201).
+- **Incident & remédiation** : la limite d'usage de session a interrompu 9 des 10 agents en cours de route. Les scripts de test qu'ils avaient écrits (et les données + captures qu'ils avaient produites) étaient persistés sur disque : ils ont été **réexécutés directement** (sans agent) pour récolter les résultats, puis chaque cas KO a été **revérifié manuellement** contre l'API live.
+
+## Les 19 cas KO du 2026-06-24 → tous OK
+| Cas | Bug | Vérif sur main |
+|---|---|---|
+| AUTH-04 | verrouillage compte inopérant | 5 échecs → 403 `auth.account_locked`, persisté (user jetable) |
+| SEC-02 | fuite inter-tenant `GET /products/{id}` | produit `demo` lu depuis `recette2` → 404 |
+| NOTIF-02 | PUT notif config → 500 | jsonb→text (migr. 0079), upsert enabled=false OK |
+| PROD-14 / DEP-10 / DEP-11 | upload >5 Mo → 500 | 422 `error.attachment.too_large`, 2 Mo accepté |
+| WH-08 | DELETE entrepôt → 500 | 405 `error.method_not_allowed` |
+| DEV-11 | annuler devis DRAFT → 500 | enum CANCELLED, transition OK |
+| BC-10 / PDF-10 | PDF bon de commande → 500 | template corrigé, PDF 200 application/pdf |
+| PRC-01 | écran Tarifs `/price-tiers` cassé | `/pricing/tiers` → 200, 3 grilles |
+| TRF-09 | écran Transferts cassé | front → `/inventory/transfers` (200) ; ancienne route → 404 |
+| PART-22 / PART-23 | retrait crédit sans paiement → 409 | `payment_id` nullable (migr. 0080), retrait 200 |
+| VAR-04 | régénération variantes → 409 | 2e PUT attributes → 200, variants désactivés (non supprimés) |
+| PRC-10 | paliers minQty non persistés | clé unique min_qty (migr. 0081), 2 paliers coexistent |
+| LOT-22 | lots BLOCKED invisibles | filtre statut retiré, lot bloqué reste listé |
+| BL-05 | sur-livraison non plafonnée | livrer > facturé → 422 `error.delivery.exceeds_invoiced` |
+| REP-20 | top-products (couverture données) | endpoint OK avec données suffisantes |
+
+## Aucun KO réel à ce rejeu — 13 « KO » des scripts étaient des faux positifs
+Les scripts d'agents (interrompus, non revérifiés par l'étape adversariale) ont marqué 13 cas KO. **Revérification manuelle live : tous faux-KO** (erreurs de harnais, pas de bugs) :
+- **PROD-06** : (dé)activation via `PATCH /products/{id}` (le script utilisait `DELETE`, non mappé). Conforme.
+- **PROD-07** : recherche via `?q=` (le script utilisait `?search=`, ignoré). `q=Savon` → filtré, conforme.
+- **UOM-12 / UOM-13** : `/uoms/convert` attend des **UUID** (le script passait les codes « G »/« KG »). Avec IDs : 2500 G→KG = 2,5 ; inter-catégories → 422 `category_mismatch`. *(NB hygiène : un code non-UUID renvoie 500 au lieu de 400 — mineur, à durcir.)*
+- **BL-06** : comportement **conforme** (BL enregistrable malgré stock insuffisant, confirmation → 422). Le script l'a mal jugé.
+- **PDF-03** : permission OK — sans jeton 401, STOCK_KEEPER 403, admin 200 PDF.
+- **PDF-07 / PDF-10 / PDF-11 / PDF-12 / PDF-13** : cascade d'un setup achat invalide (lignes sans `unitCost` → 422). Recréés correctement → tous les PDF (reçu paiement, BC, facture/réception/avoir fournisseur) **200 application/pdf**.
+- **VAR-04** : non seulement plus de 409, mais comportement exact attendu (4 variants conservés, 2 désactivés, 2 actifs).
+
+## Cas Bloqué — 9 au rejeu, **5 restants** après suivi
+**Débloqués depuis (4)** : AUTH-08 (super-admin sur tenant suspendu, via promotion DB), POS-10/POS-24 (hors-ligne POS rejoué via Playwright), LOT-13/LOT-14 (FEFO câblé — voir « Suivi » ci-dessous).
+
+**Restent Bloqué (5) — limites d'infrastructure/architecture, pas des défauts** :
+- **Jobs `@Scheduled` non déclenchables sans accès code/actuator** : LOT-18 (alertes expiration 06:00), LOT-21 (marquage EXPIRED 06:30), TEN-11 (expiration tenant 07:00). Logique couverte par la suite IT backend.
+- **LOT-15 — sélection MANUELLE d'un lot précis** (court-circuit de l'ordre FEFO) : non exposée via l'API/UI. La consommation FEFO automatique est désormais câblée (LOT-13/14), mais choisir un lot explicite en saisie de vente reste une fonctionnalité distincte non implémentée.
+- **BRC-17** : le chemin `error.reception.already_posted` n'est pas atteignable via l'API publique (la garde existe mais `/record` mène toujours à RECEIVED).
+
+## Livrables
+- `Cahier_de_recettes_mini-ERP_execute_2026-06-24_main.xlsx` — classeur rempli (Statut/Testeur/Date/Observations sur les 419 cas, tableau de bord, feuille **Bugs & Anomalies**). La copie du 2026-06-24 reste intacte.
+- `recette_captures_2026-06-24_main/` — 144 captures d'écran de preuve (par domaine D01→D10, incl. hors-ligne POS).
+- Le présent fichier de synthèse.
+
+## Approfondissement des 2 points de vigilance
+
+### 1. `/uoms/convert` renvoie 500 sur paramètre non-UUID → CORRIGÉ
+- **Cause racine** : `UomController.convert` déclare `from`/`to` en `UUID`. Un appel avec un code (« G ») lève `MethodArgumentTypeMismatchException`, non gérée par `GlobalExceptionHandler` → elle tombait dans le catch-all `Exception` → **500 `error.internal`**.
+- **Correctif** (`backend/shared/.../GlobalExceptionHandler.java`) : nouveau `@ExceptionHandler(MethodArgumentTypeMismatchException)` → **400 `error.invalid_parameter`** (avec le nom du paramètre en `details`), + clé i18n fr/en/ar. Durcissement transversal : **tout** endpoint avec un paramètre UUID/typé mal formé répond désormais 400 propre au lieu de 500.
+- **Vérifié live** (après rebuild conteneur) : code « G » → 400 `error.invalid_parameter` ; IDs valides G→KG → 200 (résultat 2,5) ; inter-catégorie G→L → 422 `error.uom.category_mismatch`. Comportement fonctionnel inchangé, seule la réponse d'erreur est assainie.
+
+### 2. FEFO / consommation de lot non branchés aux flux sortants → **CONSTRUIT + vérifié**
+- **Constat initial** : les lots étaient **créés** en entrée (`GoodsReceiptService.receiveLot`, stock d'ouverture) mais **jamais décrémentés** en sortie. Livraison et POS ne touchaient que le **stock total** ; le helper `selectFEFO`/`consumeAllocations` existait mais aucun flux sortant ne l'invoquait.
+- **Réalisé** : nouvel hook `LotOperations.consumeFefoIfTracked(variant, warehouse, qty, refType, refId)` dans `LotService` — consomme en FEFO (péremption la plus proche d'abord) les lots ACTIVE, marque EXHAUSTED, enregistre les mouvements `SALE_OUT`. **Tolérant** (décision produit) : si les lots ne couvrent pas la quantité, consomme l'existant + log d'avertissement, sans bloquer (le stock total reste l'autorité). Hook symétrique `restoreLotsOnReturn` (mouvement `RETURN_IN`, ravive EXHAUSTED→ACTIVE). Détection « produit suivi » par **présence de lots** (un lot n'existe que pour un produit suivi) — évite toute résolution catalogue qui pourrait empoisonner la transaction appelante.
+- **Câblage** : appelé après le débit de stock dans `DeliveryService.recordDelivery`, `PosService.createSale` (couvre aussi la **resync hors-ligne**, `syncSales` passant par `createSale`) ; restauration dans `PosService.voidSale` et `CreditNoteReturnEventListener` (retours/avoirs). Dépendances de module ajoutées (`delivery`→`lotexpiry::api`, `pos`→`lotexpiry::api`) + déclarations Spring Modulith mises à jour.
+- **Vérifié** : suite IT backend **133/0/0** (3 nouveaux tests FEFO : ordre FEFO, tolérance au manque de lot, no-op produit non suivi) ; **E2E live** sur recette2 — vente POS de 7 sur un produit à 2 lots (A exp proche qty5, B qty10) → A 5→0 EXHAUSTED, B 10→8 (FEFO respecté), `SALE_OUT` enregistrés ; void → lots restaurés (total 15). Débloque **LOT-13** et **LOT-14**.
+- **Hors périmètre (documenté)** : la **sélection manuelle** d'un lot (court-circuit FEFO, LOT-15) reste non exposée ; la restauration de retour vise le lot survivant le plus récent (pas de création d'un lot de retour à péremption devinée quand aucun lot ne survit — seulement un log).
+
+### Suivi — hors-ligne POS (POS-10 / POS-24) rejoué
+Rejoué pour de vrai via Playwright (`context.setOffline`) contre le POS (:4201) : vente saisie **hors-ligne** → file locale Dexie (`pendingSales`, statut `pending` + `idempotencyKey`), bandeau « Mode hors-ligne » + reçu de repli affichés (captures `D09/POS-10_*`). À la **reconnexion** → resynchro auto (`POST /pos/sales/sync`) → entrée Dexie `synced` (serverSaleId) et **exactement 1 vente** côté serveur (idempotence, pas de doublon). Débloque POS-10/POS-24.
+
+**Anomalie distincte découverte (non corrigée, recommandée)** : si une vente d'un lot de `/pos/sales/sync` échoue (ex. `error.pricing.no_price`), la transaction interne passe `rollback-only` et **tout le lot de synchro part en 500** (`UnexpectedRollbackException`) — une vente fautive empêche la synchro des autres. Correctif suggéré : isoler chaque vente du batch en `REQUIRES_NEW` dans `PosService.syncSales`. À traiter séparément.

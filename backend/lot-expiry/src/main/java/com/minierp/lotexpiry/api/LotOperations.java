@@ -23,6 +23,26 @@ public interface LotOperations {
     void consumeAllocations(List<LotAllocation> allocations, String referenceType, UUID referenceId);
 
     /**
+     * Outbound hook: when the variant's product is lot/expiry tracked, consume {@code qty}
+     * from its ACTIVE lots oldest-expiry-first (FEFO) and record SALE_OUT movements.
+     * Tolerant — if the available lots cannot cover {@code qty} (incomplete lot data,
+     * e.g. opening stock posted without a lot, or POS oversell), it consumes what exists
+     * and logs a warning rather than blocking the sale/delivery (total stock stays the
+     * source of truth). No-op for non-tracked products. Called right after the stock debit.
+     */
+    void consumeFefoIfTracked(UUID variantId, UUID warehouseId, BigDecimal qty,
+                              String referenceType, UUID referenceId);
+
+    /**
+     * Return hook: when the variant's product is lot/expiry tracked, restore {@code qty}
+     * back into a lot (reverse FEFO — newest-expiry lot first, reviving EXHAUSTED → ACTIVE;
+     * a fresh return lot is created when none exists) and record a RETURN_IN movement.
+     * No-op for non-tracked products. Called alongside the SALE_RETURN stock restock.
+     */
+    void restoreLotsOnReturn(UUID variantId, UUID warehouseId, BigDecimal qty,
+                             String referenceType, UUID referenceId);
+
+    /**
      * Receive stock into a new or existing lot.
      */
     UUID receiveLot(UUID variantId, UUID warehouseId, UUID uomId,

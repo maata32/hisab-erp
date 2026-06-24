@@ -16,6 +16,10 @@ interface ProductLotRepository extends JpaRepository<ProductLot, UUID> {
     List<ProductLot> findByProductVariantIdAndWarehouseIdAndStatusOrderByExpirationDateAsc(
             UUID productVariantId, UUID warehouseId, LotStatus status);
 
+    /** Restore target for a return — restorable lots newest-expiry-first (reverse FEFO). */
+    List<ProductLot> findByProductVariantIdAndWarehouseIdAndStatusInOrderByExpirationDateDesc(
+            UUID productVariantId, UUID warehouseId, java.util.Collection<LotStatus> statuses);
+
     Page<ProductLot> findByProductVariantId(UUID productVariantId, Pageable pageable);
 
     Page<ProductLot> findByProductId(UUID productId, Pageable pageable);
