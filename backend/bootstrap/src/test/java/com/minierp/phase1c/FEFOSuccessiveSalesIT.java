@@ -3,6 +3,7 @@ package com.minierp.phase1c;
 import com.minierp.MiniErpApplication;
 import com.minierp.lotexpiry.api.LotAllocation;
 import com.minierp.lotexpiry.api.LotOperations;
+import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Verifies FEFO (First-Expired First-Out) lot selection across successive sales.
@@ -208,6 +210,46 @@ class FEFOSuccessiveSalesIT {
         Integer lotCount = jdbc.queryForObject(
                 "SELECT count(*) FROM product_lots WHERE product_variant_id=?", Integer.class, unknownVariant);
         assertThat(lotCount).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("consumeExplicitLots: manual selection consumes the designated lot, overriding FEFO")
+    void consumeExplicitLots_overridesFefo() {
+        LocalDate today = LocalDate.now();
+        UUID lotAId = lotOps.receiveLot(productId, warehouseId, uomId, "LOT-A", today.plusDays(10), null,
+                BigDecimal.valueOf(5), BigDecimal.ONE, null, null);
+        UUID lotBId = lotOps.receiveLot(productId, warehouseId, uomId, "LOT-B", today.plusDays(30), null,
+                BigDecimal.valueOf(10), BigDecimal.ONE, null, null);
+
+        // Manually target LOT-B (the FARTHER-expiry lot) for 4 — FEFO would have picked LOT-A first.
+        lotOps.consumeExplicitLots(productId, warehouseId, BigDecimal.valueOf(4),
+                List.of(new LotAllocation(lotBId, BigDecimal.valueOf(4))), "SALE", UUID.randomUUID());
+        assertThat(qtyOf(lotAId)).isEqualByComparingTo("5"); // untouched — FEFO bypassed
+        assertThat(qtyOf(lotBId)).isEqualByComparingTo("6");
+        assertThat(saleOutCount(lotBId)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("consumeExplicitLots: rejects allocations that do not sum to the line quantity")
+    void consumeExplicitLots_rejectsQtyMismatch() {
+        LocalDate today = LocalDate.now();
+        UUID lotAId = lotOps.receiveLot(productId, warehouseId, uomId, "LOT-A", today.plusDays(10), null,
+                BigDecimal.valueOf(5), BigDecimal.ONE, null, null);
+        assertThatThrownBy(() -> lotOps.consumeExplicitLots(productId, warehouseId, BigDecimal.valueOf(5),
+                List.of(new LotAllocation(lotAId, BigDecimal.valueOf(3))), "SALE", UUID.randomUUID()))
+                .isInstanceOf(BusinessException.class);
+        assertThat(qtyOf(lotAId)).isEqualByComparingTo("5"); // rejected → nothing consumed
+    }
+
+    @Test
+    @DisplayName("consumeExplicitLots: rejects a lot with insufficient remaining quantity")
+    void consumeExplicitLots_rejectsInsufficientLot() {
+        LocalDate today = LocalDate.now();
+        UUID lotAId = lotOps.receiveLot(productId, warehouseId, uomId, "LOT-A", today.plusDays(10), null,
+                BigDecimal.valueOf(2), BigDecimal.ONE, null, null);
+        assertThatThrownBy(() -> lotOps.consumeExplicitLots(productId, warehouseId, BigDecimal.valueOf(5),
+                List.of(new LotAllocation(lotAId, BigDecimal.valueOf(5))), "SALE", UUID.randomUUID()))
+                .isInstanceOf(BusinessException.class);
     }
 
     private BigDecimal qtyOf(UUID lotId) {

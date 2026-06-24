@@ -165,6 +165,43 @@ public class LotService implements LotOperations {
 
     @Override
     @Transactional
+    public void consumeExplicitLots(UUID variantId, UUID warehouseId, BigDecimal expectedQty,
+                                    List<LotAllocation> allocations, String referenceType, UUID referenceId) {
+        if (allocations == null || allocations.isEmpty()) {
+            throw new BusinessException("error.lot.allocation_required", Map.of());
+        }
+        BigDecimal sum = BigDecimal.ZERO;
+        for (LotAllocation alloc : allocations) {
+            if (alloc.quantity() == null || alloc.quantity().signum() <= 0) {
+                throw new BusinessException("error.lot.allocation_invalid",
+                        Map.of("lotId", String.valueOf(alloc.lotId()), "reason", "quantity"));
+            }
+            ProductLot lot = loadLotInTenant(alloc.lotId());
+            if (!variantId.equals(lot.getProductVariantId()) || !warehouseId.equals(lot.getWarehouseId())) {
+                throw new BusinessException("error.lot.allocation_invalid",
+                        Map.of("lotId", lot.getId(), "reason", "variant_or_warehouse"));
+            }
+            if (lot.getStatus() != LotStatus.ACTIVE) {
+                throw new BusinessException("error.lot.allocation_invalid",
+                        Map.of("lotId", lot.getId(), "reason", "status:" + lot.getStatus()));
+            }
+            if (lot.getQuantityRemaining().compareTo(alloc.quantity()) < 0) {
+                throw new BusinessException("error.lot.allocation_insufficient",
+                        Map.of("lotId", lot.getId(), "available", lot.getQuantityRemaining(),
+                                "requested", alloc.quantity()));
+            }
+            sum = sum.add(alloc.quantity());
+        }
+        if (expectedQty != null && sum.compareTo(expectedQty) != 0) {
+            throw new BusinessException("error.lot.allocation_qty_mismatch",
+                    Map.of("expected", expectedQty, "provided", sum));
+        }
+        // All allocations validated → consume exactly the designated lots (FEFO is bypassed).
+        consumeAllocations(allocations, referenceType, referenceId);
+    }
+
+    @Override
+    @Transactional
     public UUID receiveLot(UUID variantId, UUID warehouseId, UUID uomId,
                            String lotNumber, LocalDate expirationDate,
                            LocalDate productionDate, BigDecimal quantity,
