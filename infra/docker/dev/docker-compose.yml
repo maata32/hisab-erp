@@ -26,7 +26,7 @@ services:
       - "5433:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ../../../scripts/postgres-init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+      - ../../../scripts/postgres-init.sh:/docker-entrypoint-initdb.d/00-init.sh:ro
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "minierp", "-d", "minierp"]
       interval: 5s
@@ -105,8 +105,13 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/minierp
-      SPRING_DATASOURCE_USERNAME: minierp
+      # Runtime pool uses the restricted NOSUPERUSER/NOBYPASSRLS role so PostgreSQL RLS
+      # (defense layer 2) actually applies. Liquibase runs as the owner role below.
+      SPRING_DATASOURCE_USERNAME: minierp_app
       SPRING_DATASOURCE_PASSWORD: minierp
+      SPRING_LIQUIBASE_URL: jdbc:postgresql://postgres:5432/minierp
+      SPRING_LIQUIBASE_USER: minierp
+      SPRING_LIQUIBASE_PASSWORD: minierp
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_SECRET: DEV_SECRET_AT_LEAST_32_CHARACTERS_LONG_FOR_HS256_OK

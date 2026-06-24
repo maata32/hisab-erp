@@ -34,10 +34,10 @@ class TenantNotificationConfig extends TenantAwareEntity {
     @Builder.Default
     private boolean enabled = true;
 
-    @Column(columnDefinition = "jsonb")
+    @Column(columnDefinition = "text")
     private String channels;
 
-    @Column(columnDefinition = "jsonb")
+    @Column(columnDefinition = "text")
     private String recipients;
 
     @Column(name = "custom_roles", length = 500)

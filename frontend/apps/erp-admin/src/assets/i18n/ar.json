@@ -979,6 +979,11 @@
     "completed": "منجز",
     "status": "الحالة",
     "execute": "تنفيذ",
+    "lines": "البنود",
+    "addLine": "إضافة بند",
+    "product": "المنتج",
+    "quantity": "الكمية",
+    "noLines": "لا توجد بنود. أضف منتجًا واحدًا على الأقل.",
     "statuses": {
       "DRAFT": "مسودة",
       "IN_TRANSIT": "قيد النقل",

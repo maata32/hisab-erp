@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      BUG-13 (PRC-10) : un palier de quantité (minQty) est une ligne de prix distincte
+      pour un même variant/uom/tier/validFrom. La contrainte d'unicité uk_product_prices_unique
+      (0010 puis 0071) n'incluait pas min_qty → la 2ᵉ tranche (ex. 10→80) violait la contrainte
+      et écrasait/refusait la 1ʳᵉ (1→100). Ajouter min_qty à la clé d'unicité pour que les
+      tranches coexistent. (Le service dédoublonne déjà null via COALESCE côté upsert.)
+    -->
+    <changeSet id="0081-product-price-minqty-unique" author="mini-erp">
+        <dropUniqueConstraint tableName="product_prices" constraintName="uk_product_prices_unique"/>
+        <addUniqueConstraint tableName="product_prices"
+                             columnNames="tenant_id,variant_id,uom_id,price_tier_id,valid_from,min_qty"
+                             constraintName="uk_product_prices_unique"/>
+        <rollback>
+            <dropUniqueConstraint tableName="product_prices" constraintName="uk_product_prices_unique"/>
+            <addUniqueConstraint tableName="product_prices"
+                                 columnNames="tenant_id,variant_id,uom_id,price_tier_id,valid_from"
+                                 constraintName="uk_product_prices_unique"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

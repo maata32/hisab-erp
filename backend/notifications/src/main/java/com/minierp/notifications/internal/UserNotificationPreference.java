@@ -36,6 +36,6 @@ class UserNotificationPreference extends TenantAwareEntity {
     @Builder.Default
     private boolean enabled = true;
 
-    @Column(columnDefinition = "jsonb")
+    @Column(columnDefinition = "text")
     private String channels;
 }

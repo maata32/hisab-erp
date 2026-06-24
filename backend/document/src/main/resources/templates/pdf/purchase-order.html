@@ -67,7 +67,6 @@
         <th>Description</th>
         <th>Réf.</th>
         <th class="text-right">Qté</th>
-        <th class="text-right">Reçu</th>
         <th class="text-right">P.U. HT</th>
         <th class="text-right">TVA</th>
         <th class="text-right">Total HT</th>
@@ -79,7 +78,6 @@
         <td th:text="${line.productName}"></td>
         <td th:text="${line.sku}"></td>
         <td class="text-right" th:text="${qty.format(line.quantity)}"></td>
-        <td class="text-right" th:text="${qty.format(line.quantityReceived)}"></td>
         <td class="text-right" th:text="${#numbers.formatDecimal(line.unitCost,1,decimals)}"></td>
         <td class="text-right" th:text="${#numbers.formatDecimal(line.taxRate * 100,1,0) + '%'}"></td>
         <td class="text-right" th:text="${#numbers.formatDecimal(line.lineTotal,1,decimals)}"></td>

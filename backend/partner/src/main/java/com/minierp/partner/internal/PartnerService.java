@@ -4,6 +4,8 @@ import com.minierp.partner.api.*;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.ConflictException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.persistence.TenantGuard;
+import com.minierp.shared.tenant.TenantContext;
 import com.minierp.shared.util.PageResponse;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -51,7 +53,9 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
     @Override
     @Transactional(readOnly = true)
     public Optional<PartnerSummary> findById(UUID id) {
-        return partners.findById(id).map(this::toSummary);
+        return partners.findById(id)
+                .filter(p -> p.getTenantId().equals(TenantContext.require()))
+                .map(this::toSummary);
     }
 
     @Override
@@ -132,8 +136,7 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
 
     @Transactional
     public PartnerDto update(UUID id, CreatePartnerRequest req) {
-        Partner p = partners.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.partner", id));
+        Partner p = loadPartnerInTenant(id);
         p.setName(req.name());
         p.setEmail(req.email());
         p.setPhone(req.phone());
@@ -151,15 +154,13 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
 
     @Transactional
     public void deactivate(UUID id) {
-        Partner p = partners.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.partner", id));
+        Partner p = loadPartnerInTenant(id);
         p.setActive(false);
     }
 
     @Transactional(readOnly = true)
     public PartnerDto getById(UUID id) {
-        return toDto(partners.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.partner", id)));
+        return toDto(loadPartnerInTenant(id));
     }
 
     /**
@@ -216,7 +217,7 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
 
     @Transactional(readOnly = true)
     public ArBalanceDto getArBalance(UUID id) {
-        partners.findById(id).orElseThrow(() -> NotFoundException.of("entity.partner", id));
+        loadPartnerInTenant(id);
         ArBalance b = arBalances.findByPartyId(id)
                 .orElseGet(() -> ArBalance.builder().partyId(id).build());
         return new ArBalanceDto(b.getPartyId(), b.getTotalInvoiced(),
@@ -225,7 +226,7 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
 
     @Transactional(readOnly = true)
     public ApBalanceDto getApBalance(UUID id) {
-        partners.findById(id).orElseThrow(() -> NotFoundException.of("entity.partner", id));
+        loadPartnerInTenant(id);
         ApBalance b = apBalances.findByPartyId(id)
                 .orElseGet(() -> ApBalance.builder().partyId(id).build());
         return new ApBalanceDto(b.getPartyId(), b.getTotalInvoiced(),
@@ -236,8 +237,7 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
 
     @Transactional
     public PartnerDto activateSupplierRole(UUID id, ActivateSupplierRoleRequest req) {
-        Partner p = partners.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.partner", id));
+        Partner p = loadPartnerInTenant(id);
         if (p.isSupplier()) {
             throw new ConflictException("error.partner.supplier_role_already_active",
                     Map.of("partyId", id));
@@ -253,8 +253,7 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
 
     @Transactional
     public PartnerDto activateCustomerRole(UUID id, ActivateCustomerRoleRequest req) {
-        Partner p = partners.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.partner", id));
+        Partner p = loadPartnerInTenant(id);
         if (p.isCustomer()) {
             throw new ConflictException("error.partner.customer_role_already_active",
                     Map.of("partyId", id));
@@ -277,8 +276,7 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
      */
     @Transactional
     public PartnerDto deactivateSupplierRole(UUID id) {
-        Partner p = partners.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.partner", id));
+        Partner p = loadPartnerInTenant(id);
         if (!p.isSupplier()) {
             throw new BusinessException("error.partner.not_a_supplier",
                     Map.of("partyId", id));
@@ -328,8 +326,7 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
      */
     @Transactional
     public PartnerDto deactivateCustomerRole(UUID id) {
-        Partner p = partners.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.partner", id));
+        Partner p = loadPartnerInTenant(id);
         if (!p.isCustomer()) {
             throw new BusinessException("error.partner.not_a_customer",
                     Map.of("partyId", id));
@@ -418,8 +415,7 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
     @Transactional
     public CustomerCreditDto createCredit(UUID partyId, BigDecimal amount, String source, String notes,
                                           UUID sourcePaymentId) {
-        Partner p = partners.findById(partyId)
-                .orElseThrow(() -> NotFoundException.of("entity.partner", partyId));
+        Partner p = loadPartnerInTenant(partyId);
         if (!p.isCustomer()) {
             throw new BusinessException("error.partner.not_a_customer", Map.of("partyId", partyId));
         }
@@ -466,8 +462,7 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
         if (amount == null || amount.signum() <= 0) {
             throw new BusinessException("error.credit.invalid_amount", Map.of("amount", amount));
         }
-        CustomerCredit credit = credits.findById(creditId)
-                .orElseThrow(() -> NotFoundException.of("entity.customer_credit", creditId));
+        CustomerCredit credit = loadCreditInTenant(creditId);
         if (credit.getStatus() != CustomerCreditStatus.ACTIVE) {
             throw new BusinessException("error.credit.not_active",
                     Map.of("status", credit.getStatus().name()));
@@ -489,8 +484,7 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
         if (amount == null || amount.signum() <= 0) {
             throw new BusinessException("error.credit.invalid_amount", Map.of("amount", amount));
         }
-        CustomerCredit credit = credits.findById(creditId)
-                .orElseThrow(() -> NotFoundException.of("entity.customer_credit", creditId));
+        CustomerCredit credit = loadCreditInTenant(creditId);
         if (!credit.getPartyId().equals(partyId)) {
             throw NotFoundException.of("entity.customer_credit", creditId);
         }
@@ -515,6 +509,26 @@ public class PartnerService implements PartnerLookup, CustomerStatementLookup, C
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Loads a partner by primary key, enforcing tenant isolation. A by-id lookup
+     * bypasses the Hibernate tenant {@code @Filter}, so a row owned by another
+     * tenant would otherwise be returned; {@link TenantGuard} turns that into the
+     * same {@link NotFoundException} as a missing row.
+     */
+    private Partner loadPartnerInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(partners.findById(id),
+                () -> NotFoundException.of("entity.partner", id));
+    }
+
+    /**
+     * Loads a customer credit by primary key with the same cross-tenant guard as
+     * {@link #loadPartnerInTenant(UUID)}.
+     */
+    private CustomerCredit loadCreditInTenant(UUID creditId) {
+        return TenantGuard.requireSameTenant(credits.findById(creditId),
+                () -> NotFoundException.of("entity.customer_credit", creditId));
+    }
 
     private PartnerSummary toSummary(Partner p) {
         return new PartnerSummary(p.getId(), p.getCode(),

@@ -5,6 +5,7 @@ import com.minierp.inventory.api.StockOperations;
 import com.minierp.inventory.api.StockTransferDto;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.persistence.TenantGuard;
 import com.minierp.shared.security.CurrentUserHolder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -35,8 +36,17 @@ public class StockTransferService {
 
     @Transactional(readOnly = true)
     public StockTransferDto.TransferResponse get(UUID id) {
-        return toDto(transfers.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.stock_transfer", id)));
+        return toDto(loadTransferInTenant(id));
+    }
+
+    /**
+     * Load a stock transfer by id, enforcing it belongs to the current tenant. {@code findById}
+     * bypasses the Hibernate tenant filter, so without this guard a token from tenant A could
+     * read/modify a transfer of tenant B (BUG-2 / SEC-02).
+     */
+    private StockTransfer loadTransferInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(transfers.findById(id),
+                () -> NotFoundException.of("entity.stock_transfer", id));
     }
 
     @Transactional
@@ -73,8 +83,7 @@ public class StockTransferService {
 
     @Transactional
     public StockTransferDto.TransferResponse execute(UUID id) {
-        StockTransfer transfer = transfers.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.stock_transfer", id));
+        StockTransfer transfer = loadTransferInTenant(id);
         if (transfer.getStatus() != StockTransferStatus.DRAFT
                 && transfer.getStatus() != StockTransferStatus.CONFIRMED) {
             throw new BusinessException("error.inventory.transfer_not_executable",
@@ -101,8 +110,7 @@ public class StockTransferService {
 
     @Transactional
     public StockTransferDto.TransferResponse cancel(UUID id) {
-        StockTransfer transfer = transfers.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.stock_transfer", id));
+        StockTransfer transfer = loadTransferInTenant(id);
         if (transfer.getStatus() == StockTransferStatus.COMPLETED) {
             throw new BusinessException("error.inventory.transfer_already_completed", Map.of());
         }
@@ -116,10 +124,14 @@ public class StockTransferService {
         return String.format("TRF-%d-%05d", year, seq);
     }
 
+    /**
+     * Ensure the warehouse exists and belongs to the current tenant, so a transfer cannot
+     * reference another tenant's warehouse as source or destination ({@code findById} bypasses
+     * the Hibernate tenant filter — BUG-2 / SEC-02).
+     */
     private void ensureWarehouse(UUID id) {
-        if (warehouses.findById(id).isEmpty()) {
-            throw NotFoundException.of("entity.warehouse", id);
-        }
+        TenantGuard.requireSameTenant(warehouses.findById(id),
+                () -> NotFoundException.of("entity.warehouse", id));
     }
 
     private StockTransferDto.TransferResponse toDto(StockTransfer t) {

@@ -41,16 +41,24 @@ public class TenantSessionAspect {
     public Object aroundTransactional(ProceedingJoinPoint pjp) throws Throwable {
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             UUID tenantId = TenantContext.tryGet().orElse(null);
-            if (tenantId != null) {
-                try {
-                    Session session = entityManager.unwrap(Session.class);
-                    session.enableFilter("tenantFilter").setParameter("tenantId", tenantId);
-                    entityManager.createNativeQuery("SELECT set_config('app.current_tenant', :v, true)")
-                            .setParameter("v", tenantId.toString())
-                            .getSingleResult();
-                } catch (RuntimeException ex) {
-                    log.warn("Could not activate tenant context on session: {}", ex.getMessage());
+            try {
+                if (tenantId != null) {
+                    entityManager.unwrap(Session.class)
+                            .enableFilter("tenantFilter").setParameter("tenantId", tenantId);
                 }
+                // Pin the Postgres session var for THIS transaction (is_local=true) on EVERY
+                // transactional call — to the tenant when present, otherwise empty. Setting it
+                // UNCONDITIONALLY prevents a stale value left on a pooled connection (e.g. a
+                // session-level set_config, or another tenant's prior transaction) from leaking
+                // into a context-less transaction such as login. Under the non-superuser runtime
+                // role that leak would make RLS hide the very rows the transaction needs (it broke
+                // login for any tenant != the leaked one). Empty maps to NULL → RLS bypass, the
+                // same as an unset context.
+                entityManager.createNativeQuery("SELECT set_config('app.current_tenant', :v, true)")
+                        .setParameter("v", tenantId == null ? "" : tenantId.toString())
+                        .getSingleResult();
+            } catch (RuntimeException ex) {
+                log.warn("Could not activate tenant context on session: {}", ex.getMessage());
             }
         }
         return pjp.proceed();

@@ -28,8 +28,10 @@ interface ProductLotRepository extends JpaRepository<ProductLot, UUID> {
            "WHERE pl.expirationDate < :today AND pl.status = 'ACTIVE'")
     int markExpiredLotsBeforeDate(@Param("today") LocalDate today);
 
-    @Query("SELECT pl FROM ProductLot pl WHERE pl.status IN ('ACTIVE','EXPIRED') " +
-           "AND (:warehouseId IS NULL OR pl.warehouseId = :warehouseId) " +
+    // "All" tab: every lot regardless of status — BLOCKED/DESTROYED/EXHAUSTED must stay
+    // visible (with their tag) so e.g. a blocked lot can still be reached for destruction
+    // (BUG-14 / LOT-22). The dedicated tabs (findExpiringWithin / findExpired) still filter.
+    @Query("SELECT pl FROM ProductLot pl WHERE (:warehouseId IS NULL OR pl.warehouseId = :warehouseId) " +
            "ORDER BY pl.expirationDate ASC")
     Page<ProductLot> findForDashboard(@Param("warehouseId") UUID warehouseId, Pageable pageable);
 

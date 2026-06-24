@@ -29,6 +29,12 @@ public class CashRegisterController {
         return posService.listRegisters();
     }
 
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('pos:operate')")
+    public CashRegisterDto get(@PathVariable UUID id) {
+        return posService.getRegister(id);
+    }
+
     @PostMapping
     @PreAuthorize("hasAuthority('warehouse:manage')")
     @ResponseStatus(HttpStatus.CREATED)

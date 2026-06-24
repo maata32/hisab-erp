@@ -13,6 +13,7 @@ import com.minierp.purchase.api.GoodsReceiptDto;
 import com.minierp.sales.api.NumberingOperations;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.persistence.TenantGuard;
 import com.minierp.shared.security.CurrentUserHolder;
 import com.minierp.shared.tenant.TenantContext;
 import com.minierp.shared.util.PageResponse;
@@ -58,12 +59,33 @@ public class GoodsReceiptService {
     private final DocumentRenderer renderer;
     private final TenantLookup tenantLookup;
 
+    /**
+     * Load a goods receipt by id, enforcing it belongs to the current tenant.
+     * {@code findById} bypasses the Hibernate tenant filter, so without this guard
+     * a by-id receipt endpoint would leak across tenants (BUG-2 / SEC-02). Preserves
+     * the existing NotFound contract.
+     */
+    private GoodsReceipt loadReceiptInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(receipts.findById(id),
+                () -> NotFoundException.of("entity.goods_receipt", id));
+    }
+
+    /**
+     * Load a purchase invoice by id, enforcing it belongs to the current tenant.
+     * Reception endpoints take an invoice id straight from the request, so the
+     * by-id load must be tenant-guarded (BUG-2 / SEC-02). Preserves the existing
+     * NotFound contract.
+     */
+    private PurchaseInvoice loadInvoiceInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(purchaseInvoices.findById(id),
+                () -> NotFoundException.of("entity.purchase_invoice", id));
+    }
+
     // ── Create ────────────────────────────────────────────────────────────────
 
     @Transactional
     public GoodsReceiptDto.GoodsReceiptResponse create(GoodsReceiptDto.CreateGoodsReceiptRequest req, UUID userId) {
-        PurchaseInvoice inv = purchaseInvoices.findById(req.purchaseInvoiceId())
-                .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", req.purchaseInvoiceId()));
+        PurchaseInvoice inv = loadInvoiceInTenant(req.purchaseInvoiceId());
         if (!canReceiveReception(inv)) {
             throw new BusinessException("error.reception.invoice_not_receivable",
                     Map.of("invoiceId", inv.getId(), "invoiceNumber", inv.getNumber(), "status", inv.getStatus().name()));
@@ -115,8 +137,7 @@ public class GoodsReceiptService {
      *  dialog (product + remaining qty) the same way the sales BL dialog does. */
     @Transactional(readOnly = true)
     public List<GoodsReceiptDto.LineRequest> outstandingLines(UUID invoiceId) {
-        purchaseInvoices.findById(invoiceId)
-                .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", invoiceId));
+        loadInvoiceInTenant(invoiceId);
         return seedLinesFromInvoiceOutstanding(invoiceId);
     }
 
@@ -143,7 +164,7 @@ public class GoodsReceiptService {
 
     @Transactional
     public GoodsReceiptDto.GoodsReceiptResponse startReceipt(UUID id, UUID userId) {
-        GoodsReceipt gr = receipts.findById(id).orElseThrow(() -> NotFoundException.of("entity.goods_receipt", id));
+        GoodsReceipt gr = loadReceiptInTenant(id);
         if (gr.getStatus() != GoodsReceiptStatus.PENDING) {
             throw new BusinessException("error.reception.not_pending", Map.of("status", gr.getStatus()));
         }
@@ -153,7 +174,7 @@ public class GoodsReceiptService {
 
     @Transactional
     public GoodsReceiptDto.GoodsReceiptResponse recordReceipt(UUID id, GoodsReceiptDto.RecordReceiptRequest req, UUID userId) {
-        GoodsReceipt gr = receipts.findById(id).orElseThrow(() -> NotFoundException.of("entity.goods_receipt", id));
+        GoodsReceipt gr = loadReceiptInTenant(id);
         if (gr.getStatus() == GoodsReceiptStatus.RECEIVED || gr.getStatus() == GoodsReceiptStatus.CANCELLED) {
             throw new BusinessException("error.reception.already_terminal", Map.of("status", gr.getStatus()));
         }
@@ -233,8 +254,7 @@ public class GoodsReceiptService {
      */
     @Transactional
     public GoodsReceiptDto.GoodsReceiptResponse receiveImmediately(UUID invoiceId, UUID warehouseId, UUID userId) {
-        PurchaseInvoice inv = purchaseInvoices.findById(invoiceId)
-                .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", invoiceId));
+        PurchaseInvoice inv = loadInvoiceInTenant(invoiceId);
         for (PurchaseInvoiceLine il : purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(invoiceId)) {
             if (lotOps.isTrackingExpiry(il.getProductId())) {
                 throw new BusinessException("error.reception.immediate_lot_unsupported",
@@ -252,7 +272,7 @@ public class GoodsReceiptService {
 
     @Transactional
     public GoodsReceiptDto.GoodsReceiptResponse cancel(UUID id) {
-        GoodsReceipt gr = receipts.findById(id).orElseThrow(() -> NotFoundException.of("entity.goods_receipt", id));
+        GoodsReceipt gr = loadReceiptInTenant(id);
         if (gr.getStatus() == GoodsReceiptStatus.RECEIVED) {
             throw new BusinessException("error.reception.already_received", Map.of());
         }
@@ -329,7 +349,7 @@ public class GoodsReceiptService {
 
     @Transactional(readOnly = true)
     public GoodsReceiptDto.GoodsReceiptResponse get(UUID id) {
-        return toDto(receipts.findById(id).orElseThrow(() -> NotFoundException.of("entity.goods_receipt", id)));
+        return toDto(loadReceiptInTenant(id));
     }
 
     @Transactional(readOnly = true)
@@ -344,7 +364,7 @@ public class GoodsReceiptService {
 
     @Transactional(readOnly = true)
     public byte[] generatePdf(UUID id) {
-        GoodsReceipt gr = receipts.findById(id).orElseThrow(() -> NotFoundException.of("entity.goods_receipt", id));
+        GoodsReceipt gr = loadReceiptInTenant(id);
         PartnerSummary supplier = supplierLookup.findById(gr.getPartyId()).orElse(null);
         List<GoodsReceiptLine> lines = receiptLines.findByGoodsReceiptId(id);
         return renderer.renderPdf(PdfRenderRequest.of("goods-receipt", buildPdfVars(gr, lines, supplier)));

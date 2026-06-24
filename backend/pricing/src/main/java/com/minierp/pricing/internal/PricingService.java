@@ -105,7 +105,7 @@ public class PricingService {
         boolean effectiveTaxInclusive = Boolean.TRUE.equals(taxInclusive);
 
         ProductPrice p = prices
-                .findByVariantIdAndUomIdAndPriceTierIdAndValidFrom(variantId, uomId, tierId, effectiveFrom)
+                .findForUpsert(variantId, uomId, tierId, effectiveFrom, minQty)
                 .orElseGet(() -> ProductPrice.builder()
                         .variantId(variantId)
                         .productId(productId)

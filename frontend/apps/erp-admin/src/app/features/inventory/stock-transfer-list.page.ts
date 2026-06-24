@@ -9,6 +9,7 @@ import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
+import { InputNumberModule } from 'primeng/inputnumber';
 import { TooltipModule } from 'primeng/tooltip';
 import { firstValueFrom } from 'rxjs';
 
@@ -25,6 +26,16 @@ interface StockTransfer {
 
 interface WarehouseLite { id: string; code: string; name: string; }
 
+interface ProductOpt {
+  id: string;
+  name: string;
+  sku: string;
+  baseUomId: string;
+  variants?: { id: string; defaultVariant?: boolean; active?: boolean }[];
+}
+
+interface TransferLineForm { productId: string | null; uomId: string | null; quantity: number; }
+
 type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast';
 
 @Component({
@@ -32,7 +43,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
   standalone: true,
   imports: [
     CommonModule, FormsModule, TranslateModule, TableModule, TagModule,
-    ButtonModule, DialogModule, DropdownModule, InputTextModule, TooltipModule,
+    ButtonModule, DialogModule, DropdownModule, InputTextModule, InputNumberModule, TooltipModule,
   ],
   template: `
     <div class="space-y-4">
@@ -94,34 +105,87 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
         </p-table>
       </div>
 
-      <p-dialog [(visible)]="dialogOpen" [modal]="true" [style]="{ width: '450px' }"
+      <p-dialog [(visible)]="dialogOpen" [modal]="true" [style]="{ width: '720px' }"
                 [header]="'stockTransfers.create' | translate" [closable]="!saving()">
         <div class="space-y-3">
-          <div>
-            <label class="block text-sm font-medium mb-1">{{ 'stockTransfers.from' | translate }} *</label>
-            <p-dropdown [(ngModel)]="form.fromWarehouseId" [options]="warehouses()"
-                        optionLabel="name" optionValue="id"
-                        [styleClass]="'w-full' + (fromInvalid() ? ' ng-invalid ng-dirty' : '')" />
-            @if (fromInvalid()) {
-              <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
-            }
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'stockTransfers.from' | translate }} *</label>
+              <p-dropdown [(ngModel)]="form.fromWarehouseId" [options]="warehouses()"
+                          optionLabel="name" optionValue="id" appendTo="body"
+                          [styleClass]="'w-full' + (fromInvalid() ? ' ng-invalid ng-dirty' : '')" />
+              @if (fromInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+              }
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'stockTransfers.to' | translate }} *</label>
+              <p-dropdown [(ngModel)]="form.toWarehouseId" [options]="warehouses()"
+                          optionLabel="name" optionValue="id" appendTo="body"
+                          [styleClass]="'w-full' + (toInvalid() ? ' ng-invalid ng-dirty' : '')" />
+              @if (toInvalid()) {
+                <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
+              }
+            </div>
           </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">{{ 'stockTransfers.to' | translate }} *</label>
-            <p-dropdown [(ngModel)]="form.toWarehouseId" [options]="warehouses()"
-                        optionLabel="name" optionValue="id"
-                        [styleClass]="'w-full' + (toInvalid() ? ' ng-invalid ng-dirty' : '')" />
-            @if (toInvalid()) {
-              <p class="text-xs text-red-600 mt-1">{{ 'common.required' | translate }}</p>
-            }
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'stockTransfers.scheduled' | translate }}</label>
+              <input pInputText type="date" [(ngModel)]="form.scheduledDate" class="w-full" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ 'common.notes' | translate }}</label>
+              <input pInputText [(ngModel)]="form.notes" class="w-full" />
+            </div>
           </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">{{ 'stockTransfers.scheduled' | translate }}</label>
-            <input pInputText type="date" [(ngModel)]="form.scheduledDate" class="w-full" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">{{ 'common.notes' | translate }}</label>
-            <input pInputText [(ngModel)]="form.notes" class="w-full" />
+
+          <div class="border rounded">
+            <div class="flex items-center justify-between p-2 bg-gray-50 border-b">
+              <span class="font-medium text-sm">{{ 'stockTransfers.lines' | translate }}</span>
+              <button pButton icon="pi pi-plus" [label]="'stockTransfers.addLine' | translate"
+                      class="p-button-sm p-button-text" (click)="addLine()"></button>
+            </div>
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 text-gray-600">
+                <tr>
+                  <th class="text-left p-2">{{ 'stockTransfers.product' | translate }}</th>
+                  <th class="text-right p-2 w-32">{{ 'stockTransfers.quantity' | translate }}</th>
+                  <th class="w-10"></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of form.lines; track $index; let i = $index) {
+                  <tr class="border-t">
+                    <td class="p-1">
+                      <p-dropdown [(ngModel)]="line.productId" [options]="products()"
+                                  optionLabel="name" optionValue="id"
+                                  [filter]="true" filterBy="name,sku"
+                                  (onChange)="onProductChange(line)" appendTo="body"
+                                  [styleClass]="'w-full' + (lineProductInvalid(line) ? ' ng-invalid ng-dirty' : '')">
+                        <ng-template let-product pTemplate="item">
+                          <span>{{ product.name }} <span class="text-gray-400">({{ product.sku }})</span></span>
+                        </ng-template>
+                      </p-dropdown>
+                    </td>
+                    <td class="p-1">
+                      <p-inputNumber [(ngModel)]="line.quantity" [minFractionDigits]="0" [maxFractionDigits]="3"
+                                     inputStyleClass="w-full text-right"
+                                     [styleClass]="'w-full' + (lineQtyInvalid(line) ? ' ng-invalid ng-dirty' : '')" />
+                    </td>
+                    <td class="p-1 text-center">
+                      <button pButton icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
+                              (click)="removeLine(i)"></button>
+                    </td>
+                  </tr>
+                }
+                @if (form.lines.length === 0) {
+                  <tr><td colspan="3" class="p-4 text-center"
+                          [class.text-gray-400]="!noLinesInvalid()" [class.text-red-600]="noLinesInvalid()">
+                    {{ 'stockTransfers.noLines' | translate }}
+                  </td></tr>
+                }
+              </tbody>
+            </table>
           </div>
         </div>
         <ng-template pTemplate="footer">
@@ -139,6 +203,7 @@ export class StockTransferListPage implements OnInit {
 
   protected transfers = signal<StockTransfer[]>([]);
   protected warehouses = signal<WarehouseLite[]>([]);
+  protected products = signal<ProductOpt[]>([]);
   @ViewChild('table') private table?: Table;
   protected readonly pageSize = 50;
   protected total = signal(0);
@@ -151,9 +216,15 @@ export class StockTransferListPage implements OnInit {
 
   protected fromInvalid(): boolean { return this.submitted() && !this.form.fromWarehouseId; }
   protected toInvalid(): boolean { return this.submitted() && !this.form.toWarehouseId; }
+  protected noLinesInvalid(): boolean { return this.submitted() && this.form.lines.length === 0; }
+  protected lineProductInvalid(line: TransferLineForm): boolean { return this.submitted() && !line.productId; }
+  protected lineQtyInvalid(line: TransferLineForm): boolean {
+    return this.submitted() && (line.quantity == null || line.quantity <= 0);
+  }
 
   ngOnInit() {
     this.loadWarehouses();
+    this.loadProducts();
     // Transfers are fetched on demand via the p-table's onLazyLoad.
   }
 
@@ -177,17 +248,43 @@ export class StockTransferListPage implements OnInit {
     this.dialogOpen = true;
   }
 
+  protected addLine() {
+    this.form.lines.push({ productId: null, uomId: null, quantity: 1 });
+  }
+
+  protected removeLine(i: number) { this.form.lines.splice(i, 1); }
+
+  protected onProductChange(line: TransferLineForm) {
+    const p = this.products().find((x) => x.id === line.productId);
+    if (p) line.uomId = p.baseUomId;
+  }
+
+  /** Resolve the variant to transfer for a product: its default (or first active) variant. */
+  protected variantIdFor(productId: string | null): string | null {
+    if (!productId) return null;
+    const vs = this.products().find((p) => p.id === productId)?.variants ?? [];
+    return (vs.find((v) => v.defaultVariant && v.active)
+      ?? vs.find((v) => v.active) ?? vs[0])?.id ?? null;
+  }
+
   protected async save() {
     this.submitted.set(true);
     if (!this.form.fromWarehouseId || !this.form.toWarehouseId) return;
+    if (this.form.lines.length === 0) return;
+    if (!this.form.lines.every((l) => !!l.productId && (l.quantity || 0) > 0)) return;
     this.saving.set(true);
     try {
-      await firstValueFrom(this.http.post('/api/v1/inventory/stock-transfers', {
+      await firstValueFrom(this.http.post('/api/v1/inventory/transfers', {
         fromWarehouseId: this.form.fromWarehouseId,
         toWarehouseId: this.form.toWarehouseId,
         scheduledDate: this.form.scheduledDate || null,
         notes: this.form.notes || null,
-        lines: [],
+        lines: this.form.lines.map((l) => ({
+          variantId: this.variantIdFor(l.productId),
+          lotId: null,
+          uomId: l.uomId,
+          quantityRequested: l.quantity,
+        })),
       }));
       this.dialogOpen = false;
       this.reload();
@@ -195,12 +292,12 @@ export class StockTransferListPage implements OnInit {
   }
 
   protected async execute(id: string) {
-    await firstValueFrom(this.http.post(`/api/v1/inventory/stock-transfers/${id}/execute`, {}));
+    await firstValueFrom(this.http.post(`/api/v1/inventory/transfers/${id}/execute`, {}));
     this.reload();
   }
 
   protected async cancelTransfer(id: string) {
-    await firstValueFrom(this.http.post(`/api/v1/inventory/stock-transfers/${id}/cancel`, {}));
+    await firstValueFrom(this.http.post(`/api/v1/inventory/transfers/${id}/cancel`, {}));
     this.reload();
   }
 
@@ -212,7 +309,7 @@ export class StockTransferListPage implements OnInit {
     try {
       const res = await firstValueFrom(
         this.http.get<{ content: StockTransfer[]; totalElements: number }>(
-          `/api/v1/inventory/stock-transfers?page=${page}&size=${rows}`
+          `/api/v1/inventory/transfers?page=${page}&size=${rows}`
         )
       );
       const items = res.content ?? [];
@@ -245,12 +342,22 @@ export class StockTransferListPage implements OnInit {
     } catch { this.warehouses.set([]); }
   }
 
+  private async loadProducts() {
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ content: ProductOpt[] }>('/api/v1/products?size=500')
+      );
+      this.products.set((res.content ?? []).filter((p) => (p as { active?: boolean }).active !== false));
+    } catch { this.products.set([]); }
+  }
+
   private emptyForm() {
     return {
       fromWarehouseId: null as string | null,
       toWarehouseId: null as string | null,
       scheduledDate: '',
       notes: '',
+      lines: [] as TransferLineForm[],
     };
   }
 }

@@ -12,6 +12,7 @@ import com.minierp.sales.api.InvoiceSummary;
 import com.minierp.sales.api.NumberingOperations;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.persistence.TenantGuard;
 import com.minierp.shared.tenant.TenantContext;
 import com.minierp.shared.util.PageResponse;
 import com.minierp.tenant.api.TenantLookup;
@@ -62,6 +63,41 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
         customerLookup.findById(customerId)
                 .orElseThrow(() -> NotFoundException.of("entity.customer", customerId));
 
+        // Server-side cap (BUG-15 / BL-05): a BL cannot ship more than the invoice's
+        // remaining-to-deliver per variant (invoiced − already shipped on other BLs).
+        // recordDelivery ships each line's full ordered quantity, so capping at create
+        // is sufficient. Previously the UI was the only guard → 8 could ship on a qty-5 invoice.
+        if (req.lines() != null && !req.lines().isEmpty()) {
+            Map<UUID, BigDecimal> invoicedByVariant = new HashMap<>();
+            for (var il : invoiceReader.getInvoice(invoice.id()).lines()) {
+                if (il.variantId() != null && il.quantity() != null) {
+                    invoicedByVariant.merge(il.variantId(), il.quantity(), BigDecimal::add);
+                }
+            }
+            Map<UUID, BigDecimal> deliveredByVariant = new HashMap<>();
+            for (Object[] row : deliveryLines.sumDeliveredByVariantForInvoice(invoice.id())) {
+                deliveredByVariant.put((UUID) row[0], (BigDecimal) row[1]);
+            }
+            Map<UUID, BigDecimal> requestedByVariant = new HashMap<>();
+            for (DeliveryDto.LineRequest lr : req.lines()) {
+                if (lr.variantId() != null && lr.quantityOrdered() != null) {
+                    requestedByVariant.merge(lr.variantId(), lr.quantityOrdered(), BigDecimal::add);
+                }
+            }
+            for (Map.Entry<UUID, BigDecimal> e : requestedByVariant.entrySet()) {
+                BigDecimal invoiced = invoicedByVariant.get(e.getKey());
+                // No invoiced line for this variant → no invoiced quantity to cap against; skip.
+                if (invoiced == null) continue;
+                BigDecimal already = deliveredByVariant.getOrDefault(e.getKey(), BigDecimal.ZERO);
+                BigDecimal remaining = invoiced.subtract(already);
+                if (e.getValue().compareTo(remaining) > 0) {
+                    throw new BusinessException("error.delivery.exceeds_invoiced",
+                            Map.of("variantId", e.getKey(), "requested", e.getValue(),
+                                    "remaining", remaining.max(BigDecimal.ZERO)));
+                }
+            }
+        }
+
         // Fall back to the tenant's default warehouse if the caller didn't specify one.
         UUID warehouseId = req.warehouseId();
         if (warehouseId == null) {
@@ -101,7 +137,7 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
 
     @Transactional
     public DeliveryDto.DeliveryResponse startDelivery(UUID id, UUID userId) {
-        Delivery d = deliveries.findById(id).orElseThrow(() -> NotFoundException.of("entity.delivery", id));
+        Delivery d = loadDeliveryInTenant(id);
         if (d.getStatus() != DeliveryStatus.PENDING) {
             throw new BusinessException("error.delivery.not_pending", Map.of("status", d.getStatus()));
         }
@@ -111,7 +147,7 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
 
     @Transactional
     public DeliveryDto.DeliveryResponse recordDelivery(UUID id, DeliveryDto.RecordDeliveryRequest req, UUID userId) {
-        Delivery d = deliveries.findById(id).orElseThrow(() -> NotFoundException.of("entity.delivery", id));
+        Delivery d = loadDeliveryInTenant(id);
         if (d.getStatus() == DeliveryStatus.DELIVERED || d.getStatus() == DeliveryStatus.CANCELLED) {
             throw new BusinessException("error.delivery.already_terminal", Map.of("status", d.getStatus()));
         }
@@ -191,7 +227,7 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
 
     @Transactional
     public DeliveryDto.DeliveryResponse cancel(UUID id) {
-        Delivery d = deliveries.findById(id).orElseThrow(() -> NotFoundException.of("entity.delivery", id));
+        Delivery d = loadDeliveryInTenant(id);
         if (d.getStatus() == DeliveryStatus.DELIVERED) {
             throw new BusinessException("error.delivery.already_delivered", Map.of());
         }
@@ -211,7 +247,7 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
 
     @Transactional(readOnly = true)
     public DeliveryDto.DeliveryResponse get(UUID id) {
-        return toDto(deliveries.findById(id).orElseThrow(() -> NotFoundException.of("entity.delivery", id)));
+        return toDto(loadDeliveryInTenant(id));
     }
 
     @Transactional(readOnly = true)
@@ -226,11 +262,21 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
 
     @Transactional(readOnly = true)
     public byte[] generatePdf(UUID id) {
-        Delivery d = deliveries.findById(id).orElseThrow(() -> NotFoundException.of("entity.delivery", id));
+        Delivery d = loadDeliveryInTenant(id);
         PartnerSummary customer = customerLookup.findById(d.getPartyId()).orElse(null);
         List<DeliveryLine> lines = deliveryLines.findByDeliveryId(id);
         Map<String, Object> vars = buildPdfVars(d, lines, customer);
         return renderer.renderPdf(PdfRenderRequest.of("delivery-note", vars));
+    }
+
+    /**
+     * Load a delivery by id, enforcing it belongs to the current tenant. {@code findById}
+     * bypasses the Hibernate tenant filter, so without this guard a token from tenant A could
+     * read/modify a delivery of tenant B (BUG-2 / SEC-02).
+     */
+    private Delivery loadDeliveryInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(deliveries.findById(id),
+                () -> NotFoundException.of("entity.delivery", id));
     }
 
     private DeliveryDto.DeliveryResponse toDto(Delivery d) {

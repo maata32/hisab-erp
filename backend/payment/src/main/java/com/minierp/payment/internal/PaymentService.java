@@ -17,6 +17,7 @@ import com.minierp.sales.api.InvoiceSummary;
 import com.minierp.sales.api.NumberingOperations;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.persistence.TenantGuard;
 import com.minierp.shared.tenant.TenantContext;
 import com.minierp.shared.util.PageResponse;
 import com.minierp.tenant.api.TenantLookup;
@@ -127,7 +128,7 @@ public class PaymentService implements PaymentLookup {
 
     @Transactional
     public PaymentDto.PaymentResponse confirm(UUID id, UUID userId) {
-        Payment p = payments.findById(id).orElseThrow(() -> NotFoundException.of("entity.payment", id));
+        Payment p = loadPaymentInTenant(id);
         if (p.getStatus() != PaymentStatus.DRAFT) {
             throw new BusinessException("error.payment.not_draft", Map.of("status", p.getStatus()));
         }
@@ -159,7 +160,7 @@ public class PaymentService implements PaymentLookup {
 
     @Transactional
     public PaymentDto.PaymentResponse cancel(UUID id) {
-        Payment p = payments.findById(id).orElseThrow(() -> NotFoundException.of("entity.payment", id));
+        Payment p = loadPaymentInTenant(id);
         if (p.getStatus() == PaymentStatus.CONFIRMED) {
             throw new BusinessException("error.payment.already_confirmed", Map.of());
         }
@@ -175,8 +176,7 @@ public class PaymentService implements PaymentLookup {
      */
     @Transactional
     public PaymentDto.PaymentResponse allocate(UUID paymentId, PaymentDto.AllocateRequest req) {
-        Payment p = payments.findById(paymentId)
-                .orElseThrow(() -> NotFoundException.of("entity.payment", paymentId));
+        Payment p = loadPaymentInTenant(paymentId);
         if (p.getStatus() == PaymentStatus.CANCELLED) {
             throw new BusinessException("error.payment.cancelled", Map.of());
         }
@@ -273,8 +273,7 @@ public class PaymentService implements PaymentLookup {
 
     @Transactional
     public PaymentDto.PaymentResponse autoAllocate(PaymentDto.AutoAllocateRequest req) {
-        Payment p = payments.findById(req.paymentId())
-                .orElseThrow(() -> NotFoundException.of("entity.payment", req.paymentId()));
+        Payment p = loadPaymentInTenant(req.paymentId());
 
         List<InvoiceSummary> unpaid = invoiceOps.findUnpaidByCustomer(req.customerId());
         BigDecimal remaining = p.getAmount();
@@ -308,7 +307,7 @@ public class PaymentService implements PaymentLookup {
 
     @Transactional(readOnly = true)
     public PaymentDto.PaymentResponse get(UUID id) {
-        return toDto(payments.findById(id).orElseThrow(() -> NotFoundException.of("entity.payment", id)));
+        return toDto(loadPaymentInTenant(id));
     }
 
     @Transactional(readOnly = true)
@@ -321,10 +320,20 @@ public class PaymentService implements PaymentLookup {
 
     @Transactional(readOnly = true)
     public byte[] generateReceipt(UUID id) {
-        Payment p = payments.findById(id).orElseThrow(() -> NotFoundException.of("entity.payment", id));
+        Payment p = loadPaymentInTenant(id);
         List<PaymentAllocation> allocs = allocations.findByPaymentId(id);
         Map<String, Object> vars = buildReceiptVars(p, allocs);
         return renderer.renderPdf(PdfRenderRequest.of("payment-receipt", vars));
+    }
+
+    /**
+     * Load a payment by id, enforcing it belongs to the current tenant. {@code findById}
+     * bypasses the Hibernate tenant filter, so without this guard a token from tenant A could
+     * read/modify a payment of tenant B (BUG-2 / SEC-02).
+     */
+    private Payment loadPaymentInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(payments.findById(id),
+                () -> NotFoundException.of("entity.payment", id));
     }
 
     private PaymentDto.PaymentResponse toDto(Payment p) {

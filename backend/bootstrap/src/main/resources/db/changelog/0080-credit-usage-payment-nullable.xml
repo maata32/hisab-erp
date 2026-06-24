@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      BUG-11 (PART-22/23) : customer_credit_usages.payment_id était NOT NULL (0014),
+      mais WithdrawCreditRequest.paymentId est optionnel — un retrait de crédit « à la
+      main » (sans paiement associé) tombait sur une violation NOT NULL → 409
+      error.data_integrity sur le chemin nominal. Rendre la colonne nullable.
+    -->
+    <changeSet id="0080-credit-usage-payment-nullable" author="mini-erp">
+        <dropNotNullConstraint tableName="customer_credit_usages"
+                               columnName="payment_id" columnDataType="uuid"/>
+        <rollback>
+            <addNotNullConstraint tableName="customer_credit_usages"
+                                  columnName="payment_id" columnDataType="uuid"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

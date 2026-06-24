@@ -979,6 +979,11 @@
     "completed": "Effectué",
     "status": "Statut",
     "execute": "Exécuter",
+    "lines": "Lignes",
+    "addLine": "Ajouter une ligne",
+    "product": "Produit",
+    "quantity": "Quantité",
+    "noLines": "Aucune ligne. Ajoutez au moins un produit.",
     "statuses": {
       "DRAFT": "Brouillon",
       "IN_TRANSIT": "En transit",

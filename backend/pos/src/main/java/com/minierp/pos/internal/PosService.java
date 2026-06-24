@@ -17,6 +17,7 @@ import com.minierp.pricing.api.ResolvedPrice;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.ConflictException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.persistence.TenantGuard;
 import com.minierp.shared.util.PageResponse;
 import com.minierp.treasury.api.TreasuryOperations;
 import com.minierp.uom.api.UomLookup;
@@ -82,6 +83,11 @@ public class PosService {
         return registers.findByActiveTrue().stream().map(this::toRegisterDto).toList();
     }
 
+    @Transactional(readOnly = true)
+    public CashRegisterDto getRegister(UUID registerId) {
+        return toRegisterDto(loadRegisterInTenant(registerId));
+    }
+
     // ── Sessions ─────────────────────────────────────────────────────────────
 
     /**
@@ -91,8 +97,7 @@ public class PosService {
      */
     @Transactional
     public CashSessionDto openSession(UUID registerId, BigDecimal openingFloat, UUID userId) {
-        CashRegister register = registers.findById(registerId)
-                .orElseThrow(() -> NotFoundException.of("entity.cash_register", registerId));
+        CashRegister register = loadRegisterInTenant(registerId);
         if (!register.isActive()) {
             throw new BusinessException("error.pos.register_inactive", Map.of("registerId", registerId));
         }
@@ -127,8 +132,7 @@ public class PosService {
      */
     @Transactional
     public CashSessionDto closeSession(UUID sessionId, BigDecimal countedClosing, String note, UUID userId) {
-        CashSession session = sessions.lockById(sessionId)
-                .orElseThrow(() -> NotFoundException.of("entity.cash_session", sessionId));
+        CashSession session = lockSessionInTenant(sessionId);
         if (session.getStatus() != CashSessionStatus.OPEN) {
             throw new BusinessException("error.pos.session_not_open", Map.of("sessionId", sessionId));
         }
@@ -175,8 +179,7 @@ public class PosService {
      */
     @Transactional
     public CashSessionDto validateSession(UUID sessionId, UUID userId) {
-        CashSession session = sessions.lockById(sessionId)
-                .orElseThrow(() -> NotFoundException.of("entity.cash_session", sessionId));
+        CashSession session = lockSessionInTenant(sessionId);
         if (session.getStatus() != CashSessionStatus.CLOSED) {
             throw new BusinessException("error.pos.session_not_validatable",
                     Map.of("sessionId", sessionId, "status", session.getStatus().name()));
@@ -214,8 +217,7 @@ public class PosService {
 
     @Transactional(readOnly = true)
     public CashSessionDto getSession(UUID sessionId) {
-        return toSessionDto(sessions.findById(sessionId)
-                .orElseThrow(() -> NotFoundException.of("entity.cash_session", sessionId)));
+        return toSessionDto(loadSessionInTenant(sessionId));
     }
 
     // ── Sales ────────────────────────────────────────────────────────────────
@@ -229,14 +231,12 @@ public class PosService {
             return toDto(existing.get());
         }
 
-        CashRegister register = registers.findById(req.registerId())
-                .orElseThrow(() -> NotFoundException.of("entity.cash_register", req.registerId()));
+        CashRegister register = loadRegisterInTenant(req.registerId());
         if (!register.isActive()) {
             throw new BusinessException("error.pos.register_inactive", Map.of());
         }
 
-        CashSession session = sessions.lockById(req.sessionId())
-                .orElseThrow(() -> NotFoundException.of("entity.cash_session", req.sessionId()));
+        CashSession session = lockSessionInTenant(req.sessionId());
         if (!req.registerId().equals(session.getRegisterId())) {
             throw new BusinessException("error.pos.session_register_mismatch", Map.of());
         }
@@ -370,8 +370,7 @@ public class PosService {
 
     @Transactional(readOnly = true)
     public SaleDto getSale(UUID saleId) {
-        return toDto(sales.findById(saleId)
-                .orElseThrow(() -> NotFoundException.of("entity.sale", saleId)));
+        return toDto(loadSaleInTenant(saleId));
     }
 
     @Transactional(readOnly = true)
@@ -391,8 +390,7 @@ public class PosService {
     /** Cancel a sale that was just made on the SAME open session — reverses stock and totals. */
     @Transactional
     public SaleDto voidSale(UUID saleId, String reason, UUID userId) {
-        Sale sale = sales.findById(saleId)
-                .orElseThrow(() -> NotFoundException.of("entity.sale", saleId));
+        Sale sale = loadSaleInTenant(saleId);
         if (sale.getStatus() != SaleStatus.COMPLETED) {
             throw new BusinessException("error.pos.sale.not_voidable",
                     Map.of("status", sale.getStatus().name()));
@@ -428,6 +426,27 @@ public class PosService {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    // Tenant-guarded by-id loads: findById/lockById bypass the Hibernate tenant filter.
+    private CashRegister loadRegisterInTenant(UUID registerId) {
+        return TenantGuard.requireSameTenant(registers.findById(registerId),
+                () -> NotFoundException.of("entity.cash_register", registerId));
+    }
+
+    private CashSession loadSessionInTenant(UUID sessionId) {
+        return TenantGuard.requireSameTenant(sessions.findById(sessionId),
+                () -> NotFoundException.of("entity.cash_session", sessionId));
+    }
+
+    private CashSession lockSessionInTenant(UUID sessionId) {
+        return TenantGuard.requireSameTenant(sessions.lockById(sessionId),
+                () -> NotFoundException.of("entity.cash_session", sessionId));
+    }
+
+    private Sale loadSaleInTenant(UUID saleId) {
+        return TenantGuard.requireSameTenant(sales.findById(saleId),
+                () -> NotFoundException.of("entity.sale", saleId));
+    }
 
     private String allocateNumber() {
         int year = Year.now().getValue();

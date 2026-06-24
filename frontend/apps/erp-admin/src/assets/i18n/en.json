@@ -979,6 +979,11 @@
     "completed": "Completed",
     "status": "Status",
     "execute": "Execute",
+    "lines": "Lines",
+    "addLine": "Add line",
+    "product": "Product",
+    "quantity": "Quantity",
+    "noLines": "No lines. Add at least one product.",
     "statuses": {
       "DRAFT": "Draft",
       "IN_TRANSIT": "In transit",
