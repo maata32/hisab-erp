@@ -88,3 +88,11 @@ La consommation pouvait être automatique (FEFO) mais pas **manuelle** (choisir 
 - `PosService.createSale` : si la ligne porte des `lotAllocations` → `consumeExplicitLots`, sinon `consumeFefoIfTracked`.
 
 **Vérifié** : 137 IT (3 nouveaux : override FEFO + 2 cas de rejet). **E2E live** : vente ciblant le lot à péremption la plus lointaine (B) → B 10→6, le lot FEFO le plus proche (A) reste intact à 5 ; allocations dont la somme ≠ la quantité de ligne → 422 `error.lot.allocation_qty_mismatch`. *(Exposé côté API ; un sélecteur de lot dans l'UI POS serait une amélioration front distincte.)* Débloque LOT-15.
+
+### Suivi 4 — complétion de la fonctionnalité lots (vente + livraison + retours + UI)
+Extension cohérente de la gestion des lots au-delà de la vente POS :
+- **Livraison** — sélection manuelle de lot au moment du *record* : champ optionnel `lotAllocations` sur `LineDelivered` (clé par `lineId`) → `consumeExplicitLots` (court-circuite FEFO), sinon FEFO automatique (déjà câblé). **E2E live** : BL ciblant le lot lointain → ce lot décrémente, le lot FEFO reste intact ; BL sans allocation → lot le plus proche d'abord.
+- **Retours** — `restoreLotsOnReturn(productId, …)` **crée un lot de retour** quand aucun lot ne survit (produit suivi → `baseUom` + péremption `shelfLifeDays`), au lieu de seulement logguer ; résolution produit via `catalog.findProductById` (Optional, ne jette pas → pas de transaction empoisonnée). Appelants (avoir client, void POS) passent `productId`. **IT** dédié.
+- **UI POS** — sélecteur de lot dans la ligne du panier (en ligne) : « FEFO (auto) » + lots ACTIFS (n° · péremption · reste) ; le choix part en `lotAllocations`. Hors-ligne : masqué (FEFO serveur à la synchro). **Build AOT vert + capture** (sélecteur « FEFO + 2 lots », lot choisi affiché).
+
+**Vérifié global** : **138 IT verts** (+ nouveau test création-lot-au-retour) ; build POS production vert ; E2E live livraison (manuel + FEFO). Branche `feat/lot-feature-completion`.
