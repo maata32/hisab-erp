@@ -7,6 +7,7 @@ import com.minierp.inventory.api.StockMovementType;
 import com.minierp.inventory.api.StockOperations;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.persistence.TenantGuard;
 import com.minierp.shared.security.CurrentUserHolder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -40,15 +41,31 @@ public class InventoryCountService {
 
     @Transactional(readOnly = true)
     public InventoryCountDto.CountResponse get(UUID id) {
-        return toDto(counts.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.inventory_count", id)));
+        return toDto(loadCountInTenant(id));
+    }
+
+    /**
+     * Load an inventory count by id, enforcing it belongs to the current tenant. {@code findById}
+     * bypasses the Hibernate tenant filter, so without this guard a token from tenant A could
+     * read/modify a count of tenant B (BUG-2 / SEC-02).
+     */
+    private InventoryCount loadCountInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(counts.findById(id),
+                () -> NotFoundException.of("entity.inventory_count", id));
+    }
+
+    /**
+     * Load a warehouse by id, enforcing it belongs to the current tenant, so a count cannot be
+     * created against another tenant's warehouse.
+     */
+    private void requireWarehouseInTenant(UUID id) {
+        TenantGuard.requireSameTenant(warehouses.findById(id),
+                () -> NotFoundException.of("entity.warehouse", id));
     }
 
     @Transactional
     public InventoryCountDto.CountResponse create(UUID warehouseId, LocalDate countDate, String notes) {
-        if (warehouses.findById(warehouseId).isEmpty()) {
-            throw NotFoundException.of("entity.warehouse", warehouseId);
-        }
+        requireWarehouseInTenant(warehouseId);
         int year = Year.now().getValue();
         long seq = counts.count() + 1;
         String number = String.format("CNT-%d-%05d", year, seq);
@@ -86,8 +103,7 @@ public class InventoryCountService {
 
     @Transactional
     public InventoryCountDto.CountResponse updateCounts(UUID id, List<LineCountUpdate> updates) {
-        InventoryCount count = counts.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.inventory_count", id));
+        InventoryCount count = loadCountInTenant(id);
         if (count.getStatus() == InventoryCountStatus.VALIDATED) {
             throw new BusinessException("error.inventory.count_already_validated", Map.of());
         }
@@ -104,8 +120,7 @@ public class InventoryCountService {
 
     @Transactional
     public InventoryCountDto.CountResponse validate(UUID id) {
-        InventoryCount count = counts.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.inventory_count", id));
+        InventoryCount count = loadCountInTenant(id);
         if (count.getStatus() == InventoryCountStatus.VALIDATED) {
             throw new BusinessException("error.inventory.count_already_validated", Map.of());
         }

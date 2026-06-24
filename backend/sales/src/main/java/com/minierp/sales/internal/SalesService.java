@@ -17,6 +17,7 @@ import com.minierp.sales.api.StatementInvoiceEntry;
 import com.minierp.sales.api.StatementInvoiceLine;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.persistence.TenantGuard;
 import com.minierp.shared.tenant.TenantContext;
 import com.minierp.shared.util.PageResponse;
 import com.minierp.tenant.api.TenantLookup;
@@ -67,6 +68,27 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
     private final TenantSettingsLookup tenantSettings;
     private final ApplicationEventPublisher events;
 
+    // ── Tenant-guarded by-id loads ──────────────────────────────────────────
+    // Spring Data findById is a JPA primary-key lookup that bypasses the
+    // Hibernate tenant @Filter, so a by-id endpoint would otherwise leak across
+    // tenants. Each helper preserves the entity's existing NotFound supplier so
+    // cross-tenant access is indistinguishable from a missing row.
+
+    private Invoice loadInvoiceInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(invoices.findById(id),
+                () -> NotFoundException.of("entity.invoice", id));
+    }
+
+    private Quote loadQuoteInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(quotes.findById(id),
+                () -> NotFoundException.of("entity.quote", id));
+    }
+
+    private CreditNote loadCreditNoteInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(creditNotes.findById(id),
+                () -> NotFoundException.of("entity.credit_note", id));
+    }
+
     // ── SalesStatementLookup (used by the customer-statement aggregator) ────
 
     @Override
@@ -110,7 +132,10 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
     @Override
     @Transactional(readOnly = true)
     public Optional<InvoiceSummary> findById(UUID id) {
-        return invoices.findById(id).map(this::toInvoiceSummary);
+        UUID tenant = TenantContext.require();
+        return invoices.findById(id)
+                .filter(inv -> tenant.equals(inv.getTenantId()))
+                .map(this::toInvoiceSummary);
     }
 
     @Override
@@ -176,7 +201,10 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
     @Override
     @Transactional
     public void markOverdue(UUID invoiceId) {
-        invoices.findById(invoiceId).ifPresent(inv -> {
+        UUID tenant = TenantContext.require();
+        invoices.findById(invoiceId)
+                .filter(inv -> tenant.equals(inv.getTenantId()))
+                .ifPresent(inv -> {
             if (inv.getStatus() == InvoiceStatus.ISSUED || inv.getStatus() == InvoiceStatus.PARTIAL) {
                 inv.setStatus(InvoiceStatus.OVERDUE);
                 balanceOps.addToOverdue(inv.getPartyId(), inv.getBalance());
@@ -278,7 +306,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
 
     @Transactional(readOnly = true)
     public SalesDto.QuoteDto getQuote(UUID id) {
-        Quote q = quotes.findById(id).orElseThrow(() -> NotFoundException.of("entity.quote", id));
+        Quote q = loadQuoteInTenant(id);
         String customerName = customerLookup.findById(q.getPartyId()).map(PartnerSummary::name).orElse("");
         return toQuoteDto(q, quoteLines.findByQuoteIdOrderByLineNumberAsc(q.getId()), customerName);
     }
@@ -296,7 +324,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
 
     @Transactional
     public SalesDto.QuoteDto updateQuoteStatus(UUID id, String status) {
-        Quote q = quotes.findById(id).orElseThrow(() -> NotFoundException.of("entity.quote", id));
+        Quote q = loadQuoteInTenant(id);
         q.setStatus(QuoteStatus.valueOf(status));
         String name = customerLookup.findById(q.getPartyId()).map(PartnerSummary::name).orElse("");
         return toQuoteDto(q, quoteLines.findByQuoteIdOrderByLineNumberAsc(id), name);
@@ -304,7 +332,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
 
     @Transactional
     public SalesDto.QuoteDto updateQuote(UUID id, SalesDto.UpdateQuoteRequest req) {
-        Quote q = quotes.findById(id).orElseThrow(() -> NotFoundException.of("entity.quote", id));
+        Quote q = loadQuoteInTenant(id);
         if (q.getStatus() == QuoteStatus.CONVERTED
                 || q.getStatus() == QuoteStatus.REJECTED) {
             throw new BusinessException("error.quote.not_editable",
@@ -329,7 +357,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
 
     @Transactional
     public SalesDto.InvoiceDto convertQuoteToInvoice(UUID quoteId, LocalDate dueDate, String paymentTerms) {
-        Quote q = quotes.findById(quoteId).orElseThrow(() -> NotFoundException.of("entity.quote", quoteId));
+        Quote q = loadQuoteInTenant(quoteId);
         if (q.getStatus() != QuoteStatus.DRAFT && q.getStatus() != QuoteStatus.SENT && q.getStatus() != QuoteStatus.ACCEPTED) {
             throw new BusinessException("error.sales.quote_not_convertible", Map.of("status", q.getStatus()));
         }
@@ -403,7 +431,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
 
     @Transactional
     public SalesDto.InvoiceDto issueInvoice(UUID id) {
-        Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));
+        Invoice inv = loadInvoiceInTenant(id);
         if (inv.getStatus() != InvoiceStatus.DRAFT) {
             throw new BusinessException("error.invoice.not_draft", Map.of("status", inv.getStatus()));
         }
@@ -415,7 +443,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
 
     @Transactional
     public SalesDto.InvoiceDto cancelInvoice(UUID id) {
-        Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));
+        Invoice inv = loadInvoiceInTenant(id);
         if (inv.getStatus() != InvoiceStatus.DRAFT) {
             throw new BusinessException("error.invoice.not_draft", Map.of("status", inv.getStatus()));
         }
@@ -426,7 +454,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
 
     @Transactional(readOnly = true)
     public SalesDto.InvoiceDto getInvoice(UUID id) {
-        Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));
+        Invoice inv = loadInvoiceInTenant(id);
         String name = customerLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
         // Carry the real avoir count so the detail view gates its actions
         // correctly (créer un BL / un avoir hidden once the invoice is credited).
@@ -461,8 +489,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
 
     @Transactional
     public SalesDto.CreditNoteDto createCreditNote(UUID invoiceId, SalesDto.CreateCreditNoteRequest req) {
-        Invoice inv = invoices.findById(invoiceId)
-                .orElseThrow(() -> NotFoundException.of("entity.invoice", invoiceId));
+        Invoice inv = loadInvoiceInTenant(invoiceId);
         ensureCreditable(inv);
 
         List<InvoiceLine> invLines = invoiceLines.findByInvoiceIdOrderByLineNumberAsc(invoiceId);
@@ -644,15 +671,13 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
 
     @Transactional(readOnly = true)
     public SalesDto.CreditNoteDto getCreditNote(UUID id) {
-        CreditNote cn = creditNotes.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.credit_note", id));
+        CreditNote cn = loadCreditNoteInTenant(id);
         return toCreditNoteDto(cn);
     }
 
     @Transactional(readOnly = true)
     public SalesDto.CreditNotePreviewDto getCreditNotePreview(UUID invoiceId) {
-        Invoice inv = invoices.findById(invoiceId)
-                .orElseThrow(() -> NotFoundException.of("entity.invoice", invoiceId));
+        Invoice inv = loadInvoiceInTenant(invoiceId);
         String customerName = customerLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
 
         String blockReason = computeBlockReason(inv);
@@ -704,8 +729,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
 
     @Transactional(readOnly = true)
     public byte[] generateCreditNotePdf(UUID id) {
-        CreditNote cn = creditNotes.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.credit_note", id));
+        CreditNote cn = loadCreditNoteInTenant(id);
         PartnerSummary customer = customerLookup.findById(cn.getPartyId()).orElse(null);
         List<CreditNoteLine> lines = creditNoteLines.findByCreditNoteIdOrderByLineNumberAsc(id);
         Invoice inv = invoices.findById(cn.getInvoiceId()).orElse(null);
@@ -717,7 +741,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
 
     @Transactional(readOnly = true)
     public byte[] generateInvoicePdf(UUID id) {
-        Invoice inv = invoices.findById(id).orElseThrow(() -> NotFoundException.of("entity.invoice", id));
+        Invoice inv = loadInvoiceInTenant(id);
         PartnerSummary customer = customerLookup.findById(inv.getPartyId()).orElse(null);
         List<InvoiceLine> lines = invoiceLines.findByInvoiceIdOrderByLineNumberAsc(id);
         Map<String, Object> vars = buildInvoiceVars(inv, lines, customer);
@@ -726,7 +750,7 @@ public class SalesService implements InvoiceOperations, SalesStatementLookup, co
 
     @Transactional(readOnly = true)
     public byte[] generateQuotePdf(UUID id) {
-        Quote q = quotes.findById(id).orElseThrow(() -> NotFoundException.of("entity.quote", id));
+        Quote q = loadQuoteInTenant(id);
         PartnerSummary customer = customerLookup.findById(q.getPartyId()).orElse(null);
         List<QuoteLine> lines = quoteLines.findByQuoteIdOrderByLineNumberAsc(id);
         Map<String, Object> vars = buildQuoteVars(q, lines, customer);

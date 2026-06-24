@@ -23,11 +23,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,8 +34,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class AuthService {
 
-    private static final int MAX_FAILED_ATTEMPTS = 5;
-    private static final int LOCK_MINUTES = 15;
     private static final SecureRandom RNG = new SecureRandom();
 
     private final UserRepository users;
@@ -46,6 +43,7 @@ public class AuthService {
     private final PasswordHasher hasher;
     private final TenantLookup tenantLookup;
     private final ApplicationEventPublisher events;
+    private final LoginAttemptTracker loginAttempts;
 
     @Transactional
     public LoginResponse login(LoginRequest req) {
@@ -56,17 +54,20 @@ public class AuthService {
                     .orElseThrow(() -> new BadCredentialsException("Unknown user"));
 
             if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(Instant.now())) {
-                throw new ForbiddenException("auth.account_locked",
-                        Map.of("attempts", MAX_FAILED_ATTEMPTS, "minutes", LOCK_MINUTES));
+                // Ordered map: the i18n template uses positional {0}/{1} and the exception
+                // handler reads values() in order, so attempts must precede minutes
+                // (Map.of gives no ordering guarantee — that swapped the message).
+                LinkedHashMap<String, Object> lockArgs = new LinkedHashMap<>();
+                lockArgs.put("attempts", LoginAttemptTracker.MAX_FAILED_ATTEMPTS);
+                lockArgs.put("minutes", LoginAttemptTracker.LOCK_MINUTES);
+                throw new ForbiddenException("auth.account_locked", lockArgs);
             }
 
             if (!hasher.verify(user.getPasswordHash(), req.password())) {
-                int attempts = user.getFailedLoginAttempts() + 1;
-                user.setFailedLoginAttempts(attempts);
-                if (attempts >= MAX_FAILED_ATTEMPTS) {
-                    user.setLockedUntil(Instant.now().plus(LOCK_MINUTES, ChronoUnit.MINUTES));
-                    user.setFailedLoginAttempts(0);
-                }
+                // Record the failure in a SEPARATE transaction: this login() transaction always
+                // rolls back when it throws below, which would otherwise discard the increment and
+                // the account would never lock (BUG-1 / AUTH-04).
+                loginAttempts.recordFailedLogin(user.getId());
                 throw new BadCredentialsException("Invalid credentials");
             }
 

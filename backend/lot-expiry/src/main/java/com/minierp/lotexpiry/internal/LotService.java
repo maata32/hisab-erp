@@ -14,6 +14,7 @@ import com.minierp.lotexpiry.api.LotDto;
 import com.minierp.lotexpiry.api.LotOperations;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.persistence.TenantGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -158,10 +159,15 @@ public class LotService implements LotOperations {
     @Override
     @Transactional
     public void blockLot(UUID lotId, String reason) {
-        ProductLot lot = lots.findById(lotId)
-                .orElseThrow(() -> NotFoundException.of("entity.lot", lotId));
+        ProductLot lot = loadLotInTenant(lotId);
         lot.setStatus(LotStatus.BLOCKED);
         lot.setBlockedReason(reason);
+    }
+
+    /** Tenant-guarded by-id load: {@code findById} bypasses the Hibernate tenant filter. */
+    private ProductLot loadLotInTenant(UUID lotId) {
+        return TenantGuard.requireSameTenant(lots.findById(lotId),
+                () -> NotFoundException.of("entity.lot", lotId));
     }
 
     @Override
@@ -184,7 +190,7 @@ public class LotService implements LotOperations {
 
     @Transactional(readOnly = true)
     public LotDto.LotResponse getLot(UUID id) {
-        return toLotDto(lots.findById(id).orElseThrow(() -> NotFoundException.of("entity.lot", id)));
+        return toLotDto(loadLotInTenant(id));
     }
 
     @Transactional
@@ -208,8 +214,7 @@ public class LotService implements LotOperations {
     @Transactional
     void destroyLot(UUID lotId, BigDecimal qty, DestructionMethod method,
                     BigDecimal cost, String notes, UUID userId) {
-        ProductLot lot = lots.findById(lotId)
-                .orElseThrow(() -> NotFoundException.of("entity.lot", lotId));
+        ProductLot lot = loadLotInTenant(lotId);
         if (qty.compareTo(lot.getQuantityRemaining()) > 0) {
             throw new BusinessException("error.lot.destroy_exceeds_remaining",
                     Map.of("requested", qty, "remaining", lot.getQuantityRemaining()));
@@ -278,8 +283,7 @@ public class LotService implements LotOperations {
     /** CDC §4.1 — generates a product label PDF (50×30mm) with expiration date. */
     @Transactional(readOnly = true)
     public byte[] generateLabelPdf(UUID lotId) {
-        ProductLot lot = lots.findById(lotId)
-                .orElseThrow(() -> NotFoundException.of("entity.lot", lotId));
+        ProductLot lot = loadLotInTenant(lotId);
         ProductSnapshot product = catalog.findProductById(lot.getProductId()).orElse(null);
         java.util.Map<String, Object> vars = new java.util.HashMap<>();
         vars.put("productName", product == null ? "Produit" : product.name());

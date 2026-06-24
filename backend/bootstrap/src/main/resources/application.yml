@@ -34,6 +34,10 @@ spring:
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.xml
     contexts: ${LIQUIBASE_CONTEXTS:default}
+    # When SPRING_LIQUIBASE_URL/USER/PASSWORD are set (see compose), migrations (DDL + the 0078
+    # GRANTs) run as the owner/admin role while the runtime datasource above uses a restricted
+    # NOSUPERUSER/NOBYPASSRLS role (minierp_app) — that makes PostgreSQL RLS (defense layer 2)
+    # actually apply at runtime. Unset → Liquibase uses the main datasource (single-role default).
     parameters:
       app_user: ${SPRING_DATASOURCE_USERNAME:minierp}
   mail:

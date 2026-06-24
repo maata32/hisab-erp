@@ -3,6 +3,7 @@ package com.minierp.catalog.internal;
 import com.minierp.catalog.api.ProductCategoryDto;
 import com.minierp.shared.error.ConflictException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.persistence.TenantGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,8 +29,8 @@ public class ProductCategoryService {
             throw new ConflictException("error.data_integrity",
                     Map.of("field", "code", "value", code));
         }
-        if (parentId != null && categories.findById(parentId).isEmpty()) {
-            throw NotFoundException.of("entity.product_category", parentId);
+        if (parentId != null) {
+            loadInTenant(parentId);
         }
         ProductCategory c = ProductCategory.builder()
                 .code(code).name(name).parentId(parentId)
@@ -41,12 +42,17 @@ public class ProductCategoryService {
 
     @Transactional
     public ProductCategoryDto update(UUID id, String name, Integer sortOrder, Boolean active) {
-        ProductCategory c = categories.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.product_category", id));
+        ProductCategory c = loadInTenant(id);
         if (name != null) c.setName(name);
         if (sortOrder != null) c.setSortOrder(sortOrder);
         if (active != null) c.setActive(active);
         return toDto(c);
+    }
+
+    /** Load a category by id, enforcing it belongs to the current tenant (BUG-2 / SEC-02). */
+    private ProductCategory loadInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(categories.findById(id),
+                () -> NotFoundException.of("entity.product_category", id));
     }
 
     private ProductCategoryDto toDto(ProductCategory c) {

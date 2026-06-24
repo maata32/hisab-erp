@@ -8,6 +8,7 @@ import com.minierp.catalog.events.ProductCreatedEvent;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.ConflictException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.persistence.TenantGuard;
 import com.minierp.shared.tenant.TenantContext;
 import com.minierp.shared.util.PageResponse;
 import com.minierp.tenant.api.PlanLimits;
@@ -54,8 +55,17 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public ProductDto get(UUID id) {
-        return toDto(products.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.product", id)));
+        return toDto(loadInTenant(id));
+    }
+
+    /**
+     * Load a product by id, enforcing it belongs to the current tenant. {@code findById}
+     * bypasses the Hibernate tenant filter, so without this guard a token from tenant A could
+     * read/modify a product of tenant B (BUG-2 / SEC-02).
+     */
+    private Product loadInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(products.findById(id),
+                () -> NotFoundException.of("entity.product", id));
     }
 
     @Transactional
@@ -119,7 +129,7 @@ public class ProductService {
 
     @Transactional
     public ProductDto update(UUID id, UpdateProductRequest req) {
-        Product p = products.findById(id).orElseThrow(() -> NotFoundException.of("entity.product", id));
+        Product p = loadInTenant(id);
         if (req.barcode() != null && !req.barcode().equals(p.getBarcode())
                 && !req.barcode().isBlank() && products.existsByBarcode(req.barcode())) {
             throw new ConflictException("error.data_integrity",
@@ -149,8 +159,7 @@ public class ProductService {
 
     @Transactional
     public ProductDto.ProductPackagingDto addPackaging(UUID productId, CreatePackagingRequest req) {
-        Product p = products.findById(productId)
-                .orElseThrow(() -> NotFoundException.of("entity.product", productId));
+        Product p = loadInTenant(productId);
         return addPackaging(p, req);
     }
 
@@ -195,6 +204,7 @@ public class ProductService {
 
     @Transactional
     public void removePackaging(UUID productId, UUID packagingId) {
+        loadInTenant(productId);
         ProductPackaging pp = packagings.findById(packagingId)
                 .orElseThrow(() -> NotFoundException.of("entity.product_packaging", packagingId));
         if (!pp.getProductId().equals(productId)) {
@@ -206,6 +216,7 @@ public class ProductService {
     /** Set the product's enabled attribute values and regenerate its variant matrix. */
     @Transactional
     public ProductDto setAttributeValues(UUID productId, List<UUID> attributeValueIds) {
+        loadInTenant(productId);
         variantGeneration.setAttributeValues(productId, attributeValueIds);
         return get(productId);
     }
@@ -213,6 +224,7 @@ public class ProductService {
     /** Edit a single generated variant's SKU / barcode / active flag. */
     @Transactional
     public ProductVariantDto updateVariant(UUID productId, UUID variantId, UpdateVariantRequest req) {
+        loadInTenant(productId);
         ProductVariant v = variants.findById(variantId)
                 .orElseThrow(() -> NotFoundException.of("entity.product_variant", variantId));
         if (!v.getProductId().equals(productId)) throw NotFoundException.of("entity.product_variant", variantId);
@@ -229,7 +241,7 @@ public class ProductService {
 
     @Transactional
     public ProductImageDto addImage(UUID productId, CreateImageRequest req) {
-        products.findById(productId).orElseThrow(() -> NotFoundException.of("entity.product", productId));
+        loadInTenant(productId);
         ProductImage img = ProductImage.builder()
                 .productId(productId)
                 .url(req.url())
@@ -242,7 +254,7 @@ public class ProductService {
 
     @Transactional
     public ProductImageDto uploadImage(UUID productId, MultipartFile file, Integer position, String altText) {
-        products.findById(productId).orElseThrow(() -> NotFoundException.of("entity.product", productId));
+        loadInTenant(productId);
         enforceImageQuota(productId);
         String url = imageStorage.upload(file);
         ProductImage img = ProductImage.builder()
@@ -268,6 +280,7 @@ public class ProductService {
 
     @Transactional
     public void removeImage(UUID productId, UUID imageId) {
+        loadInTenant(productId);
         ProductImage img = images.findById(imageId)
                 .orElseThrow(() -> NotFoundException.of("entity.product_image", imageId));
         if (!img.getProductId().equals(productId)) throw NotFoundException.of("entity.product_image", imageId);

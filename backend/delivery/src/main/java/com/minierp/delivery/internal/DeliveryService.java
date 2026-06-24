@@ -12,6 +12,7 @@ import com.minierp.sales.api.InvoiceSummary;
 import com.minierp.sales.api.NumberingOperations;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.persistence.TenantGuard;
 import com.minierp.shared.tenant.TenantContext;
 import com.minierp.shared.util.PageResponse;
 import com.minierp.tenant.api.TenantLookup;
@@ -101,7 +102,7 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
 
     @Transactional
     public DeliveryDto.DeliveryResponse startDelivery(UUID id, UUID userId) {
-        Delivery d = deliveries.findById(id).orElseThrow(() -> NotFoundException.of("entity.delivery", id));
+        Delivery d = loadDeliveryInTenant(id);
         if (d.getStatus() != DeliveryStatus.PENDING) {
             throw new BusinessException("error.delivery.not_pending", Map.of("status", d.getStatus()));
         }
@@ -111,7 +112,7 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
 
     @Transactional
     public DeliveryDto.DeliveryResponse recordDelivery(UUID id, DeliveryDto.RecordDeliveryRequest req, UUID userId) {
-        Delivery d = deliveries.findById(id).orElseThrow(() -> NotFoundException.of("entity.delivery", id));
+        Delivery d = loadDeliveryInTenant(id);
         if (d.getStatus() == DeliveryStatus.DELIVERED || d.getStatus() == DeliveryStatus.CANCELLED) {
             throw new BusinessException("error.delivery.already_terminal", Map.of("status", d.getStatus()));
         }
@@ -191,7 +192,7 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
 
     @Transactional
     public DeliveryDto.DeliveryResponse cancel(UUID id) {
-        Delivery d = deliveries.findById(id).orElseThrow(() -> NotFoundException.of("entity.delivery", id));
+        Delivery d = loadDeliveryInTenant(id);
         if (d.getStatus() == DeliveryStatus.DELIVERED) {
             throw new BusinessException("error.delivery.already_delivered", Map.of());
         }
@@ -211,7 +212,7 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
 
     @Transactional(readOnly = true)
     public DeliveryDto.DeliveryResponse get(UUID id) {
-        return toDto(deliveries.findById(id).orElseThrow(() -> NotFoundException.of("entity.delivery", id)));
+        return toDto(loadDeliveryInTenant(id));
     }
 
     @Transactional(readOnly = true)
@@ -226,11 +227,21 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
 
     @Transactional(readOnly = true)
     public byte[] generatePdf(UUID id) {
-        Delivery d = deliveries.findById(id).orElseThrow(() -> NotFoundException.of("entity.delivery", id));
+        Delivery d = loadDeliveryInTenant(id);
         PartnerSummary customer = customerLookup.findById(d.getPartyId()).orElse(null);
         List<DeliveryLine> lines = deliveryLines.findByDeliveryId(id);
         Map<String, Object> vars = buildPdfVars(d, lines, customer);
         return renderer.renderPdf(PdfRenderRequest.of("delivery-note", vars));
+    }
+
+    /**
+     * Load a delivery by id, enforcing it belongs to the current tenant. {@code findById}
+     * bypasses the Hibernate tenant filter, so without this guard a token from tenant A could
+     * read/modify a delivery of tenant B (BUG-2 / SEC-02).
+     */
+    private Delivery loadDeliveryInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(deliveries.findById(id),
+                () -> NotFoundException.of("entity.delivery", id));
     }
 
     private DeliveryDto.DeliveryResponse toDto(Delivery d) {

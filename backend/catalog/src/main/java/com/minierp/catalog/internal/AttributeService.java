@@ -5,6 +5,7 @@ import com.minierp.catalog.api.AttributeDto.AttributeValueDto;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.ConflictException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.persistence.TenantGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,8 +46,7 @@ public class AttributeService {
 
     @Transactional
     public AttributeDto update(UUID id, SaveAttributeRequest req) {
-        Attribute a = attributes.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.attribute", id));
+        Attribute a = loadAttributeInTenant(id);
         if (req.name() != null) a.setName(req.name());
         if (req.sortOrder() != null) a.setSortOrder(req.sortOrder());
         if (req.active() != null) a.setActive(req.active());
@@ -55,8 +55,7 @@ public class AttributeService {
 
     @Transactional
     public void delete(UUID id) {
-        Attribute a = attributes.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.attribute", id));
+        Attribute a = loadAttributeInTenant(id);
         for (AttributeValue v : values.findByAttributeIdOrderBySortOrderAscValueAsc(id)) {
             ensureValueUnused(v.getId());
         }
@@ -66,8 +65,7 @@ public class AttributeService {
 
     @Transactional
     public AttributeValueDto addValue(UUID attributeId, SaveAttributeValueRequest req) {
-        attributes.findById(attributeId)
-                .orElseThrow(() -> NotFoundException.of("entity.attribute", attributeId));
+        loadAttributeInTenant(attributeId);
         AttributeValue v = AttributeValue.builder()
                 .attributeId(attributeId)
                 .value(req.value())
@@ -104,12 +102,22 @@ public class AttributeService {
     }
 
     private AttributeValue requireValue(UUID attributeId, UUID valueId) {
+        // Validate the attribute belongs to the current tenant first; the value is then
+        // confirmed to hang off that attribute, so it cannot be a foreign-tenant row.
+        loadAttributeInTenant(attributeId);
         AttributeValue v = values.findById(valueId)
                 .orElseThrow(() -> NotFoundException.of("entity.attribute_value", valueId));
         if (!v.getAttributeId().equals(attributeId)) {
             throw NotFoundException.of("entity.attribute_value", valueId);
         }
         return v;
+    }
+
+    /** Load an attribute by id, enforcing it belongs to the current tenant ({@code findById}
+     *  bypasses the Hibernate tenant filter — BUG-2 / SEC-02). */
+    private Attribute loadAttributeInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(attributes.findById(id),
+                () -> NotFoundException.of("entity.attribute", id));
     }
 
     private AttributeDto toDto(Attribute a) {

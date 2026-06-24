@@ -3,6 +3,7 @@ package com.minierp.catalog.internal;
 import com.minierp.catalog.api.BrandDto;
 import com.minierp.shared.error.ConflictException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.persistence.TenantGuard;
 import com.minierp.shared.util.PageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -25,8 +26,13 @@ public class BrandService {
 
     @Transactional(readOnly = true)
     public BrandDto get(UUID id) {
-        return toDto(brands.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.brand", id)));
+        return toDto(loadInTenant(id));
+    }
+
+    /** Load a brand by id, enforcing it belongs to the current tenant (BUG-2 / SEC-02). */
+    private Brand loadInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(brands.findById(id),
+                () -> NotFoundException.of("entity.brand", id));
     }
 
     @Transactional
@@ -43,7 +49,7 @@ public class BrandService {
 
     @Transactional
     public BrandDto update(UUID id, String name, String description, String logoUrl, Boolean active) {
-        Brand b = brands.findById(id).orElseThrow(() -> NotFoundException.of("entity.brand", id));
+        Brand b = loadInTenant(id);
         if (name != null) b.setName(name);
         if (description != null) b.setDescription(description);
         if (logoUrl != null) b.setLogoUrl(logoUrl);

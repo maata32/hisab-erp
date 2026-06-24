@@ -21,6 +21,7 @@ import com.minierp.sales.api.NumberingOperations;
 import com.minierp.sales.api.StatementInvoiceLine;
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.persistence.TenantGuard;
 import com.minierp.shared.tenant.TenantContext;
 import com.minierp.shared.util.PageResponse;
 import com.minierp.tenant.api.TenantLookup;
@@ -65,6 +66,27 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
     private final ApplicationEventPublisher events;
 
     // ────────────────────────────────────────────────────────────────────────
+    // Tenant-scoped loaders — {@code findById} bypasses the Hibernate tenant
+    // filter, so by-id loads must verify the row belongs to the current tenant
+    // (BUG-2 / SEC-02). Each preserves the entity's existing NotFound contract.
+    // ────────────────────────────────────────────────────────────────────────
+
+    private PurchaseOrder loadOrderInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(purchaseOrders.findById(id),
+                () -> NotFoundException.of("entity.purchase_order", id));
+    }
+
+    private PurchaseInvoice loadInvoiceInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(purchaseInvoices.findById(id),
+                () -> NotFoundException.of("entity.purchase_invoice", id));
+    }
+
+    private PurchaseCreditNote loadCreditNoteInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(purchaseCreditNotes.findById(id),
+                () -> NotFoundException.of("entity.purchase_credit_note", id));
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // Purchase orders
     // ────────────────────────────────────────────────────────────────────────
 
@@ -93,8 +115,7 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
 
     @Transactional(readOnly = true)
     public PurchaseDto.PurchaseOrderDto getOrder(UUID id) {
-        PurchaseOrder po = purchaseOrders.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.purchase_order", id));
+        PurchaseOrder po = loadOrderInTenant(id);
         String name = supplierLookup.findById(po.getPartyId()).map(PartnerSummary::name).orElse("");
         return toPoDto(po, purchaseOrderLines.findByPurchaseOrderIdOrderByLineNumberAsc(id), name);
     }
@@ -111,8 +132,7 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
 
     @Transactional
     public PurchaseDto.PurchaseOrderDto confirmOrder(UUID id) {
-        PurchaseOrder po = purchaseOrders.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.purchase_order", id));
+        PurchaseOrder po = loadOrderInTenant(id);
         if (po.getStatus() != PurchaseOrderStatus.DRAFT) {
             throw new BusinessException("error.purchase.po_not_draft",
                     Map.of("status", po.getStatus().name()));
@@ -124,8 +144,7 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
 
     @Transactional
     public PurchaseDto.PurchaseOrderDto cancelOrder(UUID id) {
-        PurchaseOrder po = purchaseOrders.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.purchase_order", id));
+        PurchaseOrder po = loadOrderInTenant(id);
         if (po.getStatus() == PurchaseOrderStatus.CONVERTED) {
             throw new BusinessException("error.purchase.po_already_converted",
                     Map.of("status", po.getStatus().name()));
@@ -143,8 +162,7 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
      */
     @Transactional
     public PurchaseDto.PurchaseInvoiceDto convertOrderToInvoice(UUID orderId, PurchaseDto.ConvertOrderToInvoiceRequest req) {
-        PurchaseOrder po = purchaseOrders.findById(orderId)
-                .orElseThrow(() -> NotFoundException.of("entity.purchase_order", orderId));
+        PurchaseOrder po = loadOrderInTenant(orderId);
         if (po.getStatus() != PurchaseOrderStatus.DRAFT && po.getStatus() != PurchaseOrderStatus.CONFIRMED) {
             throw new BusinessException("error.purchase.po_not_convertible",
                     Map.of("status", po.getStatus().name()));
@@ -221,8 +239,7 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
 
     @Transactional
     public PurchaseDto.PurchaseInvoiceDto issueInvoice(UUID id) {
-        PurchaseInvoice inv = purchaseInvoices.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", id));
+        PurchaseInvoice inv = loadInvoiceInTenant(id);
         if (inv.getStatus() != PurchaseInvoiceStatus.DRAFT) {
             throw new BusinessException("error.purchase.invoice_not_draft",
                     Map.of("status", inv.getStatus().name()));
@@ -235,8 +252,7 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
 
     @Transactional(readOnly = true)
     public PurchaseDto.PurchaseInvoiceDto getInvoice(UUID id) {
-        PurchaseInvoice inv = purchaseInvoices.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", id));
+        PurchaseInvoice inv = loadInvoiceInTenant(id);
         String name = supplierLookup.findById(inv.getPartyId()).map(PartnerSummary::name).orElse("");
         return toInvoiceDto(inv, purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(id), name);
     }
@@ -256,8 +272,7 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
 
     @Transactional
     public PurchaseDto.PurchaseInvoiceDto cancelInvoice(UUID id) {
-        PurchaseInvoice inv = purchaseInvoices.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", id));
+        PurchaseInvoice inv = loadInvoiceInTenant(id);
         if (inv.getStatus() != PurchaseInvoiceStatus.DRAFT) {
             throw new BusinessException("error.purchase.invoice_not_draft",
                     Map.of("status", inv.getStatus().name()));
@@ -321,8 +336,7 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
 
     @Transactional
     public PurchaseDto.PurchaseCreditNoteDto createPurchaseCreditNote(UUID invoiceId, PurchaseDto.CreatePurchaseCreditNoteRequest req) {
-        PurchaseInvoice inv = purchaseInvoices.findById(invoiceId)
-                .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", invoiceId));
+        PurchaseInvoice inv = loadInvoiceInTenant(invoiceId);
         ensureCreditable(inv);
 
         List<PurchaseInvoiceLine> invLines = purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(invoiceId);
@@ -426,8 +440,7 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
 
     @Transactional(readOnly = true)
     public PurchaseDto.PurchaseCreditNoteDto getPurchaseCreditNote(UUID id) {
-        PurchaseCreditNote cn = purchaseCreditNotes.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.purchase_credit_note", id));
+        PurchaseCreditNote cn = loadCreditNoteInTenant(id);
         return toCreditNoteDto(cn);
     }
 
@@ -443,8 +456,7 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
 
     @Transactional(readOnly = true)
     public PurchaseDto.PurchaseCreditNotePreviewDto getPurchaseCreditNotePreview(UUID invoiceId) {
-        PurchaseInvoice inv = purchaseInvoices.findById(invoiceId)
-                .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", invoiceId));
+        PurchaseInvoice inv = loadInvoiceInTenant(invoiceId);
         String blockReason = creditBlockReason(inv);
         Map<UUID, BigDecimal> receivedByVariant = aggregate(goodsReceiptLines.sumReceivedByVariantForInvoice(invoiceId));
         Map<UUID, BigDecimal> acc = new HashMap<>();
@@ -499,8 +511,7 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
 
     @Transactional(readOnly = true)
     public byte[] generateInvoicePdf(UUID id) {
-        PurchaseInvoice inv = purchaseInvoices.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.purchase_invoice", id));
+        PurchaseInvoice inv = loadInvoiceInTenant(id);
         PartnerSummary supplier = supplierLookup.findById(inv.getPartyId()).orElse(null);
         List<PurchaseInvoiceLine> lines = purchaseInvoiceLines.findByPurchaseInvoiceIdOrderByLineNumberAsc(id);
         Map<String, Object> vars = buildPurchaseInvoiceVars(inv, lines, supplier);
@@ -509,8 +520,7 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
 
     @Transactional(readOnly = true)
     public byte[] generateOrderPdf(UUID id) {
-        PurchaseOrder po = purchaseOrders.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.purchase_order", id));
+        PurchaseOrder po = loadOrderInTenant(id);
         PartnerSummary supplier = supplierLookup.findById(po.getPartyId()).orElse(null);
         List<PurchaseOrderLine> lines = purchaseOrderLines.findByPurchaseOrderIdOrderByLineNumberAsc(id);
         Map<String, Object> vars = buildPurchaseOrderVars(po, lines, supplier);
@@ -519,8 +529,7 @@ public class PurchaseService implements PurchaseInvoiceOperations, PurchaseState
 
     @Transactional(readOnly = true)
     public byte[] generateCreditNotePdf(UUID id) {
-        PurchaseCreditNote cn = purchaseCreditNotes.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.purchase_credit_note", id));
+        PurchaseCreditNote cn = loadCreditNoteInTenant(id);
         PurchaseInvoice inv = purchaseInvoices.findById(cn.getPurchaseInvoiceId()).orElse(null);
         PartnerSummary supplier = supplierLookup.findById(cn.getPartyId()).orElse(null);
         List<PurchaseCreditNoteLine> lines = purchaseCreditNoteLines.findByPurchaseCreditNoteIdOrderByLineNumberAsc(id);

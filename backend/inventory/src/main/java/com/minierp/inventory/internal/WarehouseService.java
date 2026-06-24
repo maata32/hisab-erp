@@ -3,6 +3,7 @@ package com.minierp.inventory.internal;
 import com.minierp.inventory.api.WarehouseDto;
 import com.minierp.shared.error.ConflictException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.persistence.TenantGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -26,8 +27,17 @@ public class WarehouseService {
 
     @Transactional(readOnly = true)
     public WarehouseDto get(UUID id) {
-        return toDto(warehouses.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.warehouse", id)));
+        return toDto(loadWarehouseInTenant(id));
+    }
+
+    /**
+     * Load a warehouse by id, enforcing it belongs to the current tenant. {@code findById}
+     * bypasses the Hibernate tenant filter, so without this guard a token from tenant A could
+     * read/modify a warehouse of tenant B (BUG-2 / SEC-02).
+     */
+    private Warehouse loadWarehouseInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(warehouses.findById(id),
+                () -> NotFoundException.of("entity.warehouse", id));
     }
 
     @Transactional
@@ -55,8 +65,7 @@ public class WarehouseService {
      */
     @Transactional
     public WarehouseDto setDefault(UUID id) {
-        Warehouse w = warehouses.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.warehouse", id));
+        Warehouse w = loadWarehouseInTenant(id);
         if (w.isDefaultWarehouse()) {
             return toDto(w);
         }
@@ -68,8 +77,7 @@ public class WarehouseService {
 
     @Transactional
     public WarehouseDto update(UUID id, String name, String address, String phone, Boolean active) {
-        Warehouse w = warehouses.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.warehouse", id));
+        Warehouse w = loadWarehouseInTenant(id);
         if (name != null) w.setName(name);
         if (address != null) w.setAddress(address);
         if (phone != null) w.setPhone(phone);

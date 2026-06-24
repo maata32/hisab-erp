@@ -2,6 +2,7 @@ package com.minierp.treasury.internal;
 
 import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
+import com.minierp.shared.persistence.TenantGuard;
 import com.minierp.shared.tenant.TenantContext;
 import com.minierp.treasury.api.TreasuryDto;
 import com.minierp.treasury.api.TreasuryOperations;
@@ -81,8 +82,7 @@ public class TreasuryService implements TreasuryOperations {
 
     @Transactional
     public TreasuryDto.BankAccountResponse updateBankAccount(UUID id, TreasuryDto.UpdateBankAccountRequest req) {
-        BankAccount b = bankAccounts.findById(id)
-                .orElseThrow(() -> NotFoundException.of("entity.bank_account", id));
+        BankAccount b = loadBankAccountInTenant(id);
         if (req.name() != null) b.setName(req.name());
         if (req.bankName() != null) b.setBankName(req.bankName());
         if (req.accountNumber() != null) b.setAccountNumber(req.accountNumber());
@@ -97,8 +97,7 @@ public class TreasuryService implements TreasuryOperations {
         if (amountSigned == null || amountSigned.signum() == 0) {
             throw new BusinessException("error.treasury.invalid_adjustment");
         }
-        BankAccount b = bankAccounts.lockById(bankAccountId)
-                .orElseThrow(() -> NotFoundException.of("entity.bank_account", bankAccountId));
+        BankAccount b = lockBankAccountInTenant(bankAccountId);
         b.setBalance(b.getBalance().add(amountSigned));
         BankTransaction t = persistBankTransaction(b.getId(), BankTransactionType.ADJUSTMENT,
                 amountSigned, null, null, Instant.now(), userId, note);
@@ -111,8 +110,7 @@ public class TreasuryService implements TreasuryOperations {
     public TreasuryDto.BankTransactionResponse depositToBank(TreasuryDto.DepositRequest req, UUID userId) {
         requirePositive(req.amount());
         Vault v = lockVault();
-        BankAccount b = bankAccounts.lockById(req.bankAccountId())
-                .orElseThrow(() -> NotFoundException.of("entity.bank_account", req.bankAccountId()));
+        BankAccount b = lockBankAccountInTenant(req.bankAccountId());
 
         Instant when = req.occurredAt() != null ? req.occurredAt() : Instant.now();
 
@@ -136,8 +134,7 @@ public class TreasuryService implements TreasuryOperations {
     public TreasuryDto.BankTransactionResponse withdrawFromBank(TreasuryDto.WithdrawalRequest req, UUID userId) {
         requirePositive(req.amount());
         Vault v = lockVault();
-        BankAccount b = bankAccounts.lockById(req.bankAccountId())
-                .orElseThrow(() -> NotFoundException.of("entity.bank_account", req.bankAccountId()));
+        BankAccount b = lockBankAccountInTenant(req.bankAccountId());
 
         Instant when = req.occurredAt() != null ? req.occurredAt() : Instant.now();
 
@@ -207,7 +204,9 @@ public class TreasuryService implements TreasuryOperations {
 
     @Transactional(readOnly = true)
     public Page<TreasuryDto.BankTransactionResponse> listBankTransactions(UUID bankAccountId, Instant from, Instant to, Pageable pageable) {
-        if (bankAccounts.findById(bankAccountId).isEmpty()) {
+        if (bankAccounts.findById(bankAccountId)
+                .filter(b -> b.getTenantId().equals(TenantContext.require()))
+                .isEmpty()) {
             throw NotFoundException.of("entity.bank_account", bankAccountId);
         }
         Page<BankTransaction> page = (from != null && to != null)
@@ -217,6 +216,17 @@ public class TreasuryService implements TreasuryOperations {
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
+
+    // Tenant-guarded by-id loads: findById/lockById bypass the Hibernate tenant filter.
+    private BankAccount loadBankAccountInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(bankAccounts.findById(id),
+                () -> NotFoundException.of("entity.bank_account", id));
+    }
+
+    private BankAccount lockBankAccountInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(bankAccounts.lockById(id),
+                () -> NotFoundException.of("entity.bank_account", id));
+    }
 
     private Vault lockVault() {
         UUID tenantId = TenantContext.require();

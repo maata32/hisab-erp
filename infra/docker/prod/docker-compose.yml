@@ -5,7 +5,8 @@
 # Required env vars (set in /etc/minierp/.env on the host, root-only readable):
 #   ROOT_DOMAIN              minierp.example.com
 #   ACME_EMAIL               ops@example.com           (Let's Encrypt)
-#   POSTGRES_PASSWORD        strong random
+#   POSTGRES_PASSWORD        strong random  (owner/admin role 'minierp' — Liquibase only)
+#   APP_DB_PASSWORD          strong random  (runtime role 'minierp_app' — Spring datasource)
 #   REDIS_PASSWORD           strong random
 #   JWT_SECRET               >= 32 chars random
 #   PII_ENCRYPTION_KEY       32 chars
@@ -58,9 +59,11 @@ services:
       POSTGRES_USER: minierp
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+      # Consumed by postgres-init.sh to set the runtime role's password on first boot.
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ../../../scripts/postgres-init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+      - ../../../scripts/postgres-init.sh:/docker-entrypoint-initdb.d/00-init.sh:ro
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "minierp"]
       interval: 10s
@@ -123,8 +126,14 @@ services:
       APP_PUBLIC_URL: https://api.${ROOT_DOMAIN}
       APP_CORS_ALLOWED_ORIGINS: https://app.${ROOT_DOMAIN},https://pos.${ROOT_DOMAIN}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/minierp
-      SPRING_DATASOURCE_USERNAME: minierp
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      # Runtime pool connects as the NON-SUPERUSER role so PostgreSQL RLS (defense layer 2)
+      # is enforced at runtime. A superuser/BYPASSRLS runtime role silently defeats RLS.
+      SPRING_DATASOURCE_USERNAME: minierp_app
+      SPRING_DATASOURCE_PASSWORD: ${APP_DB_PASSWORD}
+      # Liquibase runs DDL as the owner/admin role (separate from the runtime pool).
+      SPRING_LIQUIBASE_URL: jdbc:postgresql://postgres:5432/minierp
+      SPRING_LIQUIBASE_USER: minierp
+      SPRING_LIQUIBASE_PASSWORD: ${POSTGRES_PASSWORD}
       DB_POOL_MAX: "30"
       REDIS_HOST: redis
       REDIS_PORT: "6379"
