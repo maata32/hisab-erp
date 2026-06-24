@@ -7,6 +7,7 @@ import com.minierp.document.api.DocumentRenderer;
 import com.minierp.document.api.PdfRenderRequest;
 import com.minierp.inventory.api.StockMovementType;
 import com.minierp.inventory.api.StockOperations;
+import com.minierp.lotexpiry.api.LotOperations;
 import com.minierp.sales.api.InvoiceOperations;
 import com.minierp.sales.api.InvoiceSummary;
 import com.minierp.sales.api.NumberingOperations;
@@ -40,6 +41,7 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
     private final InvoiceOperations invoices;
     private final com.minierp.sales.api.InvoiceWriteOperations invoiceReader;
     private final StockOperations stockOps;
+    private final LotOperations lotOps;
     private final TenantLookup tenantLookup;
 
     @Transactional
@@ -169,6 +171,9 @@ public class DeliveryService implements com.minierp.delivery.api.DeliveryWriteOp
                         StockMovementType.SALE,
                         "DELIVERY", d.getId(), d.getNumber(),
                         "Delivery " + d.getNumber(), userId);
+                // FEFO lot consumption for lot/expiry-tracked variants (no-op otherwise).
+                lotOps.consumeFefoIfTracked(line.getVariantId(), warehouseId, remaining,
+                        "DELIVERY", d.getId());
                 line.setQuantityDelivered(line.getQuantityOrdered());
             }
             line.setStatus(DeliveryLineStatus.COMPLETED);

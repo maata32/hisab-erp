@@ -6,6 +6,7 @@ import com.minierp.catalog.api.VariantLookup;
 import com.minierp.catalog.api.VariantView;
 import com.minierp.inventory.api.StockMovementType;
 import com.minierp.inventory.api.StockOperations;
+import com.minierp.lotexpiry.api.LotOperations;
 import com.minierp.pos.api.CashRegisterDto;
 import com.minierp.pos.api.CashSessionDto;
 import com.minierp.pos.api.CreateSaleRequest;
@@ -57,6 +58,7 @@ public class PosService {
     private final UomLookup uomLookup;
     private final PriceResolver priceResolver;
     private final StockOperations stockOps;
+    private final LotOperations lotOps;
     private final TreasuryOperations treasury;
 
     // ── Registers ───────────────────────────────────────────────────────────
@@ -346,6 +348,9 @@ public class PosService {
                     register.getWarehouseId(), line.getVariantId(), line.getBaseQuantity(),
                     StockMovementType.SALE, "SALE", sale.getId(), sale.getNumber(),
                     null, userId);
+            // FEFO lot consumption for lot/expiry-tracked variants (no-op otherwise).
+            lotOps.consumeFefoIfTracked(line.getVariantId(), register.getWarehouseId(),
+                    line.getBaseQuantity(), "POS_SALE", sale.getId());
         }
 
         return toDto(sale);
@@ -411,6 +416,9 @@ public class PosService {
                     cmp == null ? BigDecimal.ZERO : cmp,
                     StockMovementType.SALE_RETURN,
                     "VOID " + sale.getNumber(), userId);
+            // Restore consumed lots for lot/expiry-tracked variants (no-op otherwise).
+            lotOps.restoreLotsOnReturn(line.getVariantId(), sale.getWarehouseId(),
+                    line.getBaseQuantity(), "POS_VOID", sale.getId());
         }
 
         // Reverse session totals (subtract sale total + the NET cash that was kept).

@@ -16,6 +16,7 @@ import com.minierp.shared.error.BusinessException;
 import com.minierp.shared.error.NotFoundException;
 import com.minierp.shared.persistence.TenantGuard;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class LotService implements LotOperations {
 
@@ -91,6 +93,74 @@ public class LotService implements LotOperations {
                     .referenceId(referenceId)
                     .build());
         }
+    }
+
+    @Override
+    @Transactional
+    public void consumeFefoIfTracked(UUID variantId, UUID warehouseId, BigDecimal qty,
+                                     String referenceType, UUID referenceId) {
+        if (qty == null || qty.signum() <= 0 || variantId == null || warehouseId == null) return;
+        // Lots only ever exist for lot/expiry-tracked products, so the presence of ACTIVE lots is
+        // the tracking signal — a no-op for non-tracked variants, without resolving the catalog
+        // (which would throw on an unresolvable variant and poison the caller's transaction).
+        // FEFO, tolerant: oldest-expiry-first over ACTIVE non-expired lots; never block.
+        List<ProductLot> available = lots
+                .findByProductVariantIdAndWarehouseIdAndStatusOrderByExpirationDateAsc(
+                        variantId, warehouseId, LotStatus.ACTIVE);
+        if (available.isEmpty()) return;
+        BigDecimal remaining = qty;
+        for (ProductLot lot : available) {
+            if (remaining.signum() <= 0) break;
+            if (lot.getExpirationDate() != null && lot.getExpirationDate().isBefore(LocalDate.now())) continue;
+            BigDecimal taken = remaining.min(lot.getQuantityRemaining());
+            if (taken.signum() <= 0) continue;
+            lot.setQuantityRemaining(lot.getQuantityRemaining().subtract(taken));
+            if (lot.getQuantityRemaining().signum() <= 0) lot.setStatus(LotStatus.EXHAUSTED);
+            movements.save(LotMovement.builder()
+                    .lotId(lot.getId())
+                    .type(LotMovementType.SALE_OUT)
+                    .quantity(taken)
+                    .uomId(lot.getUomId())
+                    .referenceType(referenceType)
+                    .referenceId(referenceId)
+                    .build());
+            remaining = remaining.subtract(taken);
+        }
+        if (remaining.signum() > 0) {
+            log.warn("FEFO partial consumption: variant={} warehouse={} requested={} unallocated={} "
+                            + "(incomplete lot data; total stock remains the source of truth)",
+                    variantId, warehouseId, qty, remaining);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void restoreLotsOnReturn(UUID variantId, UUID warehouseId, BigDecimal qty,
+                                    String referenceType, UUID referenceId) {
+        if (qty == null || qty.signum() <= 0 || variantId == null || warehouseId == null) return;
+        // Restore into the newest-expiry surviving lot (reverse FEFO); revive EXHAUSTED → ACTIVE.
+        // Gated on existing lots (the tracking signal) — no catalog resolution, no tx poisoning.
+        List<ProductLot> restorable = lots
+                .findByProductVariantIdAndWarehouseIdAndStatusInOrderByExpirationDateDesc(
+                        variantId, warehouseId, List.of(LotStatus.ACTIVE, LotStatus.EXHAUSTED));
+        if (restorable.isEmpty()) {
+            // Tracked product with no surviving lot to receive into — the total-stock restock
+            // (SALE_RETURN) already happened; log rather than fabricate a lot with a guessed expiry.
+            log.warn("Lot restore skipped: no surviving lot for variant={} warehouse={} qty={} "
+                    + "(total stock restored; nothing to receive into)", variantId, warehouseId, qty);
+            return;
+        }
+        ProductLot target = restorable.get(0);
+        target.setQuantityRemaining(target.getQuantityRemaining().add(qty));
+        if (target.getStatus() == LotStatus.EXHAUSTED) target.setStatus(LotStatus.ACTIVE);
+        movements.save(LotMovement.builder()
+                .lotId(target.getId())
+                .type(LotMovementType.RETURN_IN)
+                .quantity(qty)
+                .uomId(target.getUomId())
+                .referenceType(referenceType)
+                .referenceId(referenceId)
+                .build());
     }
 
     @Override
