@@ -1,13 +1,13 @@
 # Synthèse — Rejeu complet de la recette sur `main` (2026-06-24)
 
-**Verdict : 416 OK · 0 KO · 2 Bloqué · 1 N/A sur 419 cas. Les 19 cas KO du 2026-06-24 sont
+**Verdict : 417 OK · 0 KO · 1 Bloqué · 1 N/A sur 419 cas. Les 19 cas KO du 2026-06-24 sont
 tous confirmés corrigés. Aucune régression.**
 
-> Mise à jour (suite) : sur les 9 cas Bloqué initiaux, **7 ont été débloqués** lors du suivi —
-> POS-10/POS-24 (hors-ligne POS via Playwright), LOT-13/LOT-14 (FEFO câblé), et LOT-18/LOT-21/TEN-11
-> (jobs `@Scheduled` rendus déclenchables par des endpoints **temporaires** `@Profile("!prod")`,
-> à retirer avant prod — voir « Suivi 2 »). Il ne reste que **2 Bloqué** : LOT-15 (sélection manuelle
-> de lot) et BRC-17 (garde `already_posted` inatteignable via l'API).
+> Mise à jour (suite) : sur les 9 cas Bloqué initiaux, **8 ont été débloqués** lors du suivi —
+> POS-10/POS-24 (hors-ligne POS via Playwright), LOT-13/LOT-14 (FEFO câblé), LOT-18/LOT-21/TEN-11
+> (jobs `@Scheduled` rendus déclenchables par des endpoints **temporaires** `@Profile("!prod")`),
+> et LOT-15 (sélection manuelle de lot implémentée — voir « Suivi 3 »). Il ne reste qu'**1 Bloqué** :
+> BRC-17 (garde `error.reception.already_posted` inatteignable via l'API publique).
 
 ## Contexte & méthode
 - **Branche testée** : `main` (correctifs P0→P2 de la recette du 2026-06-24 mergés, commit `a355ca7`). Vérifié en amont sur l'app live : `/pricing/tiers`→200 (BUG-9), `/inventory/transfers`→200 (BUG-10), route inconnue→404 (durcissement), produit cross-tenant→404 (BUG-2).
@@ -44,12 +44,11 @@ Les scripts d'agents (interrompus, non revérifiés par l'étape adversariale) o
 - **PDF-07 / PDF-10 / PDF-11 / PDF-12 / PDF-13** : cascade d'un setup achat invalide (lignes sans `unitCost` → 422). Recréés correctement → tous les PDF (reçu paiement, BC, facture/réception/avoir fournisseur) **200 application/pdf**.
 - **VAR-04** : non seulement plus de 409, mais comportement exact attendu (4 variants conservés, 2 désactivés, 2 actifs).
 
-## Cas Bloqué — 9 au rejeu, **2 restants** après suivi
-**Débloqués depuis (7)** : AUTH-08 (super-admin sur tenant suspendu, via promotion DB), POS-10/POS-24 (hors-ligne POS via Playwright), LOT-13/LOT-14 (FEFO câblé), LOT-18/LOT-21/TEN-11 (jobs `@Scheduled` rendus déclenchables — voir « Suivi 2 »).
+## Cas Bloqué — 9 au rejeu, **1 restant** après suivi
+**Débloqués depuis (8)** : AUTH-08 (super-admin sur tenant suspendu, via promotion DB), POS-10/POS-24 (hors-ligne POS via Playwright), LOT-13/LOT-14 (FEFO câblé), LOT-18/LOT-21/TEN-11 (jobs `@Scheduled` rendus déclenchables — « Suivi 2 »), LOT-15 (sélection manuelle de lot implémentée — « Suivi 3 »).
 
-**Restent Bloqué (2) — pas des défauts** :
-- **LOT-15 — sélection MANUELLE d'un lot précis** (court-circuit de l'ordre FEFO) : non exposée via l'API/UI. La consommation FEFO automatique est désormais câblée (LOT-13/14), mais choisir un lot explicite en saisie de vente reste une fonctionnalité distincte non implémentée.
-- **BRC-17** : le chemin `error.reception.already_posted` n'est pas atteignable via l'API publique (la garde existe mais `/record` mène toujours à RECEIVED).
+**Reste Bloqué (1) — pas un défaut** :
+- **BRC-17** : le chemin `error.reception.already_posted` n'est pas atteignable via l'API publique (la garde défensive existe mais `/record` mène toujours à RECEIVED ; il faudrait forcer un état intermédiaire en base pour la déclencher).
 
 ## Livrables
 - `Cahier_de_recettes_mini-ERP_execute_2026-06-24_main.xlsx` — classeur rempli (Statut/Testeur/Date/Observations sur les 419 cas, tableau de bord, feuille **Bugs & Anomalies**). La copie du 2026-06-24 reste intacte.
@@ -81,3 +80,11 @@ Les 3 jobs planifiés (alertes lots 06:00, marquage EXPIRED 06:30, expiration te
 - `POST /api/v1/dev/jobs/tenants/expiry-sweep` (TEN-11) — `DevTenantExpiryTriggerController` (tenant), `hasRole('SUPER_ADMIN')`.
 
 Chaque contrôleur invoque la **même** méthode que le planificateur et est **gardé par `@Profile("!prod")`** : jamais enregistré quand le profil `prod` est actif (la prod utilise `SPRING_PROFILES_ACTIVE=prod`). En-tête « ⚠️ TEMPORAIRE — À SUPPRIMER AVANT LA MISE EN PRODUCTION » + isolé dans 2 fichiers dédiés → suppression triviale avant livraison. **Vérifié live** : mark-expired → lot ACTIVE→EXPIRED ; scan-expiring → alerte `[LOT-EXPIRY]` dans les logs ; sweep → tenant PAST_DUE→SUSPENDED, et tenant-admin → 403.
+
+### Suivi 3 — sélection manuelle de lot (LOT-15) implémentée
+La consommation pouvait être automatique (FEFO) mais pas **manuelle** (choisir un lot précis) → LOT-15 « Bloqué ». Ajout :
+- Nouveau champ optionnel **`lotAllocations: [{lotId, quantity}]`** sur la ligne de vente POS (`CreateSaleRequest.SaleLineRequest`, constructeur secondaire rétro-compatible → FEFO si absent).
+- Nouveau SPI **`LotOperations.consumeExplicitLots(variant, warehouse, expectedQty, allocations, …)`** : **valide** (chaque lot ACTIVE du bon variant/entrepôt, quantité suffisante, somme des allocations == quantité de la ligne) puis consomme exactement les lots désignés, **court-circuitant FEFO** ; sinon **422** (`error.lot.allocation_invalid` / `_insufficient` / `_qty_mismatch`, i18n fr/en/ar).
+- `PosService.createSale` : si la ligne porte des `lotAllocations` → `consumeExplicitLots`, sinon `consumeFefoIfTracked`.
+
+**Vérifié** : 137 IT (3 nouveaux : override FEFO + 2 cas de rejet). **E2E live** : vente ciblant le lot à péremption la plus lointaine (B) → B 10→6, le lot FEFO le plus proche (A) reste intact à 5 ; allocations dont la somme ≠ la quantité de ligne → 422 `error.lot.allocation_qty_mismatch`. *(Exposé côté API ; un sélecteur de lot dans l'UI POS serait une amélioration front distincte.)* Débloque LOT-15.
