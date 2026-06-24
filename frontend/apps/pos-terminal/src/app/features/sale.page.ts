@@ -16,7 +16,7 @@ import { CatalogCacheService } from '../services/catalog-cache.service';
 import { SessionService } from '../services/session.service';
 import { SyncService } from '../services/sync.service';
 import { ReceiptService } from '../services/receipt.service';
-import { PosApiService } from '../services/pos-api.service';
+import { PosApiService, PosLot } from '../services/pos-api.service';
 import { OnlineStatusService } from '../services/online-status.service';
 import { CachedProduct, CachedProductImage, CartLine, PendingSale, SyncedSale } from '../models/pos.models';
 import { PosSettingsService } from '../services/pos-settings.service';
@@ -182,6 +182,23 @@ import { PosSettingsService } from '../services/pos-settings.service';
                       {{ fmtSvc.format(lineTotal(line)) }}
                     </span>
                   </div>
+                  @if (line.tracksLots && online.isOnline() && lotsFor(line.variantId).length) {
+                    <div class="mt-2 flex items-center gap-1.5">
+                      <i class="pi pi-tag text-xs text-gray-400 shrink-0"></i>
+                      <select
+                        class="flex-1 text-xs rounded border border-gray-300 px-2 py-1 bg-white"
+                        [value]="line.lotId ?? ''"
+                        (change)="onLotChange(line, $any($event.target).value)"
+                      >
+                        <option value="">{{ 'pos.sale.lot_fefo' | translate }}</option>
+                        @for (lot of lotsFor(line.variantId); track lot.id) {
+                          <option [value]="lot.id">
+                            {{ lot.lotNumber }} · {{ lot.expirationDate }} · {{ lot.quantityRemaining }}
+                          </option>
+                        }
+                      </select>
+                    </div>
+                  }
                 </div>
               }
             </div>
@@ -321,6 +338,7 @@ export class SalePage implements OnInit {
   protected readonly changeDueDisplay = signal(0);
   protected readonly popoverImages = signal<CachedProductImage[]>([]);
   protected readonly stockByProduct = signal<Record<string, number>>({});
+  protected readonly lotsByVariant = signal<Record<string, PosLot[]>>({});
 
   protected showPayment = false;
   protected showReceipt = false;
@@ -436,9 +454,39 @@ export class SalePage implements OnInit {
           taxRate: product.defaultTaxRate,
           taxInclusive: product.taxInclusive,
           currency: product.currency,
+          tracksLots: product.tracksLots,
+          lotId: null,
+          lotNumber: null,
         },
       ]);
+      if (product.tracksLots) this.loadLots(product.variantId);
     }
+  }
+
+  /** Fetch ACTIVE lots for a variant (online only) so the cashier can pick one. */
+  private async loadLots(variantId: string): Promise<void> {
+    if (!this.online.isOnline() || this.lotsByVariant()[variantId]) return;
+    try {
+      const lots = await firstValueFrom(
+        this.api.listLots(variantId, this.sessionSvc.currentRegister()?.warehouseId ?? ''),
+      );
+      this.lotsByVariant.set({ ...this.lotsByVariant(), [variantId]: lots });
+    } catch { /* offline / no lots */ }
+  }
+
+  lotsFor(variantId: string): PosLot[] {
+    return this.lotsByVariant()[variantId] ?? [];
+  }
+
+  onLotChange(line: CartLine, lotId: string): void {
+    const lot = this.lotsFor(line.variantId).find((l) => l.id === lotId);
+    this.cartLines.set(
+      this.cartLines().map((l) =>
+        l.productId === line.productId && l.uomId === line.uomId
+          ? { ...l, lotId: lot ? lot.id : null, lotNumber: lot ? lot.lotNumber : null }
+          : l,
+      ),
+    );
   }
 
   changeQty(line: CartLine, delta: number): void {
@@ -484,6 +532,7 @@ export class SalePage implements OnInit {
       uomId: l.uomId,
       quantity: l.quantity,
       unitDiscount: l.unitDiscount > 0 ? l.unitDiscount : null,
+      lotAllocations: l.lotId ? [{ lotId: l.lotId, quantity: l.quantity }] : null,
     }));
     const payment = {
       cash: this.payCash() > 0 ? this.payCash() : null,

@@ -12,6 +12,7 @@ export interface CachedProduct {
   baseUomId: string;
   defaultTaxRate: number;
   sellable: boolean;
+  tracksLots: boolean;
   imageUrl: string | null;
   images: CachedProductImage[];
   price: number;
@@ -69,6 +70,10 @@ export interface CartLine {
   taxRate: number;
   taxInclusive: boolean;
   currency: string;
+  /** Lot tracking: when true a specific lot may be picked (online); null = automatic FEFO. */
+  tracksLots: boolean;
+  lotId: string | null;
+  lotNumber: string | null;
 }
 
 export interface PendingSaleLine {
@@ -76,6 +81,8 @@ export interface PendingSaleLine {
   uomId: string;
   quantity: number;
   unitDiscount: number | null;
+  /** Manual lot selection (overrides FEFO server-side); null/absent = automatic FEFO. */
+  lotAllocations?: { lotId: string; quantity: number }[] | null;
 }
 
 export interface PendingSalePayment {
