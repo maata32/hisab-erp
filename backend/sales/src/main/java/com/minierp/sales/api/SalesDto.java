@@ -1,5 +1,10 @@
 package com.minierp.sales.api;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -9,9 +14,9 @@ import java.util.UUID;
 public class SalesDto {
 
     public record LineRequest(
-            UUID variantId,
-            UUID uomId,
-            BigDecimal quantity,
+            @NotNull UUID variantId,
+            @NotNull UUID uomId,
+            @NotNull @Positive BigDecimal quantity,
             BigDecimal unitPrice,
             BigDecimal discountPercent
     ) {}
@@ -113,12 +118,12 @@ public class SalesDto {
     ) {}
 
     public record CreateQuoteRequest(
-            UUID customerId,
+            @NotNull UUID customerId,
             LocalDate issueDate,
             LocalDate validUntil,
             String currency,
             String notes,
-            List<LineRequest> lines
+            @NotEmpty @Valid List<LineRequest> lines
     ) {}
 
     public record UpdateQuoteRequest(
