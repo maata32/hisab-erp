@@ -83,7 +83,7 @@ class CreditNoteReturnEventListener {
                     "DELIVERY", br.getId(), br.getNumber(),
                     "Return delivery " + br.getNumber(), null);
             // Restore lots for lot/expiry-tracked variants (no-op otherwise).
-            lotOps.restoreLotsOnReturn(rl.variantId(), warehouseId, rl.quantity(),
+            lotOps.restoreLotsOnReturn(rl.productId(), rl.variantId(), warehouseId, rl.quantity(),
                     "DELIVERY", br.getId());
         }
     }

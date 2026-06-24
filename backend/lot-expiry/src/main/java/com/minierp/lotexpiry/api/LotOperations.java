@@ -34,12 +34,13 @@ public interface LotOperations {
                               String referenceType, UUID referenceId);
 
     /**
-     * Return hook: when the variant's product is lot/expiry tracked, restore {@code qty}
-     * back into a lot (reverse FEFO — newest-expiry lot first, reviving EXHAUSTED → ACTIVE;
-     * a fresh return lot is created when none exists) and record a RETURN_IN movement.
-     * No-op for non-tracked products. Called alongside the SALE_RETURN stock restock.
+     * Return hook: restore {@code qty} back into a lot of this variant/warehouse — reverse FEFO
+     * (newest-expiry surviving lot first, reviving EXHAUSTED → ACTIVE). When no lot survives, a
+     * fresh return lot is created if the product is lot/expiry tracked (using {@code productId} to
+     * resolve its base UoM and shelf life); otherwise it is a no-op. Records a RETURN_IN movement.
+     * Called alongside the SALE_RETURN stock restock.
      */
-    void restoreLotsOnReturn(UUID variantId, UUID warehouseId, BigDecimal qty,
+    void restoreLotsOnReturn(UUID productId, UUID variantId, UUID warehouseId, BigDecimal qty,
                              String referenceType, UUID referenceId);
 
     /**

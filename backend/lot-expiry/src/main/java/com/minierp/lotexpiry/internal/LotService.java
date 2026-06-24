@@ -135,24 +135,43 @@ public class LotService implements LotOperations {
 
     @Override
     @Transactional
-    public void restoreLotsOnReturn(UUID variantId, UUID warehouseId, BigDecimal qty,
+    public void restoreLotsOnReturn(UUID productId, UUID variantId, UUID warehouseId, BigDecimal qty,
                                     String referenceType, UUID referenceId) {
         if (qty == null || qty.signum() <= 0 || variantId == null || warehouseId == null) return;
         // Restore into the newest-expiry surviving lot (reverse FEFO); revive EXHAUSTED → ACTIVE.
-        // Gated on existing lots (the tracking signal) — no catalog resolution, no tx poisoning.
         List<ProductLot> restorable = lots
                 .findByProductVariantIdAndWarehouseIdAndStatusInOrderByExpirationDateDesc(
                         variantId, warehouseId, List.of(LotStatus.ACTIVE, LotStatus.EXHAUSTED));
+        ProductLot target;
         if (restorable.isEmpty()) {
-            // Tracked product with no surviving lot to receive into — the total-stock restock
-            // (SALE_RETURN) already happened; log rather than fabricate a lot with a guessed expiry.
-            log.warn("Lot restore skipped: no surviving lot for variant={} warehouse={} qty={} "
-                    + "(total stock restored; nothing to receive into)", variantId, warehouseId, qty);
-            return;
+            // No surviving lot — create a fresh return lot, but only for a lot/expiry-tracked product.
+            // catalog.findProductById returns an Optional (never throws), so the caller's transaction
+            // is never poisoned even for an unknown product.
+            ProductSnapshot product = (productId == null) ? null : catalog.findProductById(productId).orElse(null);
+            if (product == null || !product.trackExpiry()) {
+                log.warn("Lot restore skipped: no surviving lot and product not tracked (variant={} warehouse={} qty={})",
+                        variantId, warehouseId, qty);
+                return;
+            }
+            Integer shelf = product.shelfLifeDays();
+            LocalDate exp = LocalDate.now().plusDays(shelf != null && shelf > 0 ? shelf : 365);
+            target = ProductLot.builder()
+                    .productId(productId)
+                    .productVariantId(variantId)
+                    .warehouseId(warehouseId)
+                    .uomId(product.baseUomId())
+                    .lotNumber("RET-" + (referenceId != null ? referenceId.toString().substring(0, 8) : "NA"))
+                    .expirationDate(exp)
+                    .initialQuantity(qty)
+                    .quantityRemaining(qty)
+                    .status(LotStatus.ACTIVE)
+                    .build();
+            lots.save(target);
+        } else {
+            target = restorable.get(0);
+            target.setQuantityRemaining(target.getQuantityRemaining().add(qty));
+            if (target.getStatus() == LotStatus.EXHAUSTED) target.setStatus(LotStatus.ACTIVE);
         }
-        ProductLot target = restorable.get(0);
-        target.setQuantityRemaining(target.getQuantityRemaining().add(qty));
-        if (target.getStatus() == LotStatus.EXHAUSTED) target.setStatus(LotStatus.ACTIVE);
         movements.save(LotMovement.builder()
                 .lotId(target.getId())
                 .type(LotMovementType.RETURN_IN)
