@@ -1,7 +1,12 @@
 # Synthèse — Rejeu complet de la recette sur `main` (2026-06-24)
 
-**Verdict : 409 OK · 0 KO · 9 Bloqué · 1 N/A sur 419 cas. Les 19 cas KO du 2026-06-24 sont
+**Verdict : 413 OK · 0 KO · 5 Bloqué · 1 N/A sur 419 cas. Les 19 cas KO du 2026-06-24 sont
 tous confirmés corrigés. Aucune régression.**
+
+> Mise à jour (suite) : sur les 9 cas Bloqué initiaux, **4 ont été débloqués** lors du suivi —
+> POS-10/POS-24 (hors-ligne POS rejoué via Playwright) et LOT-13/LOT-14 (moteur FEFO désormais
+> câblé dans vente/livraison/POS). Il reste **5 Bloqué** (jobs planifiés, sélection manuelle de lot,
+> garde inatteignable). Voir les sections « Approfondissement » et « Suivi » plus bas.
 
 ## Contexte & méthode
 - **Branche testée** : `main` (correctifs P0→P2 de la recette du 2026-06-24 mergés, commit `a355ca7`). Vérifié en amont sur l'app live : `/pricing/tiers`→200 (BUG-9), `/inventory/transfers`→200 (BUG-10), route inconnue→404 (durcissement), produit cross-tenant→404 (BUG-2).
@@ -38,17 +43,17 @@ Les scripts d'agents (interrompus, non revérifiés par l'étape adversariale) o
 - **PDF-07 / PDF-10 / PDF-11 / PDF-12 / PDF-13** : cascade d'un setup achat invalide (lignes sans `unitCost` → 422). Recréés correctement → tous les PDF (reçu paiement, BC, facture/réception/avoir fournisseur) **200 application/pdf**.
 - **VAR-04** : non seulement plus de 409, mais comportement exact attendu (4 variants conservés, 2 désactivés, 2 actifs).
 
-## 9 cas Bloqué (légitimes — limites d'infrastructure, pas des défauts)
-- **Jobs `@Scheduled` non déclenchables sans accès code/actuator** : LOT-18 (alertes expiration 06:00), LOT-21 (marquage EXPIRED 06:30), TEN-11 (expiration tenant 07:00). Logique couverte par la suite IT backend (130 verts).
-- **FEFO / consommation de lot non branchés aux flux sortants** (ventes/POS/livraison) : LOT-13, LOT-14, LOT-15. Le helper `/lots/select-fefo` fonctionne isolément ; aucun endpoint de consommation exposé. *(Écart d'architecture connu, pas une régression.)*
-- **Hors-ligne POS** (file Dexie, coupure réseau) non simulable hors navigateur instrumenté : POS-10, POS-24. La garantie serveur (idempotence + `/pos/sales/sync`) est vérifiée (POS-11/12).
-- **BRC-17** : le chemin `error.reception.already_posted` n'est pas atteignable via l'API publique (la garde existe mais `/record` mène toujours à RECEIVED).
+## Cas Bloqué — 9 au rejeu, **5 restants** après suivi
+**Débloqués depuis (4)** : AUTH-08 (super-admin sur tenant suspendu, via promotion DB), POS-10/POS-24 (hors-ligne POS rejoué via Playwright), LOT-13/LOT-14 (FEFO câblé — voir « Suivi » ci-dessous).
 
-**AUTH-08** (Bloqué au 2026-06-24) a été **débloqué** ce rejeu : sur un tenant SUSPENDED, un admin standard → 403 `auth.tenant_suspended`, mais le même user promu super-admin → 200 (contournement super-admin confirmé).
+**Restent Bloqué (5) — limites d'infrastructure/architecture, pas des défauts** :
+- **Jobs `@Scheduled` non déclenchables sans accès code/actuator** : LOT-18 (alertes expiration 06:00), LOT-21 (marquage EXPIRED 06:30), TEN-11 (expiration tenant 07:00). Logique couverte par la suite IT backend.
+- **LOT-15 — sélection MANUELLE d'un lot précis** (court-circuit de l'ordre FEFO) : non exposée via l'API/UI. La consommation FEFO automatique est désormais câblée (LOT-13/14), mais choisir un lot explicite en saisie de vente reste une fonctionnalité distincte non implémentée.
+- **BRC-17** : le chemin `error.reception.already_posted` n'est pas atteignable via l'API publique (la garde existe mais `/record` mène toujours à RECEIVED).
 
 ## Livrables
 - `Cahier_de_recettes_mini-ERP_execute_2026-06-24_main.xlsx` — classeur rempli (Statut/Testeur/Date/Observations sur les 419 cas, tableau de bord, feuille **Bugs & Anomalies**). La copie du 2026-06-24 reste intacte.
-- `recette_captures_2026-06-24_main/` — 140 captures d'écran de preuve (par domaine D01→D10).
+- `recette_captures_2026-06-24_main/` — 144 captures d'écran de preuve (par domaine D01→D10, incl. hors-ligne POS).
 - Le présent fichier de synthèse.
 
 ## Approfondissement des 2 points de vigilance
@@ -58,7 +63,14 @@ Les scripts d'agents (interrompus, non revérifiés par l'étape adversariale) o
 - **Correctif** (`backend/shared/.../GlobalExceptionHandler.java`) : nouveau `@ExceptionHandler(MethodArgumentTypeMismatchException)` → **400 `error.invalid_parameter`** (avec le nom du paramètre en `details`), + clé i18n fr/en/ar. Durcissement transversal : **tout** endpoint avec un paramètre UUID/typé mal formé répond désormais 400 propre au lieu de 500.
 - **Vérifié live** (après rebuild conteneur) : code « G » → 400 `error.invalid_parameter` ; IDs valides G→KG → 200 (résultat 2,5) ; inter-catégorie G→L → 422 `error.uom.category_mismatch`. Comportement fonctionnel inchangé, seule la réponse d'erreur est assainie.
 
-### 2. FEFO / consommation de lot non branchés aux flux sortants → DIAGNOSTIC (non corrigé)
-- **Constat précis** : les lots sont **créés** en entrée (`GoodsReceiptService.receiveLot` à la réception d'achat, et au stock d'ouverture) mais **jamais décrémentés** en sortie. La livraison (`DeliveryService` → `stockOps.issue`) et le POS (`PosService` → `stockOps.issueAllowNegative`) ne touchent que le **stock total** ; `StockOperationsImpl` n'a aucune logique de lot (le module inventory ne dépend même pas de lot-expiry). Le helper `LotService.selectFEFO` + `consumeAllocations` existe et fonctionne (validé en isolé, `/lots/select-fefo` → 200) mais **aucun flux sortant ne l'invoque** ; `LotOperations` n'est injecté que dans `GoodsReceiptService` (entrée).
-- **Conséquence** : pour un produit à lots/expiration, les quantités par lot ne font que croître ; le stock total reste la seule source de vérité à la vente. Pas une régression (état d'architecture présent depuis l'origine), mais un écart fonctionnel réel (FEFO non opérant de bout en bout). Cohérent avec les cas LOT-13/14/15 restés Bloqué.
-- **Recommandation** (changement conséquent, non réalisé ici car il touche le cœur vente/livraison/POS + retours + idempotence POS et mérite une décision produit) : injecter `LotOperations` dans `DeliveryService` et `PosService` ; pour les variantes `tracksLots`/`trackExpiry`, appeler `selectFEFO(variant, warehouse, qty)` puis `consumeAllocations(...)` au moment du débit de stock, dans la même transaction ; gérer lots BLOCKED exclus, stock lot insuffisant, et la restauration de lot sur retour/avoir. À cadrer comme une évolution dédiée (avec ITs de bout en bout) plutôt qu'un correctif de recette.
+### 2. FEFO / consommation de lot non branchés aux flux sortants → **CONSTRUIT + vérifié**
+- **Constat initial** : les lots étaient **créés** en entrée (`GoodsReceiptService.receiveLot`, stock d'ouverture) mais **jamais décrémentés** en sortie. Livraison et POS ne touchaient que le **stock total** ; le helper `selectFEFO`/`consumeAllocations` existait mais aucun flux sortant ne l'invoquait.
+- **Réalisé** : nouvel hook `LotOperations.consumeFefoIfTracked(variant, warehouse, qty, refType, refId)` dans `LotService` — consomme en FEFO (péremption la plus proche d'abord) les lots ACTIVE, marque EXHAUSTED, enregistre les mouvements `SALE_OUT`. **Tolérant** (décision produit) : si les lots ne couvrent pas la quantité, consomme l'existant + log d'avertissement, sans bloquer (le stock total reste l'autorité). Hook symétrique `restoreLotsOnReturn` (mouvement `RETURN_IN`, ravive EXHAUSTED→ACTIVE). Détection « produit suivi » par **présence de lots** (un lot n'existe que pour un produit suivi) — évite toute résolution catalogue qui pourrait empoisonner la transaction appelante.
+- **Câblage** : appelé après le débit de stock dans `DeliveryService.recordDelivery`, `PosService.createSale` (couvre aussi la **resync hors-ligne**, `syncSales` passant par `createSale`) ; restauration dans `PosService.voidSale` et `CreditNoteReturnEventListener` (retours/avoirs). Dépendances de module ajoutées (`delivery`→`lotexpiry::api`, `pos`→`lotexpiry::api`) + déclarations Spring Modulith mises à jour.
+- **Vérifié** : suite IT backend **133/0/0** (3 nouveaux tests FEFO : ordre FEFO, tolérance au manque de lot, no-op produit non suivi) ; **E2E live** sur recette2 — vente POS de 7 sur un produit à 2 lots (A exp proche qty5, B qty10) → A 5→0 EXHAUSTED, B 10→8 (FEFO respecté), `SALE_OUT` enregistrés ; void → lots restaurés (total 15). Débloque **LOT-13** et **LOT-14**.
+- **Hors périmètre (documenté)** : la **sélection manuelle** d'un lot (court-circuit FEFO, LOT-15) reste non exposée ; la restauration de retour vise le lot survivant le plus récent (pas de création d'un lot de retour à péremption devinée quand aucun lot ne survit — seulement un log).
+
+### Suivi — hors-ligne POS (POS-10 / POS-24) rejoué
+Rejoué pour de vrai via Playwright (`context.setOffline`) contre le POS (:4201) : vente saisie **hors-ligne** → file locale Dexie (`pendingSales`, statut `pending` + `idempotencyKey`), bandeau « Mode hors-ligne » + reçu de repli affichés (captures `D09/POS-10_*`). À la **reconnexion** → resynchro auto (`POST /pos/sales/sync`) → entrée Dexie `synced` (serverSaleId) et **exactement 1 vente** côté serveur (idempotence, pas de doublon). Débloque POS-10/POS-24.
+
+**Anomalie distincte découverte (non corrigée, recommandée)** : si une vente d'un lot de `/pos/sales/sync` échoue (ex. `error.pricing.no_price`), la transaction interne passe `rollback-only` et **tout le lot de synchro part en 500** (`UnexpectedRollbackException`) — une vente fautive empêche la synchro des autres. Correctif suggéré : isoler chaque vente du batch en `REQUIRES_NEW` dans `PosService.syncSales`. À traiter séparément.
