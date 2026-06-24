@@ -1,12 +1,13 @@
 # Synthèse — Rejeu complet de la recette sur `main` (2026-06-24)
 
-**Verdict : 413 OK · 0 KO · 5 Bloqué · 1 N/A sur 419 cas. Les 19 cas KO du 2026-06-24 sont
+**Verdict : 416 OK · 0 KO · 2 Bloqué · 1 N/A sur 419 cas. Les 19 cas KO du 2026-06-24 sont
 tous confirmés corrigés. Aucune régression.**
 
-> Mise à jour (suite) : sur les 9 cas Bloqué initiaux, **4 ont été débloqués** lors du suivi —
-> POS-10/POS-24 (hors-ligne POS rejoué via Playwright) et LOT-13/LOT-14 (moteur FEFO désormais
-> câblé dans vente/livraison/POS). Il reste **5 Bloqué** (jobs planifiés, sélection manuelle de lot,
-> garde inatteignable). Voir les sections « Approfondissement » et « Suivi » plus bas.
+> Mise à jour (suite) : sur les 9 cas Bloqué initiaux, **7 ont été débloqués** lors du suivi —
+> POS-10/POS-24 (hors-ligne POS via Playwright), LOT-13/LOT-14 (FEFO câblé), et LOT-18/LOT-21/TEN-11
+> (jobs `@Scheduled` rendus déclenchables par des endpoints **temporaires** `@Profile("!prod")`,
+> à retirer avant prod — voir « Suivi 2 »). Il ne reste que **2 Bloqué** : LOT-15 (sélection manuelle
+> de lot) et BRC-17 (garde `already_posted` inatteignable via l'API).
 
 ## Contexte & méthode
 - **Branche testée** : `main` (correctifs P0→P2 de la recette du 2026-06-24 mergés, commit `a355ca7`). Vérifié en amont sur l'app live : `/pricing/tiers`→200 (BUG-9), `/inventory/transfers`→200 (BUG-10), route inconnue→404 (durcissement), produit cross-tenant→404 (BUG-2).
@@ -43,11 +44,10 @@ Les scripts d'agents (interrompus, non revérifiés par l'étape adversariale) o
 - **PDF-07 / PDF-10 / PDF-11 / PDF-12 / PDF-13** : cascade d'un setup achat invalide (lignes sans `unitCost` → 422). Recréés correctement → tous les PDF (reçu paiement, BC, facture/réception/avoir fournisseur) **200 application/pdf**.
 - **VAR-04** : non seulement plus de 409, mais comportement exact attendu (4 variants conservés, 2 désactivés, 2 actifs).
 
-## Cas Bloqué — 9 au rejeu, **5 restants** après suivi
-**Débloqués depuis (4)** : AUTH-08 (super-admin sur tenant suspendu, via promotion DB), POS-10/POS-24 (hors-ligne POS rejoué via Playwright), LOT-13/LOT-14 (FEFO câblé — voir « Suivi » ci-dessous).
+## Cas Bloqué — 9 au rejeu, **2 restants** après suivi
+**Débloqués depuis (7)** : AUTH-08 (super-admin sur tenant suspendu, via promotion DB), POS-10/POS-24 (hors-ligne POS via Playwright), LOT-13/LOT-14 (FEFO câblé), LOT-18/LOT-21/TEN-11 (jobs `@Scheduled` rendus déclenchables — voir « Suivi 2 »).
 
-**Restent Bloqué (5) — limites d'infrastructure/architecture, pas des défauts** :
-- **Jobs `@Scheduled` non déclenchables sans accès code/actuator** : LOT-18 (alertes expiration 06:00), LOT-21 (marquage EXPIRED 06:30), TEN-11 (expiration tenant 07:00). Logique couverte par la suite IT backend.
+**Restent Bloqué (2) — pas des défauts** :
 - **LOT-15 — sélection MANUELLE d'un lot précis** (court-circuit de l'ordre FEFO) : non exposée via l'API/UI. La consommation FEFO automatique est désormais câblée (LOT-13/14), mais choisir un lot explicite en saisie de vente reste une fonctionnalité distincte non implémentée.
 - **BRC-17** : le chemin `error.reception.already_posted` n'est pas atteignable via l'API publique (la garde existe mais `/record` mène toujours à RECEIVED).
 
@@ -73,4 +73,11 @@ Les scripts d'agents (interrompus, non revérifiés par l'étape adversariale) o
 ### Suivi — hors-ligne POS (POS-10 / POS-24) rejoué
 Rejoué pour de vrai via Playwright (`context.setOffline`) contre le POS (:4201) : vente saisie **hors-ligne** → file locale Dexie (`pendingSales`, statut `pending` + `idempotencyKey`), bandeau « Mode hors-ligne » + reçu de repli affichés (captures `D09/POS-10_*`). À la **reconnexion** → resynchro auto (`POST /pos/sales/sync`) → entrée Dexie `synced` (serverSaleId) et **exactement 1 vente** côté serveur (idempotence, pas de doublon). Débloque POS-10/POS-24.
 
-**Anomalie distincte découverte (non corrigée, recommandée)** : si une vente d'un lot de `/pos/sales/sync` échoue (ex. `error.pricing.no_price`), la transaction interne passe `rollback-only` et **tout le lot de synchro part en 500** (`UnexpectedRollbackException`) — une vente fautive empêche la synchro des autres. Correctif suggéré : isoler chaque vente du batch en `REQUIRES_NEW` dans `PosService.syncSales`. À traiter séparément.
+**Anomalie distincte découverte → CORRIGÉE** : `/pos/sales/sync` partait en 500 (`UnexpectedRollbackException`) dès qu'une vente du lot échouait (ex. `error.pricing.no_price`) — la transaction partagée passait `rollback-only`, bloquant la synchro des autres. Fix : `PosService.syncSales` n'est plus `@Transactional` ; chaque vente passe par `self.createSale` (réf proxy `@Lazy`) donc sa propre transaction → une vente fautive ne rollback que la sienne. Test de non-régression + vérif live (batch 1 OK + 1 KO → 200 `ACCEPTED`+`ERROR`, la bonne persistée).
+
+### Suivi 2 — jobs `@Scheduled` rendus déclenchables (LOT-18 / LOT-21 / TEN-11)
+Les 3 jobs planifiés (alertes lots 06:00, marquage EXPIRED 06:30, expiration tenant 07:00) n'étaient pas déclenchables → « Bloqué ». Ajout de **déclencheurs manuels TEMPORAIRES**, à retirer avant prod :
+- `POST /api/v1/dev/jobs/lots/scan-expiring` (LOT-18), `POST /api/v1/dev/jobs/lots/mark-expired` (LOT-21) — `DevExpiryTriggerController` (lot-expiry), permission `lot:read`/`lot:update`, exécutés dans le contexte tenant de l'appelant (RLS).
+- `POST /api/v1/dev/jobs/tenants/expiry-sweep` (TEN-11) — `DevTenantExpiryTriggerController` (tenant), `hasRole('SUPER_ADMIN')`.
+
+Chaque contrôleur invoque la **même** méthode que le planificateur et est **gardé par `@Profile("!prod")`** : jamais enregistré quand le profil `prod` est actif (la prod utilise `SPRING_PROFILES_ACTIVE=prod`). En-tête « ⚠️ TEMPORAIRE — À SUPPRIMER AVANT LA MISE EN PRODUCTION » + isolé dans 2 fichiers dédiés → suppression triviale avant livraison. **Vérifié live** : mark-expired → lot ACTIVE→EXPIRED ; scan-expiring → alerte `[LOT-EXPIRY]` dans les logs ; sweep → tenant PAST_DUE→SUSPENDED, et tenant-admin → 403.
