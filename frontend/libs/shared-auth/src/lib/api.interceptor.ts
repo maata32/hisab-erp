@@ -58,13 +58,21 @@ export const apiInterceptor: HttpInterceptorFn = (
           }),
         );
       }
-      if (err.status === 403) {
+      // A 403 on an auth endpoint (login/refresh) is a domain condition — locked
+      // account, or a suspended/pending/archived tenant — not a "you opened a page
+      // you may not see" situation. Let it propagate so the caller (the login form)
+      // can surface the real reason instead of masking it behind the generic 403 page.
+      if (err.status === 403 && !isAuthEndpoint(req.url)) {
         router.navigate(['/forbidden']);
       }
       return throwError(() => err);
     }),
   );
 };
+
+function isAuthEndpoint(url: string): boolean {
+  return url.includes('/api/v1/auth/');
+}
 
 function cryptoRandomId(): string {
   const buf = new Uint8Array(16);
