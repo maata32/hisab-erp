@@ -324,8 +324,11 @@
     "reasonPlaceholder": "اختياري",
     "keepCurrentPlan": "الإبقاء على الباقة الحالية",
     "billingCycle": "دورة الفوترة",
+    "searchPlaceholder": "ابحث بالرمز أو الاسم…",
     "filter": {
-      "all": "كل الحالات"
+      "all": "كل الحالات",
+      "allTypes": "كل الأنواع",
+      "allPlans": "كل الباقات"
     },
     "statuses": {
       "PENDING": "قيد الانتظار",

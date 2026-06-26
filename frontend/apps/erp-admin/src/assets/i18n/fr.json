@@ -324,8 +324,11 @@
     "reasonPlaceholder": "Optionnel",
     "keepCurrentPlan": "Conserver la formule actuelle",
     "billingCycle": "Cycle de facturation",
+    "searchPlaceholder": "Rechercher par code ou nom…",
     "filter": {
-      "all": "Tous les statuts"
+      "all": "Tous les statuts",
+      "allTypes": "Tous les types",
+      "allPlans": "Toutes les formules"
     },
     "statuses": {
       "PENDING": "En attente",

@@ -324,8 +324,11 @@
     "reasonPlaceholder": "Optional",
     "keepCurrentPlan": "Keep current plan",
     "billingCycle": "Billing cycle",
+    "searchPlaceholder": "Search by code or name…",
     "filter": {
-      "all": "All statuses"
+      "all": "All statuses",
+      "allTypes": "All types",
+      "allPlans": "All plans"
     },
     "statuses": {
       "PENDING": "Pending",
