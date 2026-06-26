@@ -15,12 +15,12 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/organization-types")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('SUPER_ADMIN')")
-@Tag(name = "Organization types", description = "Configurable tenant types (super-admin)")
+@Tag(name = "Organization types", description = "Configurable tenant types")
 public class OrganizationTypeController {
 
     private final OrganizationTypeService service;
 
+    /** Public read — used by the registration form and the super-admin console. */
     @GetMapping
     public List<OrganizationTypeDto> list(@RequestParam(defaultValue = "false") boolean activeOnly) {
         return service.list(activeOnly);
@@ -28,17 +28,20 @@ public class OrganizationTypeController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public OrganizationTypeDto create(@Valid @RequestBody OrganizationTypeDto.CreateRequest req) {
         return service.create(req);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public OrganizationTypeDto update(@PathVariable UUID id, @Valid @RequestBody OrganizationTypeDto.UpdateRequest req) {
         return service.update(id, req);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public void delete(@PathVariable UUID id) {
         service.delete(id);
     }

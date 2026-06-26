@@ -49,6 +49,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/registrations").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/plans").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/organization-types").permitAll()
                         .requestMatchers(
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/platform-login",

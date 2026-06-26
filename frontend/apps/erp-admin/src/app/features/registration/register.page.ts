@@ -107,7 +107,7 @@ interface Plan {
                 <label for="companyType" class="text-sm font-medium text-gray-700">
                   {{ 'registration.companyType' | translate }} *
                 </label>
-                <p-dropdown inputId="companyType" formControlName="companyType" [options]="typeOptions"
+                <p-dropdown inputId="companyType" formControlName="companyType" [options]="typeOptions()"
                             optionLabel="label" optionValue="value" styleClass="w-full" appendTo="body" />
               </div>
               <div class="space-y-1">
@@ -212,12 +212,8 @@ export class RegisterPage implements OnInit {
   protected readonly plans = signal<Plan[]>([]);
   private codeEditedManually = false;
 
-  protected readonly typeOptions = [
-    { value: 'BOUTIQUE', label: 'Boutique' },
-    { value: 'SUPERMARCHE', label: 'Supermarché' },
-    { value: 'GROSSISTE', label: 'Grossiste' },
-    { value: 'MIXTE', label: 'Mixte' },
-  ];
+  // Loaded from the public active organization-types endpoint.
+  protected readonly typeOptions = signal<{ value: string; label: string }[]>([]);
 
   protected readonly localeOptions = [
     { value: 'fr', label: 'Français' },
@@ -242,6 +238,7 @@ export class RegisterPage implements OnInit {
       if (this.form.controls.tenantCode.dirty) this.codeEditedManually = true;
     });
     void this.loadPlans();
+    void this.loadTypes();
   }
 
   protected planOptions() {
@@ -315,6 +312,17 @@ export class RegisterPage implements OnInit {
       this.plans.set(list ?? []);
     } catch {
       this.plans.set([]);
+    }
+  }
+
+  private async loadTypes(): Promise<void> {
+    try {
+      const list = await firstValueFrom(
+        this.http.get<{ code: string; label: string }[]>('/api/v1/organization-types?activeOnly=true'),
+      );
+      this.typeOptions.set((list ?? []).map((t) => ({ value: t.code, label: t.label })));
+    } catch {
+      this.typeOptions.set([]);
     }
   }
 }
