@@ -2,6 +2,7 @@ package com.minierp.identity.internal;
 
 import com.minierp.identity.api.AuthController.LoginRequest;
 import com.minierp.identity.api.AuthController.LoginResponse;
+import com.minierp.identity.api.AuthController.PlatformLoginRequest;
 import com.minierp.identity.events.UserLoggedInEvent;
 import com.minierp.identity.security.JwtProperties;
 import com.minierp.identity.security.JwtService;
@@ -84,7 +85,7 @@ public class AuthService {
 
             CurrentUser currentUser = toCurrentUser(user);
             String accessToken = jwtService.issueAccessToken(currentUser);
-            String refreshTokenPlain = issueRefreshToken(user);
+            String refreshTokenPlain = issueRefreshToken(user, false);
 
             events.publishEvent(new UserLoggedInEvent(user.getId(), tenant.id(), Instant.now()));
             events.publishEvent(audit(user, "LOGIN_SUCCESS", null));
@@ -99,6 +100,48 @@ public class AuthService {
         }
     }
 
+    /**
+     * Platform (super-admin) login — NOT scoped to a tenant. Runs without a tenant
+     * context so RLS is bypassed and the super-admin is resolvable by email across
+     * every tenant. The issued token carries {@code tid=null} and only the
+     * {@code SUPER_ADMIN} role (no business permissions), confining it to platform
+     * endpoints.
+     */
+    @Transactional
+    public LoginResponse platformLogin(PlatformLoginRequest req) {
+        User user = users.findByEmailAndSuperAdminTrue(req.email())
+                .orElseThrow(() -> new BadCredentialsException("Unknown super admin"));
+
+        if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(Instant.now())) {
+            LinkedHashMap<String, Object> lockArgs = new LinkedHashMap<>();
+            lockArgs.put("attempts", LoginAttemptTracker.MAX_FAILED_ATTEMPTS);
+            lockArgs.put("minutes", LoginAttemptTracker.LOCK_MINUTES);
+            throw new ForbiddenException("auth.account_locked", lockArgs);
+        }
+
+        if (!hasher.verify(user.getPasswordHash(), req.password())) {
+            loginAttempts.recordFailedLogin(user.getId());
+            throw new BadCredentialsException("Invalid credentials");
+        }
+
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        user.setLastLoginAt(Instant.now());
+
+        CurrentUser currentUser = toPlatformCurrentUser(user);
+        String accessToken = jwtService.issueAccessToken(currentUser);
+        String refreshTokenPlain = issueRefreshToken(user, true);
+
+        events.publishEvent(new UserLoggedInEvent(user.getId(), user.getTenantId(), Instant.now()));
+        events.publishEvent(audit(user, "PLATFORM_LOGIN_SUCCESS", null));
+
+        return new LoginResponse(
+                accessToken,
+                refreshTokenPlain,
+                jwtProps.accessTokenTtl().toSeconds(),
+                currentUser);
+    }
+
     @Transactional
     public LoginResponse refresh(String refreshTokenPlain) {
         String hash = hashToken(refreshTokenPlain);
@@ -107,16 +150,22 @@ public class AuthService {
         if (!token.isActive()) {
             throw new ValidationException("auth.refresh_token_invalid");
         }
+        boolean platform = token.isPlatform();
         try {
-            TenantContext.set(token.getTenantId());
+            // Platform sessions stay cross-tenant (no context → RLS bypass); tenant sessions
+            // re-pin to their tenant. Either way the original refresh token was found above
+            // before any context was set (login/refresh requests carry no tenant).
+            if (!platform) {
+                TenantContext.set(token.getTenantId());
+            }
             User user = users.findById(token.getUserId())
                     .orElseThrow(() -> new ValidationException("auth.refresh_token_invalid"));
 
-            // Rotate: revoke old, issue new
+            // Rotate: revoke old, issue new (preserving the session kind)
             token.setRevokedAt(Instant.now());
-            String newRefreshPlain = issueRefreshToken(user);
+            String newRefreshPlain = issueRefreshToken(user, platform);
 
-            CurrentUser currentUser = toCurrentUser(user);
+            CurrentUser currentUser = platform ? toPlatformCurrentUser(user) : toCurrentUser(user);
             String accessToken = jwtService.issueAccessToken(currentUser);
             return new LoginResponse(
                     accessToken,
@@ -175,7 +224,22 @@ public class AuthService {
                 permCodes);
     }
 
-    private String issueRefreshToken(User user) {
+    /**
+     * Platform session principal: no tenant binding (tid=null) and only the
+     * {@code SUPER_ADMIN} authority — no business permissions — so the token can reach
+     * exclusively {@code hasRole('SUPER_ADMIN')} endpoints, never tenant business data.
+     */
+    private CurrentUser toPlatformCurrentUser(User user) {
+        return new CurrentUser(
+                user.getId(),
+                null,
+                user.getEmail(),
+                user.getPreferredLanguage(),
+                Set.of("SUPER_ADMIN"),
+                Set.of());
+    }
+
+    private String issueRefreshToken(User user, boolean platform) {
         byte[] raw = new byte[48];
         RNG.nextBytes(raw);
         String plain = HexFormat.of().formatHex(raw);
@@ -183,6 +247,7 @@ public class AuthService {
                 .userId(user.getId())
                 .tokenHash(hashToken(plain))
                 .expiresAt(Instant.now().plus(jwtProps.refreshTokenTtl()))
+                .platform(platform)
                 .build();
         rt.setTenantId(user.getTenantId());
         var hold = RequestContext.tryGet().orElse(null);

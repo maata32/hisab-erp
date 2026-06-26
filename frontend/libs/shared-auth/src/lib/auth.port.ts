@@ -5,6 +5,8 @@ import { CurrentUser } from '@minierp/shared-api';
 
 export interface AuthServicePort {
   login(req: LoginRequest): Observable<LoginResponse>;
+  /** Platform (super-admin) sign in — no tenant code; issues a cross-tenant session. */
+  platformLogin(email: string, password: string): Observable<LoginResponse>;
   refresh(): Observable<LoginResponse>;
   logout(): void;
   getAccessToken(): string | null;

@@ -38,10 +38,16 @@ public class DevDataSeeder implements ApplicationRunner {
         ensureTenantAdmin(demoOrgId);
         ensureSuperAdmin(demoOrgId);
         ensurePhase1aData(demoOrgId);
+
+        // Dedicated platform super-admin, homed in a reserved (hidden) organization.
+        UUID platformOrgId = ensurePlatformOrg();
+        ensurePlatformSuperAdmin(platformOrgId);
+
         log.info("Dev data seeded. Demo tenant code: 'demo'");
-        log.info("  Tenant admin: admin@demo.local / Admin1234!");
-        log.info("  Cashier:      cashier@demo.local / Cash1234!");
-        log.info("  Super admin:  root@minierp.local / Root12345!");
+        log.info("  Tenant admin:    admin@demo.local / Admin1234!");
+        log.info("  Cashier:         cashier@demo.local / Cash1234!");
+        log.info("  Super admin:     root@minierp.local / Root12345! (tenant code 'demo')");
+        log.info("  Platform admin:  superadmin@minierp.local / Super1234! (platform login, no tenant code)");
     }
 
     private UUID ensureDemoOrg() {
@@ -66,6 +72,26 @@ public class DevDataSeeder implements ApplicationRunner {
         upsertUser(orgId, "root@minierp.local", "Platform Root", "Root12345!", "TENANT_ADMIN", true);
     }
 
+    /** Reserved, hidden organization that homes platform super-admin accounts. Idempotent. */
+    private UUID ensurePlatformOrg() {
+        Integer exists = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM organizations WHERE code = ?", Integer.class, OrganizationApi.PLATFORM_ORG_CODE);
+        if (exists != null && exists > 0) {
+            return jdbc.queryForObject(
+                    "SELECT id FROM organizations WHERE code = ?", UUID.class, OrganizationApi.PLATFORM_ORG_CODE);
+        }
+        var dto = organizationApi.create(new CreateOrganizationRequest(
+                OrganizationApi.PLATFORM_ORG_CODE, "Plateforme (système)", "MIXTE",
+                "MRU", "fr", "Africa/Nouakchott",
+                "platform@minierp.local", null, null, null));
+        return dto.id();
+    }
+
+    /** Dedicated platform super-admin: is_super_admin, NO tenant role (no business permissions). */
+    private void ensurePlatformSuperAdmin(UUID platformOrgId) {
+        upsertUser(platformOrgId, "superadmin@minierp.local", "Platform Super Admin", "Super1234!", null, true);
+    }
+
     private void upsertUser(UUID orgId, String email, String name, String password, String roleCode, boolean superAdmin) {
         try {
             TenantContext.set(orgId);
@@ -83,13 +109,17 @@ public class DevDataSeeder implements ApplicationRunner {
                 VALUES (?, ?, ?, ?, ?, 'fr', true, ?, now(), 0, now(), now(), 0)
                 """, userId, orgId, email, hash, name, superAdmin);
 
-            // Wait for the role to exist (it's seeded asynchronously by TenantRolesBootstrapper).
-            UUID roleId = waitForRole(orgId, roleCode);
-            if (roleId != null) {
-                jdbc.update("INSERT INTO user_role (user_id, role_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
-                        userId, roleId);
+            // A platform super-admin carries no tenant role (roleCode == null): its authority
+            // comes solely from is_super_admin. Otherwise wait for the role to exist (it is
+            // seeded asynchronously by TenantRolesBootstrapper) and assign it.
+            if (roleCode != null) {
+                UUID roleId = waitForRole(orgId, roleCode);
+                if (roleId != null) {
+                    jdbc.update("INSERT INTO user_role (user_id, role_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+                            userId, roleId);
+                }
             }
-            log.info("Seeded {} user '{}' in tenant {}", roleCode, email, orgId);
+            log.info("Seeded {} user '{}' in tenant {}", roleCode == null ? "SUPER_ADMIN(platform)" : roleCode, email, orgId);
         } finally {
             TenantContext.clear();
         }

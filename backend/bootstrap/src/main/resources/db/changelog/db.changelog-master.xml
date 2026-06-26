@@ -86,5 +86,6 @@
     <include file="db/changelog/0079-notifications-jsonb-to-text.xml"/>
     <include file="db/changelog/0080-credit-usage-payment-nullable.xml"/>
     <include file="db/changelog/0081-product-price-minqty-unique.xml"/>
+    <include file="db/changelog/0082-refresh-token-platform-flag.xml"/>
 
 </databaseChangeLog>

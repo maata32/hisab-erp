@@ -134,6 +134,38 @@
     "account_locked": "Compte verrouillé. Réessayez plus tard.",
     "required": "Authentification requise"
   },
+  "platform": {
+    "login": {
+      "title": "Connexion plateforme",
+      "subtitle": "Console super-administrateur",
+      "submit": "Se connecter",
+      "backToTenant": "← Connexion organisation",
+      "link": "Connexion super-administrateur (plateforme)"
+    },
+    "users": {
+      "title": "Utilisateurs de l'organisation",
+      "count": "Utilisateurs",
+      "view": "Voir les utilisateurs",
+      "email": "Email",
+      "name": "Nom",
+      "roles": "Rôles",
+      "status": "Statut",
+      "locked": "Verrouillé",
+      "empty": "Aucun utilisateur",
+      "resetPassword": "Réinitialiser le mot de passe",
+      "unlock": "Déverrouiller",
+      "tempPasswordTitle": "Mot de passe temporaire",
+      "tempPasswordHint": "Transmettez ce mot de passe à l'utilisateur de manière sécurisée. Il devra le changer.",
+      "confirm": {
+        "resetPassword": "Réinitialiser le mot de passe de {{email}} ?"
+      },
+      "toast": {
+        "unlocked": "Compte déverrouillé",
+        "activated": "Utilisateur activé",
+        "deactivated": "Utilisateur désactivé"
+      }
+    }
+  },
   "nav": {
     "dashboard": "Tableau de bord",
     "partners": "Partenaires",

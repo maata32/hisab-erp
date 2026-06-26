@@ -27,6 +27,12 @@ export class AuthService implements AuthServicePort {
     );
   }
 
+  platformLogin(email: string, password: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>('/api/v1/auth/platform-login', { email, password }).pipe(
+      tap((res) => this.persist(res)),
+    );
+  }
+
   refresh(): Observable<LoginResponse> {
     if (this.refreshInFlight$) return this.refreshInFlight$;
     const refreshToken = this.state$.value.refreshToken;
