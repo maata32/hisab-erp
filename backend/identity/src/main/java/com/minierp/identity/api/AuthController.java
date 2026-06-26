@@ -28,6 +28,13 @@ public class AuthController {
         return authService.login(req);
     }
 
+    @PostMapping("/platform-login")
+    @Operation(summary = "Platform (super-admin) sign in — email + password, no tenant code",
+            description = "Issues a cross-tenant token (no tenant binding) limited to SUPER_ADMIN endpoints.")
+    public LoginResponse platformLogin(@Valid @RequestBody PlatformLoginRequest req) {
+        return authService.platformLogin(req);
+    }
+
     @PostMapping("/refresh")
     @Operation(summary = "Trade a refresh token for a new access token + rotated refresh token")
     public LoginResponse refresh(@Valid @RequestBody RefreshRequest req) {
@@ -51,6 +58,11 @@ public class AuthController {
             @NotBlank @Email String email,
             @NotBlank @Size(min = 1, max = 200) String password,
             @Size(max = 50) String tenantCode
+    ) {}
+
+    public record PlatformLoginRequest(
+            @NotBlank @Email String email,
+            @NotBlank @Size(min = 1, max = 200) String password
     ) {}
 
     public record RefreshRequest(@NotBlank String refreshToken) {}

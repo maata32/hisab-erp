@@ -4,6 +4,12 @@ import java.util.UUID;
 
 public interface OrganizationApi {
 
+    /**
+     * Reserved organization that homes platform (super-admin) accounts. It is not a real
+     * business tenant and is hidden from the super-admin console listing.
+     */
+    String PLATFORM_ORG_CODE = "__platform__";
+
     /** Direct creation by a SUPER_ADMIN — starts in TRIAL. */
     OrganizationDto create(CreateOrganizationRequest req);
 

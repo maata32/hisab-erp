@@ -134,6 +134,38 @@
     "account_locked": "Account locked. Try again later.",
     "required": "Authentication required"
   },
+  "platform": {
+    "login": {
+      "title": "Platform sign in",
+      "subtitle": "Super-admin console",
+      "submit": "Sign in",
+      "backToTenant": "← Organization sign in",
+      "link": "Super-admin (platform) sign in"
+    },
+    "users": {
+      "title": "Organization users",
+      "count": "Users",
+      "view": "View users",
+      "email": "Email",
+      "name": "Name",
+      "roles": "Roles",
+      "status": "Status",
+      "locked": "Locked",
+      "empty": "No users",
+      "resetPassword": "Reset password",
+      "unlock": "Unlock",
+      "tempPasswordTitle": "Temporary password",
+      "tempPasswordHint": "Share this password with the user securely. They must change it.",
+      "confirm": {
+        "resetPassword": "Reset {{email}}'s password?"
+      },
+      "toast": {
+        "unlocked": "Account unlocked",
+        "activated": "User activated",
+        "deactivated": "User deactivated"
+      }
+    }
+  },
   "nav": {
     "dashboard": "Dashboard",
     "partners": "Partners",

@@ -47,9 +47,10 @@ public class OrganizationService implements OrganizationApi {
 
     @Transactional(readOnly = true)
     public PageResponse<OrganizationDto> list(String status, Pageable pageable) {
+        // Hide the reserved platform organization that homes super-admin accounts.
         Page<Organization> page = (status == null || status.isBlank())
-                ? orgs.findAll(pageable)
-                : orgs.findAllByStatus(parseStatus(status), pageable);
+                ? orgs.findAllByCodeNot(OrganizationApi.PLATFORM_ORG_CODE, pageable)
+                : orgs.findAllByStatusAndCodeNot(parseStatus(status), OrganizationApi.PLATFORM_ORG_CODE, pageable);
         return PageResponse.of(page.map(this::toDto));
     }
 

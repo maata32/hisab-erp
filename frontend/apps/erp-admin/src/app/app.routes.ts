@@ -11,6 +11,12 @@ export const appRoutes: Routes = [
     loadComponent: () => import('./features/registration/register.page').then((m) => m.RegisterPage),
   },
   {
+    // Platform (super-admin) sign-in — public, outside the tenant layout.
+    path: 'platform/login',
+    loadComponent: () =>
+      import('./features/platform/platform-login.page').then((m) => m.PlatformLoginPage),
+  },
+  {
     path: '',
     canActivate: [authGuard],
     loadComponent: () => import('./layout/main-layout.component').then((m) => m.MainLayoutComponent),
@@ -27,6 +33,13 @@ export const appRoutes: Routes = [
         canActivate: [roleGuard('SUPER_ADMIN')],
         loadComponent: () =>
           import('./features/organizations/organization-list.page').then((m) => m.OrganizationListPage),
+      },
+      {
+        // Platform console drill-down: a given organization's users (cross-tenant).
+        path: 'organizations/:id/users',
+        canActivate: [roleGuard('SUPER_ADMIN')],
+        loadComponent: () =>
+          import('./features/platform/organization-users.page').then((m) => m.OrganizationUsersPage),
       },
       {
         path: 'users',

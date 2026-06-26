@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -35,7 +36,7 @@ interface Plan { code: string; name: string; monthlyPrice: number; }
   selector: 'erp-admin-organization-list',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, TranslateModule,
+    CommonModule, RouterLink, FormsModule, TranslateModule,
     TableModule, TagModule, ButtonModule, InputTextModule, DialogModule, DropdownModule, TooltipModule,
     LoadingSpinnerComponent,
   ],
@@ -65,6 +66,7 @@ interface Plan { code: string; name: string; monthlyPrice: number; }
               <th>{{ 'organizations.code' | translate }}</th>
               <th>{{ 'organizations.name' | translate }}</th>
               <th>{{ 'organizations.status' | translate }}</th>
+              <th class="text-center">{{ 'platform.users.count' | translate }}</th>
               <th>{{ 'organizations.plan' | translate }}</th>
               <th>{{ 'organizations.trialEnds' | translate }}</th>
               <th class="text-right">{{ 'common.actions' | translate }}</th>
@@ -76,9 +78,16 @@ interface Plan { code: string; name: string; monthlyPrice: number; }
               <td class="font-medium">{{ row.name }}</td>
               <td><p-tag [value]="('organizations.statuses.' + row.status) | translate"
                          [severity]="severity(row.status)" /></td>
+              <td class="text-center">
+                <a [routerLink]="['/organizations', row.id, 'users']"
+                   class="text-primary-600 hover:underline font-medium">{{ countOf(row.id) }}</a>
+              </td>
               <td class="text-sm">{{ row.planCode || '—' }}</td>
               <td class="text-sm text-gray-600">{{ row.trialEndsAt ? (row.trialEndsAt | date: 'shortDate') : '—' }}</td>
               <td class="text-right whitespace-nowrap">
+                <button pButton icon="pi pi-users" class="p-button-sm p-button-text"
+                        [pTooltip]="'platform.users.view' | translate"
+                        [routerLink]="['/organizations', row.id, 'users']"></button>
                 @if (row.status === 'PENDING') {
                   <button pButton icon="pi pi-check" class="p-button-sm p-button-success p-button-text"
                           [pTooltip]="'organizations.actions.approve' | translate"
@@ -111,7 +120,7 @@ interface Plan { code: string; name: string; monthlyPrice: number; }
             </tr>
           </ng-template>
           <ng-template pTemplate="emptymessage">
-            <tr><td colspan="6" class="text-center text-gray-400 py-8">
+            <tr><td colspan="7" class="text-center text-gray-400 py-8">
               {{ 'organizations.empty.title' | translate }}
             </td></tr>
           </ng-template>
@@ -203,6 +212,7 @@ export class OrganizationListPage implements OnInit {
   protected readonly saving = signal(false);
   protected readonly rows = signal<OrganizationRow[]>([]);
   protected readonly plans = signal<Plan[]>([]);
+  protected readonly counts = signal<Record<string, number>>({});
 
   protected statusFilter = '';
   private currentRows = this.pageSize;
@@ -233,7 +243,25 @@ export class OrganizationListPage implements OnInit {
 
   ngOnInit(): void {
     void this.loadPlans();
+    void this.loadCounts();
     void this.loadChunk({ first: 0, rows: this.pageSize });
+  }
+
+  protected countOf(id: string): number {
+    return this.counts()[id] ?? 0;
+  }
+
+  private async loadCounts(): Promise<void> {
+    try {
+      const list = await firstValueFrom(
+        this.http.get<{ organizationId: string; userCount: number }[]>('/api/v1/platform/user-counts'),
+      );
+      const map: Record<string, number> = {};
+      for (const c of list ?? []) map[c.organizationId] = c.userCount;
+      this.counts.set(map);
+    } catch {
+      this.counts.set({});
+    }
   }
 
   protected statusFilterOptions() {

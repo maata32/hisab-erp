@@ -43,6 +43,11 @@ class RefreshToken extends TenantAwareEntity {
     @Column(name = "user_agent", length = 500)
     private String userAgent;
 
+    /** True when issued by the platform (super-admin) login — keeps refresh cross-tenant (tid=null). */
+    @Column(name = "platform", nullable = false)
+    @Builder.Default
+    private boolean platform = false;
+
     public boolean isActive() {
         return revokedAt == null && Instant.now().isBefore(expiresAt);
     }

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Platform (super-admin) sessions. A refresh token issued by the platform login
+      (/auth/platform-login) is flagged so that refresh() keeps minting cross-tenant
+      tokens (tid=null) instead of re-pinning the session to the super-admin's home
+      organization. Tenant sessions keep platform=false.
+    -->
+    <changeSet id="0082-refresh-token-platform-flag" author="mini-erp">
+        <addColumn tableName="refresh_tokens">
+            <column name="platform" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <rollback>
+            <dropColumn tableName="refresh_tokens" columnName="platform"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

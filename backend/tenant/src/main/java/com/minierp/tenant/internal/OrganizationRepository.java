@@ -14,6 +14,10 @@ interface OrganizationRepository extends JpaRepository<Organization, UUID> {
     boolean existsByCode(String code);
     Page<Organization> findAllByStatus(OrganizationStatus status, Pageable pageable);
 
+    // ── Console listing: hide the reserved platform organization ──
+    Page<Organization> findAllByCodeNot(String code, Pageable pageable);
+    Page<Organization> findAllByStatusAndCodeNot(OrganizationStatus status, String code, Pageable pageable);
+
     // ── Used by TenantExpiryJob (runs without tenant context; organizations has no RLS) ──
     List<Organization> findAllByStatusAndTrialEndsAtBefore(OrganizationStatus status, Instant cutoff);
     List<Organization> findAllByStatusAndPastDueSinceBefore(OrganizationStatus status, Instant cutoff);
