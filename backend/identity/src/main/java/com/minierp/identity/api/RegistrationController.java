@@ -37,9 +37,9 @@ public class RegistrationController {
             @Pattern(regexp = "^[a-z0-9-]+$", message = "Code must be lowercase alphanumeric with dashes only")
             String tenantCode,
             @NotBlank @Size(min = 2, max = 200) String companyName,
-            @NotBlank @Pattern(regexp = "BOUTIQUE|SUPERMARCHE|GROSSISTE|MIXTE",
-                    message = "Type must be one of BOUTIQUE, SUPERMARCHE, GROSSISTE, MIXTE")
-            String companyType,
+            // Type is validated server-side against the configurable organization_types
+            // table (must exist and be active); no hardcoded enum pattern here.
+            @NotBlank @Size(max = 20) String companyType,
             @Size(max = 3) String currency,
             @Size(max = 10) String locale,
             @Size(max = 50) String timezone,

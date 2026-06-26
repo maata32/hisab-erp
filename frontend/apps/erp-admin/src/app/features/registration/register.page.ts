@@ -308,8 +308,15 @@ export class RegisterPage implements OnInit {
       if (apiError?.code === 'error.data_integrity') {
         this.errorMessage.set(this.translate.instant('registration.codeTaken'));
       } else {
+        // Prefer the specific field error, then a known translated code, then the
+        // server-localized message, then a generic fallback — never a raw key.
+        const fieldMsg = apiError?.fieldErrors?.[0]?.message;
+        const translated = apiError ? this.translate.instant(apiError.code) : null;
         this.errorMessage.set(
-          apiError ? this.translate.instant(apiError.code) : this.translate.instant('registration.error'),
+          fieldMsg
+          || (translated && translated !== apiError?.code ? translated : null)
+          || apiError?.message
+          || this.translate.instant('registration.error'),
         );
       }
     } finally {
