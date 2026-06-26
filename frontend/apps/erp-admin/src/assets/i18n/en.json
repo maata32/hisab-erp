@@ -337,8 +337,14 @@
       "notifConfig": "Centralized notifications configuration"
     },
     "phase2": {
-      "title": "Phase 2 — Purchasing / HR / Integrations",
-      "purchases": "Purchasing: PO, receipt",
+      "title": "Phase 2 — Purchasing & Platform",
+      "purchases": "Purchasing: PO, invoice, receipt, credit note, return",
+      "multiTenant": "Multi-tenant: public sign-up + tenant lifecycle",
+      "superAdminConsole": "Super-admin console: organizations & users (cross-tenant)",
+      "configurable": "Configurable organization types & plans (CRUD)"
+    },
+    "phaseNext": {
+      "title": "Next sprint — HR / Integrations / Reporting V2",
       "employees": "HR: employees, payroll, attendance",
       "integrations": "Integrations: Chinguitel, bank, mobile money",
       "advancedReports": "Reporting V2: P&L, cashflow, forecasts"

@@ -337,8 +337,14 @@
       "notifConfig": "Configuration centralisée des notifications"
     },
     "phase2": {
-      "title": "Phase 2 — Achats / RH / Intégrations",
-      "purchases": "Achats : commande fournisseur, réception",
+      "title": "Phase 2 — Achats & Plateforme",
+      "purchases": "Achats : commande fournisseur, facture, réception, avoir, retour",
+      "multiTenant": "Multi-tenant : inscription publique + cycle de vie des tenants",
+      "superAdminConsole": "Console super-admin : organisations & utilisateurs (transverse)",
+      "configurable": "Types d'organisation & formules configurables (CRUD)"
+    },
+    "phaseNext": {
+      "title": "Prochain sprint — RH / Intégrations / Reporting V2",
       "employees": "RH : employés, paies, présences",
       "integrations": "Intégrations : Chinguitel, banque, mobile money",
       "advancedReports": "Reporting V2 : P&L, trésorerie, prévisions"

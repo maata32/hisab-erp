@@ -576,8 +576,13 @@ export class DashboardPage implements OnInit {
     },
     {
       key: 'phase2',
+      state: 'delivered',
+      items: ['purchases', 'multiTenant', 'superAdminConsole', 'configurable'],
+    },
+    {
+      key: 'phaseNext',
       state: 'next',
-      items: ['purchases', 'employees', 'integrations', 'advancedReports'],
+      items: ['employees', 'integrations', 'advancedReports'],
     },
   ];
 }
