@@ -134,6 +134,44 @@
     "account_locked": "تم قفل الحساب. حاول مرة أخرى لاحقًا.",
     "required": "المصادقة مطلوبة"
   },
+  "plans": {
+    "title": "الباقات",
+    "subtitle": "باقات الاشتراك وحدودها",
+    "create": "باقة جديدة",
+    "edit": "تعديل الباقة",
+    "code": "الرمز",
+    "name": "الاسم",
+    "monthlyPrice": "السعر الشهري (MRU)",
+    "annualPrice": "السعر السنوي (MRU)",
+    "maxCashRegisters": "الحد الأقصى للصناديق",
+    "maxUsers": "الحد الأقصى للمستخدمين",
+    "maxProducts": "الحد الأقصى للمنتجات",
+    "maxProductImages": "حد الصور/المنتج",
+    "status": "الحالة",
+    "active": "نشطة",
+    "empty": "لا توجد باقات",
+    "limitHint": "اتركه فارغًا = غير محدود.",
+    "confirmDelete": "حذف الباقة «{{name}}»؟",
+    "unit": {
+      "cashRegisters": "صناديق",
+      "users": "مستخدمون",
+      "products": "منتجات"
+    }
+  },
+  "orgTypes": {
+    "title": "أنواع المنظمات",
+    "subtitle": "قائمة قابلة للتكوين لأنواع المستأجرين",
+    "create": "نوع جديد",
+    "edit": "تعديل النوع",
+    "code": "الرمز",
+    "codeLocked": "لا يمكن تغيير الرمز.",
+    "label": "التسمية",
+    "sortOrder": "الترتيب",
+    "status": "الحالة",
+    "active": "نشط",
+    "empty": "لا توجد أنواع",
+    "confirmDelete": "حذف النوع «{{label}}»؟"
+  },
   "platform": {
     "login": {
       "title": "تسجيل دخول المنصة",
@@ -174,6 +212,8 @@
     "deliveries": "التسليمات",
     "payments": "المدفوعات",
     "organizations": "المنظمات",
+    "orgTypes": "أنواع المنظمات",
+    "plans": "الباقات",
     "users": "المستخدمون",
     "audit": "سجل التدقيق",
     "settings": "الإعدادات",
@@ -324,8 +364,11 @@
     "reasonPlaceholder": "اختياري",
     "keepCurrentPlan": "الإبقاء على الباقة الحالية",
     "billingCycle": "دورة الفوترة",
+    "searchPlaceholder": "ابحث بالرمز أو الاسم…",
     "filter": {
-      "all": "كل الحالات"
+      "all": "كل الحالات",
+      "allTypes": "كل الأنواع",
+      "allPlans": "كل الباقات"
     },
     "statuses": {
       "PENDING": "قيد الانتظار",

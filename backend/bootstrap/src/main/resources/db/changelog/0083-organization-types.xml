@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Configurable organization types (super-admin managed). Replaces the hardcoded
+      OrganizationType enum. Global reference table (no tenant_id, no RLS) like
+      subscription_plans. organizations.type stays a varchar storing the code, so
+      existing rows ('BOUTIQUE', 'MIXTE', …) remain valid with no data migration.
+    -->
+    <changeSet id="0083-organization-types" author="mini-erp">
+        <createTable tableName="organization_types">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="code" type="varchar(20)"><constraints nullable="false"/></column>
+            <column name="label" type="varchar(100)"><constraints nullable="false"/></column>
+            <column name="sort_order" type="int" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="is_active" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="organization_types" columnNames="code"
+                             constraintName="uk_organization_types_code"/>
+
+        <!-- Seed the four values previously held by the enum. -->
+        <insert tableName="organization_types">
+            <column name="code" value="BOUTIQUE"/><column name="label" value="Boutique"/><column name="sort_order" valueNumeric="1"/>
+        </insert>
+        <insert tableName="organization_types">
+            <column name="code" value="SUPERMARCHE"/><column name="label" value="Supermarché"/><column name="sort_order" valueNumeric="2"/>
+        </insert>
+        <insert tableName="organization_types">
+            <column name="code" value="GROSSISTE"/><column name="label" value="Grossiste"/><column name="sort_order" valueNumeric="3"/>
+        </insert>
+        <insert tableName="organization_types">
+            <column name="code" value="MIXTE"/><column name="label" value="Mixte"/><column name="sort_order" valueNumeric="4"/>
+        </insert>
+
+        <rollback>
+            <dropTable tableName="organization_types"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

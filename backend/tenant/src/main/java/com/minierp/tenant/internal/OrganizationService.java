@@ -22,13 +22,16 @@ import com.minierp.tenant.internal.Subscription.SubscriptionStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.criteria.Predicate;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -43,15 +46,34 @@ public class OrganizationService implements OrganizationApi {
     private final SubscriptionRepository subscriptions;
     private final SubscriptionPlanRepository plans;
     private final SubscriptionService subscriptionService;
+    private final OrganizationTypeService organizationTypes;
     private final ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
-    public PageResponse<OrganizationDto> list(String status, Pageable pageable) {
-        // Hide the reserved platform organization that homes super-admin accounts.
-        Page<Organization> page = (status == null || status.isBlank())
-                ? orgs.findAllByCodeNot(OrganizationApi.PLATFORM_ORG_CODE, pageable)
-                : orgs.findAllByStatusAndCodeNot(parseStatus(status), OrganizationApi.PLATFORM_ORG_CODE, pageable);
-        return PageResponse.of(page.map(this::toDto));
+    public PageResponse<OrganizationDto> list(String q, String status, String type, String plan, Pageable pageable) {
+        Specification<Organization> spec = (root, query, cb) -> {
+            List<Predicate> ps = new ArrayList<>();
+            // Always hide the reserved platform organization that homes super-admin accounts.
+            ps.add(cb.notEqual(root.get("code"), OrganizationApi.PLATFORM_ORG_CODE));
+            if (status != null && !status.isBlank()) {
+                ps.add(cb.equal(root.get("status"), parseStatus(status)));
+            }
+            if (type != null && !type.isBlank()) {
+                ps.add(cb.equal(root.get("type"), type.trim().toUpperCase()));
+            }
+            if (plan != null && !plan.isBlank()) {
+                UUID planId = plans.findByCode(plan).map(SubscriptionPlan::getId).orElse(null);
+                ps.add(planId != null ? cb.equal(root.get("subscriptionPlanId"), planId) : cb.disjunction());
+            }
+            if (q != null && !q.isBlank()) {
+                String like = "%" + q.trim().toLowerCase() + "%";
+                ps.add(cb.or(
+                        cb.like(cb.lower(root.get("code")), like),
+                        cb.like(cb.lower(root.get("name")), like)));
+            }
+            return cb.and(ps.toArray(new Predicate[0]));
+        };
+        return PageResponse.of(orgs.findAll(spec, pageable).map(this::toDto));
     }
 
     @Transactional(readOnly = true)
@@ -284,7 +306,7 @@ public class OrganizationService implements OrganizationApi {
         return Organization.builder()
                 .code(code)
                 .name(name)
-                .type(OrganizationType.valueOf(type))
+                .type(organizationTypes.requireActiveCode(type))
                 .currency(currency == null ? "MRU" : currency)
                 .locale(locale == null ? "fr" : locale)
                 .timezone(timezone == null ? "Africa/Nouakchott" : timezone)
@@ -319,7 +341,7 @@ public class OrganizationService implements OrganizationApi {
         String subStatus = subscriptions.findByOrganizationId(o.getId())
                 .map(s -> s.getStatus().name()).orElse(null);
         return new OrganizationDto(
-                o.getId(), o.getCode(), o.getName(), o.getType().name(),
+                o.getId(), o.getCode(), o.getName(), o.getType(),
                 o.getStatus().name(), o.getCurrency(), o.getLocale(), o.getTimezone(),
                 o.getEmail(), o.getPhone(), o.getAddress(),
                 o.getTrialEndsAt(), o.getPastDueSince(),

@@ -30,7 +30,10 @@ interface OrganizationRow {
   subscriptionStatus: string | null;
 }
 
-interface Plan { code: string; name: string; monthlyPrice: number; }
+interface Plan {
+  code: string; name: string; monthlyPrice: number;
+  maxCashRegisters: number | null; maxUsers: number | null; maxProducts: number | null;
+}
 
 @Component({
   selector: 'erp-admin-organization-list',
@@ -47,9 +50,20 @@ interface Plan { code: string; name: string; monthlyPrice: number; }
           <h1 class="text-2xl font-bold text-gray-800">{{ 'organizations.title' | translate }}</h1>
           <p class="text-gray-500 text-sm mt-1">{{ 'organizations.subtitle' | translate }}</p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 flex-wrap justify-end">
+          <span class="relative block w-56">
+            <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+            <input pInputText [(ngModel)]="search" (ngModelChange)="onSearch()"
+                   [placeholder]="'organizations.searchPlaceholder' | translate" class="w-full !pl-9" />
+          </span>
+          <p-dropdown [(ngModel)]="typeFilter" [options]="typeFilterOptions()"
+                      optionLabel="label" optionValue="value" styleClass="w-44"
+                      (onChange)="reload()" appendTo="body" />
+          <p-dropdown [(ngModel)]="planFilter" [options]="planFilterOptions()"
+                      optionLabel="label" optionValue="value" styleClass="w-44"
+                      (onChange)="reload()" appendTo="body" />
           <p-dropdown [(ngModel)]="statusFilter" [options]="statusFilterOptions()"
-                      optionLabel="label" optionValue="value" styleClass="w-48"
+                      optionLabel="label" optionValue="value" styleClass="w-44"
                       (onChange)="reload()" appendTo="body" />
           <button pButton icon="pi pi-plus" [label]="'organizations.create' | translate"
                   (click)="openCreate()" class="p-button-sm"></button>
@@ -63,12 +77,12 @@ interface Plan { code: string; name: string; monthlyPrice: number; }
                  [rowsPerPageOptions]="[25, 50, 100]" styleClass="p-datatable-sm" responsiveLayout="scroll">
           <ng-template pTemplate="header">
             <tr>
-              <th>{{ 'organizations.code' | translate }}</th>
-              <th>{{ 'organizations.name' | translate }}</th>
-              <th>{{ 'organizations.status' | translate }}</th>
+              <th pSortableColumn="code">{{ 'organizations.code' | translate }} <p-sortIcon field="code" /></th>
+              <th pSortableColumn="name">{{ 'organizations.name' | translate }} <p-sortIcon field="name" /></th>
+              <th pSortableColumn="status">{{ 'organizations.status' | translate }} <p-sortIcon field="status" /></th>
               <th class="text-center">{{ 'platform.users.count' | translate }}</th>
               <th>{{ 'organizations.plan' | translate }}</th>
-              <th>{{ 'organizations.trialEnds' | translate }}</th>
+              <th pSortableColumn="trialEndsAt">{{ 'organizations.trialEnds' | translate }} <p-sortIcon field="trialEndsAt" /></th>
               <th class="text-right">{{ 'common.actions' | translate }}</th>
             </tr>
           </ng-template>
@@ -146,7 +160,7 @@ interface Plan { code: string; name: string; monthlyPrice: number; }
         </div>
         <div>
           <label class="block text-sm font-medium mb-1">{{ 'organizations.type' | translate }}</label>
-          <p-dropdown [(ngModel)]="createForm.type" [options]="typeOptions"
+          <p-dropdown [(ngModel)]="createForm.type" [options]="typeOptions()"
                       optionLabel="label" optionValue="value" styleClass="w-full" appendTo="body" />
         </div>
       </div>
@@ -215,14 +229,15 @@ export class OrganizationListPage implements OnInit {
   protected readonly counts = signal<Record<string, number>>({});
 
   protected statusFilter = '';
+  protected typeFilter = '';
+  protected planFilter = '';
+  protected search = '';
+  private sortParam = '';
+  private searchTimer: ReturnType<typeof setTimeout> | null = null;
   private currentRows = this.pageSize;
 
-  protected readonly typeOptions = [
-    { value: 'BOUTIQUE', label: 'Boutique' },
-    { value: 'SUPERMARCHE', label: 'Supermarché' },
-    { value: 'GROSSISTE', label: 'Grossiste' },
-    { value: 'MIXTE', label: 'Mixte' },
-  ];
+  // Loaded from the configurable organization-types API (active only).
+  protected readonly typeOptions = signal<{ value: string; label: string }[]>([]);
   protected readonly cycleOptions = [
     { value: 'MONTHLY', label: this.t('organizations.cycles.MONTHLY') },
     { value: 'ANNUAL', label: this.t('organizations.cycles.ANNUAL') },
@@ -243,8 +258,20 @@ export class OrganizationListPage implements OnInit {
 
   ngOnInit(): void {
     void this.loadPlans();
+    void this.loadTypes();
     void this.loadCounts();
     void this.loadChunk({ first: 0, rows: this.pageSize });
+  }
+
+  private async loadTypes(): Promise<void> {
+    try {
+      const list = await firstValueFrom(
+        this.http.get<{ code: string; label: string }[]>('/api/v1/organization-types?activeOnly=true'),
+      );
+      this.typeOptions.set((list ?? []).map((t) => ({ value: t.code, label: t.label })));
+    } catch {
+      this.typeOptions.set([]);
+    }
   }
 
   protected countOf(id: string): number {
@@ -273,7 +300,28 @@ export class OrganizationListPage implements OnInit {
   }
 
   protected planOptions() {
-    return this.plans().map((p) => ({ value: p.code, label: `${p.name} (${p.monthlyPrice} MRU)` }));
+    const lim = (v: number | null) => (v == null ? '∞' : v);
+    return this.plans().map((p) => ({
+      value: p.code,
+      label: `${p.name} — ${p.monthlyPrice} MRU · ${lim(p.maxCashRegisters)} ${this.t('plans.unit.cashRegisters')}`
+        + ` · ${lim(p.maxUsers)} ${this.t('plans.unit.users')} · ${lim(p.maxProducts)} ${this.t('plans.unit.products')}`,
+    }));
+  }
+
+  protected typeFilterOptions() {
+    return [{ value: '', label: this.t('organizations.filter.allTypes') }, ...this.typeOptions()];
+  }
+
+  protected planFilterOptions() {
+    return [
+      { value: '', label: this.t('organizations.filter.allPlans') },
+      ...this.plans().map((p) => ({ value: p.code, label: p.name || p.code })),
+    ];
+  }
+
+  protected onSearch(): void {
+    if (this.searchTimer) clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => this.reload(), 300);
   }
 
   protected reasonTitle(): string {
@@ -293,11 +341,19 @@ export class OrganizationListPage implements OnInit {
     this.currentRows = rows;
     this.first.set(first);
     const page = Math.floor(first / rows);
+    // Preserve the active sort across filter-triggered reloads (synthetic events carry no sortField).
+    const sf = Array.isArray(event.sortField) ? event.sortField[0] : event.sortField;
+    if (sf) this.sortParam = `${sf},${event.sortOrder === -1 ? 'desc' : 'asc'}`;
     this.loading.set(true);
     try {
-      const q = this.statusFilter ? `&status=${this.statusFilter}` : '';
+      const params = new URLSearchParams({ page: String(page), size: String(rows) });
+      if (this.search.trim()) params.set('q', this.search.trim());
+      if (this.statusFilter) params.set('status', this.statusFilter);
+      if (this.typeFilter) params.set('type', this.typeFilter);
+      if (this.planFilter) params.set('plan', this.planFilter);
+      if (this.sortParam) params.set('sort', this.sortParam);
       const res = await firstValueFrom(
-        this.http.get<PageResponse<OrganizationRow>>(`/api/v1/organizations?page=${page}&size=${rows}${q}`),
+        this.http.get<PageResponse<OrganizationRow>>(`/api/v1/organizations?${params.toString()}`),
       );
       this.rows.set(res.content ?? []);
       this.total.set(res.totalElements ?? 0);

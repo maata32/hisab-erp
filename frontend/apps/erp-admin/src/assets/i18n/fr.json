@@ -134,6 +134,44 @@
     "account_locked": "Compte verrouillé. Réessayez plus tard.",
     "required": "Authentification requise"
   },
+  "plans": {
+    "title": "Formules",
+    "subtitle": "Plans d'abonnement et leurs limites",
+    "create": "Nouvelle formule",
+    "edit": "Modifier la formule",
+    "code": "Code",
+    "name": "Nom",
+    "monthlyPrice": "Prix mensuel (MRU)",
+    "annualPrice": "Prix annuel (MRU)",
+    "maxCashRegisters": "Caisses max",
+    "maxUsers": "Utilisateurs max",
+    "maxProducts": "Produits max",
+    "maxProductImages": "Images/produit max",
+    "status": "Statut",
+    "active": "Active",
+    "empty": "Aucune formule",
+    "limitHint": "Laisser vide = illimité.",
+    "confirmDelete": "Supprimer la formule « {{name}} » ?",
+    "unit": {
+      "cashRegisters": "caisses",
+      "users": "utilisateurs",
+      "products": "produits"
+    }
+  },
+  "orgTypes": {
+    "title": "Types d'organisation",
+    "subtitle": "Liste configurable des types de tenant",
+    "create": "Nouveau type",
+    "edit": "Modifier le type",
+    "code": "Code",
+    "codeLocked": "Le code n'est pas modifiable.",
+    "label": "Libellé",
+    "sortOrder": "Ordre",
+    "status": "Statut",
+    "active": "Actif",
+    "empty": "Aucun type",
+    "confirmDelete": "Supprimer le type « {{label}} » ?"
+  },
   "platform": {
     "login": {
       "title": "Connexion plateforme",
@@ -174,6 +212,8 @@
     "deliveries": "Livraisons",
     "payments": "Paiements",
     "organizations": "Organisations",
+    "orgTypes": "Types d'organisation",
+    "plans": "Formules",
     "users": "Utilisateurs",
     "audit": "Journal d'audit",
     "settings": "Paramètres",
@@ -324,8 +364,11 @@
     "reasonPlaceholder": "Optionnel",
     "keepCurrentPlan": "Conserver la formule actuelle",
     "billingCycle": "Cycle de facturation",
+    "searchPlaceholder": "Rechercher par code ou nom…",
     "filter": {
-      "all": "Tous les statuts"
+      "all": "Tous les statuts",
+      "allTypes": "Tous les types",
+      "allPlans": "Toutes les formules"
     },
     "statuses": {
       "PENDING": "En attente",

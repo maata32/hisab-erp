@@ -134,6 +134,44 @@
     "account_locked": "Account locked. Try again later.",
     "required": "Authentication required"
   },
+  "plans": {
+    "title": "Plans",
+    "subtitle": "Subscription plans and their limits",
+    "create": "New plan",
+    "edit": "Edit plan",
+    "code": "Code",
+    "name": "Name",
+    "monthlyPrice": "Monthly price (MRU)",
+    "annualPrice": "Annual price (MRU)",
+    "maxCashRegisters": "Max cash registers",
+    "maxUsers": "Max users",
+    "maxProducts": "Max products",
+    "maxProductImages": "Max images/product",
+    "status": "Status",
+    "active": "Active",
+    "empty": "No plans",
+    "limitHint": "Leave empty = unlimited.",
+    "confirmDelete": "Delete plan \"{{name}}\"?",
+    "unit": {
+      "cashRegisters": "cash registers",
+      "users": "users",
+      "products": "products"
+    }
+  },
+  "orgTypes": {
+    "title": "Organization types",
+    "subtitle": "Configurable list of tenant types",
+    "create": "New type",
+    "edit": "Edit type",
+    "code": "Code",
+    "codeLocked": "The code cannot be changed.",
+    "label": "Label",
+    "sortOrder": "Order",
+    "status": "Status",
+    "active": "Active",
+    "empty": "No types",
+    "confirmDelete": "Delete type \"{{label}}\"?"
+  },
   "platform": {
     "login": {
       "title": "Platform sign in",
@@ -174,6 +212,8 @@
     "deliveries": "Deliveries",
     "payments": "Payments",
     "organizations": "Organizations",
+    "orgTypes": "Organization types",
+    "plans": "Plans",
     "users": "Users",
     "audit": "Audit log",
     "settings": "Settings",
@@ -324,8 +364,11 @@
     "reasonPlaceholder": "Optional",
     "keepCurrentPlan": "Keep current plan",
     "billingCycle": "Billing cycle",
+    "searchPlaceholder": "Search by code or name…",
     "filter": {
-      "all": "All statuses"
+      "all": "All statuses",
+      "allTypes": "All types",
+      "allPlans": "All plans"
     },
     "statuses": {
       "PENDING": "Pending",

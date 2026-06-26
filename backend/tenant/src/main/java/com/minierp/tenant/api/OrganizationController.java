@@ -8,8 +8,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -27,13 +28,14 @@ public class OrganizationController {
 
     @GetMapping
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    @Operation(summary = "List organizations, optionally filtered by status (super-admin)")
+    @Operation(summary = "List/search organizations — q (code/name), status, type, plan + sort (super-admin)")
     public PageResponse<OrganizationDto> list(
+            @RequestParam(required = false) String q,
             @RequestParam(required = false) String status,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size) {
-        return service.list(status, PageRequest.of(page, Math.min(size, 100),
-                Sort.by(Sort.Direction.DESC, "createdAt")));
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String plan,
+            @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return service.list(q, status, type, plan, pageable);
     }
 
     @PostMapping
