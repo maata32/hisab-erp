@@ -51,6 +51,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/plans").permitAll()
                         .requestMatchers(
                                 "/api/v1/auth/login",
+                                "/api/v1/auth/platform-login",
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/forgot-password",
                                 "/api/v1/auth/reset-password",
