@@ -40,10 +40,10 @@ class Organization extends AuditableEntity {
     @Column(length = 200)
     private String email;
 
-    @Enumerated(EnumType.STRING)
+    /** Organization type code — references {@link OrganizationType#getCode()} (configurable). */
     @Column(nullable = false, length = 20)
     @Builder.Default
-    private OrganizationType type = OrganizationType.BOUTIQUE;
+    private String type = "BOUTIQUE";
 
     @Column(nullable = false, length = 3)
     @Builder.Default

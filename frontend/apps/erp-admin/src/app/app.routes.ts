@@ -42,6 +42,13 @@ export const appRoutes: Routes = [
           import('./features/platform/organization-users.page').then((m) => m.OrganizationUsersPage),
       },
       {
+        // Configurable organization types (super-admin).
+        path: 'organization-types',
+        canActivate: [roleGuard('SUPER_ADMIN')],
+        loadComponent: () =>
+          import('./features/platform/organization-type-list.page').then((m) => m.OrganizationTypeListPage),
+      },
+      {
         path: 'users',
         loadComponent: () => import('./features/users/user-list.page').then((m) => m.UserListPage),
       },

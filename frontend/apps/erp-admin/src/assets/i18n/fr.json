@@ -134,6 +134,20 @@
     "account_locked": "Compte verrouillé. Réessayez plus tard.",
     "required": "Authentification requise"
   },
+  "orgTypes": {
+    "title": "Types d'organisation",
+    "subtitle": "Liste configurable des types de tenant",
+    "create": "Nouveau type",
+    "edit": "Modifier le type",
+    "code": "Code",
+    "codeLocked": "Le code n'est pas modifiable.",
+    "label": "Libellé",
+    "sortOrder": "Ordre",
+    "status": "Statut",
+    "active": "Actif",
+    "empty": "Aucun type",
+    "confirmDelete": "Supprimer le type « {{label}} » ?"
+  },
   "platform": {
     "login": {
       "title": "Connexion plateforme",
@@ -174,6 +188,7 @@
     "deliveries": "Livraisons",
     "payments": "Paiements",
     "organizations": "Organisations",
+    "orgTypes": "Types d'organisation",
     "users": "Utilisateurs",
     "audit": "Journal d'audit",
     "settings": "Paramètres",

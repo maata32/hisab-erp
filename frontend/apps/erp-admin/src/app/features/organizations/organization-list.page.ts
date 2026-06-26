@@ -157,7 +157,7 @@ interface Plan { code: string; name: string; monthlyPrice: number; }
         </div>
         <div>
           <label class="block text-sm font-medium mb-1">{{ 'organizations.type' | translate }}</label>
-          <p-dropdown [(ngModel)]="createForm.type" [options]="typeOptions"
+          <p-dropdown [(ngModel)]="createForm.type" [options]="typeOptions()"
                       optionLabel="label" optionValue="value" styleClass="w-full" appendTo="body" />
         </div>
       </div>
@@ -233,12 +233,8 @@ export class OrganizationListPage implements OnInit {
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
   private currentRows = this.pageSize;
 
-  protected readonly typeOptions = [
-    { value: 'BOUTIQUE', label: 'Boutique' },
-    { value: 'SUPERMARCHE', label: 'Supermarché' },
-    { value: 'GROSSISTE', label: 'Grossiste' },
-    { value: 'MIXTE', label: 'Mixte' },
-  ];
+  // Loaded from the configurable organization-types API (active only).
+  protected readonly typeOptions = signal<{ value: string; label: string }[]>([]);
   protected readonly cycleOptions = [
     { value: 'MONTHLY', label: this.t('organizations.cycles.MONTHLY') },
     { value: 'ANNUAL', label: this.t('organizations.cycles.ANNUAL') },
@@ -259,8 +255,20 @@ export class OrganizationListPage implements OnInit {
 
   ngOnInit(): void {
     void this.loadPlans();
+    void this.loadTypes();
     void this.loadCounts();
     void this.loadChunk({ first: 0, rows: this.pageSize });
+  }
+
+  private async loadTypes(): Promise<void> {
+    try {
+      const list = await firstValueFrom(
+        this.http.get<{ code: string; label: string }[]>('/api/v1/organization-types?activeOnly=true'),
+      );
+      this.typeOptions.set((list ?? []).map((t) => ({ value: t.code, label: t.label })));
+    } catch {
+      this.typeOptions.set([]);
+    }
   }
 
   protected countOf(id: string): number {
@@ -293,7 +301,7 @@ export class OrganizationListPage implements OnInit {
   }
 
   protected typeFilterOptions() {
-    return [{ value: '', label: this.t('organizations.filter.allTypes') }, ...this.typeOptions];
+    return [{ value: '', label: this.t('organizations.filter.allTypes') }, ...this.typeOptions()];
   }
 
   protected planFilterOptions() {

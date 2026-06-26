@@ -71,7 +71,7 @@ class TenantLookupImpl implements TenantLookup {
                 o.getId(),
                 o.getCode(),
                 o.getName(),
-                o.getType().name(),
+                o.getType(),
                 o.getStatus().name(),
                 o.getCurrency(),
                 o.getLocale(),

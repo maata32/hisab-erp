@@ -46,6 +46,7 @@ public class OrganizationService implements OrganizationApi {
     private final SubscriptionRepository subscriptions;
     private final SubscriptionPlanRepository plans;
     private final SubscriptionService subscriptionService;
+    private final OrganizationTypeService organizationTypes;
     private final ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
@@ -58,11 +59,7 @@ public class OrganizationService implements OrganizationApi {
                 ps.add(cb.equal(root.get("status"), parseStatus(status)));
             }
             if (type != null && !type.isBlank()) {
-                try {
-                    ps.add(cb.equal(root.get("type"), OrganizationType.valueOf(type)));
-                } catch (IllegalArgumentException e) {
-                    ps.add(cb.disjunction()); // unknown type code → no match
-                }
+                ps.add(cb.equal(root.get("type"), type.trim().toUpperCase()));
             }
             if (plan != null && !plan.isBlank()) {
                 UUID planId = plans.findByCode(plan).map(SubscriptionPlan::getId).orElse(null);
@@ -309,7 +306,7 @@ public class OrganizationService implements OrganizationApi {
         return Organization.builder()
                 .code(code)
                 .name(name)
-                .type(OrganizationType.valueOf(type))
+                .type(organizationTypes.requireActiveCode(type))
                 .currency(currency == null ? "MRU" : currency)
                 .locale(locale == null ? "fr" : locale)
                 .timezone(timezone == null ? "Africa/Nouakchott" : timezone)
@@ -344,7 +341,7 @@ public class OrganizationService implements OrganizationApi {
         String subStatus = subscriptions.findByOrganizationId(o.getId())
                 .map(s -> s.getStatus().name()).orElse(null);
         return new OrganizationDto(
-                o.getId(), o.getCode(), o.getName(), o.getType().name(),
+                o.getId(), o.getCode(), o.getName(), o.getType(),
                 o.getStatus().name(), o.getCurrency(), o.getLocale(), o.getTimezone(),
                 o.getEmail(), o.getPhone(), o.getAddress(),
                 o.getTrialEndsAt(), o.getPastDueSince(),

@@ -134,6 +134,20 @@
     "account_locked": "Account locked. Try again later.",
     "required": "Authentication required"
   },
+  "orgTypes": {
+    "title": "Organization types",
+    "subtitle": "Configurable list of tenant types",
+    "create": "New type",
+    "edit": "Edit type",
+    "code": "Code",
+    "codeLocked": "The code cannot be changed.",
+    "label": "Label",
+    "sortOrder": "Order",
+    "status": "Status",
+    "active": "Active",
+    "empty": "No types",
+    "confirmDelete": "Delete type \"{{label}}\"?"
+  },
   "platform": {
     "login": {
       "title": "Platform sign in",
@@ -174,6 +188,7 @@
     "deliveries": "Deliveries",
     "payments": "Payments",
     "organizations": "Organizations",
+    "orgTypes": "Organization types",
     "users": "Users",
     "audit": "Audit log",
     "settings": "Settings",
