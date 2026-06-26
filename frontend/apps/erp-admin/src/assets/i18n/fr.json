@@ -134,6 +134,30 @@
     "account_locked": "Compte verrouillé. Réessayez plus tard.",
     "required": "Authentification requise"
   },
+  "plans": {
+    "title": "Formules",
+    "subtitle": "Plans d'abonnement et leurs limites",
+    "create": "Nouvelle formule",
+    "edit": "Modifier la formule",
+    "code": "Code",
+    "name": "Nom",
+    "monthlyPrice": "Prix mensuel (MRU)",
+    "annualPrice": "Prix annuel (MRU)",
+    "maxCashRegisters": "Caisses max",
+    "maxUsers": "Utilisateurs max",
+    "maxProducts": "Produits max",
+    "maxProductImages": "Images/produit max",
+    "status": "Statut",
+    "active": "Active",
+    "empty": "Aucune formule",
+    "limitHint": "Laisser vide = illimité.",
+    "confirmDelete": "Supprimer la formule « {{name}} » ?",
+    "unit": {
+      "cashRegisters": "caisses",
+      "users": "utilisateurs",
+      "products": "produits"
+    }
+  },
   "orgTypes": {
     "title": "Types d'organisation",
     "subtitle": "Liste configurable des types de tenant",
@@ -189,6 +213,7 @@
     "payments": "Paiements",
     "organizations": "Organisations",
     "orgTypes": "Types d'organisation",
+    "plans": "Formules",
     "users": "Utilisateurs",
     "audit": "Journal d'audit",
     "settings": "Paramètres",

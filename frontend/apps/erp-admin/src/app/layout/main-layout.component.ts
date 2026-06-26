@@ -169,6 +169,7 @@ export class MainLayoutComponent {
     { label: 'nav.audit', icon: 'pi pi-shield', path: '/audit', permission: 'audit:read' },
     { label: 'nav.organizations', icon: 'pi pi-building', path: '/organizations', role: 'SUPER_ADMIN' },
     { label: 'nav.orgTypes', icon: 'pi pi-tags', path: '/organization-types', role: 'SUPER_ADMIN' },
+    { label: 'nav.plans', icon: 'pi pi-money-bill', path: '/plans', role: 'SUPER_ADMIN' },
   ];
 
   protected user() {

@@ -30,7 +30,10 @@ interface OrganizationRow {
   subscriptionStatus: string | null;
 }
 
-interface Plan { code: string; name: string; monthlyPrice: number; }
+interface Plan {
+  code: string; name: string; monthlyPrice: number;
+  maxCashRegisters: number | null; maxUsers: number | null; maxProducts: number | null;
+}
 
 @Component({
   selector: 'erp-admin-organization-list',
@@ -297,7 +300,12 @@ export class OrganizationListPage implements OnInit {
   }
 
   protected planOptions() {
-    return this.plans().map((p) => ({ value: p.code, label: `${p.name} (${p.monthlyPrice} MRU)` }));
+    const lim = (v: number | null) => (v == null ? '∞' : v);
+    return this.plans().map((p) => ({
+      value: p.code,
+      label: `${p.name} — ${p.monthlyPrice} MRU · ${lim(p.maxCashRegisters)} ${this.t('plans.unit.cashRegisters')}`
+        + ` · ${lim(p.maxUsers)} ${this.t('plans.unit.users')} · ${lim(p.maxProducts)} ${this.t('plans.unit.products')}`,
+    }));
   }
 
   protected typeFilterOptions() {

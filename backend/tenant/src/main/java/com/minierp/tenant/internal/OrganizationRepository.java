@@ -16,6 +16,9 @@ interface OrganizationRepository extends JpaRepository<Organization, UUID>,
     /** Used by the org-type CRUD to block deletion of a type still in use. */
     long countByType(String type);
 
+    /** Used by the plan CRUD to block deletion of a plan still chosen by an organization. */
+    long countBySubscriptionPlanId(UUID subscriptionPlanId);
+
     // ── Used by TenantExpiryJob (runs without tenant context; organizations has no RLS) ──
     List<Organization> findAllByStatusAndTrialEndsAtBefore(OrganizationStatus status, Instant cutoff);
     List<Organization> findAllByStatusAndPastDueSinceBefore(OrganizationStatus status, Instant cutoff);

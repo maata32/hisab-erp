@@ -134,6 +134,30 @@
     "account_locked": "Account locked. Try again later.",
     "required": "Authentication required"
   },
+  "plans": {
+    "title": "Plans",
+    "subtitle": "Subscription plans and their limits",
+    "create": "New plan",
+    "edit": "Edit plan",
+    "code": "Code",
+    "name": "Name",
+    "monthlyPrice": "Monthly price (MRU)",
+    "annualPrice": "Annual price (MRU)",
+    "maxCashRegisters": "Max cash registers",
+    "maxUsers": "Max users",
+    "maxProducts": "Max products",
+    "maxProductImages": "Max images/product",
+    "status": "Status",
+    "active": "Active",
+    "empty": "No plans",
+    "limitHint": "Leave empty = unlimited.",
+    "confirmDelete": "Delete plan \"{{name}}\"?",
+    "unit": {
+      "cashRegisters": "cash registers",
+      "users": "users",
+      "products": "products"
+    }
+  },
   "orgTypes": {
     "title": "Organization types",
     "subtitle": "Configurable list of tenant types",
@@ -189,6 +213,7 @@
     "payments": "Payments",
     "organizations": "Organizations",
     "orgTypes": "Organization types",
+    "plans": "Plans",
     "users": "Users",
     "audit": "Audit log",
     "settings": "Settings",

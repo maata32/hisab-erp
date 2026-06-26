@@ -18,6 +18,9 @@ interface Plan {
   name: string;
   monthlyPrice: number;
   annualPrice: number | null;
+  maxCashRegisters: number | null;
+  maxUsers: number | null;
+  maxProducts: number | null;
 }
 
 @Component({
@@ -242,10 +245,18 @@ export class RegisterPage implements OnInit {
   }
 
   protected planOptions() {
-    return this.plans().map((p) => ({
-      value: p.code,
-      label: `${p.name} — ${p.monthlyPrice} MRU/${this.translate.instant('registration.perMonth')}`,
-    }));
+    return this.plans().map((p) => ({ value: p.code, label: this.planLabel(p) }));
+  }
+
+  /** "Starter — 1500 MRU/mois · 1 caisses · 3 utilisateurs · 500 produits" (∞ when unlimited). */
+  private planLabel(p: Plan): string {
+    const month = this.translate.instant('registration.perMonth');
+    const lim = (v: number | null) => (v == null ? '∞' : v);
+    const cond =
+      `${lim(p.maxCashRegisters)} ${this.translate.instant('plans.unit.cashRegisters')}` +
+      ` · ${lim(p.maxUsers)} ${this.translate.instant('plans.unit.users')}` +
+      ` · ${lim(p.maxProducts)} ${this.translate.instant('plans.unit.products')}`;
+    return `${p.name} — ${p.monthlyPrice} MRU/${month} · ${cond}`;
   }
 
   /** Derive a slug from the company name until the user edits the code field themselves. */
