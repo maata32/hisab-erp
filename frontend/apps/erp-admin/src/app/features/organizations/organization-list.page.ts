@@ -48,10 +48,10 @@ interface Plan { code: string; name: string; monthlyPrice: number; }
           <p class="text-gray-500 text-sm mt-1">{{ 'organizations.subtitle' | translate }}</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap justify-end">
-          <span class="p-input-icon-left">
-            <i class="pi pi-search"></i>
+          <span class="relative block w-56">
+            <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
             <input pInputText [(ngModel)]="search" (ngModelChange)="onSearch()"
-                   [placeholder]="'organizations.searchPlaceholder' | translate" class="w-56 pl-8" />
+                   [placeholder]="'organizations.searchPlaceholder' | translate" class="w-full !pl-9" />
           </span>
           <p-dropdown [(ngModel)]="typeFilter" [options]="typeFilterOptions()"
                       optionLabel="label" optionValue="value" styleClass="w-44"
