@@ -5,18 +5,18 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.minierp</groupId>
-        <artifactId>minierp-parent</artifactId>
+        <groupId>com.hisaberp</groupId>
+        <artifactId>hisaberp-parent</artifactId>
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>tenant</artifactId>
-    <name>Mini-ERP :: Tenant</name>
+    <name>Hisab ERP :: Tenant</name>
     <description>Organizations, subscription plans, tenant settings</description>
 
     <dependencies>
         <dependency>
-            <groupId>com.minierp</groupId>
+            <groupId>com.hisaberp</groupId>
             <artifactId>shared</artifactId>
         </dependency>
         <dependency>

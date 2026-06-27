@@ -34,15 +34,15 @@ jobs:
       - name: Sync compose
         run: |
           rsync -avz --delete infra/docker/prod/docker-compose.yml \
-            deploy@${{ vars.PROD_HOST }}:/opt/minierp/docker-compose.yml
+            deploy@${{ vars.PROD_HOST }}:/opt/hisaberp/docker-compose.yml
 
       - name: Update version & restart
         run: |
           ssh deploy@${{ vars.PROD_HOST }} \
-            "cd /opt/minierp && \
-             sudo sed -i.bak 's/^APP_VERSION=.*/APP_VERSION=${{ inputs.version }}/' /etc/minierp/.env && \
-             docker compose --env-file /etc/minierp/.env pull && \
-             docker compose --env-file /etc/minierp/.env up -d --remove-orphans"
+            "cd /opt/hisaberp && \
+             sudo sed -i.bak 's/^APP_VERSION=.*/APP_VERSION=${{ inputs.version }}/' /etc/hisaberp/.env && \
+             docker compose --env-file /etc/hisaberp/.env pull && \
+             docker compose --env-file /etc/hisaberp/.env up -d --remove-orphans"
 
       - name: Smoke test
         run: |

@@ -1,5 +1,5 @@
 #cloud-config
-hostname: minierp-app
+hostname: hisaberp-app
 preserve_hostname: false
 timezone: UTC
 
@@ -24,7 +24,7 @@ users:
     ssh_authorized_keys: []   # populated via ssh_keys arg on the hcloud_server resource
 
 write_files:
-  - path: /etc/sysctl.d/99-minierp.conf
+  - path: /etc/sysctl.d/99-hisaberp.conf
     content: |
       net.ipv4.ip_forward = 1
       net.ipv4.tcp_keepalive_time = 300
@@ -40,7 +40,7 @@ write_files:
         "storage-driver": "overlay2"
       }
 
-  - path: /etc/minierp/.env.template
+  - path: /etc/hisaberp/.env.template
     permissions: "0600"
     owner: root:root
     content: |
@@ -74,10 +74,10 @@ runcmd:
   - ufw allow 443/tcp
   - ufw --force enable
 
-  - mkdir -p /etc/minierp /opt/minierp
-  - chown root:root /etc/minierp /etc/minierp/.env.template
-  - chmod 750 /etc/minierp
+  - mkdir -p /etc/hisaberp /opt/hisaberp
+  - chown root:root /etc/hisaberp /etc/hisaberp/.env.template
+  - chmod 750 /etc/hisaberp
 
-  - sysctl -p /etc/sysctl.d/99-minierp.conf
+  - sysctl -p /etc/sysctl.d/99-hisaberp.conf
 
-  - echo "==== Cloud-init done. Next: scp the prod docker-compose.yml + .env into /opt/minierp/, then 'docker compose --env-file /etc/minierp/.env up -d'."
+  - echo "==== Cloud-init done. Next: scp the prod docker-compose.yml + .env into /opt/hisaberp/, then 'docker compose --env-file /etc/hisaberp/.env up -d'."

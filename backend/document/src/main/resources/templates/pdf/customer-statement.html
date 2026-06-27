@@ -62,7 +62,7 @@
     <div class="logo-block">
       <img th:if="${!#strings.isEmpty(logoUrl)}" th:src="${logoUrl}" alt="Logo"
            style="max-height:55px;max-width:150px;"/>
-      <div th:if="${#strings.isEmpty(logoUrl)}" class="company-name" th:text="${orgName}">Mini-ERP</div>
+      <div th:if="${#strings.isEmpty(logoUrl)}" class="company-name" th:text="${orgName}">Hisab ERP</div>
       <div class="org-detail" th:text="${orgAddress}"></div>
       <div class="org-detail" th:text="${orgPhone}"></div>
     </div>
@@ -198,7 +198,7 @@
     <div th:if="${balance.lastPaymentDate != null}"
          th:text="'Dernier paiement reçu le ' + ${#temporals.format(balance.lastPaymentDate,'dd/MM/yyyy')}"></div>
     <div th:if="${balance.lastPaymentDate == null}">Aucun paiement enregistré à ce jour.</div>
-    <div>Document généré automatiquement — Mini-ERP</div>
+    <div>Document généré automatiquement — Hisab ERP</div>
   </div>
 </div>
 </body>

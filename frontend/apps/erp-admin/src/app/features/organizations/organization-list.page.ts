@@ -12,8 +12,8 @@ import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
 import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmationService, MessageService } from 'primeng/api';
-import { LoadingSpinnerComponent } from '@minierp/shared-ui';
-import { PageResponse } from '@minierp/shared-api';
+import { LoadingSpinnerComponent } from '@hisaberp/shared-ui';
+import { PageResponse } from '@hisaberp/shared-api';
 import { firstValueFrom } from 'rxjs';
 
 interface OrganizationRow {

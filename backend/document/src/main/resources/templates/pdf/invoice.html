@@ -45,7 +45,7 @@
   <div class="header">
     <div class="logo-block">
       <img th:if="${!#strings.isEmpty(logoUrl)}" th:src="${logoUrl}" alt="Logo"/>
-      <div th:if="${#strings.isEmpty(logoUrl)}" class="company-name" th:text="${orgName}">Mini-ERP</div>
+      <div th:if="${#strings.isEmpty(logoUrl)}" class="company-name" th:text="${orgName}">Hisab ERP</div>
       <div th:if="${!#strings.isEmpty(logoUrl)}" style="margin-top:4px;font-weight:bold;" th:text="${orgName}"></div>
       <div th:if="${!#strings.isEmpty(orgAddress)}" style="color:#555;font-size:10px;" th:text="${orgAddress}"></div>
       <div th:if="${!#strings.isEmpty(orgPhone)}" style="color:#555;font-size:10px;">Tél. <span th:text="${orgPhone}"></span></div>

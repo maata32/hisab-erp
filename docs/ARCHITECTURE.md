@@ -5,7 +5,7 @@ This document covers the high-level design of Phase 0 and how Phase 1+ will plug
 ## 1. Repository layout
 
 ```
-mini-erp/
+hisab-erp/
 ├── backend/                       # Spring Boot multi-module Maven
 │   ├── shared/                    # Cross-cutting: TenantAware/AuditableEntity, errors, OpenAPI, i18n
 │   ├── tenant/                    # Organization, SubscriptionPlan, TenantSettings
@@ -137,13 +137,13 @@ All wired together over the default Compose network. The backend runs in `dev` p
 `infra/docker/prod/docker-compose.yml` is built for a single Hetzner CX32 (or larger) node:
 
 - **Traefik 3** terminates TLS via Let's Encrypt (HTTP-01 challenge), routes `app.<domain>` → admin, `pos.<domain>` → pos, `api.<domain>` → backend, `grafana.<domain>` → grafana (when observability addon is enabled).
-- All services on a private `minierp-internal` network; only Traefik on the public-facing one.
+- All services on a private `hisaberp-internal` network; only Traefik on the public-facing one.
 - `pgbackup` runs daily encrypted `pg_dump` to a local volume (extend with `aws s3 sync` to a Hetzner Object Storage bucket for off-host backups — RPO 1 minute target needs continuous WAL archiving, see [DEPLOYMENT.md](DEPLOYMENT.md)).
-- All secrets in `/etc/minierp/.env` (chmod 600, root-owned); referenced via `${VAR}` in compose.
+- All secrets in `/etc/hisaberp/.env` (chmod 600, root-owned); referenced via `${VAR}` in compose.
 
 ### 4.3 IaC
 
-Terraform manages: Hetzner network + subnet + firewall, one `cx32` server, an attached 100 GB block volume mounted at `/var/lib/docker`, optional Cloudflare DNS records, and reverse-DNS PTR. Cloud-init bootstraps Docker, fail2ban, ufw (defense-in-depth on the host even though the cloud firewall already restricts ingress), and writes `/etc/minierp/.env.template`.
+Terraform manages: Hetzner network + subnet + firewall, one `cx32` server, an attached 100 GB block volume mounted at `/var/lib/docker`, optional Cloudflare DNS records, and reverse-DNS PTR. Cloud-init bootstraps Docker, fail2ban, ufw (defense-in-depth on the host even though the cloud firewall already restricts ingress), and writes `/etc/hisaberp/.env.template`.
 
 ### 4.4 Observability
 
@@ -154,7 +154,7 @@ Optional addon stack: Prometheus scrapes Spring Boot `/actuator/prometheus` and 
 - **`backend.yml`** — Maven verify (unit + integration with Testcontainers), Modulith doc generation, OWASP Dependency-Check, Docker build & push to GHCR, Trivy scan.
 - **`frontend.yml`** — Nx affected lint/test/build, Docker build & push for both apps, Trivy scan.
 - **`deploy-staging.yml`** — Auto-runs on push to `main` if `STAGING_HOST` is set; rsyncs compose, pulls images, restarts, smoke tests.
-- **`deploy-prod.yml`** — Manual `workflow_dispatch` only. Takes a `version` input, updates `APP_VERSION` in `/etc/minierp/.env`, restarts.
+- **`deploy-prod.yml`** — Manual `workflow_dispatch` only. Takes a `version` input, updates `APP_VERSION` in `/etc/hisaberp/.env`, restarts.
 - **Dependabot** weekly for Maven + npm, monthly for Docker + Actions.
 - **Branch convention**: `main` (prod), `develop` (staging), `feature/*` (PR target = `develop`). Conventional Commits.
 

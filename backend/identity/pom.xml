@@ -5,22 +5,22 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.minierp</groupId>
-        <artifactId>minierp-parent</artifactId>
+        <groupId>com.hisaberp</groupId>
+        <artifactId>hisaberp-parent</artifactId>
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>identity</artifactId>
-    <name>Mini-ERP :: Identity</name>
+    <name>Hisab ERP :: Identity</name>
     <description>Users, roles, permissions, JWT auth, refresh tokens</description>
 
     <dependencies>
         <dependency>
-            <groupId>com.minierp</groupId>
+            <groupId>com.hisaberp</groupId>
             <artifactId>shared</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.minierp</groupId>
+            <groupId>com.hisaberp</groupId>
             <artifactId>tenant</artifactId>
         </dependency>
         <dependency>

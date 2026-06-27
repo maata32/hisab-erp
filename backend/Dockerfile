@@ -54,10 +54,10 @@ FROM eclipse-temurin:21-jre-alpine
 RUN apk add --no-cache curl tzdata gcompat argon2-libs && \
     cp /usr/share/zoneinfo/Africa/Nouakchott /etc/localtime && \
     echo "Africa/Nouakchott" > /etc/timezone && \
-    addgroup -S minierp && adduser -S -G minierp minierp
+    addgroup -S hisaberp && adduser -S -G hisaberp hisaberp
 WORKDIR /app
 COPY --from=build /workspace/app.jar app.jar
-USER minierp
+USER hisaberp
 ENV JAVA_OPTS="-XX:+UseG1GC -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom"
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \

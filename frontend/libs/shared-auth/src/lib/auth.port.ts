@@ -1,7 +1,7 @@
 import { InjectionToken } from '@angular/core';
 import { Observable } from 'rxjs';
 import { LoginRequest, LoginResponse } from './auth.types';
-import { CurrentUser } from '@minierp/shared-api';
+import { CurrentUser } from '@hisaberp/shared-api';
 
 export interface AuthServicePort {
   login(req: LoginRequest): Observable<LoginResponse>;

@@ -78,9 +78,9 @@ jobs:
       matrix:
         include:
           - app: erp-admin
-            image: minierp-admin
+            image: hisaberp-admin
           - app: pos-terminal
-            image: minierp-pos
+            image: hisaberp-pos
     steps:
       - uses: actions/checkout@v4
       - uses: docker/login-action@v3

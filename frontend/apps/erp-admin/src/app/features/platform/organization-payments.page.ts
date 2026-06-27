@@ -11,8 +11,8 @@ import { InputTextModule } from 'primeng/inputtext';
 import { DialogModule } from 'primeng/dialog';
 import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmationService, MessageService } from 'primeng/api';
-import { LoadingSpinnerComponent } from '@minierp/shared-ui';
-import { isApiError } from '@minierp/shared-api';
+import { LoadingSpinnerComponent } from '@hisaberp/shared-ui';
+import { isApiError } from '@hisaberp/shared-api';
 import { firstValueFrom } from 'rxjs';
 
 interface Payment {

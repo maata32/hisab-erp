@@ -1,0 +1,64 @@
+package com.hisaberp.catalog.internal;
+
+import com.hisaberp.catalog.api.BrandDto;
+import com.hisaberp.shared.error.ConflictException;
+import com.hisaberp.shared.error.NotFoundException;
+import com.hisaberp.shared.persistence.TenantGuard;
+import com.hisaberp.shared.util.PageResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Map;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+public class BrandService {
+
+    private final BrandRepository brands;
+
+    @Transactional(readOnly = true)
+    public PageResponse<BrandDto> list(Pageable pageable) {
+        return PageResponse.of(brands.findAll(pageable).map(this::toDto));
+    }
+
+    @Transactional(readOnly = true)
+    public BrandDto get(UUID id) {
+        return toDto(loadInTenant(id));
+    }
+
+    /** Load a brand by id, enforcing it belongs to the current tenant (BUG-2 / SEC-02). */
+    private Brand loadInTenant(UUID id) {
+        return TenantGuard.requireSameTenant(brands.findById(id),
+                () -> NotFoundException.of("entity.brand", id));
+    }
+
+    @Transactional
+    public BrandDto create(String code, String name, String description, String logoUrl) {
+        if (brands.existsByCode(code)) {
+            throw new ConflictException("error.data_integrity",
+                    Map.of("field", "code", "value", code));
+        }
+        Brand b = Brand.builder()
+                .code(code).name(name).description(description).logoUrl(logoUrl).build();
+        brands.save(b);
+        return toDto(b);
+    }
+
+    @Transactional
+    public BrandDto update(UUID id, String name, String description, String logoUrl, Boolean active) {
+        Brand b = loadInTenant(id);
+        if (name != null) b.setName(name);
+        if (description != null) b.setDescription(description);
+        if (logoUrl != null) b.setLogoUrl(logoUrl);
+        if (active != null) b.setActive(active);
+        return toDto(b);
+    }
+
+    private BrandDto toDto(Brand b) {
+        return new BrandDto(b.getId(), b.getCode(), b.getName(),
+                b.getDescription(), b.getLogoUrl(), b.isActive());
+    }
+}

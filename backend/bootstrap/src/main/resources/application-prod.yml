@@ -19,7 +19,7 @@ server:
 logging:
   level:
     root: WARN
-    com.minierp: INFO
+    com.hisaberp: INFO
     org.hibernate.SQL: WARN
 
 management:

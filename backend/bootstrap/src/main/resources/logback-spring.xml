@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration scan="false">
 
-    <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="mini-erp"/>
+    <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="hisab-erp"/>
     <springProperty scope="context" name="env" source="management.metrics.tags.env" defaultValue="dev"/>
 
     <conversionRule conversionWord="clr" converterClass="org.springframework.boot.logging.logback.ColorConverter"/>

@@ -9,7 +9,7 @@ import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmationService, MessageService } from 'primeng/api';
-import { LoadingSpinnerComponent } from '@minierp/shared-ui';
+import { LoadingSpinnerComponent } from '@hisaberp/shared-ui';
 import { firstValueFrom } from 'rxjs';
 
 interface UserRow {

@@ -1,0 +1,281 @@
+package com.hisaberp.phase1c;
+
+import com.hisaberp.HisabErpApplication;
+import com.hisaberp.lotexpiry.api.LotAllocation;
+import com.hisaberp.lotexpiry.api.LotOperations;
+import com.hisaberp.shared.error.BusinessException;
+import com.hisaberp.shared.tenant.TenantContext;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/**
+ * Verifies FEFO (First-Expired First-Out) lot selection across successive sales.
+ *
+ * Scenario:
+ *  - Product has two active lots: LOT-A expires in 10 days (qty=5), LOT-B expires in 30 days (qty=10).
+ *  - Sale 1 requests qty=5 → should allocate entirely from LOT-A (nearest expiry).
+ *  - Sale 2 requests qty=6 → LOT-A is now exhausted; should allocate entirely from LOT-B.
+ */
+@SpringBootTest(classes = HisabErpApplication.class)
+@ActiveProfiles("test")
+@DisplayName("FEFO: successive sales consume nearest-expiry lot first")
+class FEFOSuccessiveSalesIT {
+
+    @Autowired LotOperations lotOps;
+    @Autowired JdbcTemplate jdbc;
+
+    UUID tenantId;
+    UUID productId;
+    UUID warehouseId;
+    UUID uomId;
+    UUID categoryId;
+
+    @BeforeEach
+    void setup() {
+        tenantId = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO organizations (id, code, name, type, currency, locale, timezone, status,
+                                           created_at, updated_at, version)
+                VALUES (?, ?, 'FEFO Test Org', 'BOUTIQUE', 'MRU', 'fr', 'Africa/Nouakchott', 'ACTIVE',
+                        now(), now(), 0)
+                """, tenantId, "fefo-" + tenantId);
+
+        TenantContext.set(tenantId);
+
+        categoryId = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO uom_categories (id, tenant_id, code, name, created_at, updated_at, version)
+                VALUES (?, ?, 'UNIT', 'Unit Category', now(), now(), 0)
+                """, categoryId, tenantId);
+
+        uomId = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO uoms (id, tenant_id, category_id, code, name, ratio_to_base, is_base,
+                                   decimal_places, created_at, updated_at, version)
+                VALUES (?, ?, ?, 'U', 'Unit', 1, true, 0, now(), now(), 0)
+                """, uomId, tenantId, categoryId);
+
+        productId = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO products (id, tenant_id, sku, name, base_uom_id, default_tax_rate,
+                                      tracks_lots, track_expiry, shelf_life_days,
+                                      is_sellable, is_active, created_at, updated_at, version)
+                VALUES (?, ?, 'LOT-PROD-01', 'FEFO Test Product', ?, 0, true, true, 30,
+                        true, true, now(), now(), 0)
+                """, productId, tenantId, uomId);
+
+        // Variant = SKU: lot ops are per-variant; seed the default variant reusing the product id.
+        jdbc.update("""
+                INSERT INTO product_variants (id, tenant_id, product_id, sku, is_default,
+                                              is_active, created_at, updated_at, version)
+                VALUES (?, ?, ?, 'LOT-PROD-01', true, true, now(), now(), 0)
+                """, productId, tenantId, productId);
+
+        warehouseId = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO warehouses (id, tenant_id, code, name, type, is_default, is_active,
+                                        created_at, updated_at, version)
+                VALUES (?, ?, 'WH-MAIN', 'Main Warehouse', 'MAIN', true, true, now(), now(), 0)
+                """, warehouseId, tenantId);
+    }
+
+    @AfterEach
+    void teardown() {
+        TenantContext.clear();
+    }
+
+    @Test
+    void fefoSelectsNearestExpiryFirstAcrossSuccessiveSales() {
+        LocalDate today = LocalDate.now();
+
+        // LOT-A: expires in 10 days, qty = 5
+        UUID lotAId = lotOps.receiveLot(productId, warehouseId, uomId,
+                "LOT-A", today.plusDays(10), today.minusDays(5),
+                BigDecimal.valueOf(5), BigDecimal.ONE, null, null);
+
+        // LOT-B: expires in 30 days, qty = 10
+        UUID lotBId = lotOps.receiveLot(productId, warehouseId, uomId,
+                "LOT-B", today.plusDays(30), today.minusDays(2),
+                BigDecimal.valueOf(10), BigDecimal.ONE, null, null);
+
+        // Sale 1: request 5 units → FEFO should take everything from LOT-A
+        UUID sale1Id = UUID.randomUUID();
+        List<LotAllocation> alloc1 = lotOps.selectFEFO(productId, warehouseId, BigDecimal.valueOf(5));
+
+        assertThat(alloc1).hasSize(1);
+        assertThat(alloc1.get(0).lotId()).isEqualTo(lotAId);
+        assertThat(alloc1.get(0).quantity()).isEqualByComparingTo("5");
+
+        lotOps.consumeAllocations(alloc1, "SALE", sale1Id);
+
+        // Sale 2: request 6 units → LOT-A exhausted, should come from LOT-B
+        UUID sale2Id = UUID.randomUUID();
+        List<LotAllocation> alloc2 = lotOps.selectFEFO(productId, warehouseId, BigDecimal.valueOf(6));
+
+        assertThat(alloc2).hasSize(1);
+        assertThat(alloc2.get(0).lotId()).isEqualTo(lotBId);
+        assertThat(alloc2.get(0).quantity()).isEqualByComparingTo("6");
+
+        lotOps.consumeAllocations(alloc2, "SALE", sale2Id);
+
+        // Verify remaining qty in LOT-B
+        BigDecimal remaining = jdbc.queryForObject(
+                "SELECT quantity_remaining FROM product_lots WHERE id = ?",
+                BigDecimal.class, lotBId);
+        assertThat(remaining).isEqualByComparingTo("4");
+    }
+
+    @Test
+    void fefoSpansMultipleLotsWhenSingleLotInsufficient() {
+        LocalDate today = LocalDate.now();
+
+        UUID lotAId = lotOps.receiveLot(productId, warehouseId, uomId,
+                "LOT-X", today.plusDays(5), null,
+                BigDecimal.valueOf(3), BigDecimal.ONE, null, null);
+
+        UUID lotBId = lotOps.receiveLot(productId, warehouseId, uomId,
+                "LOT-Y", today.plusDays(20), null,
+                BigDecimal.valueOf(7), BigDecimal.ONE, null, null);
+
+        // Request 8 — must span both lots
+        List<LotAllocation> alloc = lotOps.selectFEFO(productId, warehouseId, BigDecimal.valueOf(8));
+
+        assertThat(alloc).hasSize(2);
+        // First allocation from nearest-expiry lot
+        assertThat(alloc.get(0).lotId()).isEqualTo(lotAId);
+        assertThat(alloc.get(0).quantity()).isEqualByComparingTo("3");
+        // Second from further-expiry lot
+        assertThat(alloc.get(1).lotId()).isEqualTo(lotBId);
+        assertThat(alloc.get(1).quantity()).isEqualByComparingTo("5");
+    }
+
+    @Test
+    @DisplayName("consumeFefoIfTracked: nearest-expiry first, exhausts oldest, tolerant on shortfall")
+    void consumeFefoIfTracked_fefoAndTolerant() {
+        LocalDate today = LocalDate.now();
+        UUID lotAId = lotOps.receiveLot(productId, warehouseId, uomId, "LOT-A", today.plusDays(10), null,
+                BigDecimal.valueOf(5), BigDecimal.ONE, null, null);
+        UUID lotBId = lotOps.receiveLot(productId, warehouseId, uomId, "LOT-B", today.plusDays(30), null,
+                BigDecimal.valueOf(10), BigDecimal.ONE, null, null);
+
+        // Consume 7 → LOT-A fully (5, EXHAUSTED) then LOT-B (2). productId doubles as variantId here.
+        lotOps.consumeFefoIfTracked(productId, warehouseId, BigDecimal.valueOf(7), "DELIVERY", UUID.randomUUID());
+        assertThat(qtyOf(lotAId)).isEqualByComparingTo("0");
+        assertThat(statusOf(lotAId)).isEqualTo("EXHAUSTED");
+        assertThat(qtyOf(lotBId)).isEqualByComparingTo("8");
+        assertThat(saleOutCount(lotAId)).isEqualTo(1);
+
+        // Tolerant: request 100 (> remaining 8) → consumes the 8 available, no exception thrown.
+        lotOps.consumeFefoIfTracked(productId, warehouseId, BigDecimal.valueOf(100), "DELIVERY", UUID.randomUUID());
+        assertThat(qtyOf(lotBId)).isEqualByComparingTo("0");
+        assertThat(statusOf(lotBId)).isEqualTo("EXHAUSTED");
+    }
+
+    @Test
+    @DisplayName("restoreLotsOnReturn: revives an exhausted lot and records RETURN_IN")
+    void restoreLotsOnReturn_revivesLot() {
+        LocalDate today = LocalDate.now();
+        UUID lotAId = lotOps.receiveLot(productId, warehouseId, uomId, "LOT-A", today.plusDays(10), null,
+                BigDecimal.valueOf(5), BigDecimal.ONE, null, null);
+        lotOps.consumeFefoIfTracked(productId, warehouseId, BigDecimal.valueOf(5), "DELIVERY", UUID.randomUUID());
+        assertThat(statusOf(lotAId)).isEqualTo("EXHAUSTED");
+
+        lotOps.restoreLotsOnReturn(productId, productId, warehouseId, BigDecimal.valueOf(3), "DELIVERY", UUID.randomUUID());
+        assertThat(qtyOf(lotAId)).isEqualByComparingTo("3");
+        assertThat(statusOf(lotAId)).isEqualTo("ACTIVE");
+        Integer returnIns = jdbc.queryForObject(
+                "SELECT count(*) FROM lot_movements WHERE lot_id=? AND type='RETURN_IN'", Integer.class, lotAId);
+        assertThat(returnIns).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("restoreLotsOnReturn: creates a fresh return lot when none survives (tracked product)")
+    void restoreLotsOnReturn_createsNewLotWhenNoneSurvives() {
+        // No lots exist for this variant; the seeded product is track_expiry=true → a return lot is created.
+        lotOps.restoreLotsOnReturn(productId, productId, warehouseId, BigDecimal.valueOf(4), "DELIVERY", UUID.randomUUID());
+        Integer lotCount = jdbc.queryForObject(
+                "SELECT count(*) FROM product_lots WHERE product_variant_id=?", Integer.class, productId);
+        assertThat(lotCount).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT quantity_remaining FROM product_lots WHERE product_variant_id=?",
+                BigDecimal.class, productId)).isEqualByComparingTo("4");
+        assertThat(jdbc.queryForObject("SELECT status FROM product_lots WHERE product_variant_id=?",
+                String.class, productId)).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    @DisplayName("consumeFefoIfTracked: no-op for a non-tracked / unknown variant")
+    void consumeFefoIfTracked_noopWhenNotTracked() {
+        UUID unknownVariant = UUID.randomUUID();
+        // must not throw and must not create or touch any lot
+        lotOps.consumeFefoIfTracked(unknownVariant, warehouseId, BigDecimal.valueOf(5), "DELIVERY", UUID.randomUUID());
+        Integer lotCount = jdbc.queryForObject(
+                "SELECT count(*) FROM product_lots WHERE product_variant_id=?", Integer.class, unknownVariant);
+        assertThat(lotCount).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("consumeExplicitLots: manual selection consumes the designated lot, overriding FEFO")
+    void consumeExplicitLots_overridesFefo() {
+        LocalDate today = LocalDate.now();
+        UUID lotAId = lotOps.receiveLot(productId, warehouseId, uomId, "LOT-A", today.plusDays(10), null,
+                BigDecimal.valueOf(5), BigDecimal.ONE, null, null);
+        UUID lotBId = lotOps.receiveLot(productId, warehouseId, uomId, "LOT-B", today.plusDays(30), null,
+                BigDecimal.valueOf(10), BigDecimal.ONE, null, null);
+
+        // Manually target LOT-B (the FARTHER-expiry lot) for 4 — FEFO would have picked LOT-A first.
+        lotOps.consumeExplicitLots(productId, warehouseId, BigDecimal.valueOf(4),
+                List.of(new LotAllocation(lotBId, BigDecimal.valueOf(4))), "SALE", UUID.randomUUID());
+        assertThat(qtyOf(lotAId)).isEqualByComparingTo("5"); // untouched — FEFO bypassed
+        assertThat(qtyOf(lotBId)).isEqualByComparingTo("6");
+        assertThat(saleOutCount(lotBId)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("consumeExplicitLots: rejects allocations that do not sum to the line quantity")
+    void consumeExplicitLots_rejectsQtyMismatch() {
+        LocalDate today = LocalDate.now();
+        UUID lotAId = lotOps.receiveLot(productId, warehouseId, uomId, "LOT-A", today.plusDays(10), null,
+                BigDecimal.valueOf(5), BigDecimal.ONE, null, null);
+        assertThatThrownBy(() -> lotOps.consumeExplicitLots(productId, warehouseId, BigDecimal.valueOf(5),
+                List.of(new LotAllocation(lotAId, BigDecimal.valueOf(3))), "SALE", UUID.randomUUID()))
+                .isInstanceOf(BusinessException.class);
+        assertThat(qtyOf(lotAId)).isEqualByComparingTo("5"); // rejected → nothing consumed
+    }
+
+    @Test
+    @DisplayName("consumeExplicitLots: rejects a lot with insufficient remaining quantity")
+    void consumeExplicitLots_rejectsInsufficientLot() {
+        LocalDate today = LocalDate.now();
+        UUID lotAId = lotOps.receiveLot(productId, warehouseId, uomId, "LOT-A", today.plusDays(10), null,
+                BigDecimal.valueOf(2), BigDecimal.ONE, null, null);
+        assertThatThrownBy(() -> lotOps.consumeExplicitLots(productId, warehouseId, BigDecimal.valueOf(5),
+                List.of(new LotAllocation(lotAId, BigDecimal.valueOf(5))), "SALE", UUID.randomUUID()))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    private BigDecimal qtyOf(UUID lotId) {
+        return jdbc.queryForObject("SELECT quantity_remaining FROM product_lots WHERE id=?", BigDecimal.class, lotId);
+    }
+
+    private String statusOf(UUID lotId) {
+        return jdbc.queryForObject("SELECT status FROM product_lots WHERE id=?", String.class, lotId);
+    }
+
+    private Integer saleOutCount(UUID lotId) {
+        return jdbc.queryForObject(
+                "SELECT count(*) FROM lot_movements WHERE lot_id=? AND type='SALE_OUT'", Integer.class, lotId);
+    }
+}

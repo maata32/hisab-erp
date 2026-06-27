@@ -1,8 +1,8 @@
 resource "hcloud_network" "main" {
-  name     = "minierp-${var.location}"
+  name     = "hisaberp-${var.location}"
   ip_range = "10.10.0.0/16"
   labels = {
-    project = "minierp"
+    project = "hisaberp"
     env     = "prod"
   }
 }
@@ -26,7 +26,7 @@ locals {
 }
 
 resource "hcloud_firewall" "app" {
-  name = "minierp-${var.location}-app"
+  name = "hisaberp-${var.location}-app"
 
   # SSH only from allowed CIDRs
   dynamic "rule" {
@@ -60,5 +60,5 @@ resource "hcloud_firewall" "app" {
     source_ips = ["0.0.0.0/0", "::/0"]
   }
 
-  labels = { project = "minierp" }
+  labels = { project = "hisaberp" }
 }

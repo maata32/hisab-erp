@@ -5,7 +5,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
-import { MasterDataNamePipe } from '@minierp/shared-i18n';
+import { MasterDataNamePipe } from '@hisaberp/shared-i18n';
 import { firstValueFrom } from 'rxjs';
 
 interface PriceTier {

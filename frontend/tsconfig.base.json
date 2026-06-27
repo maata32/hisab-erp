@@ -21,12 +21,12 @@
     "noFallthroughCasesInSwitch": true,
     "useDefineForClassFields": false,
     "paths": {
-      "@minierp/shared-api": ["libs/shared-api/src/index.ts"],
-      "@minierp/shared-auth": ["libs/shared-auth/src/index.ts"],
-      "@minierp/shared-ui": ["libs/shared-ui/src/index.ts"],
-      "@minierp/shared-i18n": ["libs/shared-i18n/src/index.ts"],
-      "@minierp/shared-util": ["libs/shared-util/src/index.ts"],
-      "@minierp/shared-data-access": ["libs/shared-data-access/src/index.ts"]
+      "@hisaberp/shared-api": ["libs/shared-api/src/index.ts"],
+      "@hisaberp/shared-auth": ["libs/shared-auth/src/index.ts"],
+      "@hisaberp/shared-ui": ["libs/shared-ui/src/index.ts"],
+      "@hisaberp/shared-i18n": ["libs/shared-i18n/src/index.ts"],
+      "@hisaberp/shared-util": ["libs/shared-util/src/index.ts"],
+      "@hisaberp/shared-data-access": ["libs/shared-data-access/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

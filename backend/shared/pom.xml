@@ -5,13 +5,13 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.minierp</groupId>
-        <artifactId>minierp-parent</artifactId>
+        <groupId>com.hisaberp</groupId>
+        <artifactId>hisaberp-parent</artifactId>
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>shared</artifactId>
-    <name>Mini-ERP :: Shared</name>
+    <name>Hisab ERP :: Shared</name>
     <description>Cross-cutting primitives: tenant context, base entities, exceptions, i18n, OpenAPI</description>
 
     <dependencies>

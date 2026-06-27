@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ConfirmationService } from 'primeng/api';
-import { AUTH_SERVICE } from '@minierp/shared-auth';
+import { AUTH_SERVICE } from '@hisaberp/shared-auth';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -17,7 +17,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { TooltipModule } from 'primeng/tooltip';
 import { OverlayPanelModule, OverlayPanel } from 'primeng/overlaypanel';
-import { MasterDataNamePipe } from '@minierp/shared-i18n';
+import { MasterDataNamePipe } from '@hisaberp/shared-i18n';
 import { firstValueFrom } from 'rxjs';
 
 interface ProductImageDto {

@@ -1,4 +1,4 @@
-import type { CurrentUser } from '@minierp/shared-api';
+import type { CurrentUser } from '@hisaberp/shared-api';
 
 export interface LoginRequest {
   email: string;

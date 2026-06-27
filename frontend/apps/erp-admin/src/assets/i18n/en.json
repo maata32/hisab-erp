@@ -6,7 +6,7 @@
     "hint": "Checked rows are netted against this invoice once it is saved (net-position compensation)."
   },
   "app": {
-    "name": "Mini-ERP",
+    "name": "Hisab ERP",
     "tagline": "Modular commercial ERP for Mauritania"
   },
   "common": {

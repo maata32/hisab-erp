@@ -6,7 +6,7 @@
     "hint": "Les lignes cochées seront imputées sur cette facture une fois enregistrée (compensation en position nette)."
   },
   "app": {
-    "name": "Mini-ERP",
+    "name": "Hisab ERP",
     "tagline": "ERP commercial modulaire pour la Mauritanie"
   },
   "common": {

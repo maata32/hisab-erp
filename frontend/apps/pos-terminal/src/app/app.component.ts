@@ -1,8 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { ToastModule } from 'primeng/toast';
-import { LocaleService } from '@minierp/shared-i18n';
-import { AUTH_SERVICE } from '@minierp/shared-auth';
+import { LocaleService } from '@hisaberp/shared-i18n';
+import { AUTH_SERVICE } from '@hisaberp/shared-auth';
 import { OnlineStatusService } from './services/online-status.service';
 import { CommonModule } from '@angular/common';
 import { TranslateModule } from '@ngx-translate/core';

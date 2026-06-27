@@ -6,10 +6,10 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { PasswordModule } from 'primeng/password';
-import { AUTH_SERVICE } from '@minierp/shared-auth';
-import { isApiError } from '@minierp/shared-api';
-import { LocaleSwitcherComponent } from '@minierp/shared-ui';
-import { LocaleService, SupportedLocale } from '@minierp/shared-i18n';
+import { AUTH_SERVICE } from '@hisaberp/shared-auth';
+import { isApiError } from '@hisaberp/shared-api';
+import { LocaleSwitcherComponent } from '@hisaberp/shared-ui';
+import { LocaleService, SupportedLocale } from '@hisaberp/shared-i18n';
 
 /**
  * Platform (super-admin) sign-in — email + password, no organization code. Issues a
@@ -34,10 +34,10 @@ import { LocaleService, SupportedLocale } from '@minierp/shared-i18n';
         class="hidden md:flex md:w-1/2 bg-gradient-to-br from-gray-800 to-gray-900 text-white p-12 flex-col justify-between"
       >
         <div>
-          <h1 class="text-3xl font-bold">Mini-ERP</h1>
+          <img src="assets/brand/hisab-logo-ondark.svg" alt="HisabERP" class="h-14 w-auto" />
           <p class="mt-2 opacity-90">{{ 'platform.login.subtitle' | translate }}</p>
         </div>
-        <p class="text-sm opacity-70">© Mini-ERP {{ year }}</p>
+        <p class="text-sm opacity-70">© Hisab ERP {{ year }}</p>
       </aside>
 
       <main class="flex-1 flex items-center justify-center p-6 sm:p-10">

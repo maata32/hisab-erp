@@ -1,9 +1,9 @@
-# Mini-ERP — production stack
+# Hisab ERP — production stack
 # Designed for a single Hetzner CX31/CX41 node (8GB+) with Docker Compose.
 # Scale-out: split DB to Hetzner-managed PG, run multiple backend replicas behind Traefik.
 #
-# Required env vars (set in /etc/minierp/.env on the host, root-only readable):
-#   ROOT_DOMAIN              minierp.example.com
+# Required env vars (set in /etc/hisaberp/.env on the host, root-only readable):
+#   ROOT_DOMAIN              hisaberp.example.com
 #   ACME_EMAIL               ops@example.com           (Let's Encrypt)
 #   POSTGRES_PASSWORD        strong random  (owner/admin role 'minierp' — Liquibase only)
 #   APP_DB_PASSWORD          strong random  (runtime role 'minierp_app' — Spring datasource)
@@ -15,7 +15,7 @@
 #   APP_VERSION              git tag
 #   IMAGE_REGISTRY           ghcr.io/your-org           (or registry.hetzner.com/...)
 
-name: minierp-prod
+name: hisaberp-prod
 
 services:
   traefik:
@@ -45,7 +45,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik-acme:/letsencrypt
       - traefik-logs:/var/log/traefik
-    networks: [minierp-public, minierp-internal]
+    networks: [hisaberp-public, hisaberp-internal]
     deploy:
       resources:
         limits: { memory: 256M }
@@ -55,7 +55,7 @@ services:
     container_name: postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: minierp
+      POSTGRES_DB: hisaberp
       POSTGRES_USER: minierp
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
@@ -69,7 +69,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-    networks: [minierp-internal]
+    networks: [hisaberp-internal]
     deploy:
       resources:
         limits: { memory: 2G }
@@ -86,7 +86,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-    networks: [minierp-internal]
+    networks: [hisaberp-internal]
     deploy:
       resources:
         limits: { memory: 768M }
@@ -106,13 +106,13 @@ services:
       interval: 30s
       timeout: 5s
       retries: 6
-    networks: [minierp-internal]
+    networks: [hisaberp-internal]
     deploy:
       resources:
         limits: { memory: 768M }
 
   backend:
-    image: ${IMAGE_REGISTRY}/minierp-backend:${APP_VERSION}
+    image: ${IMAGE_REGISTRY}/hisaberp-backend:${APP_VERSION}
     container_name: backend
     restart: unless-stopped
     depends_on:
@@ -125,13 +125,13 @@ services:
       APP_VERSION: ${APP_VERSION}
       APP_PUBLIC_URL: https://api.${ROOT_DOMAIN}
       APP_CORS_ALLOWED_ORIGINS: https://app.${ROOT_DOMAIN},https://pos.${ROOT_DOMAIN}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/minierp
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hisaberp
       # Runtime pool connects as the NON-SUPERUSER role so PostgreSQL RLS (defense layer 2)
       # is enforced at runtime. A superuser/BYPASSRLS runtime role silently defeats RLS.
       SPRING_DATASOURCE_USERNAME: minierp_app
       SPRING_DATASOURCE_PASSWORD: ${APP_DB_PASSWORD}
       # Liquibase runs DDL as the owner/admin role (separate from the runtime pool).
-      SPRING_LIQUIBASE_URL: jdbc:postgresql://postgres:5432/minierp
+      SPRING_LIQUIBASE_URL: jdbc:postgresql://postgres:5432/hisaberp
       SPRING_LIQUIBASE_USER: minierp
       SPRING_LIQUIBASE_PASSWORD: ${POSTGRES_PASSWORD}
       DB_POOL_MAX: "30"
@@ -145,7 +145,7 @@ services:
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY: minio
       S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
-      S3_BUCKET: minierp-documents
+      S3_BUCKET: hisaberp-documents
       MAIL_HOST: ${MAIL_HOST:-}
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
@@ -160,10 +160,10 @@ services:
       timeout: 5s
       retries: 10
       start_period: 90s
-    networks: [minierp-internal, minierp-public]
+    networks: [hisaberp-internal, hisaberp-public]
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=minierp_minierp-public"
+      - "traefik.docker.network=hisaberp_hisaberp-public"
       - "traefik.http.routers.api.rule=Host(`api.${ROOT_DOMAIN}`)"
       - "traefik.http.routers.api.entrypoints=websecure"
       - "traefik.http.routers.api.tls.certresolver=le"
@@ -176,14 +176,14 @@ services:
         limits: { memory: 1.5G }
 
   admin:
-    image: ${IMAGE_REGISTRY}/minierp-admin:${APP_VERSION}
+    image: ${IMAGE_REGISTRY}/hisaberp-admin:${APP_VERSION}
     container_name: admin
     restart: unless-stopped
     depends_on: [backend]
-    networks: [minierp-internal, minierp-public]
+    networks: [hisaberp-internal, hisaberp-public]
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=minierp_minierp-public"
+      - "traefik.docker.network=hisaberp_hisaberp-public"
       - "traefik.http.routers.admin.rule=Host(`app.${ROOT_DOMAIN}`)"
       - "traefik.http.routers.admin.entrypoints=websecure"
       - "traefik.http.routers.admin.tls.certresolver=le"
@@ -193,14 +193,14 @@ services:
         limits: { memory: 128M }
 
   pos:
-    image: ${IMAGE_REGISTRY}/minierp-pos:${APP_VERSION}
+    image: ${IMAGE_REGISTRY}/hisaberp-pos:${APP_VERSION}
     container_name: pos
     restart: unless-stopped
     depends_on: [backend]
-    networks: [minierp-internal, minierp-public]
+    networks: [hisaberp-internal, hisaberp-public]
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=minierp_minierp-public"
+      - "traefik.docker.network=hisaberp_hisaberp-public"
       - "traefik.http.routers.pos.rule=Host(`pos.${ROOT_DOMAIN}`)"
       - "traefik.http.routers.pos.entrypoints=websecure"
       - "traefik.http.routers.pos.tls.certresolver=le"
@@ -217,7 +217,7 @@ services:
       postgres: { condition: service_healthy }
     environment:
       POSTGRES_HOST: postgres
-      POSTGRES_DB: minierp
+      POSTGRES_DB: hisaberp
       POSTGRES_USER: minierp
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_EXTRA_OPTS: "-Z9 --schema=public --blobs"
@@ -228,15 +228,15 @@ services:
       HEALTHCHECK_PORT: "8081"
     volumes:
       - pgbackup-data:/backups
-    networks: [minierp-internal]
+    networks: [hisaberp-internal]
     deploy:
       resources:
         limits: { memory: 256M }
 
 networks:
-  minierp-public:
-    name: minierp_minierp-public
-  minierp-internal:
+  hisaberp-public:
+    name: hisaberp_hisaberp-public
+  hisaberp-internal:
     internal: true
 
 volumes:

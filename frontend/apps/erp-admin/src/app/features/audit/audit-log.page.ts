@@ -4,8 +4,8 @@ import { HttpClient } from '@angular/common/http';
 import { TranslateModule } from '@ngx-translate/core';
 import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
-import { LoadingSpinnerComponent, EmptyStateComponent } from '@minierp/shared-ui';
-import { PageResponse } from '@minierp/shared-api';
+import { LoadingSpinnerComponent, EmptyStateComponent } from '@hisaberp/shared-ui';
+import { PageResponse } from '@hisaberp/shared-api';
 import { firstValueFrom } from 'rxjs';
 
 interface AuditRow {

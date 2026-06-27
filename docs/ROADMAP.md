@@ -24,7 +24,7 @@ Snapshot as of 2026-05-04. Updated each sprint.
 
 ## Phase 1A — POS MVP (NEXT, ~6–8 weeks)
 
-Goal: a sellable product for small boutiques. After this phase, a single-cash-register shop can run their day on Mini-ERP.
+Goal: a sellable product for small boutiques. After this phase, a single-cash-register shop can run their day on Hisab ERP.
 
 | | Item | Notes |
 |---|---|---|

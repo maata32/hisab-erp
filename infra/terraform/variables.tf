@@ -18,7 +18,7 @@ variable "cloudflare_zone_id" {
 }
 
 variable "root_domain" {
-  description = "Apex domain (e.g. minierp.example.com)."
+  description = "Apex domain (e.g. hisaberp.example.com)."
   type        = string
 }
 

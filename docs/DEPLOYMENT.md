@@ -1,6 +1,6 @@
 # Deployment guide
 
-End-to-end procedure for deploying Mini-ERP to a fresh Hetzner Cloud VPS using the Terraform IaC and Docker Compose stack in this repo.
+End-to-end procedure for deploying Hisab ERP to a fresh Hetzner Cloud VPS using the Terraform IaC and Docker Compose stack in this repo.
 
 ## Prerequisites
 
@@ -19,20 +19,20 @@ End-to-end procedure for deploying Mini-ERP to a fresh Hetzner Cloud VPS using t
 Push to `main` triggers `.github/workflows/backend.yml` and `frontend.yml`, which publish three images to GHCR:
 
 ```
-ghcr.io/<owner>/minierp-backend:<short-sha>
-ghcr.io/<owner>/minierp-admin:<short-sha>
-ghcr.io/<owner>/minierp-pos:<short-sha>
+ghcr.io/<owner>/hisaberp-backend:<short-sha>
+ghcr.io/<owner>/hisaberp-admin:<short-sha>
+ghcr.io/<owner>/hisaberp-pos:<short-sha>
 ```
 
 For the **first manual deploy**, locally:
 
 ```bash
-cd backend && docker build -t ghcr.io/<owner>/minierp-backend:bootstrap .
-cd frontend && docker build -t ghcr.io/<owner>/minierp-admin:bootstrap -f apps/erp-admin/Dockerfile .
-                docker build -t ghcr.io/<owner>/minierp-pos:bootstrap   -f apps/pos-terminal/Dockerfile .
-docker push ghcr.io/<owner>/minierp-backend:bootstrap
-docker push ghcr.io/<owner>/minierp-admin:bootstrap
-docker push ghcr.io/<owner>/minierp-pos:bootstrap
+cd backend && docker build -t ghcr.io/<owner>/hisaberp-backend:bootstrap .
+cd frontend && docker build -t ghcr.io/<owner>/hisaberp-admin:bootstrap -f apps/erp-admin/Dockerfile .
+                docker build -t ghcr.io/<owner>/hisaberp-pos:bootstrap   -f apps/pos-terminal/Dockerfile .
+docker push ghcr.io/<owner>/hisaberp-backend:bootstrap
+docker push ghcr.io/<owner>/hisaberp-admin:bootstrap
+docker push ghcr.io/<owner>/hisaberp-pos:bootstrap
 ```
 
 Make the GHCR repo public OR create a GHCR pull token and `docker login` on the prod host.
@@ -46,7 +46,7 @@ $EDITOR terraform.tfvars                # set hcloud_token, root_domain, allowed
 
 export HCLOUD_TOKEN="$(grep hcloud_token terraform.tfvars | cut -d'"' -f2)"
 
-# Upload your SSH public key to Hetzner first via the console, label managed-by=minierp
+# Upload your SSH public key to Hetzner first via the console, label managed-by=hisaberp
 # OR add it under terraform.tfvars `admin_ssh_keys = ["myname"]`.
 
 terraform init
@@ -65,8 +65,8 @@ If you don't use Cloudflare, **manually** add A records pointing `app.<domain>`,
 ssh deploy@<server-ip>
 
 # Copy the env template and fill it in
-sudo cp /etc/minierp/.env.template /etc/minierp/.env
-sudo $EDITOR /etc/minierp/.env
+sudo cp /etc/hisaberp/.env.template /etc/hisaberp/.env
+sudo $EDITOR /etc/hisaberp/.env
 
 # Generate strong values:
 openssl rand -base64 32   # POSTGRES_PASSWORD
@@ -76,8 +76,8 @@ openssl rand -base64 24 | head -c 32   # PII_ENCRYPTION_KEY  (must be exactly 32
 openssl rand -base64 32   # MINIO_ROOT_PASSWORD
 openssl rand -base64 24   # GRAFANA_ADMIN_PASSWORD
 
-sudo chmod 600 /etc/minierp/.env
-sudo chown root:root /etc/minierp/.env
+sudo chmod 600 /etc/hisaberp/.env
+sudo chown root:root /etc/hisaberp/.env
 ```
 
 ## 3. Copy the compose file & start
@@ -86,19 +86,19 @@ From your local machine:
 
 ```bash
 rsync -avz infra/docker/prod/docker-compose.yml \
-  deploy@<server-ip>:/opt/minierp/docker-compose.yml
+  deploy@<server-ip>:/opt/hisaberp/docker-compose.yml
 
 # Optional: observability addon
-rsync -avz infra/observability/ deploy@<server-ip>:/opt/minierp/observability/
+rsync -avz infra/observability/ deploy@<server-ip>:/opt/hisaberp/observability/
 ```
 
 On the server:
 
 ```bash
-cd /opt/minierp
-sudo docker compose --env-file /etc/minierp/.env pull
-sudo docker compose --env-file /etc/minierp/.env up -d
-sudo docker compose --env-file /etc/minierp/.env logs -f backend   # watch the boot
+cd /opt/hisaberp
+sudo docker compose --env-file /etc/hisaberp/.env pull
+sudo docker compose --env-file /etc/hisaberp/.env up -d
+sudo docker compose --env-file /etc/hisaberp/.env logs -f backend   # watch the boot
 ```
 
 The first boot runs Liquibase migrations (about 30s) then starts. Traefik will request a Let's Encrypt cert for each subdomain — the first request to `https://app.<domain>` may take 30-60 s.
@@ -107,7 +107,7 @@ Verify:
 
 ```bash
 curl -fsS https://api.<domain>/api/v1/health
-# {"status":"UP","timestamp":"...","service":"mini-erp"}
+# {"status":"UP","timestamp":"...","service":"hisab-erp"}
 ```
 
 ## 4. Bootstrap the first super-admin
@@ -116,9 +116,9 @@ Production does NOT auto-seed a tenant (the dev seeder only runs in the `dev` pr
 
 ```bash
 # SSH to the server, then from inside the backend container:
-sudo docker compose --env-file /etc/minierp/.env exec backend sh -c '
+sudo docker compose --env-file /etc/hisaberp/.env exec backend sh -c '
   apk add --no-cache postgresql-client
-  PGPASSWORD=$SPRING_DATASOURCE_PASSWORD psql -h postgres -U minierp -d minierp <<SQL
+  PGPASSWORD=$SPRING_DATASOURCE_PASSWORD psql -h postgres -U minierp -d hisaberp <<SQL
     -- 1. Create the org (use the API instead in normal cases)
     INSERT INTO organizations (id, code, name, type, currency, locale, timezone, status)
     VALUES (gen_random_uuid(), '\''platform'\'', '\''Platform'\'', '\''BOUTIQUE'\'',
@@ -134,11 +134,11 @@ Then make a one-shot HTTP call against the new org to create the SUPER_ADMIN —
 ## 5. Observability (optional)
 
 ```bash
-cd /opt/minierp
+cd /opt/hisaberp
 sudo docker compose \
   -f docker-compose.yml \
   -f observability/docker-compose.observability.yml \
-  --env-file /etc/minierp/.env up -d
+  --env-file /etc/hisaberp/.env up -d
 
 # Grafana: https://grafana.<domain>  (admin / $GRAFANA_ADMIN_PASSWORD)
 ```
@@ -147,7 +147,7 @@ sudo docker compose \
 
 Automated daily `pg_dump`:
 
-- Stored in the `pgbackup-data` volume at `/var/lib/docker/volumes/minierp-prod_pgbackup-data/_data/last/`.
+- Stored in the `pgbackup-data` volume at `/var/lib/docker/volumes/hisaberp-prod_pgbackup-data/_data/last/`.
 - 14 days daily / 8 weeks weekly / 12 months monthly retention.
 
 **To meet the spec's RPO 1-min target you must enable WAL archiving** to off-host storage (Hetzner Object Storage or external S3). Add the following to the `postgres` service in `docker-compose.yml`:
@@ -162,10 +162,10 @@ command:
   - "-c"
   - "wal_level=replica"
 volumes:
-  - /var/lib/minierp/wal:/backups/wal
+  - /var/lib/hisaberp/wal:/backups/wal
 ```
 
-And run a sidecar that uploads `/var/lib/minierp/wal/*` to S3 every minute (e.g. `restic backup` or `rclone sync`).
+And run a sidecar that uploads `/var/lib/hisaberp/wal/*` to S3 every minute (e.g. `restic backup` or `rclone sync`).
 
 ## 7. Rolling upgrade
 
@@ -176,9 +176,9 @@ Once you have new image tags built by CI:
 gh workflow run deploy-prod.yml -f version=v0.2.0
 # OR manually:
 ssh deploy@<server-ip>
-sudo sed -i 's/^APP_VERSION=.*/APP_VERSION=v0.2.0/' /etc/minierp/.env
-cd /opt/minierp && sudo docker compose --env-file /etc/minierp/.env pull && \
-                   sudo docker compose --env-file /etc/minierp/.env up -d
+sudo sed -i 's/^APP_VERSION=.*/APP_VERSION=v0.2.0/' /etc/hisaberp/.env
+cd /opt/hisaberp && sudo docker compose --env-file /etc/hisaberp/.env pull && \
+                   sudo docker compose --env-file /etc/hisaberp/.env up -d
 ```
 
 Liquibase runs at app start; if a migration fails, the container exits and Compose keeps the previous version running (because we use `depends_on: condition: service_healthy` on Postgres only — failed backend will not bring down dependents).
@@ -190,7 +190,7 @@ Worst case — server lost:
 1. `terraform apply` again (gives new IP).
 2. Update DNS A records (5-min TTL → instant if Cloudflare is your DNS).
 3. Restore Postgres from the latest off-host backup.
-4. Restore MinIO `/var/lib/docker/volumes/minierp-prod_minio-data` from off-host.
+4. Restore MinIO `/var/lib/docker/volumes/hisaberp-prod_minio-data` from off-host.
 5. Run compose up.
 
 Practice this every month — schedule a drill in Grafana alerts.

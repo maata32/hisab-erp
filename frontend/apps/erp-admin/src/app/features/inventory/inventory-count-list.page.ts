@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal, computed, ViewChild } from '@angular
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { AUTH_SERVICE } from '@minierp/shared-auth';
+import { AUTH_SERVICE } from '@hisaberp/shared-auth';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';

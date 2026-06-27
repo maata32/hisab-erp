@@ -8,9 +8,9 @@ import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { PasswordModule } from 'primeng/password';
 import { DropdownModule } from 'primeng/dropdown';
-import { LocaleSwitcherComponent } from '@minierp/shared-ui';
-import { LocaleService } from '@minierp/shared-i18n';
-import { isApiError } from '@minierp/shared-api';
+import { LocaleSwitcherComponent } from '@hisaberp/shared-ui';
+import { LocaleService } from '@hisaberp/shared-i18n';
+import { isApiError } from '@hisaberp/shared-api';
 import { firstValueFrom } from 'rxjs';
 
 interface Plan {
@@ -43,10 +43,10 @@ interface Plan {
         class="hidden md:flex md:w-2/5 bg-gradient-to-br from-primary-600 to-primary-800 text-white p-12 flex-col justify-between"
       >
         <div>
-          <h1 class="text-3xl font-bold">Mini-ERP</h1>
+          <img src="assets/brand/hisab-logo-ondark.svg" alt="HisabERP" class="h-14 w-auto" />
           <p class="mt-2 opacity-90">{{ 'app.tagline' | translate }}</p>
         </div>
-        <p class="text-sm opacity-70">© Mini-ERP {{ year }}</p>
+        <p class="text-sm opacity-70">© Hisab ERP {{ year }}</p>
       </aside>
 
       <main class="flex-1 flex items-center justify-center p-6 sm:p-10 overflow-auto">
