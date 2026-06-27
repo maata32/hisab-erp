@@ -17,7 +17,7 @@
         touches amount, only the three reversal columns added here.
     -->
 
-    <changeSet id="0053-allocation-reversal-columns" author="mini-erp">
+    <changeSet id="0053-allocation-reversal-columns" author="hisab-erp">
         <sql splitStatements="false"><![CDATA[
             ALTER TABLE allocations ADD COLUMN reversed_at     TIMESTAMPTZ;
             ALTER TABLE allocations ADD COLUMN reversed_by     UUID;
@@ -25,7 +25,7 @@
         ]]></sql>
     </changeSet>
 
-    <changeSet id="0053-allocation-reversal-backfill" author="mini-erp">
+    <changeSet id="0053-allocation-reversal-backfill" author="hisab-erp">
         <!--
             Historical consistency: payments already in status REFUNDED have had
             their legacy downstream effects reversed (PaymentService.refund →

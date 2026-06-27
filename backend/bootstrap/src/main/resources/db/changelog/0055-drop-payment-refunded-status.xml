@@ -15,7 +15,7 @@
         refunded_by_payment_id columns are dropped in changeset 0056.
     -->
 
-    <changeSet id="0055-payments-refunded-to-confirmed" author="mini-erp">
+    <changeSet id="0055-payments-refunded-to-confirmed" author="hisab-erp">
         <sql splitStatements="false"><![CDATA[
             UPDATE payments SET status = 'CONFIRMED' WHERE status = 'REFUNDED';
         ]]></sql>

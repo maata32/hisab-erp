@@ -11,7 +11,7 @@
         Existing defaultSale/defaultPurchase remain (orthogonal: they pick THE default,
         whereas the CDC isPurchase/isSale flags allow MANY).
     -->
-    <changeSet id="0024-product-packaging-cdc-fields" author="mini-erp">
+    <changeSet id="0024-product-packaging-cdc-fields" author="hisab-erp">
         <addColumn tableName="product_packagings">
             <column name="is_stock_uom" type="boolean" defaultValueBoolean="false">
                 <constraints nullable="false"/>

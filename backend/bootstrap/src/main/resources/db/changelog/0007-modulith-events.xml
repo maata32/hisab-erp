@@ -11,7 +11,7 @@
         — kept in our own Liquibase track so we control migrations centrally.
     -->
 
-    <changeSet id="0007-event-publication" author="mini-erp">
+    <changeSet id="0007-event-publication" author="hisab-erp">
         <createTable tableName="event_publication">
             <column name="id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
             <column name="listener_id" type="text"><constraints nullable="false"/></column>

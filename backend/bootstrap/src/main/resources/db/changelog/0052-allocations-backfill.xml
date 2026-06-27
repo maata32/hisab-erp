@@ -20,7 +20,7 @@
         already inserted by the runtime listener before this changeset runs.
     -->
 
-    <changeSet id="0052-allocations-backfill-payments" author="mini-erp">
+    <changeSet id="0052-allocations-backfill-payments" author="hisab-erp">
         <sql splitStatements="false"><![CDATA[
             INSERT INTO allocations (
                 tenant_id, party_id,
@@ -58,7 +58,7 @@
         ]]></sql>
     </changeSet>
 
-    <changeSet id="0052-allocations-backfill-credit-usages" author="mini-erp">
+    <changeSet id="0052-allocations-backfill-credit-usages" author="hisab-erp">
         <sql splitStatements="false"><![CDATA[
             INSERT INTO allocations (
                 tenant_id, party_id,
@@ -87,7 +87,7 @@
         ]]></sql>
     </changeSet>
 
-    <changeSet id="0052-allocations-backfill-credit-notes" author="mini-erp">
+    <changeSet id="0052-allocations-backfill-credit-notes" author="hisab-erp">
         <sql splitStatements="false"><![CDATA[
             -- Phase 6: mirror historical CREDIT_NOTE → INVOICE applications.
             -- For non-DRAFT credit notes whose application carried a non-zero

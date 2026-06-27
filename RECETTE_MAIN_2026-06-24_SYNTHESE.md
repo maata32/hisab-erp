@@ -51,7 +51,7 @@ Les scripts d'agents (interrompus, non revérifiés par l'étape adversariale) o
 - **BRC-17** : le chemin `error.reception.already_posted` n'est pas atteignable via l'API publique (la garde défensive existe mais `/record` mène toujours à RECEIVED ; il faudrait forcer un état intermédiaire en base pour la déclencher).
 
 ## Livrables
-- `Cahier_de_recettes_mini-ERP_execute_2026-06-24_main.xlsx` — classeur rempli (Statut/Testeur/Date/Observations sur les 419 cas, tableau de bord, feuille **Bugs & Anomalies**). La copie du 2026-06-24 reste intacte.
+- `Cahier_de_recettes_hisab-erp_execute_2026-06-24_main.xlsx` — classeur rempli (Statut/Testeur/Date/Observations sur les 419 cas, tableau de bord, feuille **Bugs & Anomalies**). La copie du 2026-06-24 reste intacte.
 - `recette_captures_2026-06-24_main/` — 144 captures d'écran de preuve (par domaine D01→D10, incl. hors-ligne POS).
 - Le présent fichier de synthèse.
 

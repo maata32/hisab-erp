@@ -5,7 +5,7 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
-    <changeSet id="0001-extensions" author="mini-erp">
+    <changeSet id="0001-extensions" author="hisab-erp">
         <sql>CREATE EXTENSION IF NOT EXISTS "uuid-ossp";</sql>
         <sql>CREATE EXTENSION IF NOT EXISTS "pg_trgm";</sql>
         <sql>CREATE EXTENSION IF NOT EXISTS "pgcrypto";</sql>

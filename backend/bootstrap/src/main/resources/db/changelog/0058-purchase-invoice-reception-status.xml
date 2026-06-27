@@ -14,7 +14,7 @@
         carries its own warehouse.
     -->
 
-    <changeSet id="0058-purchase-invoice-reception-status" author="mini-erp">
+    <changeSet id="0058-purchase-invoice-reception-status" author="hisab-erp">
         <addColumn tableName="purchase_invoices">
             <column name="reception_status" type="varchar(20)" defaultValue="NONE">
                 <constraints nullable="false"/>
@@ -22,13 +22,13 @@
         </addColumn>
     </changeSet>
 
-    <changeSet id="0058-purchase-order-converted-link" author="mini-erp">
+    <changeSet id="0058-purchase-order-converted-link" author="hisab-erp">
         <addColumn tableName="purchase_orders">
             <column name="converted_to_invoice_id" type="uuid"/>
         </addColumn>
     </changeSet>
 
-    <changeSet id="0058-purchase-order-warehouse-nullable" author="mini-erp">
+    <changeSet id="0058-purchase-order-warehouse-nullable" author="hisab-erp">
         <dropNotNullConstraint tableName="purchase_orders" columnName="warehouse_id" columnDataType="uuid"/>
     </changeSet>
 </databaseChangeLog>

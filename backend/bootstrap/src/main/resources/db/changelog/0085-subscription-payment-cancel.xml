@@ -7,7 +7,7 @@
 
     <!-- Allow cancelling (voiding) a recorded subscription payment; cancelling shrinks the
          tenant's subscription period back by the payment's duration. -->
-    <changeSet id="0085-subscription-payment-cancel" author="mini-erp">
+    <changeSet id="0085-subscription-payment-cancel" author="hisab-erp">
         <addColumn tableName="subscription_payments">
             <column name="cancelled" type="boolean" defaultValueBoolean="false">
                 <constraints nullable="false"/>

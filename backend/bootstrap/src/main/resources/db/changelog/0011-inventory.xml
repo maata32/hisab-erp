@@ -5,7 +5,7 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
-    <changeSet id="0011-warehouses" author="mini-erp">
+    <changeSet id="0011-warehouses" author="hisab-erp">
         <createTable tableName="warehouses">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -30,7 +30,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0011-stocks" author="mini-erp">
+    <changeSet id="0011-stocks" author="hisab-erp">
         <createTable tableName="stocks">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -57,7 +57,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0011-stock-movements" author="mini-erp">
+    <changeSet id="0011-stock-movements" author="hisab-erp">
         <createTable tableName="stock_movements">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>

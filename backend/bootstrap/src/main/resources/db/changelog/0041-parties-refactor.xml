@@ -19,7 +19,7 @@
         rewriting beyond column re-targeting.
     -->
 
-    <changeSet id="0041-parties-create" author="mini-erp">
+    <changeSet id="0041-parties-create" author="hisab-erp">
         <sql>
             CREATE TABLE parties (
                 id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -104,7 +104,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0041-parties-backfill" author="mini-erp">
+    <changeSet id="0041-parties-backfill" author="hisab-erp">
         <sql>
             -- Customers → parties (IDs preserved)
             INSERT INTO parties (
@@ -170,14 +170,14 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0041-drop-old-supplier-fks" author="mini-erp">
+    <changeSet id="0041-drop-old-supplier-fks" author="hisab-erp">
         <sql>
             ALTER TABLE expenses     DROP CONSTRAINT IF EXISTS fk_expenses_supplier;
             ALTER TABLE product_lots DROP CONSTRAINT IF EXISTS fk_product_lots_supplier;
         </sql>
     </changeSet>
 
-    <changeSet id="0041-rename-customer-id-columns" author="mini-erp">
+    <changeSet id="0041-rename-customer-id-columns" author="hisab-erp">
         <sql>
             ALTER TABLE quotes            RENAME COLUMN customer_id TO party_id;
             ALTER TABLE orders            RENAME COLUMN customer_id TO party_id;
@@ -191,7 +191,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0041-rename-supplier-id-columns" author="mini-erp">
+    <changeSet id="0041-rename-supplier-id-columns" author="hisab-erp">
         <sql>
             ALTER TABLE expenses           RENAME COLUMN supplier_id TO party_id;
             ALTER TABLE product_lots       RENAME COLUMN supplier_id TO party_id;
@@ -200,7 +200,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0041-add-party-fks" author="mini-erp">
+    <changeSet id="0041-add-party-fks" author="hisab-erp">
         <sql>
             ALTER TABLE quotes
                 ADD CONSTRAINT fk_quotes_party
@@ -245,7 +245,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0041-drop-legacy-tables" author="mini-erp">
+    <changeSet id="0041-drop-legacy-tables" author="hisab-erp">
         <sql>
             DROP TABLE IF EXISTS customer_balances CASCADE;
             DROP TABLE IF EXISTS supplier_balances CASCADE;
@@ -254,7 +254,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0041-parties-rls" author="mini-erp">
+    <changeSet id="0041-parties-rls" author="hisab-erp">
         <sql splitStatements="false">
             DO $$
             DECLARE
@@ -285,12 +285,12 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0041-grant-parties" author="mini-erp" runInTransaction="false">
+    <changeSet id="0041-grant-parties" author="hisab-erp" runInTransaction="false">
         <sql splitStatements="false">
             DO $$
             BEGIN
-                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'minierp_app') THEN
-                    GRANT ALL ON TABLE parties, ar_balances, ap_balances TO minierp_app;
+                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hisaberp_app') THEN
+                    GRANT ALL ON TABLE parties, ar_balances, ap_balances TO hisaberp_app;
                 END IF;
             END $$;
         </sql>

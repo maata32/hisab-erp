@@ -14,7 +14,7 @@
         Pure data update on payments.type (VARCHAR, no CHECK constraint).
     -->
 
-    <changeSet id="0065-payment-types-collapse-refund" author="mini-erp">
+    <changeSet id="0065-payment-types-collapse-refund" author="hisab-erp">
         <sql splitStatements="false"><![CDATA[
             UPDATE payments SET type = 'CASH_IN'  WHERE type = 'CASH_IN_REFUND';
             UPDATE payments SET type = 'CASH_OUT' WHERE type = 'CASH_OUT_REFUND';

@@ -5,7 +5,7 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
-    <changeSet id="0038-purchase-tables" author="mini-erp">
+    <changeSet id="0038-purchase-tables" author="hisab-erp">
         <sql>
             CREATE TABLE purchase_orders (
                 id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -109,7 +109,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0038-seed-purchase-permissions" author="mini-erp">
+    <changeSet id="0038-seed-purchase-permissions" author="hisab-erp">
         <sql>
             INSERT INTO permissions (id, code, resource, action, description) VALUES
               (uuid_generate_v4(), 'purchase:read',    'purchase', 'read',    'Read purchase orders and supplier invoices'),
@@ -120,7 +120,7 @@
     </changeSet>
 
     <!-- Grant purchase permissions to roles. STOCK_KEEPER receives stock; TENANT_ADMIN/MANAGER/PAYMENT_OFFICER can fully manage POs and PIs. -->
-    <changeSet id="0038-grant-purchase-perms-to-roles" author="mini-erp">
+    <changeSet id="0038-grant-purchase-perms-to-roles" author="hisab-erp">
         <sql>
             INSERT INTO role_permission (role_id, permission_id)
             SELECT r.id, p.id

@@ -5,7 +5,7 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
-    <changeSet id="0004-audit-log" author="mini-erp">
+    <changeSet id="0004-audit-log" author="hisab-erp">
         <createTable tableName="audit_log">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()"><constraints primaryKey="true" nullable="false"/></column>
             <column name="tenant_id" type="uuid"/>
@@ -30,7 +30,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0004-audit-log-immutable" author="mini-erp">
+    <changeSet id="0004-audit-log-immutable" author="hisab-erp">
         <comment>audit_log is append-only — block UPDATE and DELETE at the DB level.</comment>
         <sql splitStatements="false">
             CREATE OR REPLACE FUNCTION audit_log_block_modification()

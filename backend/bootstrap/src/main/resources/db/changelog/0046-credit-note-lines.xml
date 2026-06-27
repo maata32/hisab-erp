@@ -12,7 +12,7 @@
         already-issued flat NCs keep rendering.
     -->
 
-    <changeSet id="0046-credit-notes-totals" author="mini-erp">
+    <changeSet id="0046-credit-notes-totals" author="hisab-erp">
         <addColumn tableName="credit_notes">
             <column name="subtotal" type="numeric(19,2)" defaultValueNumeric="0">
                 <constraints nullable="false"/>
@@ -29,7 +29,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0046-credit-note-lines" author="mini-erp">
+    <changeSet id="0046-credit-note-lines" author="hisab-erp">
         <createTable tableName="credit_note_lines">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>

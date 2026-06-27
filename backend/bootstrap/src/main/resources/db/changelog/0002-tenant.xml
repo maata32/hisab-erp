@@ -5,7 +5,7 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
-    <changeSet id="0002-organizations" author="mini-erp">
+    <changeSet id="0002-organizations" author="hisab-erp">
         <createTable tableName="organizations">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -34,7 +34,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0002-subscription-plans" author="mini-erp">
+    <changeSet id="0002-subscription-plans" author="hisab-erp">
         <createTable tableName="subscription_plans">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()"><constraints primaryKey="true" nullable="false"/></column>
             <column name="code" type="varchar(50)"><constraints nullable="false" unique="true" uniqueConstraintName="uk_subscription_plans_code"/></column>
@@ -55,7 +55,7 @@
         </createTable>
     </changeSet>
 
-    <changeSet id="0002-subscriptions" author="mini-erp">
+    <changeSet id="0002-subscriptions" author="hisab-erp">
         <createTable tableName="subscriptions">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()"><constraints primaryKey="true" nullable="false"/></column>
             <column name="organization_id" type="uuid"><constraints nullable="false" unique="true" uniqueConstraintName="uk_subscriptions_org" foreignKeyName="fk_subscriptions_organization" referencedTableName="organizations" referencedColumnNames="id"/></column>
@@ -73,7 +73,7 @@
         </createTable>
     </changeSet>
 
-    <changeSet id="0002-tenant-settings" author="mini-erp">
+    <changeSet id="0002-tenant-settings" author="hisab-erp">
         <createTable tableName="tenant_settings">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()"><constraints primaryKey="true" nullable="false"/></column>
             <column name="organization_id" type="uuid"><constraints nullable="false" unique="true" uniqueConstraintName="uk_tenant_settings_org" foreignKeyName="fk_tenant_settings_organization" referencedTableName="organizations" referencedColumnNames="id"/></column>
@@ -93,7 +93,7 @@
         </createTable>
     </changeSet>
 
-    <changeSet id="0002-seed-plans" author="mini-erp">
+    <changeSet id="0002-seed-plans" author="hisab-erp">
         <sql>
             INSERT INTO subscription_plans (id, code, name, monthly_price, annual_price, max_cash_registers, max_users, max_products, is_active, features, enabled_modules)
             VALUES

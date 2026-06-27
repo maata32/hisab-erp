@@ -5,7 +5,7 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
-    <changeSet id="0031-cash-movements-type-width" author="mini-erp">
+    <changeSet id="0031-cash-movements-type-width" author="hisab-erp">
         <modifyDataType tableName="cash_movements" columnName="type" newDataType="varchar(40)"/>
     </changeSet>
 

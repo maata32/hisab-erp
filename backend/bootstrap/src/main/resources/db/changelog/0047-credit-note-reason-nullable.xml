@@ -14,7 +14,7 @@
         SELECT (e.g. warehouse lookup during stock return).
     -->
 
-    <changeSet id="0047-credit-notes-reason-nullable" author="mini-erp">
+    <changeSet id="0047-credit-notes-reason-nullable" author="hisab-erp">
         <dropNotNullConstraint tableName="credit_notes" columnName="reason" columnDataType="varchar(500)"/>
     </changeSet>
 

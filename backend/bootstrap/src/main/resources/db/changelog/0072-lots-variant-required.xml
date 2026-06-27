@@ -10,7 +10,7 @@
       backfilled to each product's default (or first) variant and made required, and the
       lot-number uniqueness moves from (product, lot, warehouse) to (variant, lot, warehouse).
     -->
-    <changeSet id="0072-lots-backfill-variant" author="mini-erp">
+    <changeSet id="0072-lots-backfill-variant" author="hisab-erp">
         <sql>
             UPDATE product_lots l
                SET product_variant_id = (
@@ -23,7 +23,7 @@
         <addNotNullConstraint tableName="product_lots" columnName="product_variant_id" columnDataType="uuid"/>
     </changeSet>
 
-    <changeSet id="0072-lots-variant-unique" author="mini-erp">
+    <changeSet id="0072-lots-variant-unique" author="hisab-erp">
         <dropUniqueConstraint tableName="product_lots" constraintName="uk_product_lots_tenant_product_number_wh"/>
         <addUniqueConstraint tableName="product_lots"
                              columnNames="tenant_id,product_variant_id,lot_number,warehouse_id"

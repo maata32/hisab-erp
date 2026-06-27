@@ -19,7 +19,7 @@
         tags (PAYMENT / SUPPLIER_PAYMENT) and is unaffected.
     -->
 
-    <changeSet id="0062-payment-types-generalize" author="mini-erp">
+    <changeSet id="0062-payment-types-generalize" author="hisab-erp">
         <sql splitStatements="false"><![CDATA[
             UPDATE payments SET type = 'CASH_IN'         WHERE type IN ('CUSTOMER_PAYMENT','CUSTOMER_DEPOSIT');
             UPDATE payments SET type = 'CASH_OUT'        WHERE type IN ('SUPPLIER_PAYMENT','CUSTOMER_CREDIT_WITHDRAWAL');

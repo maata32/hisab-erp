@@ -5,7 +5,7 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
-    <changeSet id="0013-rls-phase1a" author="mini-erp">
+    <changeSet id="0013-rls-phase1a" author="hisab-erp">
         <sql splitStatements="false">
             DO $$
             DECLARE

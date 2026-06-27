@@ -5,7 +5,7 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
-    <changeSet id="0032-vaults" author="mini-erp">
+    <changeSet id="0032-vaults" author="hisab-erp">
         <createTable tableName="vaults">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -23,7 +23,7 @@
         <addUniqueConstraint tableName="vaults" columnNames="tenant_id" constraintName="uk_vaults_tenant"/>
     </changeSet>
 
-    <changeSet id="0032-vault-movements" author="mini-erp">
+    <changeSet id="0032-vault-movements" author="hisab-erp">
         <createTable tableName="vault_movements">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -55,7 +55,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0032-bank-accounts" author="mini-erp">
+    <changeSet id="0032-bank-accounts" author="hisab-erp">
         <createTable tableName="bank_accounts">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -78,7 +78,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0032-bank-transactions" author="mini-erp">
+    <changeSet id="0032-bank-transactions" author="hisab-erp">
         <createTable tableName="bank_transactions">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -106,7 +106,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0032-treasury-rls" author="mini-erp">
+    <changeSet id="0032-treasury-rls" author="hisab-erp">
         <sql splitStatements="false">
             DO $$
             DECLARE
@@ -137,20 +137,20 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0032-grant-treasury-to-app-role" author="mini-erp" runInTransaction="false">
+    <changeSet id="0032-grant-treasury-to-app-role" author="hisab-erp" runInTransaction="false">
         <sql splitStatements="false">
             DO $$
             BEGIN
-                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'minierp_app') THEN
+                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hisaberp_app') THEN
                     GRANT ALL ON TABLE
                         vaults, vault_movements, bank_accounts, bank_transactions
-                    TO minierp_app;
+                    TO hisaberp_app;
                 END IF;
             END $$;
         </sql>
     </changeSet>
 
-    <changeSet id="0032-seed-treasury-permissions" author="mini-erp">
+    <changeSet id="0032-seed-treasury-permissions" author="hisab-erp">
         <sql>
             INSERT INTO permissions (id, code, resource, action, description) VALUES
               (uuid_generate_v4(), 'treasury:read',   'treasury', 'read',   'View vault and bank accounts'),
@@ -163,7 +163,7 @@
         Grant treasury permissions to existing roles for already-bootstrapped tenants.
         New tenants get them via TenantRolesBootstrapper.
     -->
-    <changeSet id="0032-grant-treasury-to-existing-roles" author="mini-erp">
+    <changeSet id="0032-grant-treasury-to-existing-roles" author="hisab-erp">
         <sql>
             INSERT INTO role_permission (role_id, permission_id)
             SELECT r.id, p.id
@@ -175,7 +175,7 @@
     </changeSet>
 
     <!-- Seed: create the single vault per existing tenant with balance=0. -->
-    <changeSet id="0032-seed-vault-per-tenant" author="mini-erp">
+    <changeSet id="0032-seed-vault-per-tenant" author="hisab-erp">
         <sql>
             INSERT INTO vaults (id, tenant_id, name, currency, balance)
             SELECT uuid_generate_v4(), o.id, 'Coffre central', 'MRU', 0

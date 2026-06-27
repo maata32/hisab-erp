@@ -32,7 +32,7 @@ Wait ~90s for the backend to migrate the schema and seed the demo tenant. Then o
 | **Backend API** | http://localhost:8080/swagger-ui.html | JWT Bearer (login via `/api/v1/auth/login`) |
 | **MailHog** | http://localhost:8025 | — |
 | **MinIO** | http://localhost:9001 | `minioadmin` / `minioadmin` |
-| **Postgres** | `psql -h localhost -U minierp -d hisaberp` | pwd `minierp` |
+| **Postgres** | `psql -h localhost -U hisaberp -d hisaberp` | pwd `hisaberp` |
 
 `make help` lists every command.
 

@@ -13,7 +13,7 @@
       already hold uom:create (TENANT_ADMIN, MANAGER). The mapping mirrors
       TenantRolesBootstrapper after this changeset.
     -->
-    <changeSet id="0067-seed-uom-update-delete-permissions" author="mini-erp">
+    <changeSet id="0067-seed-uom-update-delete-permissions" author="hisab-erp">
         <sql>
             INSERT INTO permissions (id, code, resource, action, description) VALUES
               (uuid_generate_v4(), 'uom:update', 'uom', 'update', 'Update units of measure or categories'),
@@ -22,7 +22,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0067-backfill-uom-update-delete-grants" author="mini-erp">
+    <changeSet id="0067-backfill-uom-update-delete-grants" author="hisab-erp">
         <sql splitStatements="false">
             DO $$
             DECLARE

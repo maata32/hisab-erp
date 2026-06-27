@@ -13,7 +13,7 @@
       index uk_product_variants_tenant_sku (WHERE sku IS NOT NULL) becomes a full unique
       index once sku is NOT NULL, so no index change is needed.
     -->
-    <changeSet id="0069-products-uniform-pricing" author="mini-erp">
+    <changeSet id="0069-products-uniform-pricing" author="hisab-erp">
         <addColumn tableName="products">
             <column name="uniform_pricing" type="boolean" defaultValueBoolean="true">
                 <constraints nullable="false"/>
@@ -21,7 +21,7 @@
         </addColumn>
     </changeSet>
 
-    <changeSet id="0069-product-variants-is-default" author="mini-erp">
+    <changeSet id="0069-product-variants-is-default" author="hisab-erp">
         <addColumn tableName="product_variants">
             <column name="is_default" type="boolean" defaultValueBoolean="false">
                 <constraints nullable="false"/>
@@ -29,7 +29,7 @@
         </addColumn>
     </changeSet>
 
-    <changeSet id="0069-backfill-variant-sku" author="mini-erp">
+    <changeSet id="0069-backfill-variant-sku" author="hisab-erp">
         <sql>
             UPDATE product_variants
                SET sku = 'V-' || substr(id::text, 1, 8)
@@ -38,7 +38,7 @@
         <addNotNullConstraint tableName="product_variants" columnName="sku" columnDataType="varchar(64)"/>
     </changeSet>
 
-    <changeSet id="0069-backfill-default-variants" author="mini-erp">
+    <changeSet id="0069-backfill-default-variants" author="hisab-erp">
         <sql>
             INSERT INTO product_variants
                 (id, tenant_id, product_id, sku, is_default, is_active, created_at, updated_at, version)

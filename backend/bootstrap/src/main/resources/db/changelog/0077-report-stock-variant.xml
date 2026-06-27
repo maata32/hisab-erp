@@ -11,7 +11,7 @@
       identical row in the stock report. Surface the variant (sku + attributes) and the
       warehouse name so the rows are distinguishable. runOnChange so the view is refreshed.
     -->
-    <changeSet id="0077-view-stock-variant" author="mini-erp" runOnChange="true">
+    <changeSet id="0077-view-stock-variant" author="hisab-erp" runOnChange="true">
         <!--
           Keep the original column order/positions (CREATE OR REPLACE VIEW only allows
           APPENDING columns in Postgres) and add the variant + warehouse columns at the end.

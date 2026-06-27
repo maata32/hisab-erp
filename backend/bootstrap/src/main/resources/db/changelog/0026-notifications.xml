@@ -12,7 +12,7 @@
     -->
 
     <!-- 1. System-wide event catalog (read-only at runtime) -->
-    <changeSet id="0026-notification-event-definitions" author="mini-erp">
+    <changeSet id="0026-notification-event-definitions" author="hisab-erp">
         <createTable tableName="notification_event_definitions">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -34,7 +34,7 @@
     </changeSet>
 
     <!-- 2. Per-tenant override (which channels/recipients are activated for that tenant) -->
-    <changeSet id="0026-tenant-notification-configs" author="mini-erp">
+    <changeSet id="0026-tenant-notification-configs" author="hisab-erp">
         <createTable tableName="tenant_notification_configs">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -66,7 +66,7 @@
     </changeSet>
 
     <!-- 3. Per-user preferences (overrides tenant) -->
-    <changeSet id="0026-user-notification-preferences" author="mini-erp">
+    <changeSet id="0026-user-notification-preferences" author="hisab-erp">
         <createTable tableName="user_notification_preferences">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -96,7 +96,7 @@
     </changeSet>
 
     <!-- 4. Templates per event/channel/locale -->
-    <changeSet id="0026-notification-templates" author="mini-erp">
+    <changeSet id="0026-notification-templates" author="hisab-erp">
         <createTable tableName="notification_templates">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -128,7 +128,7 @@
     </changeSet>
 
     <!-- 5. Notification log with retry tracking -->
-    <changeSet id="0026-notification-logs" author="mini-erp">
+    <changeSet id="0026-notification-logs" author="hisab-erp">
         <createTable tableName="notification_logs">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -179,7 +179,7 @@
     </changeSet>
 
     <!-- Seed the 20 CDC §3.12.1 events -->
-    <changeSet id="0026-seed-notification-events" author="mini-erp">
+    <changeSet id="0026-seed-notification-events" author="hisab-erp">
         <sql>
             INSERT INTO notification_event_definitions (id, code, name, description, category, default_channels, default_recipients, default_enabled, severity, variables) VALUES
               (uuid_generate_v4(), 'SALE_COMPLETED',          'Vente finalisée',         'Vente finalisée à la caisse',          'SALES',     'SMS,IN_APP',    'CUSTOMER',         true,  'INFO',     'saleNumber,amount,customerName'),
@@ -207,7 +207,7 @@
     </changeSet>
 
     <!-- RLS on tenant-scoped notification tables -->
-    <changeSet id="0026-rls-notifications" author="mini-erp">
+    <changeSet id="0026-rls-notifications" author="hisab-erp">
         <sql splitStatements="false">
             DO $$
             DECLARE
@@ -243,18 +243,18 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0026-grant-notifications-to-app-role" author="mini-erp" runInTransaction="false">
+    <changeSet id="0026-grant-notifications-to-app-role" author="hisab-erp" runInTransaction="false">
         <sql splitStatements="false">
             DO $$
             BEGIN
-                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'minierp_app') THEN
+                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hisaberp_app') THEN
                     GRANT ALL ON TABLE
                         notification_event_definitions,
                         tenant_notification_configs,
                         user_notification_preferences,
                         notification_templates,
                         notification_logs
-                    TO minierp_app;
+                    TO hisaberp_app;
                 END IF;
             END $$;
         </sql>

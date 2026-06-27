@@ -6,7 +6,7 @@
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
     <!-- Add warehouse type column -->
-    <changeSet id="0019-warehouse-type" author="mini-erp">
+    <changeSet id="0019-warehouse-type" author="hisab-erp">
         <addColumn tableName="warehouses">
             <column name="type" type="varchar(20)" defaultValue="MAIN">
                 <constraints nullable="false"/>
@@ -15,7 +15,7 @@
     </changeSet>
 
     <!-- Add track_expiry and shelf_life_days to products -->
-    <changeSet id="0019-product-expiry-fields" author="mini-erp">
+    <changeSet id="0019-product-expiry-fields" author="hisab-erp">
         <addColumn tableName="products">
             <column name="track_expiry" type="boolean" defaultValueBoolean="false">
                 <constraints nullable="false"/>
@@ -25,28 +25,28 @@
     </changeSet>
 
     <!-- Add lot_id to stock_movements -->
-    <changeSet id="0019-stock-movements-lot" author="mini-erp">
+    <changeSet id="0019-stock-movements-lot" author="hisab-erp">
         <addColumn tableName="stock_movements">
             <column name="lot_id" type="uuid"/>
         </addColumn>
     </changeSet>
 
     <!-- Add lot_id to sale_lines (POS) -->
-    <changeSet id="0019-sale-lines-lot" author="mini-erp">
+    <changeSet id="0019-sale-lines-lot" author="hisab-erp">
         <addColumn tableName="sale_lines">
             <column name="lot_id" type="uuid"/>
         </addColumn>
     </changeSet>
 
     <!-- Add lot_id to delivery_lines -->
-    <changeSet id="0019-delivery-lines-lot" author="mini-erp">
+    <changeSet id="0019-delivery-lines-lot" author="hisab-erp">
         <addColumn tableName="delivery_lines">
             <column name="lot_id" type="uuid"/>
         </addColumn>
     </changeSet>
 
     <!-- StockTransfer header -->
-    <changeSet id="0019-stock-transfers" author="mini-erp">
+    <changeSet id="0019-stock-transfers" author="hisab-erp">
         <createTable tableName="stock_transfers">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -76,7 +76,7 @@
     </changeSet>
 
     <!-- StockTransfer lines -->
-    <changeSet id="0019-stock-transfer-lines" author="mini-erp">
+    <changeSet id="0019-stock-transfer-lines" author="hisab-erp">
         <createTable tableName="stock_transfer_lines">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -105,7 +105,7 @@
     </changeSet>
 
     <!-- InventoryCount header -->
-    <changeSet id="0019-inventory-counts" author="mini-erp">
+    <changeSet id="0019-inventory-counts" author="hisab-erp">
         <createTable tableName="inventory_counts">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -132,7 +132,7 @@
     </changeSet>
 
     <!-- InventoryCount lines -->
-    <changeSet id="0019-inventory-count-lines" author="mini-erp">
+    <changeSet id="0019-inventory-count-lines" author="hisab-erp">
         <createTable tableName="inventory_count_lines">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>

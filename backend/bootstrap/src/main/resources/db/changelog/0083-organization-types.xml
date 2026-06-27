@@ -11,7 +11,7 @@
       subscription_plans. organizations.type stays a varchar storing the code, so
       existing rows ('BOUTIQUE', 'MIXTE', …) remain valid with no data migration.
     -->
-    <changeSet id="0083-organization-types" author="mini-erp">
+    <changeSet id="0083-organization-types" author="hisab-erp">
         <createTable tableName="organization_types">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>

@@ -10,7 +10,7 @@
         credit_note_lines: total-only, issued against a single purchase invoice.
     -->
 
-    <changeSet id="0061-purchase-credit-notes-tables" author="mini-erp">
+    <changeSet id="0061-purchase-credit-notes-tables" author="hisab-erp">
         <sql>
             CREATE TABLE purchase_credit_notes (
                 id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -64,7 +64,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0061-rls-purchase-credit-notes" author="mini-erp">
+    <changeSet id="0061-rls-purchase-credit-notes" author="hisab-erp">
         <sql splitStatements="false">
             DO $$
             DECLARE
@@ -95,12 +95,12 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0061-grant-purchase-credit-notes" author="mini-erp" runInTransaction="false">
+    <changeSet id="0061-grant-purchase-credit-notes" author="hisab-erp" runInTransaction="false">
         <sql splitStatements="false">
             DO $$
             BEGIN
-                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'minierp_app') THEN
-                    GRANT ALL ON TABLE purchase_credit_notes, purchase_credit_note_lines TO minierp_app;
+                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hisaberp_app') THEN
+                    GRANT ALL ON TABLE purchase_credit_notes, purchase_credit_note_lines TO hisaberp_app;
                 END IF;
             END $$;
         </sql>

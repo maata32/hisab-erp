@@ -13,7 +13,7 @@
         quantity_received column is no longer used.
     -->
 
-    <changeSet id="0059-remap-received-po-status" author="mini-erp">
+    <changeSet id="0059-remap-received-po-status" author="hisab-erp">
         <sql>
             UPDATE purchase_orders
             SET status = 'CONFIRMED'
@@ -21,7 +21,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0059-drop-po-line-quantity-received" author="mini-erp">
+    <changeSet id="0059-drop-po-line-quantity-received" author="hisab-erp">
         <dropColumn tableName="purchase_order_lines" columnName="quantity_received"/>
     </changeSet>
 </databaseChangeLog>

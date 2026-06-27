@@ -12,7 +12,7 @@
       et écrasait/refusait la 1ʳᵉ (1→100). Ajouter min_qty à la clé d'unicité pour que les
       tranches coexistent. (Le service dédoublonne déjà null via COALESCE côté upsert.)
     -->
-    <changeSet id="0081-product-price-minqty-unique" author="mini-erp">
+    <changeSet id="0081-product-price-minqty-unique" author="hisab-erp">
         <dropUniqueConstraint tableName="product_prices" constraintName="uk_product_prices_unique"/>
         <addUniqueConstraint tableName="product_prices"
                              columnNames="tenant_id,variant_id,uom_id,price_tier_id,valid_from,min_qty"

@@ -5,8 +5,8 @@
 # Required env vars (set in /etc/hisaberp/.env on the host, root-only readable):
 #   ROOT_DOMAIN              hisaberp.example.com
 #   ACME_EMAIL               ops@example.com           (Let's Encrypt)
-#   POSTGRES_PASSWORD        strong random  (owner/admin role 'minierp' — Liquibase only)
-#   APP_DB_PASSWORD          strong random  (runtime role 'minierp_app' — Spring datasource)
+#   POSTGRES_PASSWORD        strong random  (owner/admin role 'hisaberp' — Liquibase only)
+#   APP_DB_PASSWORD          strong random  (runtime role 'hisaberp_app' — Spring datasource)
 #   REDIS_PASSWORD           strong random
 #   JWT_SECRET               >= 32 chars random
 #   PII_ENCRYPTION_KEY       32 chars
@@ -56,7 +56,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: hisaberp
-      POSTGRES_USER: minierp
+      POSTGRES_USER: hisaberp
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
       # Consumed by postgres-init.sh to set the runtime role's password on first boot.
@@ -65,7 +65,7 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ../../../scripts/postgres-init.sh:/docker-entrypoint-initdb.d/00-init.sh:ro
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "minierp"]
+      test: ["CMD", "pg_isready", "-U", "hisaberp"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -128,11 +128,11 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hisaberp
       # Runtime pool connects as the NON-SUPERUSER role so PostgreSQL RLS (defense layer 2)
       # is enforced at runtime. A superuser/BYPASSRLS runtime role silently defeats RLS.
-      SPRING_DATASOURCE_USERNAME: minierp_app
+      SPRING_DATASOURCE_USERNAME: hisaberp_app
       SPRING_DATASOURCE_PASSWORD: ${APP_DB_PASSWORD}
       # Liquibase runs DDL as the owner/admin role (separate from the runtime pool).
       SPRING_LIQUIBASE_URL: jdbc:postgresql://postgres:5432/hisaberp
-      SPRING_LIQUIBASE_USER: minierp
+      SPRING_LIQUIBASE_USER: hisaberp
       SPRING_LIQUIBASE_PASSWORD: ${POSTGRES_PASSWORD}
       DB_POOL_MAX: "30"
       REDIS_HOST: redis
@@ -218,7 +218,7 @@ services:
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_DB: hisaberp
-      POSTGRES_USER: minierp
+      POSTGRES_USER: hisaberp
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_EXTRA_OPTS: "-Z9 --schema=public --blobs"
       SCHEDULE: "@daily"

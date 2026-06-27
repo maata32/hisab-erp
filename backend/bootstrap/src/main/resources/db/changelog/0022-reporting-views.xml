@@ -6,7 +6,7 @@
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
     <!-- Direction dashboard: daily/monthly/yearly revenue, top products, top customers -->
-    <changeSet id="0022-view-direction" author="mini-erp" runOnChange="false">
+    <changeSet id="0022-view-direction" author="hisab-erp" runOnChange="false">
         <createView viewName="v_report_direction" replaceIfExists="true">
             SELECT
                 s.tenant_id,
@@ -33,7 +33,7 @@
     </changeSet>
 
     <!-- Caisse dashboard: sales by cashier, payment method breakdown, avg ticket -->
-    <changeSet id="0022-view-caisse" author="mini-erp" runOnChange="false">
+    <changeSet id="0022-view-caisse" author="hisab-erp" runOnChange="false">
         <createView viewName="v_report_caisse" replaceIfExists="true">
             SELECT
                 s.tenant_id,
@@ -63,7 +63,7 @@
     </changeSet>
 
     <!-- Stock dashboard: stock value, low stock, dormant stock -->
-    <changeSet id="0022-view-stock" author="mini-erp" runOnChange="false">
+    <changeSet id="0022-view-stock" author="hisab-erp" runOnChange="false">
         <createView viewName="v_report_stock" replaceIfExists="true">
             SELECT
                 st.tenant_id,
@@ -84,7 +84,7 @@
     </changeSet>
 
     <!-- Expiry dashboard: lots expiring in J-7/15/30 -->
-    <changeSet id="0022-view-expiry" author="mini-erp" runOnChange="false">
+    <changeSet id="0022-view-expiry" author="hisab-erp" runOnChange="false">
         <createView viewName="v_report_expiry" replaceIfExists="true">
             SELECT
                 pl.tenant_id,
@@ -111,7 +111,7 @@
     </changeSet>
 
     <!-- Payments dashboard: daily receipts by type and method -->
-    <changeSet id="0022-view-payments" author="mini-erp" runOnChange="false">
+    <changeSet id="0022-view-payments" author="hisab-erp" runOnChange="false">
         <createView viewName="v_report_payments" replaceIfExists="true">
             SELECT
                 p.tenant_id,
@@ -131,7 +131,7 @@
     </changeSet>
 
     <!-- Deliveries dashboard: pending, late, on-time rate -->
-    <changeSet id="0022-view-deliveries" author="mini-erp" runOnChange="false">
+    <changeSet id="0022-view-deliveries" author="hisab-erp" runOnChange="false">
         <createView viewName="v_report_deliveries" replaceIfExists="true">
             SELECT
                 d.tenant_id,
@@ -149,7 +149,7 @@
     </changeSet>
 
     <!-- Top products view (used by direction dashboard) -->
-    <changeSet id="0022-view-top-products" author="mini-erp" runOnChange="false">
+    <changeSet id="0022-view-top-products" author="hisab-erp" runOnChange="false">
         <createView viewName="v_report_top_products" replaceIfExists="true">
             SELECT
                 sl.tenant_id,

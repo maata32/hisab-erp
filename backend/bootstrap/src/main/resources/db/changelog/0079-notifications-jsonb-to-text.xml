@@ -15,7 +15,7 @@
       strings, like the sibling default_channels varchar on the event catalog), so convert the
       columns to text to match their actual usage and unbreak the writes.
     -->
-    <changeSet id="0079-notifications-jsonb-to-text" author="mini-erp">
+    <changeSet id="0079-notifications-jsonb-to-text" author="hisab-erp">
         <sql>
             ALTER TABLE tenant_notification_configs   ALTER COLUMN channels   TYPE text USING channels::text;
             ALTER TABLE tenant_notification_configs   ALTER COLUMN recipients TYPE text USING recipients::text;
