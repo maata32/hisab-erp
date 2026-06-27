@@ -114,6 +114,16 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-cache</artifactId>
         </dependency>
+        <!-- Dev-only auto-restart on recompile. optional+runtime so it never leaks to consumers,
+             and spring-boot-maven-plugin excludes it from the repackaged (prod) jar; devtools also
+             self-disables when run from a packaged jar. See META-INF/spring-devtools.properties for
+             the JNA/argon2 native-lib exclusion. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
