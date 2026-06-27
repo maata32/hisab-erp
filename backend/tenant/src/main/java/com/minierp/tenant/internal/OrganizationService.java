@@ -275,6 +275,27 @@ public class OrganizationService implements OrganizationApi {
         return new PaidPeriod(base, end);
     }
 
+    /** Reverses a paid period (payment cancelled): shrinks the subscription window by the duration;
+     *  if it lands in the past and the tenant was ACTIVE, moves it to PAST_DUE. */
+    @Transactional
+    @CacheEvict(value = {"tenants:byCode", "tenants:byId", "tenants:branding", "tenants:limits"}, allEntries = true)
+    public void revokePaidPeriod(UUID id, int years, int months) {
+        Organization o = load(id);
+        Subscription sub = subscriptions.findByOrganizationId(id).orElse(null);
+        if (sub == null || sub.getPeriodEnd() == null) return;
+        long days = (long) years * 365 + (long) months * 30;
+        Instant now = Instant.now();
+        Instant newEnd = sub.getPeriodEnd().minus(days, ChronoUnit.DAYS);
+        subscriptionService.shrinkTo(id, newEnd);
+        if (!newEnd.isAfter(now) && o.getStatus() == OrganizationStatus.ACTIVE) {
+            OrganizationStatus old = o.getStatus();
+            o.setStatus(OrganizationStatus.PAST_DUE);
+            o.setPastDueSince(now);
+            publishStatusChange(o, old, "auto:payment_cancelled");
+        }
+        events.publishEvent(audit(o, "ORG_PAYMENT_CANCELLED", Map.of("years", years, "months", months)));
+    }
+
     public record PaidPeriod(Instant start, Instant end) {}
 
     @Transactional
@@ -363,7 +384,8 @@ public class OrganizationService implements OrganizationApi {
 
     private void publishStatusChange(Organization o, OrganizationStatus old, String reason) {
         events.publishEvent(new OrganizationStatusChangedEvent(
-                o.getId(), old.name(), o.getStatus().name(), reason, Instant.now()));
+                o.getId(), o.getCode(), o.getName(), o.getEmail(), o.getLocale(),
+                old.name(), o.getStatus().name(), reason, Instant.now()));
     }
 
     private OrganizationDto toDto(Organization o) {

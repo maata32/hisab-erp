@@ -57,6 +57,16 @@ class SubscriptionService {
         subscriptions.save(sub);
     }
 
+    /** Shrinks the subscription end (used when a payment is cancelled). Past → PAST_DUE, else ACTIVE. */
+    void shrinkTo(UUID organizationId, Instant periodEnd) {
+        subscriptions.findByOrganizationId(organizationId).ifPresent(sub -> {
+            sub.setPeriodEnd(periodEnd);
+            sub.setNextBillingDate(periodEnd);
+            sub.setStatus(periodEnd.isAfter(Instant.now()) ? SubscriptionStatus.ACTIVE : SubscriptionStatus.PAST_DUE);
+            subscriptions.save(sub);
+        });
+    }
+
     /** Sets the paid subscription window explicitly (used when recording a payment that extends access). */
     void extendTo(UUID organizationId, UUID planId, Instant periodStart, Instant periodEnd) {
         Subscription sub = subscriptions.findByOrganizationId(organizationId).orElseGet(Subscription::new);

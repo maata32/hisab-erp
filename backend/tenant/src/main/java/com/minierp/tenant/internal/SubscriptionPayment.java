@@ -56,4 +56,11 @@ class SubscriptionPayment extends AuditableEntity {
 
     @Column(name = "attachment_url", length = 1000)
     private String attachmentUrl;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean cancelled = false;
+
+    @Column(name = "cancelled_at")
+    private Instant cancelledAt;
 }

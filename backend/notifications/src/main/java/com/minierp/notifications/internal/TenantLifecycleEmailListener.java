@@ -1,11 +1,9 @@
 package com.minierp.notifications.internal;
 
 import com.minierp.notifications.api.EmailSender;
-import com.minierp.tenant.events.TenantApprovedEvent;
-import com.minierp.tenant.events.TenantRegisteredEvent;
+import com.minierp.tenant.events.OrganizationStatusChangedEvent;
 import com.minierp.tenant.events.SubscriptionPaymentRecordedEvent;
-import com.minierp.tenant.events.TenantRejectedEvent;
-import com.minierp.tenant.events.TenantSuspendedEvent;
+import com.minierp.tenant.events.TenantRegisteredEvent;
 import com.minierp.tenant.events.TenantTrialExpiringEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,9 +12,11 @@ import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
 /**
- * Sends transactional e-mails for tenant lifecycle events. Listens asynchronously
- * after commit; e-mail failures are swallowed (logged) so they never roll back or
- * retry the originating business transaction.
+ * Transactional e-mails for tenant lifecycle. Listens asynchronously after commit; failures are
+ * swallowed (logged) so they never roll back the originating business transaction. Messages are
+ * localized to the tenant's language (fr / en / ar). Every status transition is covered by
+ * {@link #onStatusChanged} (the generic {@code OrganizationStatusChangedEvent}); registration and
+ * the trial-expiring reminder keep their own events (not status changes).
  */
 @Component
 @RequiredArgsConstructor
@@ -30,93 +30,157 @@ class TenantLifecycleEmailListener {
 
     @ApplicationModuleListener
     public void onRegistered(TenantRegisteredEvent e) {
-        boolean fr = isFr(e.locale());
-        String subject = fr ? "Votre inscription a bien été reçue"
-                            : "We received your registration";
-        String body = fr
-                ? "Bonjour " + e.recipientName() + ",\n\n"
-                    + "Votre demande d'inscription pour « " + e.organizationName() + " » (code « " + e.tenantCode()
-                    + " ») a bien été reçue. Elle est en attente de validation par notre équipe.\n"
-                    + "Vous recevrez un e-mail dès qu'elle sera approuvée.\n\n— Mini-ERP"
-                : "Hello " + e.recipientName() + ",\n\n"
-                    + "Your registration request for \"" + e.organizationName() + "\" (code \"" + e.tenantCode()
-                    + "\") has been received and is pending review.\n"
-                    + "You will get an e-mail once it is approved.\n\n— Mini-ERP";
+        String name = e.recipientName();
+        String org = e.organizationName();
+        String code = e.tenantCode();
+        String subject;
+        String body;
+        switch (lang(e.locale())) {
+            case "ar" -> {
+                subject = "تم استلام تسجيلك";
+                body = "مرحبًا " + name + "،\n\nتم استلام طلب تسجيل « " + org + " » (الرمز « " + code
+                        + " ») وهو قيد المراجعة.\nستصلك رسالة عند الموافقة.\n\n— Mini-ERP";
+            }
+            case "en" -> {
+                subject = "We received your registration";
+                body = "Hello " + name + ",\n\nYour registration request for \"" + org + "\" (code \"" + code
+                        + "\") has been received and is pending review.\nYou will get an e-mail once it is approved.\n\n— Mini-ERP";
+            }
+            default -> {
+                subject = "Votre inscription a bien été reçue";
+                body = "Bonjour " + name + ",\n\nVotre demande d'inscription pour « " + org + " » (code « " + code
+                        + " ») a bien été reçue. Elle est en attente de validation.\n"
+                        + "Vous recevrez un e-mail dès qu'elle sera approuvée.\n\n— Mini-ERP";
+            }
+        }
         send(e.recipientEmail(), subject, body, "registration");
     }
 
+    /** One e-mail per tenant status transition (approved, activated, past-due, suspended, archived…). */
     @ApplicationModuleListener
-    public void onApproved(TenantApprovedEvent e) {
-        boolean fr = isFr(e.locale());
+    public void onStatusChanged(OrganizationStatusChangedEvent e) {
+        String l = lang(e.locale());
+        String org = e.organizationName();
+        String code = e.tenantCode();
         String loginUrl = frontendUrl + "/auth/login";
-        String subject = fr ? "Votre compte Mini-ERP est activé"
-                            : "Your Mini-ERP account is active";
-        String body = fr
-                ? "Bonjour " + e.recipientName() + ",\n\n"
-                    + "Bonne nouvelle ! L'inscription de « " + e.organizationName() + " » a été approuvée.\n"
-                    + "Vous pouvez vous connecter avec le code organisation « " + e.tenantCode() + " » :\n"
-                    + loginUrl + "\n\n— Mini-ERP"
-                : "Hello " + e.recipientName() + ",\n\n"
-                    + "Good news! The registration for \"" + e.organizationName() + "\" has been approved.\n"
-                    + "You can sign in with the organization code \"" + e.tenantCode() + "\":\n"
-                    + loginUrl + "\n\n— Mini-ERP";
-        send(e.recipientEmail(), subject, body, "approval");
-    }
-
-    @ApplicationModuleListener
-    public void onRejected(TenantRejectedEvent e) {
-        boolean fr = isFr(e.locale());
-        String reason = e.reason() == null || e.reason().isBlank()
-                ? (fr ? "(non précisée)" : "(not specified)") : e.reason();
-        String subject = fr ? "Votre demande d'inscription n'a pas été retenue"
-                            : "Your registration request was declined";
-        String body = fr
-                ? "Bonjour " + e.recipientName() + ",\n\n"
-                    + "Nous sommes désolés, votre demande d'inscription pour « " + e.organizationName()
-                    + " » n'a pas été retenue.\nMotif : " + reason + "\n\n— Mini-ERP"
-                : "Hello " + e.recipientName() + ",\n\n"
-                    + "We are sorry — your registration request for \"" + e.organizationName()
-                    + "\" was declined.\nReason: " + reason + "\n\n— Mini-ERP";
-        send(e.recipientEmail(), subject, body, "rejection");
+        String reasonSuffix = reasonSuffix(l, e.reason());
+        String subject;
+        String body;
+        switch (e.newStatus()) {
+            case "TRIAL" -> {
+                subject = switch (l) {
+                    case "ar" -> "تم تفعيل حسابك في Mini-ERP";
+                    case "en" -> "Your Mini-ERP account is active";
+                    default -> "Votre compte Mini-ERP est activé";
+                };
+                body = switch (l) {
+                    case "ar" -> "مرحبًا،\n\nتمت الموافقة على تسجيل « " + org + " ».\nسجّل الدخول برمز المنظمة « "
+                            + code + " »:\n" + loginUrl + "\n\n— Mini-ERP";
+                    case "en" -> "Hello,\n\nThe registration for \"" + org + "\" has been approved.\n"
+                            + "Sign in with the organization code \"" + code + "\":\n" + loginUrl + "\n\n— Mini-ERP";
+                    default -> "Bonjour,\n\nL'inscription de « " + org + " » a été approuvée.\n"
+                            + "Connectez-vous avec le code organisation « " + code + " » :\n" + loginUrl + "\n\n— Mini-ERP";
+                };
+            }
+            case "ACTIVE" -> {
+                subject = switch (l) {
+                    case "ar" -> "اشتراكك نشط — " + org;
+                    case "en" -> "Subscription active — " + org;
+                    default -> "Abonnement actif — " + org;
+                };
+                body = switch (l) {
+                    case "ar" -> "مرحبًا،\n\nأصبح اشتراك « " + org + " » نشطًا. شكرًا لكم.\n\n— Mini-ERP";
+                    case "en" -> "Hello,\n\nThe subscription for \"" + org + "\" is now active. Thank you.\n\n— Mini-ERP";
+                    default -> "Bonjour,\n\nL'abonnement de « " + org + " » est désormais actif. Merci.\n\n— Mini-ERP";
+                };
+            }
+            case "PAST_DUE" -> {
+                subject = switch (l) {
+                    case "ar" -> "انتهت فترة اشتراكك — " + org;
+                    case "en" -> "Subscription past due — " + org;
+                    default -> "Abonnement échu — " + org;
+                };
+                body = switch (l) {
+                    case "ar" -> "مرحبًا،\n\nانتهت فترة اشتراك « " + org + " ». يرجى التجديد لتفادي تعليق الحساب.\n\n— Mini-ERP";
+                    case "en" -> "Hello,\n\nThe subscription for \"" + org + "\" has lapsed. Please renew to avoid suspension.\n\n— Mini-ERP";
+                    default -> "Bonjour,\n\nL'abonnement de « " + org + " » est échu. Régularisez pour éviter la suspension.\n\n— Mini-ERP";
+                };
+            }
+            case "SUSPENDED" -> {
+                subject = switch (l) {
+                    case "ar" -> "تم تعليق حسابك في Mini-ERP";
+                    case "en" -> "Your Mini-ERP account has been suspended";
+                    default -> "Votre compte Mini-ERP a été suspendu";
+                };
+                body = switch (l) {
+                    case "ar" -> "مرحبًا،\n\nتم تعليق الوصول إلى « " + org + " »." + reasonSuffix
+                            + " اتصل بنا أو جدّد اشتراكك لإعادة التفعيل.\n\n— Mini-ERP";
+                    case "en" -> "Hello,\n\nAccess to \"" + org + "\" has been suspended." + reasonSuffix
+                            + " Contact us or renew your subscription to reactivate it.\n\n— Mini-ERP";
+                    default -> "Bonjour,\n\nL'accès à « " + org + " » a été suspendu." + reasonSuffix
+                            + " Contactez-nous ou régularisez votre abonnement pour le réactiver.\n\n— Mini-ERP";
+                };
+            }
+            case "ARCHIVED" -> {
+                boolean rejected = "PENDING".equals(e.oldStatus());
+                subject = switch (l) {
+                    case "ar" -> rejected ? "لم يتم قبول طلب تسجيلك" : "تمت أرشفة حسابك في Mini-ERP";
+                    case "en" -> rejected ? "Your registration request was declined" : "Your Mini-ERP account was archived";
+                    default -> rejected ? "Votre demande d'inscription n'a pas été retenue" : "Votre compte Mini-ERP a été archivé";
+                };
+                body = switch (l) {
+                    case "ar" -> (rejected ? "مرحبًا،\n\nنأسف، لم يتم قبول طلب تسجيل « " + org + " »."
+                            : "مرحبًا،\n\nتمت أرشفة « " + org + " ».") + reasonSuffix + "\n\n— Mini-ERP";
+                    case "en" -> (rejected ? "Hello,\n\nWe are sorry — the registration request for \"" + org + "\" was declined."
+                            : "Hello,\n\nThe account \"" + org + "\" has been archived.") + reasonSuffix + "\n\n— Mini-ERP";
+                    default -> (rejected ? "Bonjour,\n\nNous sommes désolés, la demande d'inscription pour « " + org + " » n'a pas été retenue."
+                            : "Bonjour,\n\nLe compte « " + org + " » a été archivé.") + reasonSuffix + "\n\n— Mini-ERP";
+                };
+            }
+            default -> {
+                return; // other statuses (e.g. back to PENDING) — no e-mail
+            }
+        }
+        send(e.recipientEmail(), subject, body, "status:" + e.newStatus());
     }
 
     @ApplicationModuleListener
     public void onTrialExpiring(TenantTrialExpiringEvent e) {
-        boolean fr = isFr(e.locale());
-        String subject = fr ? "Votre période d'essai se termine bientôt"
-                            : "Your trial is ending soon";
-        String body = fr
-                ? "Bonjour,\n\nLa période d'essai de « " + e.organizationName() + " » se termine dans "
-                    + e.daysLeft() + " jour(s). Activez un abonnement pour continuer sans interruption.\n\n— Mini-ERP"
-                : "Hello,\n\nThe trial for \"" + e.organizationName() + "\" ends in "
-                    + e.daysLeft() + " day(s). Activate a subscription to keep using Mini-ERP.\n\n— Mini-ERP";
+        String org = e.organizationName();
+        long days = e.daysLeft();
+        String subject;
+        String body;
+        switch (lang(e.locale())) {
+            case "ar" -> {
+                subject = "تنتهي فترتك التجريبية قريبًا";
+                body = "مرحبًا،\n\nتنتهي الفترة التجريبية لـ « " + org + " » خلال " + days
+                        + " يوم. فعّل اشتراكًا للاستمرار دون انقطاع.\n\n— Mini-ERP";
+            }
+            case "en" -> {
+                subject = "Your trial is ending soon";
+                body = "Hello,\n\nThe trial for \"" + org + "\" ends in " + days
+                        + " day(s). Activate a subscription to keep using Mini-ERP.\n\n— Mini-ERP";
+            }
+            default -> {
+                subject = "Votre période d'essai se termine bientôt";
+                body = "Bonjour,\n\nLa période d'essai de « " + org + " » se termine dans " + days
+                        + " jour(s). Activez un abonnement pour continuer sans interruption.\n\n— Mini-ERP";
+            }
+        }
         send(e.recipientEmail(), subject, body, "trial-expiring");
     }
 
     @ApplicationModuleListener
-    public void onSuspended(TenantSuspendedEvent e) {
-        boolean fr = isFr(e.locale());
-        String subject = fr ? "Votre compte Mini-ERP a été suspendu"
-                            : "Your Mini-ERP account has been suspended";
-        String body = fr
-                ? "Bonjour,\n\nL'accès à « " + e.organizationName() + " » a été suspendu. "
-                    + "Contactez-nous ou régularisez votre abonnement pour le réactiver.\n\n— Mini-ERP"
-                : "Hello,\n\nAccess to \"" + e.organizationName() + "\" has been suspended. "
-                    + "Contact us or renew your subscription to reactivate it.\n\n— Mini-ERP";
-        send(e.recipientEmail(), subject, body, "suspension");
-    }
-
-    @ApplicationModuleListener
     public void onPaymentRecorded(SubscriptionPaymentRecordedEvent e) {
-        String lang = lang(e.locale());
+        String l = lang(e.locale());
         String org = e.organizationName();
         String amount = e.amount().stripTrailingZeros().toPlainString() + " " + e.currency();
-        String duration = formatDuration(lang, e.years(), e.months());
+        String duration = formatDuration(l, e.years(), e.months());
         String start = fmtDate(e.periodStart());
         String end = fmtDate(e.periodEnd());
         String subject;
         String body;
-        switch (lang) {
+        switch (l) {
             case "ar" -> {
                 subject = "تم تسجيل الدفعة — " + org;
                 body = "مرحبًا،\n\nنؤكد تسجيل دفعة اشتراككم لـ « " + org + " ».\n\n"
@@ -146,6 +210,18 @@ class TenantLifecycleEmailListener {
         send(e.recipientEmail(), subject, body, "payment");
     }
 
+    private void send(String to, String subject, String body, String kind) {
+        if (to == null || to.isBlank()) {
+            log.warn("Skipping tenant {} e-mail — no recipient address", kind);
+            return;
+        }
+        try {
+            email.sendText(to, subject, body);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to send tenant {} e-mail to {}: {}", kind, to, ex.getMessage());
+        }
+    }
+
     /** Tenant UI language: "ar" | "en" | "fr" (default). */
     private static String lang(String locale) {
         if (locale == null || locale.isBlank()) return "fr";
@@ -153,6 +229,15 @@ class TenantLifecycleEmailListener {
         if (l.startsWith("ar")) return "ar";
         if (l.startsWith("en")) return "en";
         return "fr";
+    }
+
+    private static String reasonSuffix(String lang, String reason) {
+        if (reason == null || reason.isBlank() || reason.startsWith("auto:")) return "";
+        return switch (lang) {
+            case "ar" -> "\nالسبب: " + reason;
+            case "en" -> "\nReason: " + reason;
+            default -> "\nMotif : " + reason;
+        };
     }
 
     private static String formatDuration(String lang, int years, int months) {
@@ -169,21 +254,5 @@ class TenantLifecycleEmailListener {
 
     private static String fmtDate(java.time.Instant i) {
         return i.atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString();
-    }
-
-    private void send(String to, String subject, String body, String kind) {
-        if (to == null || to.isBlank()) {
-            log.warn("Skipping tenant {} e-mail — no recipient address", kind);
-            return;
-        }
-        try {
-            email.sendText(to, subject, body);
-        } catch (RuntimeException ex) {
-            log.warn("Failed to send tenant {} e-mail to {}: {}", kind, to, ex.getMessage());
-        }
-    }
-
-    private static boolean isFr(String locale) {
-        return locale == null || locale.isBlank() || locale.toLowerCase().startsWith("fr");
     }
 }

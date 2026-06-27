@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- Allow cancelling (voiding) a recorded subscription payment; cancelling shrinks the
+         tenant's subscription period back by the payment's duration. -->
+    <changeSet id="0085-subscription-payment-cancel" author="mini-erp">
+        <addColumn tableName="subscription_payments">
+            <column name="cancelled" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cancelled_at" type="timestamptz"/>
+        </addColumn>
+        <rollback>
+            <dropColumn tableName="subscription_payments" columnName="cancelled"/>
+            <dropColumn tableName="subscription_payments" columnName="cancelled_at"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
