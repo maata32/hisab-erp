@@ -11,7 +11,7 @@
       to the product's default (or first) variant. Kept nullable so historical snapshots
       remain valid even when a product has no variant.
     -->
-    <changeSet id="0073-quote-lines-variant" author="mini-erp">
+    <changeSet id="0073-quote-lines-variant" author="hisab-erp">
         <addColumn tableName="quote_lines">
             <column name="variant_id" type="uuid"/>
         </addColumn>
@@ -25,7 +25,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0073-invoice-lines-variant" author="mini-erp">
+    <changeSet id="0073-invoice-lines-variant" author="hisab-erp">
         <addColumn tableName="invoice_lines">
             <column name="variant_id" type="uuid"/>
         </addColumn>
@@ -39,7 +39,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0073-credit-note-lines-variant" author="mini-erp">
+    <changeSet id="0073-credit-note-lines-variant" author="hisab-erp">
         <addColumn tableName="credit_note_lines">
             <column name="variant_id" type="uuid"/>
         </addColumn>
@@ -53,7 +53,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0073-delivery-lines-variant" author="mini-erp">
+    <changeSet id="0073-delivery-lines-variant" author="hisab-erp">
         <addColumn tableName="delivery_lines">
             <column name="variant_id" type="uuid"/>
         </addColumn>
@@ -67,7 +67,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0073-sale-lines-variant" author="mini-erp">
+    <changeSet id="0073-sale-lines-variant" author="hisab-erp">
         <addColumn tableName="sale_lines">
             <column name="variant_id" type="uuid"/>
         </addColumn>

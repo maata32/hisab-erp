@@ -11,7 +11,7 @@
         only seed the catalog of permission codes.
     -->
 
-    <changeSet id="0006-seed-permission-catalog" author="mini-erp">
+    <changeSet id="0006-seed-permission-catalog" author="hisab-erp">
         <sql>
             INSERT INTO permissions (id, code, resource, action, description) VALUES
               -- Tenant

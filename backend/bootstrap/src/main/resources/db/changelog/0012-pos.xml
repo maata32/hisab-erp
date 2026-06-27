@@ -5,7 +5,7 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
-    <changeSet id="0012-cash-registers" author="mini-erp">
+    <changeSet id="0012-cash-registers" author="hisab-erp">
         <createTable tableName="cash_registers">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -30,7 +30,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0012-cash-sessions" author="mini-erp">
+    <changeSet id="0012-cash-sessions" author="hisab-erp">
         <createTable tableName="cash_sessions">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -66,7 +66,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0012-sale-number-sequences" author="mini-erp">
+    <changeSet id="0012-sale-number-sequences" author="hisab-erp">
         <createTable tableName="sale_number_sequences">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -84,7 +84,7 @@
                              constraintName="uk_sale_number_sequences_tenant_year"/>
     </changeSet>
 
-    <changeSet id="0012-sales" author="mini-erp">
+    <changeSet id="0012-sales" author="hisab-erp">
         <createTable tableName="sales">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -131,7 +131,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0012-sale-lines" author="mini-erp">
+    <changeSet id="0012-sale-lines" author="hisab-erp">
         <createTable tableName="sale_lines">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -166,7 +166,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0012-cash-movements" author="mini-erp">
+    <changeSet id="0012-cash-movements" author="hisab-erp">
         <createTable tableName="cash_movements">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>

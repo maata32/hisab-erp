@@ -6,7 +6,7 @@
 #   Backend         http://localhost:8080
 #   Admin frontend  http://localhost:4200      (or proxied by Nx dev server during `npm start`)
 #   POS frontend    http://localhost:4201
-#   Postgres        localhost:5433    (user: minierp / pwd: minierp / db: hisaberp)  -- 5433 to avoid clashing with a host PG on 5432
+#   Postgres        localhost:5433    (user: hisaberp / pwd: hisaberp / db: hisaberp)  -- 5433 to avoid clashing with a host PG on 5432
 #   Redis           localhost:6380    -- 6380 to avoid clashing with a host Redis on 6379
 #   MinIO console   http://localhost:9001      (user: minioadmin / pwd: minioadmin)
 #   Mailpit UI      http://localhost:8025
@@ -19,8 +19,8 @@ services:
     container_name: hisaberp-postgres
     environment:
       POSTGRES_DB: hisaberp
-      POSTGRES_USER: minierp
-      POSTGRES_PASSWORD: minierp
+      POSTGRES_USER: hisaberp
+      POSTGRES_PASSWORD: hisaberp
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
     ports:
       - "5433:5432"
@@ -28,7 +28,7 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ../../../scripts/postgres-init.sh:/docker-entrypoint-initdb.d/00-init.sh:ro
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "minierp", "-d", "hisaberp"]
+      test: ["CMD", "pg_isready", "-U", "hisaberp", "-d", "hisaberp"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -107,11 +107,11 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hisaberp
       # Runtime pool uses the restricted NOSUPERUSER/NOBYPASSRLS role so PostgreSQL RLS
       # (defense layer 2) actually applies. Liquibase runs as the owner role below.
-      SPRING_DATASOURCE_USERNAME: minierp_app
-      SPRING_DATASOURCE_PASSWORD: minierp
+      SPRING_DATASOURCE_USERNAME: hisaberp_app
+      SPRING_DATASOURCE_PASSWORD: hisaberp
       SPRING_LIQUIBASE_URL: jdbc:postgresql://postgres:5432/hisaberp
-      SPRING_LIQUIBASE_USER: minierp
-      SPRING_LIQUIBASE_PASSWORD: minierp
+      SPRING_LIQUIBASE_USER: hisaberp
+      SPRING_LIQUIBASE_PASSWORD: hisaberp
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_SECRET: DEV_SECRET_AT_LEAST_32_CHARACTERS_LONG_FOR_HS256_OK

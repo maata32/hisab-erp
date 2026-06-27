@@ -5,13 +5,13 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
-    <changeSet id="0028-add-max-product-images" author="mini-erp">
+    <changeSet id="0028-add-max-product-images" author="hisab-erp">
         <addColumn tableName="subscription_plans">
             <column name="max_product_images" type="int" remarks="NULL = unlimited"/>
         </addColumn>
     </changeSet>
 
-    <changeSet id="0028-seed-default-max-product-images" author="mini-erp">
+    <changeSet id="0028-seed-default-max-product-images" author="hisab-erp">
         <sql>
             UPDATE subscription_plans SET max_product_images = 5  WHERE code = 'STARTER';
             UPDATE subscription_plans SET max_product_images = 8  WHERE code = 'PRO';

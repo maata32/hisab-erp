@@ -11,7 +11,7 @@
       which values a product enables; variant_attribute_values links a generated variant
       to its exact value combination (source of truth behind product_variants.attributes).
     -->
-    <changeSet id="0068-attributes" author="mini-erp">
+    <changeSet id="0068-attributes" author="hisab-erp">
         <createTable tableName="attributes">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -33,7 +33,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0068-attribute-values" author="mini-erp">
+    <changeSet id="0068-attribute-values" author="hisab-erp">
         <createTable tableName="attribute_values">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -57,7 +57,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0068-product-attribute-values" author="mini-erp">
+    <changeSet id="0068-product-attribute-values" author="hisab-erp">
         <createTable tableName="product_attribute_values">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -78,7 +78,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0068-variant-attribute-values" author="mini-erp">
+    <changeSet id="0068-variant-attribute-values" author="hisab-erp">
         <createTable tableName="variant_attribute_values">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -99,7 +99,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0068-attributes-rls" author="mini-erp">
+    <changeSet id="0068-attributes-rls" author="hisab-erp">
         <sql splitStatements="false">
             DO $$
             DECLARE

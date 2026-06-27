@@ -11,7 +11,7 @@
       from the payment to the treasury bank account it debits/credits. NULL for cash
       and paper (CREDIT_USAGE/COMPENSATION) settlements.
     -->
-    <changeSet id="0066-payments-bank-account-link" author="mini-erp">
+    <changeSet id="0066-payments-bank-account-link" author="hisab-erp">
         <addColumn tableName="payments">
             <column name="bank_account_id" type="uuid"/>
         </addColumn>

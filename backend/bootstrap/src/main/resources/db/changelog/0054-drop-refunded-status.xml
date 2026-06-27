@@ -15,7 +15,7 @@
         (incl. RETURNED) is untouched.
     -->
 
-    <changeSet id="0054-invoices-refunded-to-paid" author="mini-erp">
+    <changeSet id="0054-invoices-refunded-to-paid" author="hisab-erp">
         <sql splitStatements="false"><![CDATA[
             UPDATE invoices SET status = 'PAID' WHERE status = 'REFUNDED';
         ]]></sql>

@@ -12,7 +12,7 @@
         Constraint is ON DELETE SET NULL so deactivating a supplier never breaks history.
     -->
 
-    <changeSet id="0040-expenses-supplier-fk" author="mini-erp">
+    <changeSet id="0040-expenses-supplier-fk" author="hisab-erp">
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="expenses"/>
             <columnExists tableName="expenses" columnName="supplier_id"/>
@@ -24,7 +24,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0040-product-lots-supplier-fk" author="mini-erp">
+    <changeSet id="0040-product-lots-supplier-fk" author="hisab-erp">
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="product_lots"/>
             <columnExists tableName="product_lots" columnName="supplier_id"/>
@@ -37,7 +37,7 @@
     </changeSet>
 
     <!-- Reuses purchase_orders.id for traceability on lots received via the new flow. -->
-    <changeSet id="0040-product-lots-purchase-order-fk" author="mini-erp">
+    <changeSet id="0040-product-lots-purchase-order-fk" author="hisab-erp">
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="product_lots"/>
             <columnExists tableName="product_lots" columnName="purchase_order_id"/>

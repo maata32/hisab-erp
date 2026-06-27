@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-This file logs every choice made where the spec (`cahier_des_charges_mini_erp_v3.docx`) was ambiguous, contradictory, or silent. Each decision is reversible — open an issue if you want to revisit.
+This file logs every choice made where the spec (`cahier_des_charges_hisab_erp_v3.docx`) was ambiguous, contradictory, or silent. Each decision is reversible — open an issue if you want to revisit.
 
 Last updated: 2026-05-03.
 

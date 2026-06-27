@@ -17,13 +17,13 @@
         unique indexes; adds a single (tenant_id, code) unique index.
     -->
 
-    <changeSet id="0042-add-code-column" author="mini-erp">
+    <changeSet id="0042-add-code-column" author="hisab-erp">
         <sql>
             ALTER TABLE parties ADD COLUMN code VARCHAR(50);
         </sql>
     </changeSet>
 
-    <changeSet id="0042-backfill-code" author="mini-erp">
+    <changeSet id="0042-backfill-code" author="hisab-erp">
         <sql>
             UPDATE parties
             SET code = COALESCE(
@@ -34,13 +34,13 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0042-make-code-not-null" author="mini-erp">
+    <changeSet id="0042-make-code-not-null" author="hisab-erp">
         <sql>
             ALTER TABLE parties ALTER COLUMN code SET NOT NULL;
         </sql>
     </changeSet>
 
-    <changeSet id="0042-drop-old-code-constraints" author="mini-erp">
+    <changeSet id="0042-drop-old-code-constraints" author="hisab-erp">
         <sql>
             ALTER TABLE parties DROP CONSTRAINT IF EXISTS ck_parties_customer_code_role;
             ALTER TABLE parties DROP CONSTRAINT IF EXISTS ck_parties_supplier_code_role;
@@ -49,14 +49,14 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0042-drop-old-code-columns" author="mini-erp">
+    <changeSet id="0042-drop-old-code-columns" author="hisab-erp">
         <sql>
             ALTER TABLE parties DROP COLUMN customer_code;
             ALTER TABLE parties DROP COLUMN supplier_code;
         </sql>
     </changeSet>
 
-    <changeSet id="0042-add-code-unique-index" author="mini-erp">
+    <changeSet id="0042-add-code-unique-index" author="hisab-erp">
         <sql>
             CREATE UNIQUE INDEX uk_parties_tenant_code ON parties(tenant_id, code);
         </sql>

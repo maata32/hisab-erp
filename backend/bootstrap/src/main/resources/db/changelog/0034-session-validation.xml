@@ -10,7 +10,7 @@
         counted cash is credited to the central vault. Cashier closes the session
         (status=CLOSED) — gérant validates later (status=VALIDATED).
     -->
-    <changeSet id="0034-cash-sessions-validation-columns" author="mini-erp">
+    <changeSet id="0034-cash-sessions-validation-columns" author="hisab-erp">
         <addColumn tableName="cash_sessions">
             <column name="validated_at" type="timestamptz"/>
             <column name="validated_by" type="uuid"/>
@@ -26,7 +26,7 @@
         previous closeSession flow. Mark them VALIDATED retroactively so they
         don't show up as "to validate".
     -->
-    <changeSet id="0034-mark-existing-closed-as-validated" author="mini-erp">
+    <changeSet id="0034-mark-existing-closed-as-validated" author="hisab-erp">
         <sql>
             UPDATE cash_sessions
             SET validated_at = COALESCE(closed_at, NOW()),

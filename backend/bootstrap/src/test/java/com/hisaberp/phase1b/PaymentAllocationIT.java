@@ -72,8 +72,8 @@ class PaymentAllocationIT {
         UUID uomCatId = UUID.randomUUID();
 
         // All inserts rely on the RLS NULL-bypass (app_current_tenant() IS NULL → TRUE).
-        // phase-1A tables (uom_categories, uoms, products): minierp_app has privileges from default grants.
-        // phase-1B tables (customers): minierp_app privileges granted in migration 0018-grant-phase1b-to-app-role.
+        // phase-1A tables (uom_categories, uoms, products): hisaberp_app has privileges from default grants.
+        // phase-1B tables (customers): hisaberp_app privileges granted in migration 0018-grant-phase1b-to-app-role.
         jdbc.update("INSERT INTO uom_categories (id, tenant_id, code, name, created_at, updated_at, version) VALUES (?,?,?,?,now(),now(),0)",
                 uomCatId, tenantId, "COUNT-PAY", "Count");
         jdbc.update("INSERT INTO uoms (id, tenant_id, category_id, code, name, ratio_to_base, is_base, decimal_places, created_at, updated_at, version) VALUES (?,?,?,?,?,1,true,0,now(),now(),0)",

@@ -12,33 +12,33 @@
         Per user direction: "Tout supprimer (données + endpoints)".
     -->
 
-    <changeSet id="0033-purge-pay-in-out-movements" author="mini-erp">
+    <changeSet id="0033-purge-pay-in-out-movements" author="hisab-erp">
         <sql>
             DELETE FROM cash_movements WHERE type IN ('PAY_IN', 'PAY_OUT');
         </sql>
     </changeSet>
 
-    <changeSet id="0033-purge-refunded-sale-lines" author="mini-erp">
+    <changeSet id="0033-purge-refunded-sale-lines" author="hisab-erp">
         <sql>
             DELETE FROM sale_lines
             WHERE sale_id IN (SELECT id FROM sales WHERE status = 'REFUNDED');
         </sql>
     </changeSet>
 
-    <changeSet id="0033-clear-original-sale-id-on-survivors" author="mini-erp">
+    <changeSet id="0033-clear-original-sale-id-on-survivors" author="hisab-erp">
         <sql>
             UPDATE sales SET original_sale_id = NULL
             WHERE original_sale_id IN (SELECT id FROM sales WHERE status = 'REFUNDED');
         </sql>
     </changeSet>
 
-    <changeSet id="0033-purge-refunded-sales" author="mini-erp">
+    <changeSet id="0033-purge-refunded-sales" author="hisab-erp">
         <sql>
             DELETE FROM sales WHERE status = 'REFUNDED';
         </sql>
     </changeSet>
 
-    <changeSet id="0033-drop-original-sale-id" author="mini-erp">
+    <changeSet id="0033-drop-original-sale-id" author="hisab-erp">
         <dropIndex tableName="sales" indexName="idx_sales_original"/>
         <dropColumn tableName="sales" columnName="original_sale_id"/>
     </changeSet>

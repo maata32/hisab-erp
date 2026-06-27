@@ -5,7 +5,7 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
-    <changeSet id="0008-uom-categories" author="mini-erp">
+    <changeSet id="0008-uom-categories" author="hisab-erp">
         <createTable tableName="uom_categories">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -26,7 +26,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0008-uoms" author="mini-erp">
+    <changeSet id="0008-uoms" author="hisab-erp">
         <createTable tableName="uoms">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>

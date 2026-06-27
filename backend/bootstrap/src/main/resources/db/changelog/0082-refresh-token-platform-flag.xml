@@ -11,7 +11,7 @@
       tokens (tid=null) instead of re-pinning the session to the super-admin's home
       organization. Tenant sessions keep platform=false.
     -->
-    <changeSet id="0082-refresh-token-platform-flag" author="mini-erp">
+    <changeSet id="0082-refresh-token-platform-flag" author="hisab-erp">
         <addColumn tableName="refresh_tokens">
             <column name="platform" type="boolean" defaultValueBoolean="false">
                 <constraints nullable="false"/>

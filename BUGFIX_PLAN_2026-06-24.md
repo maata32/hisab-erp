@@ -1,10 +1,10 @@
 # Plan de correction des bugs — recette du 2026-06-24
 
-Document de passation pour une **session neuve** dédiée à la correction. Tous les bugs ci-dessous ont été **trouvés en exécution réelle** (API + navigateur) lors de la recette ; voir `Cahier_de_recettes_mini-ERP_execute_2026-06-24.xlsx` (feuille « Bugs & Anomalies ») et les captures `recette_captures_2026-06-24/`.
+Document de passation pour une **session neuve** dédiée à la correction. Tous les bugs ci-dessous ont été **trouvés en exécution réelle** (API + navigateur) lors de la recette ; voir `Cahier_de_recettes_hisab-erp_execute_2026-06-24.xlsx` (feuille « Bugs & Anomalies ») et les captures `recette_captures_2026-06-24/`.
 
 ## Environnement de correction / vérification
-- App déjà lancée : backend `:8080`, admin `:4200`, POS `:4201`, Postgres dans le conteneur `minierp-postgres` (`docker exec minierp-postgres psql -U minierp -d minierp`).
-- Tenant de recette **isolé** pour re-tester : code `recette`, admin `recette@recette.local` / `Recette1234!`. Super-admin : `root@minierp.local` / `Root12345!` (login via tenant `demo`).
+- App déjà lancée : backend `:8080`, admin `:4200`, POS `:4201`, Postgres dans le conteneur `hisaberp-postgres` (`docker exec hisaberp-postgres psql -U hisaberp -d hisaberp`).
+- Tenant de recette **isolé** pour re-tester : code `recette`, admin `recette@recette.local` / `Recette1234!`. Super-admin : `root@hisaberp.local` / `Root12345!` (login via tenant `demo`).
 - Données : produits REC-001/002 (sans lot), REC-003 (lot/expiration), entrepôts MAIN/SEC, partenaires CLI/FRN/MIX-DEMO, caisse REG-01.
 - Backend = Spring Modulith (Java 21, Maven multi-module). Suite IT de référence : ~130 verte. Après chaque lot de corrections : `cd backend && ./mvnw -q test` (ou ciblé par module) + recompiler les fronts si touchés.
 - Convention transverse à NE PAS « corriger » : les violations `@Valid` sortent en **HTTP 422** (et non 400) avec le bon code métier — c'est intentionnel, laissé OK en recette.
@@ -14,13 +14,13 @@ Document de passation pour une **session neuve** dédiée à la correction. Tous
 ## P0 — Sécurité (à corriger en premier)
 
 ### BUG-1 (AUTH-04) — Verrouillage de compte inopérant
-- **Fichier** : `backend/identity/src/main/java/com/minierp/identity/internal/AuthService.java` (`login()` `@Transactional` l.50 ; `setLockedUntil` l.67 ; `throw BadCredentialsException` l.70).
+- **Fichier** : `backend/identity/src/main/java/com/hisaberp/identity/internal/AuthService.java` (`login()` `@Transactional` l.50 ; `setLockedUntil` l.67 ; `throw BadCredentialsException` l.70).
 - **Cause** : le compteur d'échecs et `lockedUntil` sont posés puis `BadCredentialsException` (RuntimeException) est levée dans la **même** transaction `@Transactional` → rollback Spring → les incréments ne sont jamais persistés. Le compte ne se verrouille jamais.
 - **Fix** : persister l'échec hors de la transaction qui rollback. Ex. méthode dédiée `recordFailedLogin(userId)` en `@Transactional(propagation = REQUIRES_NEW)` appelée avant de lever l'exception, ou commit explicite du compteur. Vérifier aussi la remise à zéro du compteur au succès (l.74).
 - **Vérif** : 5 logins erronés puis 1 bon → attendu **403 `auth.account_locked`** (et non 200).
 
 ### BUG-2 (SEC-02) — Fuite inter-tenant sur le catalogue
-- **Fichier** : `backend/catalog/src/main/java/com/minierp/catalog/internal/ProductService.java` (`get()` l.56-57 : `products.findById(id)` sans garde de tenant ; idem `update` l.122, `addUom`/packagings l.152, images…).
+- **Fichier** : `backend/catalog/src/main/java/com/hisaberp/catalog/internal/ProductService.java` (`get()` l.56-57 : `products.findById(id)` sans garde de tenant ; idem `update` l.122, `addUom`/packagings l.152, images…).
 - **Cause** : `findById` court-circuite le filtre tenant Hibernate → un token du tenant A lit un produit du tenant B (renvoie 200 + données). NB : `GET /users/{id}` est correct (404 inter-tenant) → s'en inspirer.
 - **Fix** : garde de tenant sur tous les accès par id du module catalog (vérifier `tenantId == TenantContext` sinon `NotFoundException`), ou s'assurer que le filtre tenant s'applique au repository. **Auditer les autres modules** pour le même motif (`findById` direct exposé par id).
 - **Vérif** : token `recette`, `GET /products/{id-d-un-produit-demo}` → **404**.
@@ -53,7 +53,7 @@ Document de passation pour une **session neuve** dédiée à la correction. Tous
 - **Fix** : renvoyer un **405** propre (ou 404). **Vérif** : `PUT /invoices/{id}` → 405.
 
 ### BUG-8 (BC-10 = PDF-10) — PDF Bon de commande → 500
-- **Fichiers** : `backend/document/src/main/resources/templates/pdf/purchase-order.html` (l.82 réf. `line.quantityReceived`) ; `backend/purchase/src/main/java/com/minierp/purchase/internal/PurchaseService.java` (`buildPurchaseOrderVars`, `LineModel` ~l.739-740 sans ce champ).
+- **Fichiers** : `backend/document/src/main/resources/templates/pdf/purchase-order.html` (l.82 réf. `line.quantityReceived`) ; `backend/purchase/src/main/java/com/hisaberp/purchase/internal/PurchaseService.java` (`buildPurchaseOrderVars`, `LineModel` ~l.739-740 sans ce champ).
 - **Fix** : ajouter `quantityReceived` au `LineModel` **ou** retirer la colonne du template. **Vérif** : `GET /purchase-orders/{id}/pdf` → 200 `application/pdf`.
 
 ---

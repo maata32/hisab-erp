@@ -25,7 +25,7 @@ dev-up: ## Start full dev stack (Postgres, Redis, MinIO, MailHog, backend, admin
 	@echo "  POS:        http://localhost:4201"
 	@echo "  Mailpit:    http://localhost:8025"
 	@echo "  MinIO:      http://localhost:9001  (minioadmin / minioadmin)"
-	@echo "  Postgres:   psql -h localhost -U minierp -d hisaberp  (pwd: minierp)"
+	@echo "  Postgres:   psql -h localhost -U hisaberp -d hisaberp  (pwd: hisaberp)"
 	@echo ""
 	@echo "  Demo login (after backend boot): tenant 'demo' / admin@demo.local / Admin1234!"
 

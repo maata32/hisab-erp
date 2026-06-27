@@ -16,7 +16,7 @@
         module.
     -->
 
-    <changeSet id="0048-add-invoice-quote-id" author="mini-erp">
+    <changeSet id="0048-add-invoice-quote-id" author="hisab-erp">
         <addColumn tableName="invoices">
             <column name="quote_id" type="uuid"/>
             <column name="delivery_status" type="varchar(20)" defaultValue="NONE">
@@ -28,30 +28,30 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0048-rename-quote-converted-link" author="mini-erp">
+    <changeSet id="0048-rename-quote-converted-link" author="hisab-erp">
         <addColumn tableName="quotes">
             <column name="converted_to_invoice_id" type="uuid"/>
         </addColumn>
         <dropColumn tableName="quotes" columnName="converted_to_order_id"/>
     </changeSet>
 
-    <changeSet id="0048-drop-invoice-order-link" author="mini-erp">
+    <changeSet id="0048-drop-invoice-order-link" author="hisab-erp">
         <dropColumn tableName="invoices" columnName="order_id"/>
     </changeSet>
 
-    <changeSet id="0048-drop-delivery-order-link" author="mini-erp">
+    <changeSet id="0048-drop-delivery-order-link" author="hisab-erp">
         <dropIndex tableName="deliveries" indexName="idx_deliveries_order"/>
         <dropColumn tableName="deliveries" columnName="order_id"/>
     </changeSet>
 
-    <changeSet id="0048-delivery-invoice-id-required" author="mini-erp">
+    <changeSet id="0048-delivery-invoice-id-required" author="hisab-erp">
         <!-- After 0044, every non-cancelled delivery has an invoice. Make it the
              only join point now that orders are gone. -->
         <sql>DELETE FROM deliveries WHERE invoice_id IS NULL;</sql>
         <addNotNullConstraint tableName="deliveries" columnName="invoice_id" columnDataType="uuid"/>
     </changeSet>
 
-    <changeSet id="0048-drop-rls-policies-orders" author="mini-erp">
+    <changeSet id="0048-drop-rls-policies-orders" author="hisab-erp">
         <sql splitStatements="true" endDelimiter=";">
             DROP POLICY IF EXISTS tenant_isolation_select ON orders;
             DROP POLICY IF EXISTS tenant_isolation_modify ON orders;
@@ -60,7 +60,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0048-drop-orders-tables" author="mini-erp">
+    <changeSet id="0048-drop-orders-tables" author="hisab-erp">
         <dropTable tableName="order_lines"/>
         <dropTable tableName="orders"/>
     </changeSet>

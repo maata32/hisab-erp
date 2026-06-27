@@ -11,7 +11,7 @@
       on existing lines to the product's default (or first) variant. Kept nullable so
       historical snapshots remain valid.
     -->
-    <changeSet id="0074-po-lines-variant" author="mini-erp">
+    <changeSet id="0074-po-lines-variant" author="hisab-erp">
         <addColumn tableName="purchase_order_lines">
             <column name="variant_id" type="uuid"/>
         </addColumn>
@@ -24,7 +24,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0074-pinvoice-lines-variant" author="mini-erp">
+    <changeSet id="0074-pinvoice-lines-variant" author="hisab-erp">
         <addColumn tableName="purchase_invoice_lines">
             <column name="variant_id" type="uuid"/>
         </addColumn>
@@ -37,7 +37,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0074-goods-receipt-lines-variant" author="mini-erp">
+    <changeSet id="0074-goods-receipt-lines-variant" author="hisab-erp">
         <addColumn tableName="goods_receipt_lines">
             <column name="variant_id" type="uuid"/>
         </addColumn>
@@ -50,7 +50,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0074-purchase-credit-note-lines-variant" author="mini-erp">
+    <changeSet id="0074-purchase-credit-note-lines-variant" author="hisab-erp">
         <addColumn tableName="purchase_credit_note_lines">
             <column name="variant_id" type="uuid"/>
         </addColumn>

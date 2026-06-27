@@ -17,7 +17,7 @@
       The new PENDING / ARCHIVED statuses need no schema change: `status` is a
       free-text varchar(20) with no CHECK constraint (see 0002-tenant.xml).
     -->
-    <changeSet id="0076-organizations-lifecycle-columns" author="mini-erp">
+    <changeSet id="0076-organizations-lifecycle-columns" author="hisab-erp">
         <addColumn tableName="organizations">
             <column name="primary_admin_user_id" type="uuid"
                     remarks="The admin user created at registration; promoted to TENANT_ADMIN on approval"/>

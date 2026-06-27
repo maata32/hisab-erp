@@ -11,13 +11,13 @@
       product_id denormalized for rollups, and swap the stocks unique key from
       (warehouse_id, product_id) to (warehouse_id, variant_id).
     -->
-    <changeSet id="0070-stocks-add-variant" author="mini-erp">
+    <changeSet id="0070-stocks-add-variant" author="hisab-erp">
         <addColumn tableName="stocks">
             <column name="variant_id" type="uuid"/>
         </addColumn>
     </changeSet>
 
-    <changeSet id="0070-stocks-backfill-variant" author="mini-erp">
+    <changeSet id="0070-stocks-backfill-variant" author="hisab-erp">
         <sql>
             UPDATE stocks s
                SET variant_id = (
@@ -29,7 +29,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0070-stocks-variant-constraints" author="mini-erp">
+    <changeSet id="0070-stocks-variant-constraints" author="hisab-erp">
         <addNotNullConstraint tableName="stocks" columnName="variant_id" columnDataType="uuid"/>
         <dropUniqueConstraint tableName="stocks" constraintName="uk_stocks_warehouse_product"/>
         <addUniqueConstraint tableName="stocks" columnNames="warehouse_id,variant_id"
@@ -39,13 +39,13 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0070-movements-add-variant" author="mini-erp">
+    <changeSet id="0070-movements-add-variant" author="hisab-erp">
         <addColumn tableName="stock_movements">
             <column name="variant_id" type="uuid"/>
         </addColumn>
     </changeSet>
 
-    <changeSet id="0070-movements-backfill-variant" author="mini-erp">
+    <changeSet id="0070-movements-backfill-variant" author="hisab-erp">
         <sql>
             UPDATE stock_movements m
                SET variant_id = (
@@ -57,7 +57,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0070-movements-variant-constraints" author="mini-erp">
+    <changeSet id="0070-movements-variant-constraints" author="hisab-erp">
         <addNotNullConstraint tableName="stock_movements" columnName="variant_id" columnDataType="uuid"/>
         <createIndex tableName="stock_movements" indexName="idx_stock_movements_warehouse_variant">
             <column name="warehouse_id"/>

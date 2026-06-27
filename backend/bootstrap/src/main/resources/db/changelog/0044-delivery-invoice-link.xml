@@ -12,7 +12,7 @@
         Backfill: link deliveries with an order_id to that order's first non-cancelled invoice.
     -->
 
-    <changeSet id="0044-add-invoice-id" author="mini-erp">
+    <changeSet id="0044-add-invoice-id" author="hisab-erp">
         <addColumn tableName="deliveries">
             <column name="invoice_id" type="uuid"/>
         </addColumn>
@@ -24,7 +24,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0044-backfill-invoice-id-from-order" author="mini-erp">
+    <changeSet id="0044-backfill-invoice-id-from-order" author="hisab-erp">
         <sql splitStatements="false">
             UPDATE deliveries d
             SET invoice_id = (

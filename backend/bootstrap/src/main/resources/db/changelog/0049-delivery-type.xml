@@ -13,7 +13,7 @@
         as DELIVERED, putting stock back on hand.
     -->
 
-    <changeSet id="0049-delivery-type" author="mini-erp">
+    <changeSet id="0049-delivery-type" author="hisab-erp">
         <addColumn tableName="deliveries">
             <column name="type" type="varchar(20)" defaultValue="OUTBOUND">
                 <constraints nullable="false"/>

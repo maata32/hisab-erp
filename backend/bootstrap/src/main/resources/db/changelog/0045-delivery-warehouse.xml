@@ -12,7 +12,7 @@
         each existing delivery to the tenant's default warehouse when possible.
     -->
 
-    <changeSet id="0045-add-warehouse-id" author="mini-erp">
+    <changeSet id="0045-add-warehouse-id" author="hisab-erp">
         <addColumn tableName="deliveries">
             <column name="warehouse_id" type="uuid"/>
         </addColumn>
@@ -24,7 +24,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0045-backfill-default-warehouse" author="mini-erp">
+    <changeSet id="0045-backfill-default-warehouse" author="hisab-erp">
         <sql splitStatements="false">
             UPDATE deliveries d
             SET warehouse_id = (

@@ -14,7 +14,7 @@
                 (CASCADE removes role_permission rows automatically).
     -->
 
-    <changeSet id="0043-add-granular-perms" author="mini-erp">
+    <changeSet id="0043-add-granular-perms" author="hisab-erp">
         <sql splitStatements="false">
             INSERT INTO permissions (id, code, resource, action, description) VALUES
               (uuid_generate_v4(), 'customer:delete',  'customer', 'delete', 'Deactivate a customer / partner customer role'),
@@ -37,7 +37,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0043-backfill-granular-from-write" author="mini-erp">
+    <changeSet id="0043-backfill-granular-from-write" author="hisab-erp">
         <sql splitStatements="false">
             DO $$
             DECLARE
@@ -68,7 +68,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0043-delete-deprecated-perms" author="mini-erp">
+    <changeSet id="0043-delete-deprecated-perms" author="hisab-erp">
         <sql splitStatements="false">
             /* CASCADE on role_permission.permission_id removes the role grants */
             DELETE FROM permissions WHERE code IN (

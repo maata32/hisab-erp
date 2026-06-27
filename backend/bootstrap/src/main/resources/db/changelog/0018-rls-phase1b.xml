@@ -5,7 +5,7 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
-    <changeSet id="0018-rls-phase1b" author="mini-erp">
+    <changeSet id="0018-rls-phase1b" author="hisab-erp">
         <sql splitStatements="false">
             DO $$
             DECLARE
@@ -52,11 +52,11 @@
     </changeSet>
 
     <!-- Grant the app role access to all Phase 1B tables (conditional: no-op if role doesn't exist) -->
-    <changeSet id="0018-grant-phase1b-to-app-role" author="mini-erp" runInTransaction="false">
+    <changeSet id="0018-grant-phase1b-to-app-role" author="hisab-erp" runInTransaction="false">
         <sql splitStatements="false">
             DO $$
             BEGIN
-                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'minierp_app') THEN
+                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hisaberp_app') THEN
                     GRANT ALL ON TABLE
                         customers, customer_balances, customer_credits, customer_credit_usages,
                         document_number_sequences,
@@ -64,14 +64,14 @@
                         invoices, invoice_lines, credit_notes,
                         deliveries, delivery_lines,
                         payments, payment_allocations
-                    TO minierp_app;
+                    TO hisaberp_app;
                 END IF;
             END $$;
         </sql>
     </changeSet>
 
     <!-- Seed Phase 1B permissions (simplified read/write pattern used by controllers) -->
-    <changeSet id="0018-seed-phase1b-permissions" author="mini-erp">
+    <changeSet id="0018-seed-phase1b-permissions" author="hisab-erp">
         <sql>
             INSERT INTO permissions (id, code, resource, action, description) VALUES
               (uuid_generate_v4(), 'customer:write',  'customer',  'write',  'Create/update/deactivate customers'),

@@ -14,7 +14,7 @@
           ACCOUNTANT, PAYMENT_OFFICER (not CASHIER — refunds are sensitive).
     -->
 
-    <changeSet id="0050-payment-refund-columns" author="mini-erp">
+    <changeSet id="0050-payment-refund-columns" author="hisab-erp">
         <addColumn tableName="payments">
             <column name="refunded_at" type="timestamp with time zone"/>
             <column name="refunded_by_payment_id" type="uuid"/>
@@ -24,7 +24,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0050-payment-refund-permission" author="mini-erp">
+    <changeSet id="0050-payment-refund-permission" author="hisab-erp">
         <sql splitStatements="false">
             INSERT INTO permissions (id, code, resource, action, description) VALUES
               (uuid_generate_v4(), 'payment:refund', 'payment', 'refund',
@@ -33,7 +33,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0050-payment-refund-backfill" author="mini-erp">
+    <changeSet id="0050-payment-refund-backfill" author="hisab-erp">
         <sql splitStatements="false">
             INSERT INTO role_permission (role_id, permission_id)
             SELECT r.id, p.id

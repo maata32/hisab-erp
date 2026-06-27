@@ -12,7 +12,7 @@
       (party may be null only for an all-EXPENSE allocation set) rather than by the
       column constraint.
     -->
-    <changeSet id="0063-payments-party-nullable" author="mini-erp">
+    <changeSet id="0063-payments-party-nullable" author="hisab-erp">
         <dropNotNullConstraint tableName="payments" columnName="party_id" columnDataType="uuid"/>
     </changeSet>
 

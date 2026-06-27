@@ -118,7 +118,7 @@ Production does NOT auto-seed a tenant (the dev seeder only runs in the `dev` pr
 # SSH to the server, then from inside the backend container:
 sudo docker compose --env-file /etc/hisaberp/.env exec backend sh -c '
   apk add --no-cache postgresql-client
-  PGPASSWORD=$SPRING_DATASOURCE_PASSWORD psql -h postgres -U minierp -d hisaberp <<SQL
+  PGPASSWORD=$SPRING_DATASOURCE_PASSWORD psql -h postgres -U hisaberp -d hisaberp <<SQL
     -- 1. Create the org (use the API instead in normal cases)
     INSERT INTO organizations (id, code, name, type, currency, locale, timezone, status)
     VALUES (gen_random_uuid(), '\''platform'\'', '\''Platform'\'', '\''BOUTIQUE'\'',

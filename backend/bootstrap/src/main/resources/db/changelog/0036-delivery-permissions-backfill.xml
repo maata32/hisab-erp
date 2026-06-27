@@ -12,7 +12,7 @@
         tenant therefore got 403 on POST /api/v1/deliveries. Backfill so that
         TENANT_ADMIN / MANAGER / STOCK_KEEPER can plan deliveries.
     -->
-    <changeSet id="0036-delivery-permissions-backfill" author="mini-erp">
+    <changeSet id="0036-delivery-permissions-backfill" author="hisab-erp">
         <sql splitStatements="false">
             DO $$
             DECLARE

@@ -13,7 +13,7 @@
         MANAGER / CASHIER got 403 on /api/v1/invoices, /api/v1/quotes, /api/v1/orders.
         Mirrors the post-fix mapping in TenantRolesBootstrapper.
     -->
-    <changeSet id="0035-sales-permissions-backfill" author="mini-erp">
+    <changeSet id="0035-sales-permissions-backfill" author="hisab-erp">
         <sql splitStatements="false">
             DO $$
             DECLARE

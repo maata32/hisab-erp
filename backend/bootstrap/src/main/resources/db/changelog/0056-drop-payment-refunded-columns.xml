@@ -15,7 +15,7 @@
         them now is safe.
     -->
 
-    <changeSet id="0056-drop-payment-refunded-columns" author="mini-erp">
+    <changeSet id="0056-drop-payment-refunded-columns" author="hisab-erp">
         <dropIndex tableName="payments" indexName="idx_payments_refunded_by"/>
         <dropColumn tableName="payments">
             <column name="refunded_at"/>

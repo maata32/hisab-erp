@@ -5,7 +5,7 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
-    <changeSet id="0021-expense-categories" author="mini-erp">
+    <changeSet id="0021-expense-categories" author="hisab-erp">
         <createTable tableName="expense_categories">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -26,7 +26,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0021-expenses" author="mini-erp">
+    <changeSet id="0021-expenses" author="hisab-erp">
         <createTable tableName="expenses">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -70,7 +70,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0021-income-categories" author="mini-erp">
+    <changeSet id="0021-income-categories" author="hisab-erp">
         <createTable tableName="income_categories">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -90,7 +90,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="0021-incomes" author="mini-erp">
+    <changeSet id="0021-incomes" author="hisab-erp">
         <createTable tableName="incomes">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>

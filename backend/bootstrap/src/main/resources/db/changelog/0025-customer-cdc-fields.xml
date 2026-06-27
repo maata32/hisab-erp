@@ -6,7 +6,7 @@
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
     <!-- G2: Customer.defaultPriceTierId (CDC §3.7.4) -->
-    <changeSet id="0025-customer-default-price-tier" author="mini-erp">
+    <changeSet id="0025-customer-default-price-tier" author="hisab-erp">
         <addColumn tableName="customers">
             <column name="default_price_tier_id" type="uuid"/>
         </addColumn>
@@ -16,7 +16,7 @@
     </changeSet>
 
     <!-- G3: Customer.notificationPreferences (CDC §3.12.2) -->
-    <changeSet id="0025-customer-notification-prefs" author="mini-erp">
+    <changeSet id="0025-customer-notification-prefs" author="hisab-erp">
         <addColumn tableName="customers">
             <column name="notification_preferences" type="jsonb"/>
         </addColumn>

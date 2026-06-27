@@ -11,7 +11,7 @@
       main » (sans paiement associé) tombait sur une violation NOT NULL → 409
       error.data_integrity sur le chemin nominal. Rendre la colonne nullable.
     -->
-    <changeSet id="0080-credit-usage-payment-nullable" author="mini-erp">
+    <changeSet id="0080-credit-usage-payment-nullable" author="hisab-erp">
         <dropNotNullConstraint tableName="customer_credit_usages"
                                columnName="payment_id" columnDataType="uuid"/>
         <rollback>

@@ -11,13 +11,13 @@
       backfilled to the product's default variant (or its first variant). The composite
       unique key swaps product_id for variant_id.
     -->
-    <changeSet id="0071-prices-add-variant" author="mini-erp">
+    <changeSet id="0071-prices-add-variant" author="hisab-erp">
         <addColumn tableName="product_prices">
             <column name="variant_id" type="uuid"/>
         </addColumn>
     </changeSet>
 
-    <changeSet id="0071-prices-backfill-variant" author="mini-erp">
+    <changeSet id="0071-prices-backfill-variant" author="hisab-erp">
         <sql>
             UPDATE product_prices pp
                SET variant_id = (
@@ -29,7 +29,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="0071-prices-variant-constraints" author="mini-erp">
+    <changeSet id="0071-prices-variant-constraints" author="hisab-erp">
         <addNotNullConstraint tableName="product_prices" columnName="variant_id" columnDataType="uuid"/>
         <dropUniqueConstraint tableName="product_prices" constraintName="uk_product_prices_unique"/>
         <addUniqueConstraint tableName="product_prices"

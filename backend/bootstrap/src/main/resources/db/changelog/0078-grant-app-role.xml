@@ -6,39 +6,39 @@
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
     <!--
-        Grant the non-superuser runtime role (minierp_app) everything it needs, reliably.
+        Grant the non-superuser runtime role (hisaberp_app) everything it needs, reliably.
 
-        Liquibase connects as the owner/admin role (minierp); the application runtime pool
-        connects as minierp_app (NOSUPERUSER, NOBYPASSRLS) so PostgreSQL RLS (defense layer 2)
+        Liquibase connects as the owner/admin role (hisaberp); the application runtime pool
+        connects as hisaberp_app (NOSUPERUSER, NOBYPASSRLS) so PostgreSQL RLS (defense layer 2)
         actually applies at runtime. Relying on ALTER DEFAULT PRIVILEGES alone is fragile — it
         only covers objects created AFTER it ran, so a role created (or a database initialised)
         before that statement ends up with no grants. This changeset grants the current schema
         explicitly AND sets default privileges for future objects, idempotently.
 
-        Runs only when the role exists, so single-role/dev setups (app connects as minierp) are
+        Runs only when the role exists, so single-role/dev setups (app connects as hisaberp) are
         unaffected. runOnChange so it re-applies if edited.
     -->
-    <changeSet id="0078-grant-app-role" author="mini-erp" runOnChange="true">
+    <changeSet id="0078-grant-app-role" author="hisab-erp" runOnChange="true">
         <sql splitStatements="false"><![CDATA[
             DO $$
             BEGIN
-                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'minierp_app') THEN
+                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hisaberp_app') THEN
                     -- Schema: USAGE to resolve objects, CREATE so the Spring Modulith
                     -- event_publication table can be created by the runtime role on a fresh DB.
-                    GRANT USAGE, CREATE ON SCHEMA public TO minierp_app;
+                    GRANT USAGE, CREATE ON SCHEMA public TO hisaberp_app;
 
                     -- Existing objects.
-                    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO minierp_app;
-                    GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO minierp_app;
-                    GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO minierp_app;
+                    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hisaberp_app;
+                    GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO hisaberp_app;
+                    GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO hisaberp_app;
 
                     -- Future objects created by the admin/owner role.
-                    ALTER DEFAULT PRIVILEGES FOR ROLE minierp IN SCHEMA public
-                        GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO minierp_app;
-                    ALTER DEFAULT PRIVILEGES FOR ROLE minierp IN SCHEMA public
-                        GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO minierp_app;
-                    ALTER DEFAULT PRIVILEGES FOR ROLE minierp IN SCHEMA public
-                        GRANT EXECUTE ON FUNCTIONS TO minierp_app;
+                    ALTER DEFAULT PRIVILEGES FOR ROLE hisaberp IN SCHEMA public
+                        GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hisaberp_app;
+                    ALTER DEFAULT PRIVILEGES FOR ROLE hisaberp IN SCHEMA public
+                        GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO hisaberp_app;
+                    ALTER DEFAULT PRIVILEGES FOR ROLE hisaberp IN SCHEMA public
+                        GRANT EXECUTE ON FUNCTIONS TO hisaberp_app;
                 END IF;
             END
             $$;

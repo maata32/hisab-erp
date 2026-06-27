@@ -10,7 +10,7 @@
       lines are backfilled to the product's default (or first) variant, then product_id
       is dropped since these tables now key purely on the variant SKU.
     -->
-    <changeSet id="0075-transfer-lines-add-variant" author="mini-erp">
+    <changeSet id="0075-transfer-lines-add-variant" author="hisab-erp">
         <addColumn tableName="stock_transfer_lines">
             <column name="variant_id" type="uuid"/>
         </addColumn>
@@ -27,7 +27,7 @@
         <dropColumn tableName="stock_transfer_lines" columnName="product_id"/>
     </changeSet>
 
-    <changeSet id="0075-count-lines-add-variant" author="mini-erp">
+    <changeSet id="0075-count-lines-add-variant" author="hisab-erp">
         <addColumn tableName="inventory_count_lines">
             <column name="variant_id" type="uuid"/>
         </addColumn>

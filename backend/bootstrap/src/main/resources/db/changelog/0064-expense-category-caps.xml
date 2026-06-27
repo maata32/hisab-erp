@@ -10,7 +10,7 @@
       spend (non-rejected) over the daily and/or monthly cap, the expense is created
       PENDING approval instead of NOT_REQUIRED. A NULL cap disables that period.
     -->
-    <changeSet id="0064-expense-category-caps" author="mini-erp">
+    <changeSet id="0064-expense-category-caps" author="hisab-erp">
         <addColumn tableName="expense_categories">
             <column name="daily_limit" type="numeric(19,2)"/>
             <column name="monthly_limit" type="numeric(19,2)"/>

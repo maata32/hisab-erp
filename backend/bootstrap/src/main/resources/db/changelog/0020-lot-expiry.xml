@@ -6,7 +6,7 @@
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
     <!-- ProductLot: tracks a batch of products with an expiration date -->
-    <changeSet id="0020-product-lots" author="mini-erp">
+    <changeSet id="0020-product-lots" author="hisab-erp">
         <createTable tableName="product_lots">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -51,7 +51,7 @@
     </changeSet>
 
     <!-- LotMovement: append-only journal of lot quantity changes -->
-    <changeSet id="0020-lot-movements" author="mini-erp">
+    <changeSet id="0020-lot-movements" author="hisab-erp">
         <createTable tableName="lot_movements">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -79,7 +79,7 @@
     </changeSet>
 
     <!-- ExpiryAlertConfig: configurable alert thresholds per tenant/category -->
-    <changeSet id="0020-expiry-alert-configs" author="mini-erp">
+    <changeSet id="0020-expiry-alert-configs" author="hisab-erp">
         <createTable tableName="expiry_alert_configs">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -102,7 +102,7 @@
     </changeSet>
 
     <!-- ExpiredLotDestruction: tracks lots that were destroyed -->
-    <changeSet id="0020-expired-lot-destructions" author="mini-erp">
+    <changeSet id="0020-expired-lot-destructions" author="hisab-erp">
         <createTable tableName="expired_lot_destructions">
             <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
                 <constraints primaryKey="true" nullable="false"/>

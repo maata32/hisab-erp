@@ -111,7 +111,7 @@ Try with `Accept-Language: en` and you should get `"message":"Invalid credential
 
 ```bash
 docker compose -f infra/docker/dev/docker-compose.yml exec postgres \
-  psql -U minierp -d hisaberp -c "SELECT code, name, status FROM organizations;"
+  psql -U hisaberp -d hisaberp -c "SELECT code, name, status FROM organizations;"
 ```
 
 You should see only `demo`. Run the integration test for the rigorous proof:
