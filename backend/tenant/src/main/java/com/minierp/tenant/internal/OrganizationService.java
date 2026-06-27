@@ -270,7 +270,11 @@ public class OrganizationService implements OrganizationApi {
         o.setStatus(OrganizationStatus.ACTIVE);
         o.setPastDueSince(null);
         subscriptionService.extendTo(id, planId, base, end);
-        publishStatusChange(o, old, "payment");
+        // Only notify a status change when it actually changes — paying an already-active tenant
+        // should send the payment receipt only, not a redundant "subscription active" e-mail.
+        if (old != OrganizationStatus.ACTIVE) {
+            publishStatusChange(o, old, "payment");
+        }
         events.publishEvent(audit(o, "ORG_PAYMENT_RECORDED", Map.of("years", years, "months", months)));
         return new PaidPeriod(base, end);
     }
