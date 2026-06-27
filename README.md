@@ -1,6 +1,6 @@
-# Mini-ERP
+# Hisab ERP
 
-Multi-tenant SaaS Mini-ERP for Mauritanian retail and wholesale (boutiques, supermarkets, wholesalers). Tri-lingual UI (Français / العربية / English with full RTL), offline-capable POS, multi-warehouse inventory with FEFO lot/expiry tracking, integrated payments and customer-credit module.
+Multi-tenant SaaS Hisab ERP for Mauritanian retail and wholesale (boutiques, supermarkets, wholesalers). Tri-lingual UI (Français / العربية / English with full RTL), offline-capable POS, multi-warehouse inventory with FEFO lot/expiry tracking, integrated payments and customer-credit module.
 
 > **Status:** Phase 0 Foundation deployed. Phase 1A (POS MVP) — in progress. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -19,7 +19,7 @@ Multi-tenant SaaS Mini-ERP for Mauritanian retail and wholesale (boutiques, supe
 Prerequisites: Docker 24+, Make, JDK 21 (only if you want to run backend locally), Node 20+ (only for the frontend dev server).
 
 ```bash
-git clone <repo> mini-erp && cd mini-erp
+git clone <repo> hisab-erp && cd hisab-erp
 make dev-up
 ```
 
@@ -32,7 +32,7 @@ Wait ~90s for the backend to migrate the schema and seed the demo tenant. Then o
 | **Backend API** | http://localhost:8080/swagger-ui.html | JWT Bearer (login via `/api/v1/auth/login`) |
 | **MailHog** | http://localhost:8025 | — |
 | **MinIO** | http://localhost:9001 | `minioadmin` / `minioadmin` |
-| **Postgres** | `psql -h localhost -U minierp -d minierp` | pwd `minierp` |
+| **Postgres** | `psql -h localhost -U minierp -d hisaberp` | pwd `minierp` |
 
 `make help` lists every command.
 
@@ -79,4 +79,4 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the full plan.
 
 ## License
 
-Proprietary. © 2026 Mini-ERP team.
+Proprietary. © 2026 Hisab ERP team.

@@ -6,7 +6,7 @@
     "hint": "Les lignes cochées seront imputées sur cette facture une fois enregistrée (compensation en position nette)."
   },
   "app": {
-    "name": "Mini-ERP",
+    "name": "Hisab ERP",
     "tagline": "ERP commercial modulaire pour la Mauritanie"
   },
   "common": {
@@ -1288,6 +1288,32 @@
     "deleteCategoryConfirm": "Supprimer la catégorie « {{code}} » ?",
     "saved": "Enregistré",
     "deleted": "Supprimé",
+    "cat": {
+      "COUNT": "Comptage / Pièces",
+      "LENGTH": "Longueur",
+      "MASS": "Masse",
+      "VOLUME": "Volume",
+      "AREA": "Surface"
+    },
+    "unit": {
+      "PCE": "Pièce",
+      "DOZ": "Douzaine",
+      "CTN_6": "Carton de 6",
+      "CTN_12": "Carton de 12",
+      "CTN_24": "Carton de 24",
+      "M": "Mètre",
+      "CM": "Centimètre",
+      "KM": "Kilomètre",
+      "KG": "Kilogramme",
+      "G": "Gramme",
+      "T": "Tonne",
+      "L": "Litre",
+      "ML": "Millilitre",
+      "CL": "Centilitre",
+      "M2": "Mètre carré",
+      "HA": "Hectare",
+      "LB": "Livre"
+    },
     "conv": {
       "help": "Convertir une quantité entre deux unités d'une même catégorie.",
       "from": "De",
@@ -1298,6 +1324,11 @@
     }
   },
   "priceTiers": {
+    "label": {
+      "RETAIL": "Détail / Comptoir",
+      "WHOLESALE": "Gros",
+      "VIP": "VIP / Fidélité"
+    },
     "title": "Tarifs",
     "subtitle": "Détail / Gros / Promo",
     "empty": "Aucun tarif",

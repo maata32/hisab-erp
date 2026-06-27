@@ -2,14 +2,14 @@ spring:
   profiles:
     active: test
   datasource:
-    url: jdbc:postgresql://localhost:5433/minierp_test
+    url: jdbc:postgresql://localhost:5433/hisaberp_test
     username: minierp_app
     password: minierp
     driver-class-name: org.postgresql.Driver
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.xml
     contexts: default
-    url: jdbc:postgresql://localhost:5433/minierp_test
+    url: jdbc:postgresql://localhost:5433/hisaberp_test
     user: minierp
     password: minierp
   mail:
@@ -34,5 +34,5 @@ app:
     endpoint: http://localhost:9000
     access-key: minioadmin
     secret-key: minioadmin
-    bucket: minierp-test
+    bucket: hisaberp-test
     max-file-size-bytes: 5242880

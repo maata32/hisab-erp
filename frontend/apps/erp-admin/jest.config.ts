@@ -16,10 +16,10 @@ export default {
     'node_modules/(?!.*\\.mjs$|@angular|@ngx-translate|lucide-angular|primeng|rxjs)',
   ],
   moduleNameMapper: {
-    '^@minierp/shared-api$': '<rootDir>/../../libs/shared-api/src/index.ts',
-    '^@minierp/shared-auth$': '<rootDir>/../../libs/shared-auth/src/index.ts',
-    '^@minierp/shared-ui$': '<rootDir>/../../libs/shared-ui/src/index.ts',
-    '^@minierp/shared-i18n$': '<rootDir>/../../libs/shared-i18n/src/index.ts',
+    '^@hisaberp/shared-api$': '<rootDir>/../../libs/shared-api/src/index.ts',
+    '^@hisaberp/shared-auth$': '<rootDir>/../../libs/shared-auth/src/index.ts',
+    '^@hisaberp/shared-ui$': '<rootDir>/../../libs/shared-ui/src/index.ts',
+    '^@hisaberp/shared-i18n$': '<rootDir>/../../libs/shared-i18n/src/index.ts',
   },
   snapshotSerializers: [
     'jest-preset-angular/build/serializers/no-ng-attributes',

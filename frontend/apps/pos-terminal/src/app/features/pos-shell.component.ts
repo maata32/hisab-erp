@@ -4,8 +4,8 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { TranslateModule } from '@ngx-translate/core';
 import { SwUpdate } from '@angular/service-worker';
 import { filter } from 'rxjs';
-import { AUTH_SERVICE } from '@minierp/shared-auth';
-import { LocaleSwitcherComponent } from '@minierp/shared-ui';
+import { AUTH_SERVICE } from '@hisaberp/shared-auth';
+import { LocaleSwitcherComponent } from '@hisaberp/shared-ui';
 
 @Component({
   selector: 'pos-shell',

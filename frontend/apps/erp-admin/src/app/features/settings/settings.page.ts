@@ -12,7 +12,7 @@ import { TabViewModule } from 'primeng/tabview';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { firstValueFrom } from 'rxjs';
-import { AUTH_SERVICE } from '@minierp/shared-auth';
+import { AUTH_SERVICE } from '@hisaberp/shared-auth';
 
 interface OrgProfile {
   id: string;
@@ -129,8 +129,9 @@ interface PaymentSettings {
                 />
               </div>
             </div>
-            <div class="flex justify-end pt-2">
+            <div class="pt-4 mt-2 border-t border-gray-200">
               <button pButton [label]="'common.save' | translate" icon="pi pi-check"
+                class="w-full p-button-lg settings-save-btn"
                 [loading]="saving()" (click)="saveOrg()"></button>
             </div>
           </div>
@@ -187,8 +188,9 @@ interface PaymentSettings {
               />
               <p class="text-xs text-gray-400 mt-1">{{ 'settings.pos.currency_decimals_hint' | translate }}</p>
             </div>
-            <div class="flex justify-end pt-2">
+            <div class="pt-4 mt-2 border-t border-gray-200">
               <button pButton [label]="'common.save' | translate" icon="pi pi-check"
+                class="w-full p-button-lg settings-save-btn"
                 [loading]="saving()" (click)="saveSettings()"></button>
             </div>
           </div>
@@ -210,7 +212,7 @@ interface PaymentSettings {
                   prefix=""
                   styleClass="w-32"
                 />
-                <span class="text-sm text-gray-500 ms-2">{{ 'settings.invoice.tax_rate_hint' | translate }}</span>
+                <p class="text-xs text-gray-400 mt-1">{{ 'settings.invoice.tax_rate_hint' | translate }}</p>
               </div>
               <div class="flex items-center gap-3">
                 <p-inputSwitch [(ngModel)]="invoiceSettings.pricesIncludeTax" />
@@ -227,8 +229,9 @@ interface PaymentSettings {
                           optionLabel="label" optionValue="value" styleClass="w-64" />
               <span class="text-xs text-gray-500 ms-2 block mt-1">{{ 'settings.invoice.paper_size_hint' | translate }}</span>
             </div>
-            <div class="flex justify-end pt-2">
+            <div class="pt-4 mt-2 border-t border-gray-200">
               <button pButton [label]="'common.save' | translate" icon="pi pi-check"
+                class="w-full p-button-lg settings-save-btn"
                 [loading]="saving()" (click)="saveSettings()"></button>
             </div>
           </div>
@@ -260,8 +263,9 @@ interface PaymentSettings {
               <p-inputSwitch [(ngModel)]="paymentSettings.allowOverpayment" />
               <label class="text-sm font-medium text-gray-700">{{ 'settings.payment.allow_overpayment' | translate }}</label>
             </div>
-            <div class="flex justify-end pt-2">
+            <div class="pt-4 mt-2 border-t border-gray-200">
               <button pButton [label]="'common.save' | translate" icon="pi pi-check"
+                class="w-full p-button-lg settings-save-btn"
                 [loading]="saving()" (click)="saveSettings()"></button>
             </div>
           </div>

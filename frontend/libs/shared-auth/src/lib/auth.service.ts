@@ -3,10 +3,10 @@ import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, finalize, share, tap, throwError } from 'rxjs';
 import { AuthServicePort } from './auth.port';
 import { AuthState, LoginRequest, LoginResponse } from './auth.types';
-import { CurrentUser } from '@minierp/shared-api';
+import { CurrentUser } from '@hisaberp/shared-api';
 
-const STORAGE_KEY = 'minierp.auth.v1';
-const LANG_KEY = 'minierp.lang';
+const STORAGE_KEY = 'hisaberp.auth.v1';
+const LANG_KEY = 'hisaberp.lang';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService implements AuthServicePort {

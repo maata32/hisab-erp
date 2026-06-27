@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { LocaleService, SUPPORTED_LOCALES, SupportedLocale } from '@minierp/shared-i18n';
+import { LocaleService, SUPPORTED_LOCALES, SupportedLocale } from '@hisaberp/shared-i18n';
 
 @Component({
   selector: 'me-locale-switcher',

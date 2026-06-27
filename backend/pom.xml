@@ -11,12 +11,12 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.minierp</groupId>
-    <artifactId>minierp-parent</artifactId>
+    <groupId>com.hisaberp</groupId>
+    <artifactId>hisaberp-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>Mini-ERP :: Parent</name>
-    <description>Multi-tenant SaaS Mini-ERP for Mauritanian retail/wholesale</description>
+    <name>Hisab ERP :: Parent</name>
+    <description>Multi-tenant SaaS Hisab ERP for Mauritanian retail/wholesale</description>
 
     <modules>
         <module>shared</module>
@@ -81,102 +81,102 @@
 
             <!-- Internal modules -->
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>shared</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>partner</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>document</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>sales</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>delivery</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>payment</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>tenant</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>identity</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>audit</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>uom</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>catalog</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>pricing</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>inventory</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>notifications</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>pos</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>lot-expiry</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>expense</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>treasury</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>reporting</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.minierp</groupId>
+                <groupId>com.hisaberp</groupId>
                 <artifactId>purchase</artifactId>
                 <version>${project.version}</version>
             </dependency>

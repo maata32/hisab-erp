@@ -37,8 +37,8 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<SQ
   GRANT CONNECT ON DATABASE ${POSTGRES_DB} TO minierp_app;
 
   -- Integration-test database (Liquibase connects as ${POSTGRES_USER}, app as minierp_app).
-  CREATE DATABASE minierp_test WITH OWNER ${POSTGRES_USER} ENCODING 'UTF8' TEMPLATE template0;
-  GRANT CONNECT ON DATABASE minierp_test TO minierp_app;
+  CREATE DATABASE hisaberp_test WITH OWNER ${POSTGRES_USER} ENCODING 'UTF8' TEMPLATE template0;
+  GRANT CONNECT ON DATABASE hisaberp_test TO minierp_app;
 
   -- Optional read-only role for analytics / Metabase (V2).
   DO \$\$

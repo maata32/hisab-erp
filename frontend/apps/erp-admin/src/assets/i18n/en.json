@@ -6,7 +6,7 @@
     "hint": "Checked rows are netted against this invoice once it is saved (net-position compensation)."
   },
   "app": {
-    "name": "Mini-ERP",
+    "name": "Hisab ERP",
     "tagline": "Modular commercial ERP for Mauritania"
   },
   "common": {
@@ -1288,6 +1288,32 @@
     "deleteCategoryConfirm": "Delete category \"{{code}}\"?",
     "saved": "Saved",
     "deleted": "Deleted",
+    "cat": {
+      "COUNT": "Count / Pieces",
+      "LENGTH": "Length",
+      "MASS": "Mass",
+      "VOLUME": "Volume",
+      "AREA": "Area"
+    },
+    "unit": {
+      "PCE": "Piece",
+      "DOZ": "Dozen",
+      "CTN_6": "Carton of 6",
+      "CTN_12": "Carton of 12",
+      "CTN_24": "Carton of 24",
+      "M": "Meter",
+      "CM": "Centimeter",
+      "KM": "Kilometer",
+      "KG": "Kilogram",
+      "G": "Gram",
+      "T": "Tonne",
+      "L": "Liter",
+      "ML": "Milliliter",
+      "CL": "Centiliter",
+      "M2": "Square meter",
+      "HA": "Hectare",
+      "LB": "Pound"
+    },
     "conv": {
       "help": "Convert a quantity between two units of the same category.",
       "from": "From",
@@ -1298,6 +1324,11 @@
     }
   },
   "priceTiers": {
+    "label": {
+      "RETAIL": "Retail / Walk-in",
+      "WHOLESALE": "Wholesale",
+      "VIP": "VIP / Loyalty"
+    },
     "title": "Price tiers",
     "subtitle": "Retail / Wholesale / Promo",
     "empty": "No tiers",

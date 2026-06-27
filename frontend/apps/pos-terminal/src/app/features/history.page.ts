@@ -258,7 +258,7 @@ export class HistoryPage implements OnInit {
     this.printingId.set(sale.id);
     try {
       const widthMm = this.sessionSvc.getReceiptWidth();
-      const data = this.receiptSvc.buildFromSynced(sale, 'Mini-ERP', widthMm);
+      const data = this.receiptSvc.buildFromSynced(sale, 'Hisab ERP', widthMm);
       await this.receiptSvc.printEscPos(data);
     } finally {
       this.printingId.set(null);

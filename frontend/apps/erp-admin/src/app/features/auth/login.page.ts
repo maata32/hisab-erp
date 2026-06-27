@@ -7,10 +7,10 @@ import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { PasswordModule } from 'primeng/password';
 import { MessageService } from 'primeng/api';
-import { AUTH_SERVICE } from '@minierp/shared-auth';
-import { isApiError } from '@minierp/shared-api';
-import { LocaleSwitcherComponent } from '@minierp/shared-ui';
-import { LocaleService, SupportedLocale } from '@minierp/shared-i18n';
+import { AUTH_SERVICE } from '@hisaberp/shared-auth';
+import { isApiError } from '@hisaberp/shared-api';
+import { LocaleSwitcherComponent } from '@hisaberp/shared-ui';
+import { LocaleService, SupportedLocale } from '@hisaberp/shared-i18n';
 
 @Component({
   selector: 'erp-admin-login-page',
@@ -28,13 +28,13 @@ import { LocaleService, SupportedLocale } from '@minierp/shared-i18n';
   template: `
     <div class="min-h-screen flex flex-col md:flex-row">
       <aside
-        class="hidden md:flex md:w-1/2 bg-gradient-to-br from-primary-600 to-primary-800 text-white p-12 flex-col justify-between"
+        class="hidden md:flex md:w-1/2 bg-gradient-to-br from-[#0E6E5A] to-[#0B5546] text-white p-12 flex-col justify-between"
       >
         <div>
-          <h1 class="text-3xl font-bold">Mini-ERP</h1>
-          <p class="mt-2 opacity-90">{{ 'app.tagline' | translate }}</p>
+          <img src="assets/brand/hisab-logo-ondark.svg" alt="HisabERP" class="h-14 w-auto" />
+          <p class="mt-4 opacity-90">{{ 'app.tagline' | translate }}</p>
         </div>
-        <p class="text-sm opacity-70">© Mini-ERP {{ year }}</p>
+        <p class="text-sm opacity-70">© HisabERP {{ year }}</p>
       </aside>
 
       <main class="flex-1 flex items-center justify-center p-6 sm:p-10">
@@ -46,7 +46,7 @@ import { LocaleService, SupportedLocale } from '@minierp/shared-i18n';
           aria-labelledby="login-title"
         >
           <div class="flex items-center justify-between">
-            <h2 id="login-title" class="text-2xl font-bold text-gray-800">
+            <h2 id="login-title" class="text-2xl font-bold text-[#0E6E5A] brand-display">
               {{ 'auth.login.title' | translate }}
             </h2>
             <me-locale-switcher />
@@ -108,19 +108,9 @@ import { LocaleService, SupportedLocale } from '@minierp/shared-i18n';
           ></button>
 
           <div class="text-center text-sm text-gray-500">
-            {{ 'auth.login.demo_hint' | translate }}
-          </div>
-
-          <div class="text-center text-sm text-gray-500">
             {{ 'auth.login.noAccount' | translate }}
             <a routerLink="/register" class="text-primary-600 hover:underline">
               {{ 'auth.login.signUp' | translate }}
-            </a>
-          </div>
-
-          <div class="text-center text-xs text-gray-400 pt-2 border-t border-gray-100">
-            <a routerLink="/platform/login" class="hover:underline">
-              {{ 'platform.login.link' | translate }}
             </a>
           </div>
         </form>

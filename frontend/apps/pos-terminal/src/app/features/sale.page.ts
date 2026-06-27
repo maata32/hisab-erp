@@ -393,7 +393,7 @@ export class SalePage implements OnInit {
   private async refreshStocks(): Promise<void> {
     const warehouseId = this.sessionSvc.currentRegister()?.warehouseId;
     if (!warehouseId) return;
-    const cacheKey = `minierp.pos.stocks.${warehouseId}`;
+    const cacheKey = `hisaberp.pos.stocks.${warehouseId}`;
     try {
       const items = await firstValueFrom(this.api.listStocksByWarehouse(warehouseId));
       const map: Record<string, number> = {};
@@ -594,7 +594,7 @@ export class SalePage implements OnInit {
   }
 
   async printReceipt(): Promise<void> {
-    const orgName = 'Mini-ERP';
+    const orgName = 'Hisab ERP';
     const widthMm = this.sessionSvc.getReceiptWidth();
     if (this.lastSaleSynced) {
       const data = this.receiptSvc.buildFromSynced(this.lastSaleSynced, orgName, widthMm);

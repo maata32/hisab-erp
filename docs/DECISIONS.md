@@ -148,9 +148,9 @@ Last updated: 2026-05-03.
 
 ## ADR-014 — Domain & SSL (placeholder)
 
-**Spec gap:** Uses `minierp.mr` placeholders — ownership unconfirmed.
+**Spec gap:** Uses `hisaberp.mr` placeholders — ownership unconfirmed.
 
-**Decision:** Terraform and compose use **`${ROOT_DOMAIN}`** env var (default `minierp.local` for dev). Real domain is wired via `.env.prod` at deploy time. Traefik handles Let's Encrypt automatically.
+**Decision:** Terraform and compose use **`${ROOT_DOMAIN}`** env var (default `hisaberp.local` for dev). Real domain is wired via `.env.prod` at deploy time. Traefik handles Let's Encrypt automatically.
 
 ---
 

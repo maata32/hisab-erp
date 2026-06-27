@@ -3,7 +3,7 @@ import { firstValueFrom } from 'rxjs';
 import { CashRegister, CashSession } from '../models/pos.models';
 import { PosApiService } from './pos-api.service';
 
-const SESSION_KEY = 'minierp.pos.session.v1';
+const SESSION_KEY = 'hisaberp.pos.session.v1';
 
 interface PersistedState {
   session: CashSession | null;

@@ -1,4 +1,4 @@
-# Mini-ERP — common dev commands
+# Hisab ERP — common dev commands
 # Run `make help` for the full list.
 
 SHELL := /bin/bash
@@ -25,7 +25,7 @@ dev-up: ## Start full dev stack (Postgres, Redis, MinIO, MailHog, backend, admin
 	@echo "  POS:        http://localhost:4201"
 	@echo "  Mailpit:    http://localhost:8025"
 	@echo "  MinIO:      http://localhost:9001  (minioadmin / minioadmin)"
-	@echo "  Postgres:   psql -h localhost -U minierp -d minierp  (pwd: minierp)"
+	@echo "  Postgres:   psql -h localhost -U minierp -d hisaberp  (pwd: minierp)"
 	@echo ""
 	@echo "  Demo login (after backend boot): tenant 'demo' / admin@demo.local / Admin1234!"
 
@@ -98,20 +98,20 @@ tf-apply: ## terraform apply
 tf-output: ## Show terraform outputs (server IP, SSH command…)
 	cd infra/terraform && terraform output
 
-prod-up: ## Start prod compose on the host you're SSH'd into (requires /etc/minierp/.env)
-	$(COMPOSE_PROD) --env-file /etc/minierp/.env up -d --remove-orphans
+prod-up: ## Start prod compose on the host you're SSH'd into (requires /etc/hisaberp/.env)
+	$(COMPOSE_PROD) --env-file /etc/hisaberp/.env up -d --remove-orphans
 
 prod-pull: ## Pull latest prod images
-	$(COMPOSE_PROD) --env-file /etc/minierp/.env pull
+	$(COMPOSE_PROD) --env-file /etc/hisaberp/.env pull
 
 prod-down: ## Stop prod stack (does NOT remove volumes)
-	$(COMPOSE_PROD) --env-file /etc/minierp/.env down
+	$(COMPOSE_PROD) --env-file /etc/hisaberp/.env down
 
 obs-up: ## Start observability addon (Prometheus / Loki / Grafana / Tempo)
 	docker compose \
 	  -f infra/docker/prod/docker-compose.yml \
 	  -f infra/observability/docker-compose.observability.yml \
-	  --env-file /etc/minierp/.env up -d
+	  --env-file /etc/hisaberp/.env up -d
 
 # ---------- quality ----------
 

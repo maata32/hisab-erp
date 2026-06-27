@@ -6,9 +6,9 @@ import { TranslateModule } from '@ngx-translate/core';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { PasswordModule } from 'primeng/password';
-import { LocaleSwitcherComponent } from '@minierp/shared-ui';
-import { AUTH_SERVICE } from '@minierp/shared-auth';
-import { isApiError } from '@minierp/shared-api';
+import { LocaleSwitcherComponent } from '@hisaberp/shared-ui';
+import { AUTH_SERVICE } from '@hisaberp/shared-auth';
+import { isApiError } from '@hisaberp/shared-api';
 
 @Component({
   selector: 'pos-login-page',

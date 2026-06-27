@@ -29,15 +29,15 @@ Open the Swagger UI at <http://localhost:8080/swagger-ui.html> and tinker. The `
 
 ## Adding a new module (Phase 1+)
 
-1. `mkdir -p backend/<module>/src/{main/java/com/minierp/<module>/{api,internal,events},test/java}`
+1. `mkdir -p backend/<module>/src/{main/java/com/hisaberp/<module>/{api,internal,events},test/java}`
 2. Create `backend/<module>/pom.xml` modelled on `backend/identity/pom.xml`
 3. Add `<module><module></module>` to `backend/pom.xml`
-4. Create `backend/<module>/src/main/java/com/minierp/<module>/package-info.java`:
+4. Create `backend/<module>/src/main/java/com/hisaberp/<module>/package-info.java`:
    ```java
    @org.springframework.modulith.ApplicationModule(
            displayName = "<Module>",
            allowedDependencies = {"shared", "tenant", "identity"})
-   package com.minierp.<module>;
+   package com.hisaberp.<module>;
    ```
 5. Add a `bootstrap/pom.xml` `<dependency>` on the new module
 6. Write entities → repos → services → controllers

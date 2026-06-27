@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, roleGuard } from '@minierp/shared-auth';
+import { authGuard, roleGuard } from '@hisaberp/shared-auth';
 
 export const appRoutes: Routes = [
   {

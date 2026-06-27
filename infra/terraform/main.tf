@@ -14,7 +14,7 @@ terraform {
     # Use Hetzner Object Storage or any S3-compatible bucket for state.
     # Configure via -backend-config at init time:
     #   terraform init \
-    #     -backend-config="bucket=minierp-tfstate" \
+    #     -backend-config="bucket=hisaberp-tfstate" \
     #     -backend-config="key=prod/terraform.tfstate" \
     #     -backend-config="region=fsn1" \
     #     -backend-config="endpoint=https://fsn1.your-objectstorage.com"

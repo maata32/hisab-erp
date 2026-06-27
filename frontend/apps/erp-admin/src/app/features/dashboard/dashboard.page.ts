@@ -3,8 +3,8 @@ import { CommonModule } from '@angular/common';
 import { TranslateModule } from '@ngx-translate/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { AUTH_SERVICE } from '@minierp/shared-auth';
-import { MoneyFormatService, MoneyPipe } from '@minierp/shared-i18n';
+import { AUTH_SERVICE } from '@hisaberp/shared-auth';
+import { MoneyFormatService, MoneyPipe } from '@hisaberp/shared-i18n';
 
 interface TopProduct {
   productId: string;

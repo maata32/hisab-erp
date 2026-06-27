@@ -7,7 +7,7 @@ Run after `make dev-up` to verify the foundation is healthy. Should take ~3 minu
 Wait for the backend to finish booting (about 90 s on a fresh image):
 
 ```bash
-docker compose -f infra/docker/dev/docker-compose.yml logs backend | grep "Started MiniErpApplication"
+docker compose -f infra/docker/dev/docker-compose.yml logs backend | grep "Started HisabErpApplication"
 ```
 
 You should see Liquibase output for changesets `0001-extensions` through `0006-seed-permissions`, then app start. The dev seeder logs:
@@ -16,14 +16,14 @@ You should see Liquibase output for changesets `0001-extensions` through `0006-s
 Seeded 9 default roles for tenant demo
 Dev data seeded. Demo tenant code: 'demo'
   Tenant admin: admin@demo.local / Admin1234!
-  Super admin:  root@minierp.local / Root12345!
+  Super admin:  root@hisaberp.local / Root12345!
 ```
 
 ## 1. Backend health
 
 ```bash
 curl -fsS http://localhost:8080/api/v1/health | jq
-# {"status":"UP","timestamp":"...","service":"mini-erp"}
+# {"status":"UP","timestamp":"...","service":"hisab-erp"}
 
 curl -fsS http://localhost:8080/actuator/health | jq
 # {"status":"UP", ...}
@@ -111,7 +111,7 @@ Try with `Accept-Language: en` and you should get `"message":"Invalid credential
 
 ```bash
 docker compose -f infra/docker/dev/docker-compose.yml exec postgres \
-  psql -U minierp -d minierp -c "SELECT code, name, status FROM organizations;"
+  psql -U minierp -d hisaberp -c "SELECT code, name, status FROM organizations;"
 ```
 
 You should see only `demo`. Run the integration test for the rigorous proof:

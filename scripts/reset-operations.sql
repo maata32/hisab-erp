@@ -9,7 +9,7 @@
 -- de notifications.
 --
 -- Usage :
---   psql -h localhost -U minierp -d minierp -f scripts/reset-operations.sql
+--   psql -h localhost -U minierp -d hisaberp -f scripts/reset-operations.sql
 --
 -- A executer avec le role proprietaire des tables (minierp) afin de pouvoir
 -- TRUNCATE meme avec RLS active.

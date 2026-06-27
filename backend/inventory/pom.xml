@@ -5,30 +5,30 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.minierp</groupId>
-        <artifactId>minierp-parent</artifactId>
+        <groupId>com.hisaberp</groupId>
+        <artifactId>hisaberp-parent</artifactId>
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>inventory</artifactId>
-    <name>Mini-ERP :: Inventory</name>
+    <name>Hisab ERP :: Inventory</name>
     <description>Warehouses, stock, stock movements (CMP costing)</description>
 
     <dependencies>
         <dependency>
-            <groupId>com.minierp</groupId>
+            <groupId>com.hisaberp</groupId>
             <artifactId>shared</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.minierp</groupId>
+            <groupId>com.hisaberp</groupId>
             <artifactId>catalog</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.minierp</groupId>
+            <groupId>com.hisaberp</groupId>
             <artifactId>uom</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.minierp</groupId>
+            <groupId>com.hisaberp</groupId>
             <artifactId>tenant</artifactId>
         </dependency>
         <dependency>

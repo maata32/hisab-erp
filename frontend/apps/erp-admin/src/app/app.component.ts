@@ -3,8 +3,8 @@ import { RouterOutlet } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { LocaleService, MoneyFormatService } from '@minierp/shared-i18n';
-import { AUTH_SERVICE } from '@minierp/shared-auth';
+import { LocaleService, MoneyFormatService } from '@hisaberp/shared-i18n';
+import { AUTH_SERVICE } from '@hisaberp/shared-auth';
 
 @Component({
   selector: 'erp-admin-root',

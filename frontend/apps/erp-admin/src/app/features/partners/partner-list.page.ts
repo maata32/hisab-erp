@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { MoneyPipe } from '@minierp/shared-i18n';
+import { MoneyPipe } from '@hisaberp/shared-i18n';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';

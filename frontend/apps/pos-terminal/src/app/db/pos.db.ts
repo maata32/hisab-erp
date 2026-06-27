@@ -7,7 +7,7 @@ export class PosDb extends Dexie {
   pendingSales!: Table<PendingSale, number>;
 
   constructor() {
-    super('minierp-pos-v1');
+    super('hisaberp-pos-v1');
     this.version(1).stores({
       products: 'id, sku, barcode, name, cachedAt',
       priceTiers: 'id, code',

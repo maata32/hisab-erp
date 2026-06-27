@@ -2,7 +2,7 @@ import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { MoneyPipe, MoneyFormatService } from '@minierp/shared-i18n';
+import { MoneyPipe, MoneyFormatService } from '@hisaberp/shared-i18n';
 import { ConfirmationService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';

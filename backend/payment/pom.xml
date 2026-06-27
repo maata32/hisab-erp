@@ -5,46 +5,46 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.minierp</groupId>
-        <artifactId>minierp-parent</artifactId>
+        <groupId>com.hisaberp</groupId>
+        <artifactId>hisaberp-parent</artifactId>
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>payment</artifactId>
-    <name>Mini-ERP :: Payment</name>
+    <name>Hisab ERP :: Payment</name>
     <description>Payments, payment allocations, customer credits, overdue detection</description>
 
     <dependencies>
         <dependency>
-            <groupId>com.minierp</groupId>
+            <groupId>com.hisaberp</groupId>
             <artifactId>shared</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.minierp</groupId>
+            <groupId>com.hisaberp</groupId>
             <artifactId>partner</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.minierp</groupId>
+            <groupId>com.hisaberp</groupId>
             <artifactId>sales</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.minierp</groupId>
+            <groupId>com.hisaberp</groupId>
             <artifactId>purchase</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.minierp</groupId>
+            <groupId>com.hisaberp</groupId>
             <artifactId>document</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.minierp</groupId>
+            <groupId>com.hisaberp</groupId>
             <artifactId>tenant</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.minierp</groupId>
+            <groupId>com.hisaberp</groupId>
             <artifactId>expense</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.minierp</groupId>
+            <groupId>com.hisaberp</groupId>
             <artifactId>treasury</artifactId>
         </dependency>
     </dependencies>

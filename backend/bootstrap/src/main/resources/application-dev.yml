@@ -10,7 +10,7 @@ spring:
 
 logging:
   level:
-    com.minierp: DEBUG
+    com.hisaberp: DEBUG
     org.springframework.modulith: INFO
 
 management:

@@ -2,6 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Self-hosted brand fonts — offline-capable, no external request.
+   Files live in src/assets/fonts/ (copied to /assets/fonts/ at build).
+   Subsets: Reem Kufi + IBM Plex Sans Arabic = Arabic; Sora + Inter = Latin. */
+@font-face { font-family: 'Reem Kufi'; font-style: normal; font-weight: 500; font-display: swap; src: url('/assets/fonts/reem-kufi-500.woff2') format('woff2'); }
+@font-face { font-family: 'Reem Kufi'; font-style: normal; font-weight: 700; font-display: swap; src: url('/assets/fonts/reem-kufi-700.woff2') format('woff2'); }
+@font-face { font-family: 'Sora'; font-style: normal; font-weight: 600; font-display: swap; src: url('/assets/fonts/sora-600.woff2') format('woff2'); }
+@font-face { font-family: 'Sora'; font-style: normal; font-weight: 700; font-display: swap; src: url('/assets/fonts/sora-700.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans Arabic'; font-style: normal; font-weight: 400; font-display: swap; src: url('/assets/fonts/ibm-plex-sans-arabic-400.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans Arabic'; font-style: normal; font-weight: 500; font-display: swap; src: url('/assets/fonts/ibm-plex-sans-arabic-500.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans Arabic'; font-style: normal; font-weight: 600; font-display: swap; src: url('/assets/fonts/ibm-plex-sans-arabic-600.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('/assets/fonts/inter-400.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('/assets/fonts/inter-500.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('/assets/fonts/inter-600.woff2') format('woff2'); }
+
+/* ============================================================
+   HisabERP — brand design tokens (حِساب)
+   Colours + typography. Purely additive: existing component
+   styles are untouched. Adopt incrementally via var(--hs-*)
+   or the namespaced .brand-* / .bg-brand helpers below.
+   ============================================================ */
+:root {
+  /* palette */
+  --hs-green:     #0E6E5A;  /* primary — trust + heritage */
+  --hs-green-700: #0B5546;  /* hover / pressed            */
+  --hs-ink:       #14201C;  /* headings / body text       */
+  --hs-gold:      #C8A24B;  /* accent / CTA highlight      */
+  --hs-gold-soft: #E7C36B;  /* accent on dark surfaces     */
+  --hs-paper:     #FAF7F0;  /* warm page surface           */
+  --hs-mint:      #E8F2EE;  /* soft card surface           */
+
+  /* typography stacks (load fonts via the @import above or an index.html <link>) */
+  --hs-font-display-ar:  'Reem Kufi', 'Tajawal', system-ui, sans-serif;
+  --hs-font-display-lat: 'Sora', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --hs-font-ui-ar:       'IBM Plex Sans Arabic', 'Tajawal', system-ui, sans-serif;
+  --hs-font-ui-lat:      'Inter', 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+/* Namespaced brand helpers — no existing class is overridden. */
+.bg-brand        { background-color: var(--hs-green); }
+.bg-brand-paper  { background-color: var(--hs-paper); }
+.text-brand      { color: var(--hs-green); }
+.brand-accent    { color: var(--hs-gold); }
+.brand-display              { font-family: var(--hs-font-display-lat); }
+[dir='rtl'] .brand-display  { font-family: var(--hs-font-display-ar); }
+
 html, body { height: 100%; margin: 0; }
 
 /* RTL touch-ups for mirrored layouts */
@@ -102,4 +147,66 @@ html, body { height: 100%; margin: 0; }
 }
 .p-inputswitch .p-inputswitch-slider {
   border: 1px solid #d1d5db;
+}
+
+/* Tailwind preflight zeroes border-width on `*`, which flattens PrimeNG's TabView
+   headers into plain bold titles (no baseline, no active underline). Re-assert the
+   lara tab chrome so the headers read as tabs: grey baseline, blue active underline. */
+.p-tabview .p-tabview-nav {
+  border-style: solid;
+  border-width: 0 0 2px 0;
+  border-color: #e5e7eb;
+}
+.p-tabview .p-tabview-nav li .p-tabview-nav-link {
+  border-style: solid;
+  border-width: 0 0 2px 0;
+  border-color: transparent transparent #e5e7eb transparent;
+  color: #6b7280;
+}
+.p-tabview .p-tabview-nav li:not(.p-highlight):not(.p-disabled):hover .p-tabview-nav-link {
+  border-color: #9ca3af;
+  color: #6b7280;
+}
+.p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+/* ── PrimeNG button fills ──────────────────────────────────────────────────
+   Tailwind preflight resets `button { background-color: transparent }`, which
+   flattens PrimeNG's filled buttons into borderless text across the whole app
+   (login, dialogs, save bars, action buttons…). Re-assert the lara fills here —
+   styles.scss loads last, so these win. Text / outlined / link variants are
+   intentionally left transparent (that's their correct look). */
+$filled: ":not(.p-button-text):not(.p-button-outlined):not(.p-button-link)";
+$primary: "#{$filled}:not(.p-button-secondary):not(.p-button-success):not(.p-button-info):not(.p-button-warning):not(.p-button-help):not(.p-button-danger)";
+
+.p-button#{$primary} {
+  background: #3b82f6;
+  border: 1px solid #3b82f6;
+  color: #ffffff;
+}
+.p-button#{$primary}:not(:disabled):hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+/* Filled severity variants (base + hover). */
+.p-button.p-button-secondary#{$filled} { background: #64748b; border: 1px solid #64748b; color: #fff; }
+.p-button.p-button-secondary#{$filled}:not(:disabled):hover { background: #475569; border-color: #475569; }
+.p-button.p-button-success#{$filled}   { background: #22c55e; border: 1px solid #22c55e; color: #fff; }
+.p-button.p-button-success#{$filled}:not(:disabled):hover   { background: #16a34a; border-color: #16a34a; }
+.p-button.p-button-info#{$filled}      { background: #0ea5e9; border: 1px solid #0ea5e9; color: #fff; }
+.p-button.p-button-info#{$filled}:not(:disabled):hover      { background: #0284c7; border-color: #0284c7; }
+.p-button.p-button-warning#{$filled}   { background: #f97316; border: 1px solid #f97316; color: #fff; }
+.p-button.p-button-warning#{$filled}:not(:disabled):hover   { background: #ea580c; border-color: #ea580c; }
+.p-button.p-button-help#{$filled}      { background: #a855f7; border: 1px solid #a855f7; color: #fff; }
+.p-button.p-button-help#{$filled}:not(:disabled):hover      { background: #9333ea; border-color: #9333ea; }
+.p-button.p-button-danger#{$filled}    { background: #ef4444; border: 1px solid #ef4444; color: #fff; }
+.p-button.p-button-danger#{$filled}:not(:disabled):hover    { background: #dc2626; border-color: #dc2626; }
+
+/* Settings "Enregistrer" buttons are full-width; keep icon + label centered together
+   (otherwise the label flex-grows and shoves the icon to the far left). */
+.settings-save-btn .p-button-label {
+  flex: 0 1 auto;
 }

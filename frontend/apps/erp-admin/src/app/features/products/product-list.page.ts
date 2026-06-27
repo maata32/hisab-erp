@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ConfirmationService } from 'primeng/api';
-import { AUTH_SERVICE } from '@minierp/shared-auth';
+import { AUTH_SERVICE } from '@hisaberp/shared-auth';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -17,6 +17,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { TooltipModule } from 'primeng/tooltip';
 import { OverlayPanelModule, OverlayPanel } from 'primeng/overlaypanel';
+import { MasterDataNamePipe } from '@hisaberp/shared-i18n';
 import { firstValueFrom } from 'rxjs';
 
 interface ProductImageDto {
@@ -122,6 +123,7 @@ const CURRENCY = 'MRU';
     CommonModule, FormsModule, TranslateModule, TableModule, TagModule,
     ButtonModule, InputTextModule, DialogModule, InputNumberModule,
     CheckboxModule, DropdownModule, MultiSelectModule, TooltipModule, OverlayPanelModule,
+    MasterDataNamePipe,
   ],
   template: `
     <div class="space-y-4">
@@ -270,7 +272,10 @@ const CURRENCY = 'MRU';
             <p-dropdown [(ngModel)]="form.baseUomId" [options]="uoms()" optionLabel="name"
                         optionValue="id" [filter]="true" filterBy="name,code"
                         [placeholder]="'common.select' | translate"
-                        [styleClass]="'w-full' + (baseUomInvalid() ? ' ng-invalid ng-dirty' : '')" />
+                        [styleClass]="'w-full' + (baseUomInvalid() ? ' ng-invalid ng-dirty' : '')">
+              <ng-template let-u pTemplate="selectedItem">{{ u.code | mdName:'uoms.unit':u.name }}</ng-template>
+              <ng-template let-u pTemplate="item">{{ u.code | mdName:'uoms.unit':u.name }}</ng-template>
+            </p-dropdown>
             @if (baseUomInvalid()) {
               <p class="text-xs text-red-600 mt-1">{{ 'products.errors.baseUomRequired' | translate }}</p>
             }
@@ -929,7 +934,9 @@ export class ProductListPage implements OnInit {
       const def = tiers.find(t => t.defaultTier && t.active) ?? tiers.find(t => t.active);
       if (def) {
         this.defaultTierId = def.id;
-        this.defaultTierName.set(def.name);
+        const key = `priceTiers.label.${def.code}`;
+        const label = this.i18n.instant(key);
+        this.defaultTierName.set(label === key ? def.name : label);
       }
     } catch {
       this.defaultTierId = null;

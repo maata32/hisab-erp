@@ -1,18 +1,18 @@
 data "hcloud_ssh_keys" "admins" {
-  with_selector = "managed-by=minierp"
+  with_selector = "managed-by=hisaberp"
 }
 
 resource "hcloud_volume" "data" {
-  name      = "minierp-${var.location}-data"
+  name      = "hisaberp-${var.location}-data"
   size      = var.extra_volume_gb
   location  = var.location
   format    = "ext4"
   automount = false
-  labels = { project = "minierp" }
+  labels = { project = "hisaberp" }
 }
 
 resource "hcloud_server" "app" {
-  name         = "minierp-app-${var.location}"
+  name         = "hisaberp-app-${var.location}"
   image        = var.image
   server_type  = var.server_type
   location     = var.location
@@ -30,7 +30,7 @@ resource "hcloud_server" "app" {
   })
 
   labels = {
-    project = "minierp"
+    project = "hisaberp"
     env     = "prod"
     role    = "app"
   }

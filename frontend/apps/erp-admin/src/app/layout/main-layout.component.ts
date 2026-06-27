@@ -4,8 +4,8 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { TranslateModule } from '@ngx-translate/core';
 import { ButtonModule } from 'primeng/button';
 import { MenuModule } from 'primeng/menu';
-import { LocaleSwitcherComponent } from '@minierp/shared-ui';
-import { AUTH_SERVICE } from '@minierp/shared-auth';
+import { LocaleSwitcherComponent } from '@hisaberp/shared-ui';
+import { AUTH_SERVICE } from '@hisaberp/shared-auth';
 
 interface NavItem {
   label: string;
@@ -43,7 +43,9 @@ interface NavItem {
           >
             <i class="pi pi-bars text-xl"></i>
           </button>
-          <span class="font-bold text-primary-700 text-lg">Mini-ERP</span>
+          <a routerLink="/dashboard" class="flex items-center" aria-label="HisabERP">
+            <img src="assets/brand/hisab-logo.svg" alt="HisabERP" class="h-8 w-auto" />
+          </a>
         </div>
         <div class="flex items-center gap-3">
           <me-locale-switcher />

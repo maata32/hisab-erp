@@ -5,6 +5,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
+import { MasterDataNamePipe } from '@hisaberp/shared-i18n';
 import { firstValueFrom } from 'rxjs';
 
 interface PriceTier {
@@ -18,7 +19,7 @@ interface PriceTier {
 @Component({
   selector: 'erp-admin-price-tier-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslateModule, TableModule, TagModule],
+  imports: [CommonModule, FormsModule, TranslateModule, TableModule, TagModule, MasterDataNamePipe],
   template: `
     <div class="space-y-4">
       <header>
@@ -39,7 +40,7 @@ interface PriceTier {
           <ng-template pTemplate="body" let-t>
             <tr>
               <td><span class="font-mono text-sm">{{ t.code }}</span></td>
-              <td class="font-medium">{{ t.name }}</td>
+              <td class="font-medium">{{ t.code | mdName:'priceTiers.label':t.name }}</td>
               <td>
                 @if (t.defaultTier) {
                   <p-tag [value]="'priceTiers.isDefault' | translate" severity="info" icon="pi pi-star-fill" />

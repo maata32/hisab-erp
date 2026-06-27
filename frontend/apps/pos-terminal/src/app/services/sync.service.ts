@@ -6,7 +6,7 @@ import { PosApiService, CreateSaleRequest } from './pos-api.service';
 import { OnlineStatusService } from './online-status.service';
 
 const DEVICE_ID = (() => {
-  const k = 'minierp.pos.deviceId';
+  const k = 'hisaberp.pos.deviceId';
   let id = localStorage.getItem(k);
   if (!id) {
     id = crypto.randomUUID();

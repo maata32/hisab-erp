@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
-import { PageResponse } from '@minierp/shared-api';
+import { PageResponse } from '@hisaberp/shared-api';
 import { CashRegister, CashSession, SyncedSale } from '../models/pos.models';
 
 export interface OpenSessionRequest {
