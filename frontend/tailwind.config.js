@@ -16,17 +16,18 @@ module.exports = {
         '2xl': '1536px',
       },
       colors: {
+        // Hisab ERP brand teal (anchored on --hs-green #0E6E5A at 600, #0B5546 at 700)
         primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+          50: '#e7f5f1',
+          100: '#c4e6dd',
+          200: '#9bd5c7',
+          300: '#69bda9',
+          400: '#3a9e88',
+          500: '#15846d',
+          600: '#0E6E5A',
+          700: '#0B5546',
+          800: '#0a4639',
+          900: '#08382e',
         },
       },
       minHeight: {
