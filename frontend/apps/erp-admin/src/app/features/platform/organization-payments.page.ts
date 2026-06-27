@@ -114,11 +114,13 @@ interface Payment {
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'subPayments.years' | translate }}</label>
-            <input pInputText type="number" min="0" [(ngModel)]="form.years" class="w-full" />
+            <input pInputText type="number" min="0" [(ngModel)]="form.years"
+                   (ngModelChange)="recalcAmount()" class="w-full" />
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'subPayments.months' | translate }}</label>
-            <input pInputText type="number" min="0" [(ngModel)]="form.months" class="w-full" />
+            <input pInputText type="number" min="0" [(ngModel)]="form.months"
+                   (ngModelChange)="recalcAmount()" class="w-full" />
           </div>
         </div>
         @if (submitted() && !durationValid()) {
@@ -133,9 +135,15 @@ interface Payment {
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">{{ 'subPayments.currency' | translate }}</label>
-            <input pInputText [(ngModel)]="form.currency" class="w-full uppercase" maxlength="3" />
+            <input pInputText [(ngModel)]="form.currency" (ngModelChange)="recalcAmount()"
+                   class="w-full uppercase" maxlength="3" />
           </div>
         </div>
+        @if (tariff()) {
+          <small class="block text-gray-500 -mt-1">
+            {{ 'subPayments.tariff' | translate }}: {{ tariffLabel() }}
+          </small>
+        }
         <div>
           <label class="block text-sm font-medium mb-1">{{ 'subPayments.paidAt' | translate }}</label>
           <input pInputText type="date" [(ngModel)]="form.paidAt" class="w-full" />
@@ -171,6 +179,8 @@ export class OrganizationPaymentsPage implements OnInit {
   protected readonly submitted = signal(false);
   protected readonly rows = signal<Payment[]>([]);
   protected readonly fileName = signal<string | null>(null);
+  /** Tenant plan tariff used to pre-fill the amount from the duration. */
+  protected readonly tariff = signal<{ monthlyPrice: number; annualPrice: number | null } | null>(null);
 
   protected dialogOpen = false;
   private file: File | null = null;
@@ -193,6 +203,32 @@ export class OrganizationPaymentsPage implements OnInit {
     return (Number(this.form.years) || 0) + (Number(this.form.months) || 0) > 0;
   }
 
+  /**
+   * Pre-fills the amount from the tenant's plan formula:
+   * years × annualPrice + months × monthlyPrice (annual price falls back to 12 × monthly when absent).
+   * No-op when the plan tariff is unknown or the duration is empty — the field stays editable.
+   */
+  protected recalcAmount(): void {
+    const t = this.tariff();
+    if (!t) return;
+    const y = Number(this.form.years) || 0;
+    const m = Number(this.form.months) || 0;
+    if (y + m <= 0) return;
+    const yearPrice = t.annualPrice ?? t.monthlyPrice * 12;
+    this.form.amount = y * yearPrice + m * t.monthlyPrice;
+  }
+
+  /** Human label of the tenant's tariff, e.g. "1000 MRU/mois · 10000 MRU/an". */
+  protected tariffLabel(): string {
+    const t = this.tariff();
+    if (!t) return '';
+    const cur = this.form.currency || '';
+    const perMonth = `${t.monthlyPrice} ${cur}${this.t('subPayments.perMonth')}`;
+    return t.annualPrice != null
+      ? `${perMonth} · ${t.annualPrice} ${cur}${this.t('subPayments.perYear')}`
+      : perMonth;
+  }
+
   protected onFile(e: Event): void {
     const f = (e.target as HTMLInputElement).files?.[0] ?? null;
     this.file = f;
@@ -206,13 +242,29 @@ export class OrganizationPaymentsPage implements OnInit {
   private async loadOrg(): Promise<void> {
     try {
       const org = await firstValueFrom(
-        this.http.get<{ name: string; code: string; currency: string }>(`/api/v1/organizations/${this.orgId}`),
+        this.http.get<{ name: string; code: string; currency: string; planCode: string | null }>(
+          `/api/v1/organizations/${this.orgId}`,
+        ),
       );
       this.orgName.set(org?.name ?? null);
       this.orgCode.set(org?.code ?? null);
       if (org?.currency) this.form.currency = org.currency;
+      if (org?.planCode) void this.loadTariff(org.planCode);
     } catch {
       /* header falls back to id */
+    }
+  }
+
+  /** Loads the tenant plan's monthly/annual price (the "formula") used to pre-fill the amount. */
+  private async loadTariff(planCode: string): Promise<void> {
+    try {
+      const plans = await firstValueFrom(
+        this.http.get<{ code: string; monthlyPrice: number; annualPrice: number | null }[]>('/api/v1/plans/all'),
+      );
+      const plan = plans?.find((p) => p.code === planCode) ?? null;
+      this.tariff.set(plan ? { monthlyPrice: plan.monthlyPrice, annualPrice: plan.annualPrice } : null);
+    } catch {
+      this.tariff.set(null);
     }
   }
 
