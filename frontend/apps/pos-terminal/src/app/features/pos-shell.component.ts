@@ -13,9 +13,10 @@ import { LocaleSwitcherComponent } from '@hisaberp/shared-ui';
   imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, TranslateModule, LocaleSwitcherComponent],
   template: `
     <div class="min-h-screen flex flex-col">
-      <header class="bg-primary-700 text-white px-4 h-14 flex items-center justify-between">
+      <header class="bg-[#0E6E5A] text-white px-4 h-14 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <span class="font-bold text-lg">POS</span>
+          <img src="assets/brand/hisab-logo-ondark.svg" alt="HisabERP" class="h-7 w-auto" />
+          <span class="text-[10px] font-bold tracking-widest bg-white/15 rounded px-1.5 py-0.5">POS</span>
           <span class="text-xs opacity-80">{{ user()?.email }}</span>
         </div>
         <div class="flex items-center gap-2">
