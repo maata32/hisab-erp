@@ -43,18 +43,27 @@ spring:
   mail:
     host: ${MAIL_HOST:localhost}
     port: ${MAIL_PORT:1025}
+    # Dev (Mailpit): no auth, no TLS. Prod (e.g. Gmail SMTP): set MAIL_USERNAME/MAIL_PASSWORD and
+    # MAIL_SMTP_AUTH=true, MAIL_SMTP_STARTTLS=true. See .env.example.
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
-          auth: false
+          auth: ${MAIL_SMTP_AUTH:false}
           starttls:
-            enable: false
+            enable: ${MAIL_SMTP_STARTTLS:false}
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       timeout: 2000ms
+      # Redis is used only as a cache, not for Spring Data repositories. Without this, Spring Data
+      # Redis scans every JPA repo at startup and logs an INFO "Could not safely identify store
+      # assignment …" for each. Disabling the scan removes the noise and speeds up boot.
+      repositories:
+        enabled: false
   cache:
     type: redis
     redis:
