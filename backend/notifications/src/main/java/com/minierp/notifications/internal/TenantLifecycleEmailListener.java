@@ -108,36 +108,63 @@ class TenantLifecycleEmailListener {
 
     @ApplicationModuleListener
     public void onPaymentRecorded(SubscriptionPaymentRecordedEvent e) {
-        boolean fr = isFr(e.locale());
+        String lang = lang(e.locale());
+        String org = e.organizationName();
         String amount = e.amount().stripTrailingZeros().toPlainString() + " " + e.currency();
-        String duration = formatDuration(fr, e.years(), e.months());
+        String duration = formatDuration(lang, e.years(), e.months());
         String start = fmtDate(e.periodStart());
         String end = fmtDate(e.periodEnd());
-        String subject = fr ? "Paiement enregistré — " + e.organizationName()
-                            : "Payment recorded — " + e.organizationName();
-        String body = fr
-                ? "Bonjour,\n\nNous confirmons l'enregistrement de votre paiement d'abonnement pour « "
-                    + e.organizationName() + " ».\n\n"
-                    + "Montant : " + amount + "\n"
-                    + "Durée : " + duration + "\n"
-                    + "Période couverte : du " + start + " au " + end + "\n\n"
-                    + "Merci.\n— Mini-ERP"
-                : "Hello,\n\nWe confirm your subscription payment for \"" + e.organizationName() + "\".\n\n"
-                    + "Amount: " + amount + "\n"
-                    + "Duration: " + duration + "\n"
-                    + "Covered period: " + start + " to " + end + "\n\n"
-                    + "Thank you.\n— Mini-ERP";
+        String subject;
+        String body;
+        switch (lang) {
+            case "ar" -> {
+                subject = "تم تسجيل الدفعة — " + org;
+                body = "مرحبًا،\n\nنؤكد تسجيل دفعة اشتراككم لـ « " + org + " ».\n\n"
+                        + "المبلغ: " + amount + "\n"
+                        + "المدة: " + duration + "\n"
+                        + "الفترة المغطّاة: من " + start + " إلى " + end + "\n\n"
+                        + "شكرًا.\n— Mini-ERP";
+            }
+            case "en" -> {
+                subject = "Payment recorded — " + org;
+                body = "Hello,\n\nWe confirm your subscription payment for \"" + org + "\".\n\n"
+                        + "Amount: " + amount + "\n"
+                        + "Duration: " + duration + "\n"
+                        + "Covered period: " + start + " to " + end + "\n\n"
+                        + "Thank you.\n— Mini-ERP";
+            }
+            default -> {
+                subject = "Paiement enregistré — " + org;
+                body = "Bonjour,\n\nNous confirmons l'enregistrement de votre paiement d'abonnement pour « "
+                        + org + " ».\n\n"
+                        + "Montant : " + amount + "\n"
+                        + "Durée : " + duration + "\n"
+                        + "Période couverte : du " + start + " au " + end + "\n\n"
+                        + "Merci.\n— Mini-ERP";
+            }
+        }
         send(e.recipientEmail(), subject, body, "payment");
     }
 
-    private static String formatDuration(boolean fr, int years, int months) {
+    /** Tenant UI language: "ar" | "en" | "fr" (default). */
+    private static String lang(String locale) {
+        if (locale == null || locale.isBlank()) return "fr";
+        String l = locale.toLowerCase();
+        if (l.startsWith("ar")) return "ar";
+        if (l.startsWith("en")) return "en";
+        return "fr";
+    }
+
+    private static String formatDuration(String lang, int years, int months) {
+        String y = switch (lang) { case "ar" -> " سنة"; case "en" -> " year(s)"; default -> " an(s)"; };
+        String m = switch (lang) { case "ar" -> " شهر"; case "en" -> " month(s)"; default -> " mois"; };
         StringBuilder sb = new StringBuilder();
-        if (years > 0) sb.append(years).append(fr ? " an(s)" : " year(s)");
+        if (years > 0) sb.append(years).append(y);
         if (months > 0) {
             if (sb.length() > 0) sb.append(' ');
-            sb.append(months).append(fr ? " mois" : " month(s)");
+            sb.append(months).append(m);
         }
-        return sb.length() == 0 ? (fr ? "0 mois" : "0 months") : sb.toString();
+        return sb.length() == 0 ? "0" + m : sb.toString();
     }
 
     private static String fmtDate(java.time.Instant i) {
