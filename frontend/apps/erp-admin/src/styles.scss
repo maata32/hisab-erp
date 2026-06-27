@@ -64,7 +64,7 @@ html, body { height: 100%; margin: 0; }
 
 /* Improved focus visibility for accessibility */
 :focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid #0B5546;
   outline-offset: 2px;
 }
 
@@ -142,8 +142,8 @@ html, body { height: 100%; margin: 0; }
 }
 .p-checkbox .p-checkbox-box.p-highlight,
 .p-radiobutton .p-radiobutton-box.p-highlight {
-  border-color: #2563eb;
-  background-color: #2563eb;
+  border-color: #0B5546;
+  background-color: #0B5546;
 }
 .p-inputswitch .p-inputswitch-slider {
   border: 1px solid #d1d5db;
@@ -168,8 +168,8 @@ html, body { height: 100%; margin: 0; }
   color: #6b7280;
 }
 .p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
-  border-color: #3b82f6;
-  color: #3b82f6;
+  border-color: #0E6E5A;
+  color: #0E6E5A;
 }
 
 /* ── PrimeNG button fills ──────────────────────────────────────────────────
@@ -182,13 +182,13 @@ $filled: ":not(.p-button-text):not(.p-button-outlined):not(.p-button-link)";
 $primary: "#{$filled}:not(.p-button-secondary):not(.p-button-success):not(.p-button-info):not(.p-button-warning):not(.p-button-help):not(.p-button-danger)";
 
 .p-button#{$primary} {
-  background: #3b82f6;
-  border: 1px solid #3b82f6;
+  background: #0E6E5A;
+  border: 1px solid #0E6E5A;
   color: #ffffff;
 }
 .p-button#{$primary}:not(:disabled):hover {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: #0B5546;
+  border-color: #0B5546;
 }
 
 /* Filled severity variants (base + hover). */
@@ -207,8 +207,8 @@ $primary: "#{$filled}:not(.p-button-secondary):not(.p-button-success):not(.p-but
 
 /* Outlined variants: preflight also strips their border (and the themed text colour),
    leaving them looking like plain text. Re-assert border + colour (background stays clear). */
-.p-button.p-button-outlined { background: transparent; border: 1px solid #3b82f6; color: #3b82f6; }
-.p-button.p-button-outlined:not(:disabled):hover { background: rgba(59, 130, 246, 0.04); }
+.p-button.p-button-outlined { background: transparent; border: 1px solid #0E6E5A; color: #0E6E5A; }
+.p-button.p-button-outlined:not(:disabled):hover { background: rgba(14, 110, 90, 0.04); }
 .p-button.p-button-outlined.p-button-secondary { border-color: #64748b; color: #64748b; }
 .p-button.p-button-outlined.p-button-success   { border-color: #22c55e; color: #22c55e; }
 .p-button.p-button-outlined.p-button-info      { border-color: #0ea5e9; color: #0ea5e9; }

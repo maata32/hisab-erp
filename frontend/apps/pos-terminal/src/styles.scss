@@ -45,7 +45,7 @@ html, body { height: 100%; margin: 0; overscroll-behavior: none; }
 
 .btn-touch { min-width: 44px; min-height: 44px; }
 
-:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+:focus-visible { outline: 2px solid #0B5546; outline-offset: 2px; }
 
 /* Tailwind preflight resets border-width to 0 on `*`; re-assert PrimeNG form-control borders. */
 .p-inputtext,
@@ -65,8 +65,8 @@ html, body { height: 100%; margin: 0; overscroll-behavior: none; }
 }
 .p-checkbox .p-checkbox-box.p-highlight,
 .p-radiobutton .p-radiobutton-box.p-highlight {
-  border-color: #2563eb;
-  background-color: #2563eb;
+  border-color: #0B5546;
+  background-color: #0B5546;
 }
 
 /* Keep icon and label tight together — override PrimeNG's flex-grow on label
@@ -84,8 +84,8 @@ html, body { height: 100%; margin: 0; overscroll-behavior: none; }
 $filled: ":not(.p-button-text):not(.p-button-outlined):not(.p-button-link)";
 $primary: "#{$filled}:not(.p-button-secondary):not(.p-button-success):not(.p-button-info):not(.p-button-warning):not(.p-button-help):not(.p-button-danger)";
 
-.p-button#{$primary} { background: #3b82f6; border: 1px solid #3b82f6; color: #ffffff; }
-.p-button#{$primary}:not(:disabled):hover { background: #2563eb; border-color: #2563eb; }
+.p-button#{$primary} { background: #0E6E5A; border: 1px solid #0E6E5A; color: #ffffff; }
+.p-button#{$primary}:not(:disabled):hover { background: #0B5546; border-color: #0B5546; }
 .p-button.p-button-secondary#{$filled} { background: #64748b; border: 1px solid #64748b; color: #fff; }
 .p-button.p-button-secondary#{$filled}:not(:disabled):hover { background: #475569; border-color: #475569; }
 .p-button.p-button-success#{$filled}   { background: #22c55e; border: 1px solid #22c55e; color: #fff; }
@@ -100,8 +100,8 @@ $primary: "#{$filled}:not(.p-button-secondary):not(.p-button-success):not(.p-but
 .p-button.p-button-danger#{$filled}:not(:disabled):hover    { background: #dc2626; border-color: #dc2626; }
 
 /* Outlined variants: preflight strips their border + themed colour. Re-assert both. */
-.p-button.p-button-outlined { background: transparent; border: 1px solid #3b82f6; color: #3b82f6; }
-.p-button.p-button-outlined:not(:disabled):hover { background: rgba(59, 130, 246, 0.04); }
+.p-button.p-button-outlined { background: transparent; border: 1px solid #0E6E5A; color: #0E6E5A; }
+.p-button.p-button-outlined:not(:disabled):hover { background: rgba(14, 110, 90, 0.04); }
 .p-button.p-button-outlined.p-button-secondary { border-color: #64748b; color: #64748b; }
 .p-button.p-button-outlined.p-button-success   { border-color: #22c55e; color: #22c55e; }
 .p-button.p-button-outlined.p-button-info      { border-color: #0ea5e9; color: #0ea5e9; }
