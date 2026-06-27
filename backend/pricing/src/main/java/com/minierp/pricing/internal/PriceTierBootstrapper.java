@@ -13,6 +13,9 @@ import java.util.Map;
 /**
  * Seeds the default price tiers for a new tenant. RETAIL is default, WHOLESALE is
  * disabled until a customer is assigned to it.
+ *
+ * The stored {@code name} is a French fallback; the admin UI localizes these built-in
+ * codes (fr/ar/en) by code (see {@code priceTiers.label.*}).
  */
 @Component
 @RequiredArgsConstructor
@@ -22,9 +25,9 @@ class PriceTierBootstrapper {
     private final PriceTierRepository tiers;
 
     private static final List<Map.Entry<String, String>> DEFAULT_TIERS = List.of(
-            Map.entry("RETAIL", "Retail / Walk-in"),
-            Map.entry("WHOLESALE", "Wholesale"),
-            Map.entry("VIP", "VIP / Loyalty")
+            Map.entry("RETAIL", "Détail / Comptoir"),
+            Map.entry("WHOLESALE", "Gros"),
+            Map.entry("VIP", "VIP / Fidélité")
     );
 
     @ApplicationModuleListener

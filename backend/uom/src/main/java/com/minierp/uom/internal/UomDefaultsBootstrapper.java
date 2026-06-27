@@ -14,8 +14,10 @@ import java.util.List;
  * Seeds the default UoM categories and units for a freshly created tenant.
  * Listens asynchronously to {@link OrganizationCreatedEvent}.
  *
- * Defaults cover Mauritanian boutique/wholesale needs: count, mass, volume, length, area.
- * Tenants can extend or replace these via {@code POST /api/v1/uoms}.
+ * Defaults cover Mauritanian boutique/wholesale needs: count, length, mass, volume.
+ * The stored {@code name} is a French fallback; the admin UI localizes these built-in
+ * codes (fr/ar/en) by code, so renaming is optional. Tenants can extend or replace
+ * these via {@code POST /api/v1/uoms}.
  */
 @Component
 @RequiredArgsConstructor
@@ -29,32 +31,25 @@ class UomDefaultsBootstrapper {
     private record SeedCategory(String code, String name, List<SeedUom> units) {}
 
     private static final List<SeedCategory> SEED = List.of(
-            new SeedCategory("COUNT", "Count / Pieces", List.of(
-                    new SeedUom("PCE", "Piece", BigDecimal.ONE, true, 0),
-                    new SeedUom("DOZ", "Dozen", new BigDecimal("12"), false, 0),
-                    new SeedUom("CTN_6", "Carton of 6", new BigDecimal("6"), false, 0),
-                    new SeedUom("CTN_12", "Carton of 12", new BigDecimal("12"), false, 0),
-                    new SeedUom("CTN_24", "Carton of 24", new BigDecimal("24"), false, 0)
+            new SeedCategory("COUNT", "Comptage / Pièces", List.of(
+                    new SeedUom("PCE", "Pièce", BigDecimal.ONE, true, 0),
+                    new SeedUom("DOZ", "Douzaine", new BigDecimal("12"), false, 0),
+                    new SeedUom("CTN_6", "Carton de 6", new BigDecimal("6"), false, 0),
+                    new SeedUom("CTN_12", "Carton de 12", new BigDecimal("12"), false, 0),
+                    new SeedUom("CTN_24", "Carton de 24", new BigDecimal("24"), false, 0)
             )),
-            new SeedCategory("MASS", "Mass", List.of(
-                    new SeedUom("G", "Gram", BigDecimal.ONE, true, 0),
-                    new SeedUom("KG", "Kilogram", new BigDecimal("1000"), false, 3),
-                    new SeedUom("T", "Tonne", new BigDecimal("1000000"), false, 3),
-                    new SeedUom("LB", "Pound", new BigDecimal("453.592"), false, 3)
+            new SeedCategory("LENGTH", "Longueur", List.of(
+                    new SeedUom("M", "Mètre", BigDecimal.ONE, true, 2),
+                    new SeedUom("CM", "Centimètre", new BigDecimal("0.01"), false, 0),
+                    new SeedUom("KM", "Kilomètre", new BigDecimal("1000"), false, 3)
+            )),
+            new SeedCategory("MASS", "Masse", List.of(
+                    new SeedUom("KG", "Kilogramme", BigDecimal.ONE, true, 3),
+                    new SeedUom("G", "Gramme", new BigDecimal("0.001"), false, 0),
+                    new SeedUom("T", "Tonne", new BigDecimal("1000"), false, 3)
             )),
             new SeedCategory("VOLUME", "Volume", List.of(
-                    new SeedUom("ML", "Milliliter", BigDecimal.ONE, true, 0),
-                    new SeedUom("CL", "Centiliter", new BigDecimal("10"), false, 2),
-                    new SeedUom("L", "Liter", new BigDecimal("1000"), false, 3)
-            )),
-            new SeedCategory("LENGTH", "Length", List.of(
-                    new SeedUom("CM", "Centimeter", BigDecimal.ONE, true, 1),
-                    new SeedUom("M", "Meter", new BigDecimal("100"), false, 2),
-                    new SeedUom("KM", "Kilometer", new BigDecimal("100000"), false, 3)
-            )),
-            new SeedCategory("AREA", "Area", List.of(
-                    new SeedUom("M2", "Square meter", BigDecimal.ONE, true, 2),
-                    new SeedUom("HA", "Hectare", new BigDecimal("10000"), false, 4)
+                    new SeedUom("L", "Litre", BigDecimal.ONE, true, 3)
             ))
     );
 

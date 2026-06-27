@@ -1,7 +1,9 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { MasterDataNamePipe } from '@minierp/shared-i18n';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { AUTH_SERVICE } from '@minierp/shared-auth';
@@ -32,7 +34,7 @@ interface ConvGroup { label: string; items: { label: string; value: string }[]; 
   imports: [
     CommonModule, FormsModule, TranslateModule, TableModule, TagModule, TabViewModule,
     ButtonModule, InputTextModule, DialogModule, InputNumberModule, CheckboxModule,
-    DropdownModule, TooltipModule, ToastModule,
+    DropdownModule, TooltipModule, ToastModule, MasterDataNamePipe,
   ],
   providers: [MessageService],
   template: `
@@ -69,14 +71,14 @@ interface ConvGroup { label: string; items: { label: string; value: string }[]; 
               <ng-template pTemplate="groupheader" let-u>
                 <tr pRowGroupHeader>
                   <td colspan="6" class="font-semibold text-gray-700 bg-gray-50">
-                    {{ u.categoryCode }}
+                    {{ u.categoryCode | mdName:'uoms.cat':u.categoryCode }}
                   </td>
                 </tr>
               </ng-template>
               <ng-template pTemplate="body" let-u>
                 <tr>
                   <td><span class="font-mono text-sm">{{ u.code }}</span></td>
-                  <td class="font-medium">{{ u.name }}</td>
+                  <td class="font-medium">{{ u.code | mdName:'uoms.unit':u.name }}</td>
                   <td class="text-right">{{ u.ratioToBase | number:'1.0-6' }}</td>
                   <td class="text-right">{{ u.decimalPlaces }}</td>
                   <td>
@@ -127,7 +129,7 @@ interface ConvGroup { label: string; items: { label: string; value: string }[]; 
               <ng-template pTemplate="body" let-c>
                 <tr>
                   <td><span class="font-mono text-sm">{{ c.code }}</span></td>
-                  <td class="font-medium">{{ c.name }}</td>
+                  <td class="font-medium">{{ c.code | mdName:'uoms.cat':c.name }}</td>
                   <td class="whitespace-nowrap text-right">
                     @if (canUpdate) {
                       <button pButton icon="pi pi-pencil" class="p-button-sm p-button-text"
@@ -313,19 +315,31 @@ export class UomListPage implements OnInit {
       (a.categoryCode ?? '').localeCompare(b.categoryCode ?? '') ||
       a.ratioToBase - b.ratioToBase));
 
+  // tracks the active language so the localized labels below recompute on switch
+  private readonly lang = toSignal(this.i18n.onLangChange);
+
   protected convOptions = computed<ConvGroup[]>(() => {
+    this.lang();
     const byCat = new Map<string, ConvGroup>();
     for (const u of this.groupedUoms()) {
-      const key = u.categoryCode ?? '—';
-      let group = byCat.get(key);
+      const code = u.categoryCode ?? '—';
+      let group = byCat.get(code);
       if (!group) {
-        group = { label: key, items: [] };
-        byCat.set(key, group);
+        group = { label: this.tr('uoms.cat', u.categoryCode, code), items: [] };
+        byCat.set(code, group);
       }
-      group.items.push({ label: `${u.code} — ${u.name}`, value: u.id });
+      group.items.push({ label: `${u.code} — ${this.tr('uoms.unit', u.code, u.name)}`, value: u.id });
     }
     return [...byCat.values()];
   });
+
+  // localizes a built-in UoM code; falls back to the stored name for custom records
+  private tr(prefix: string, code: string | null | undefined, fallback: string): string {
+    if (!code) return fallback;
+    const key = `${prefix}.${code}`;
+    const val = this.i18n.instant(key);
+    return val === key ? fallback : val;
+  }
 
   // Unit dialog state
   protected unitDialogOpen = false;
