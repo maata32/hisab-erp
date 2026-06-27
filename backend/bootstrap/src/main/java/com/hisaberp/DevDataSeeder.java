@@ -95,6 +95,12 @@ public class DevDataSeeder implements ApplicationRunner {
     private void upsertUser(UUID orgId, String email, String name, String password, String roleCode, boolean superAdmin) {
         try {
             TenantContext.set(orgId);
+            // Pin the DB session tenant so the RLS WITH CHECK on `users` matches this org.
+            // Without this, a tenant left set by earlier seeding (e.g. ensurePhase1aData)
+            // leaks onto the pooled connection and rejects inserts for a different org
+            // (e.g. the platform super-admin homed in the reserved platform org).
+            jdbc.queryForObject("SELECT set_config('app.current_tenant', ?, false)",
+                    String.class, orgId.toString());
             Integer exists = jdbc.queryForObject(
                     "SELECT COUNT(*) FROM users WHERE tenant_id = ? AND email = ?",
                     Integer.class, orgId, email);
@@ -200,15 +206,33 @@ public class DevDataSeeder implements ApplicationRunner {
 
     private UUID ensureProduct(UUID orgId, String sku, String name, UUID baseUomId, UUID categoryId) {
         UUID id = queryId("SELECT id FROM products WHERE tenant_id = ? AND sku = ?", orgId, sku);
+        if (id == null) {
+            id = UUID.randomUUID();
+            jdbc.update("""
+                    INSERT INTO products (id, tenant_id, sku, name, category_id, base_uom_id,
+                                          default_tax_rate, tracks_lots, tracks_serial,
+                                          is_sellable, is_purchasable, is_active,
+                                          created_at, updated_at, version)
+                    VALUES (?, ?, ?, ?, ?, ?, 0.00, false, false, true, true, true, now(), now(), 0)
+                    """, id, orgId, sku, name, categoryId, baseUomId);
+        }
+        // Every product needs at least one variant (variant = SKU); prices/stock/lines key off it.
+        ensureDefaultVariant(orgId, id, sku);
+        return id;
+    }
+
+    private UUID ensureDefaultVariant(UUID orgId, UUID productId, String sku) {
+        UUID id = queryId("""
+                SELECT id FROM product_variants
+                WHERE tenant_id = ? AND product_id = ? AND is_default = true
+                """, orgId, productId);
         if (id != null) return id;
         id = UUID.randomUUID();
         jdbc.update("""
-                INSERT INTO products (id, tenant_id, sku, name, category_id, base_uom_id,
-                                      default_tax_rate, tracks_lots, tracks_serial,
-                                      is_sellable, is_purchasable, is_active,
-                                      created_at, updated_at, version)
-                VALUES (?, ?, ?, ?, ?, ?, 0.00, false, false, true, true, true, now(), now(), 0)
-                """, id, orgId, sku, name, categoryId, baseUomId);
+                INSERT INTO product_variants (id, tenant_id, product_id, sku, is_default,
+                                              is_active, created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, true, true, now(), now(), 0)
+                """, id, orgId, productId, sku);
         return id;
     }
 
@@ -231,12 +255,16 @@ public class DevDataSeeder implements ApplicationRunner {
                   AND price_tier_id = ? AND valid_from = '2000-01-01'
                 """, Integer.class, orgId, productId, uomId, tierId);
         if (n != null && n > 0) return;
+        UUID variantId = queryId("""
+                SELECT id FROM product_variants
+                WHERE tenant_id = ? AND product_id = ? AND is_default = true
+                """, orgId, productId);
         jdbc.update("""
-                INSERT INTO product_prices (id, tenant_id, product_id, uom_id, price_tier_id,
+                INSERT INTO product_prices (id, tenant_id, product_id, variant_id, uom_id, price_tier_id,
                                             amount, currency, tax_inclusive, valid_from,
                                             created_at, updated_at, version)
-                VALUES (uuid_generate_v4(), ?, ?, ?, ?, ?, 'MRU', false, '2000-01-01', now(), now(), 0)
-                """, orgId, productId, uomId, tierId, amount);
+                VALUES (uuid_generate_v4(), ?, ?, ?, ?, ?, ?, 'MRU', false, '2000-01-01', now(), now(), 0)
+                """, orgId, productId, variantId, uomId, tierId, amount);
     }
 
     private UUID ensureWarehouse(UUID orgId, String code, String name) {
