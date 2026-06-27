@@ -246,6 +246,37 @@ public class OrganizationService implements OrganizationApi {
         events.publishEvent(audit(o, "ORG_REACTIVATED", Map.of()));
     }
 
+    /**
+     * Records a paid period of {@code years + months}: extends the subscription window from the
+     * later of now / the current period end, and sets the tenant ACTIVE. Returns the covered window.
+     */
+    @Transactional
+    @CacheEvict(value = {"tenants:byCode", "tenants:byId", "tenants:branding", "tenants:limits"}, allEntries = true)
+    public PaidPeriod applyPaidPeriod(UUID id, int years, int months) {
+        Organization o = load(id);
+        long days = (long) years * 365 + (long) months * 30;
+        if (days <= 0) {
+            throw new ValidationException("subscription_payment.invalid_duration", Map.of());
+        }
+        Instant now = Instant.now();
+        Subscription existing = subscriptions.findByOrganizationId(id).orElse(null);
+        Instant currentEnd = existing != null ? existing.getPeriodEnd() : null;
+        Instant base = (currentEnd != null && currentEnd.isAfter(now)) ? currentEnd : now;
+        Instant end = base.plus(days, ChronoUnit.DAYS);
+        UUID planId = (existing != null && existing.getPlanId() != null)
+                ? existing.getPlanId() : o.getSubscriptionPlanId();
+
+        OrganizationStatus old = o.getStatus();
+        o.setStatus(OrganizationStatus.ACTIVE);
+        o.setPastDueSince(null);
+        subscriptionService.extendTo(id, planId, base, end);
+        publishStatusChange(o, old, "payment");
+        events.publishEvent(audit(o, "ORG_PAYMENT_RECORDED", Map.of("years", years, "months", months)));
+        return new PaidPeriod(base, end);
+    }
+
+    public record PaidPeriod(Instant start, Instant end) {}
+
     @Transactional
     @CacheEvict(value = {"tenants:byCode", "tenants:byId", "tenants:branding", "tenants:limits"}, allEntries = true)
     public void archive(UUID id, String reason) {

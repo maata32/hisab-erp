@@ -172,6 +172,25 @@
     "empty": "لا توجد أنواع",
     "confirmDelete": "حذف النوع «{{label}}»؟"
   },
+  "subPayments": {
+    "title": "مدفوعات الاشتراك",
+    "subtitle": "سجل المدفوعات (يمدّد الاشتراك)",
+    "record": "تسجيل دفعة",
+    "paidAt": "تاريخ الدفع",
+    "duration": "المدة",
+    "amount": "المبلغ",
+    "currency": "العملة",
+    "period": "الفترة المغطّاة",
+    "justification": "إثبات",
+    "view": "عرض الإثبات",
+    "empty": "لا توجد مدفوعات",
+    "years": "سنوات",
+    "months": "أشهر",
+    "file": "إثبات (لقطة شاشة للدفع)",
+    "fileHint": "صورة أو PDF.",
+    "durationRequired": "أدخل شهرًا واحدًا أو سنة على الأقل.",
+    "unit": { "years": "سنة", "months": "شهر" }
+  },
   "platform": {
     "login": {
       "title": "تسجيل دخول المنصة",

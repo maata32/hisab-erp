@@ -57,6 +57,18 @@ class SubscriptionService {
         subscriptions.save(sub);
     }
 
+    /** Sets the paid subscription window explicitly (used when recording a payment that extends access). */
+    void extendTo(UUID organizationId, UUID planId, Instant periodStart, Instant periodEnd) {
+        Subscription sub = subscriptions.findByOrganizationId(organizationId).orElseGet(Subscription::new);
+        sub.setOrganizationId(organizationId);
+        if (sub.getPlanId() == null) sub.setPlanId(planId);
+        sub.setStatus(SubscriptionStatus.ACTIVE);
+        sub.setPeriodStart(periodStart);
+        sub.setPeriodEnd(periodEnd);
+        sub.setNextBillingDate(periodEnd);
+        subscriptions.save(sub);
+    }
+
     /** Mirrors a tenant status change onto its subscription (e.g. PAST_DUE, SUSPENDED). */
     void markStatus(UUID organizationId, SubscriptionStatus status) {
         subscriptions.findByOrganizationId(organizationId).ifPresent(s -> s.setStatus(status));
