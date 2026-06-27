@@ -42,6 +42,13 @@ export const appRoutes: Routes = [
           import('./features/platform/organization-users.page').then((m) => m.OrganizationUsersPage),
       },
       {
+        // Platform console drill-down: a tenant's subscription payment ledger.
+        path: 'organizations/:id/payments',
+        canActivate: [roleGuard('SUPER_ADMIN')],
+        loadComponent: () =>
+          import('./features/platform/organization-payments.page').then((m) => m.OrganizationPaymentsPage),
+      },
+      {
         // Configurable organization types (super-admin).
         path: 'organization-types',
         canActivate: [roleGuard('SUPER_ADMIN')],

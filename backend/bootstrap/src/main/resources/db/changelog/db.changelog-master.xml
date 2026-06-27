@@ -88,5 +88,6 @@
     <include file="db/changelog/0081-product-price-minqty-unique.xml"/>
     <include file="db/changelog/0082-refresh-token-platform-flag.xml"/>
     <include file="db/changelog/0083-organization-types.xml"/>
+    <include file="db/changelog/0084-subscription-payments.xml"/>
 
 </databaseChangeLog>

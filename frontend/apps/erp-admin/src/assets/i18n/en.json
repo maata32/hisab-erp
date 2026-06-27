@@ -172,6 +172,25 @@
     "empty": "No types",
     "confirmDelete": "Delete type \"{{label}}\"?"
   },
+  "subPayments": {
+    "title": "Subscription payments",
+    "subtitle": "Payment ledger (extends the subscription)",
+    "record": "Record a payment",
+    "paidAt": "Payment date",
+    "duration": "Duration",
+    "amount": "Amount",
+    "currency": "Currency",
+    "period": "Covered period",
+    "justification": "Proof",
+    "view": "View proof",
+    "empty": "No payments",
+    "years": "Years",
+    "months": "Months",
+    "file": "Proof (payment screenshot)",
+    "fileHint": "Image or PDF.",
+    "durationRequired": "Enter at least 1 month or 1 year.",
+    "unit": { "years": "yr", "months": "mo" }
+  },
   "platform": {
     "login": {
       "title": "Platform sign in",

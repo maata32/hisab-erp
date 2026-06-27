@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Subscription payment ledger (super-admin). Each row records a payment received from a
+      tenant for its subscription: paid duration (years + months), amount, payment date and an
+      optional justification file (MinIO URL). Recording a payment extends the tenant's
+      subscription period and sets it ACTIVE. Global table (no tenant_id / no RLS) like
+      organizations and subscription_plans.
+    -->
+    <changeSet id="0084-subscription-payments" author="mini-erp">
+        <createTable tableName="subscription_payments">
+            <column name="id" type="uuid" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="uuid">
+                <constraints nullable="false" foreignKeyName="fk_subscription_payments_org"
+                             referencedTableName="organizations" referencedColumnNames="id"/>
+            </column>
+            <column name="years" type="int" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="months" type="int" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="amount" type="numeric(15,2)"><constraints nullable="false"/></column>
+            <column name="currency" type="varchar(3)"><constraints nullable="false"/></column>
+            <column name="paid_at" type="date"><constraints nullable="false"/></column>
+            <column name="period_start" type="timestamptz"><constraints nullable="false"/></column>
+            <column name="period_end" type="timestamptz"><constraints nullable="false"/></column>
+            <column name="attachment_url" type="varchar(1000)"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="created_by" type="uuid"/>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_by" type="uuid"/>
+            <column name="version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="subscription_payments" indexName="idx_subscription_payments_org">
+            <column name="organization_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="subscription_payments"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

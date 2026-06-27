@@ -102,6 +102,9 @@ interface Plan {
                 <button pButton icon="pi pi-users" class="p-button-sm p-button-text"
                         [pTooltip]="'platform.users.view' | translate"
                         [routerLink]="['/organizations', row.id, 'users']"></button>
+                <button pButton icon="pi pi-wallet" class="p-button-sm p-button-text"
+                        [pTooltip]="'subPayments.title' | translate"
+                        [routerLink]="['/organizations', row.id, 'payments']"></button>
                 @if (row.status === 'PENDING') {
                   <button pButton icon="pi pi-check" class="p-button-sm p-button-success p-button-text"
                           [pTooltip]="'organizations.actions.approve' | translate"
