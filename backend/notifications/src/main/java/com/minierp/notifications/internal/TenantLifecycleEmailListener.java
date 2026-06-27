@@ -3,6 +3,7 @@ package com.minierp.notifications.internal;
 import com.minierp.notifications.api.EmailSender;
 import com.minierp.tenant.events.TenantApprovedEvent;
 import com.minierp.tenant.events.TenantRegisteredEvent;
+import com.minierp.tenant.events.SubscriptionPaymentRecordedEvent;
 import com.minierp.tenant.events.TenantRejectedEvent;
 import com.minierp.tenant.events.TenantSuspendedEvent;
 import com.minierp.tenant.events.TenantTrialExpiringEvent;
@@ -103,6 +104,44 @@ class TenantLifecycleEmailListener {
                 : "Hello,\n\nAccess to \"" + e.organizationName() + "\" has been suspended. "
                     + "Contact us or renew your subscription to reactivate it.\n\n— Mini-ERP";
         send(e.recipientEmail(), subject, body, "suspension");
+    }
+
+    @ApplicationModuleListener
+    public void onPaymentRecorded(SubscriptionPaymentRecordedEvent e) {
+        boolean fr = isFr(e.locale());
+        String amount = e.amount().stripTrailingZeros().toPlainString() + " " + e.currency();
+        String duration = formatDuration(fr, e.years(), e.months());
+        String start = fmtDate(e.periodStart());
+        String end = fmtDate(e.periodEnd());
+        String subject = fr ? "Paiement enregistré — " + e.organizationName()
+                            : "Payment recorded — " + e.organizationName();
+        String body = fr
+                ? "Bonjour,\n\nNous confirmons l'enregistrement de votre paiement d'abonnement pour « "
+                    + e.organizationName() + " ».\n\n"
+                    + "Montant : " + amount + "\n"
+                    + "Durée : " + duration + "\n"
+                    + "Période couverte : du " + start + " au " + end + "\n\n"
+                    + "Merci.\n— Mini-ERP"
+                : "Hello,\n\nWe confirm your subscription payment for \"" + e.organizationName() + "\".\n\n"
+                    + "Amount: " + amount + "\n"
+                    + "Duration: " + duration + "\n"
+                    + "Covered period: " + start + " to " + end + "\n\n"
+                    + "Thank you.\n— Mini-ERP";
+        send(e.recipientEmail(), subject, body, "payment");
+    }
+
+    private static String formatDuration(boolean fr, int years, int months) {
+        StringBuilder sb = new StringBuilder();
+        if (years > 0) sb.append(years).append(fr ? " an(s)" : " year(s)");
+        if (months > 0) {
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(months).append(fr ? " mois" : " month(s)");
+        }
+        return sb.length() == 0 ? (fr ? "0 mois" : "0 months") : sb.toString();
+    }
+
+    private static String fmtDate(java.time.Instant i) {
+        return i.atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString();
     }
 
     private void send(String to, String subject, String body, String kind) {

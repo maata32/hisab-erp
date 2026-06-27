@@ -3,12 +3,15 @@ package com.minierp.tenant.internal;
 import com.minierp.shared.error.NotFoundException;
 import com.minierp.shared.error.ValidationException;
 import com.minierp.tenant.api.SubscriptionPaymentDto;
+import com.minierp.tenant.events.SubscriptionPaymentRecordedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +30,7 @@ public class SubscriptionPaymentService {
     private final OrganizationRepository orgs;
     private final OrganizationService organizationService;
     private final PaymentAttachmentStorageService storage;
+    private final ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
     public List<SubscriptionPaymentDto> list(UUID organizationId) {
@@ -59,7 +63,13 @@ public class SubscriptionPaymentService {
                 .periodEnd(period.end())
                 .attachmentUrl(attachmentUrl)
                 .build();
-        return toDto(payments.save(p));
+        SubscriptionPayment saved = payments.save(p);
+
+        events.publishEvent(new SubscriptionPaymentRecordedEvent(
+                organizationId, o.getCode(), o.getName(), o.getEmail(), o.getName(), o.getLocale(),
+                years, months, saved.getAmount(), saved.getCurrency(),
+                saved.getPeriodStart(), saved.getPeriodEnd(), Instant.now()));
+        return toDto(saved);
     }
 
     private SubscriptionPaymentDto toDto(SubscriptionPayment p) {
