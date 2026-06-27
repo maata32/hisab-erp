@@ -142,7 +142,7 @@ export class LoginPage {
   protected readonly errorMessage = signal<string | null>(null);
 
   protected readonly form = this.fb.nonNullable.group({
-    tenantCode: ['demo', Validators.required],
+    tenantCode: ['', Validators.required],
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(1)]],
   });
