@@ -205,6 +205,17 @@ $primary: "#{$filled}:not(.p-button-secondary):not(.p-button-success):not(.p-but
 .p-button.p-button-danger#{$filled}    { background: #ef4444; border: 1px solid #ef4444; color: #fff; }
 .p-button.p-button-danger#{$filled}:not(:disabled):hover    { background: #dc2626; border-color: #dc2626; }
 
+/* Outlined variants: preflight also strips their border (and the themed text colour),
+   leaving them looking like plain text. Re-assert border + colour (background stays clear). */
+.p-button.p-button-outlined { background: transparent; border: 1px solid #3b82f6; color: #3b82f6; }
+.p-button.p-button-outlined:not(:disabled):hover { background: rgba(59, 130, 246, 0.04); }
+.p-button.p-button-outlined.p-button-secondary { border-color: #64748b; color: #64748b; }
+.p-button.p-button-outlined.p-button-success   { border-color: #22c55e; color: #22c55e; }
+.p-button.p-button-outlined.p-button-info      { border-color: #0ea5e9; color: #0ea5e9; }
+.p-button.p-button-outlined.p-button-warning   { border-color: #f97316; color: #f97316; }
+.p-button.p-button-outlined.p-button-help      { border-color: #a855f7; color: #a855f7; }
+.p-button.p-button-outlined.p-button-danger    { border-color: #ef4444; color: #ef4444; }
+
 /* Settings "Enregistrer" buttons are full-width; keep icon + label centered together
    (otherwise the label flex-grows and shoves the icon to the far left). */
 .settings-save-btn .p-button-label {

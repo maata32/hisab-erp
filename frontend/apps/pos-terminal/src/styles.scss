@@ -41,6 +41,37 @@ html, body { height: 100%; margin: 0; overscroll-behavior: none; }
 [dir='rtl'] .p-button .p-button-icon-left { margin-right: 0; margin-left: 0.4rem; }
 [dir='rtl'] .p-button .p-button-icon-right { margin-left: 0; margin-right: 0.4rem; }
 
+/* Tailwind preflight resets `button { background-color: transparent }`, flattening
+   PrimeNG's filled buttons into borderless text. Re-assert the lara fills (loaded last
+   → wins). Text / outlined / link variants intentionally stay transparent. */
+$filled: ":not(.p-button-text):not(.p-button-outlined):not(.p-button-link)";
+$primary: "#{$filled}:not(.p-button-secondary):not(.p-button-success):not(.p-button-info):not(.p-button-warning):not(.p-button-help):not(.p-button-danger)";
+
+.p-button#{$primary} { background: #3b82f6; border: 1px solid #3b82f6; color: #ffffff; }
+.p-button#{$primary}:not(:disabled):hover { background: #2563eb; border-color: #2563eb; }
+.p-button.p-button-secondary#{$filled} { background: #64748b; border: 1px solid #64748b; color: #fff; }
+.p-button.p-button-secondary#{$filled}:not(:disabled):hover { background: #475569; border-color: #475569; }
+.p-button.p-button-success#{$filled}   { background: #22c55e; border: 1px solid #22c55e; color: #fff; }
+.p-button.p-button-success#{$filled}:not(:disabled):hover   { background: #16a34a; border-color: #16a34a; }
+.p-button.p-button-info#{$filled}      { background: #0ea5e9; border: 1px solid #0ea5e9; color: #fff; }
+.p-button.p-button-info#{$filled}:not(:disabled):hover      { background: #0284c7; border-color: #0284c7; }
+.p-button.p-button-warning#{$filled}   { background: #f97316; border: 1px solid #f97316; color: #fff; }
+.p-button.p-button-warning#{$filled}:not(:disabled):hover   { background: #ea580c; border-color: #ea580c; }
+.p-button.p-button-help#{$filled}      { background: #a855f7; border: 1px solid #a855f7; color: #fff; }
+.p-button.p-button-help#{$filled}:not(:disabled):hover      { background: #9333ea; border-color: #9333ea; }
+.p-button.p-button-danger#{$filled}    { background: #ef4444; border: 1px solid #ef4444; color: #fff; }
+.p-button.p-button-danger#{$filled}:not(:disabled):hover    { background: #dc2626; border-color: #dc2626; }
+
+/* Outlined variants: preflight strips their border + themed colour. Re-assert both. */
+.p-button.p-button-outlined { background: transparent; border: 1px solid #3b82f6; color: #3b82f6; }
+.p-button.p-button-outlined:not(:disabled):hover { background: rgba(59, 130, 246, 0.04); }
+.p-button.p-button-outlined.p-button-secondary { border-color: #64748b; color: #64748b; }
+.p-button.p-button-outlined.p-button-success   { border-color: #22c55e; color: #22c55e; }
+.p-button.p-button-outlined.p-button-info      { border-color: #0ea5e9; color: #0ea5e9; }
+.p-button.p-button-outlined.p-button-warning   { border-color: #f97316; color: #f97316; }
+.p-button.p-button-outlined.p-button-help      { border-color: #a855f7; color: #a855f7; }
+.p-button.p-button-outlined.p-button-danger    { border-color: #ef4444; color: #ef4444; }
+
 /* Space adjacent buttons in dialog footers so they don't touch each other.
    Targets only sibling buttons so column-layout footers (button-in-div) aren't affected. */
 .p-dialog .p-dialog-footer > button + button { margin-left: 0.5rem; }
