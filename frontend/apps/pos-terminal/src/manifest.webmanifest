@@ -1,7 +1,7 @@
 {
   "name": "Hisab ERP POS",
   "short_name": "POS",
-  "theme_color": "#1d4ed8",
+  "theme_color": "#0E6E5A",
   "background_color": "#ffffff",
   "display": "standalone",
   "scope": "./",

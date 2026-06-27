@@ -18,7 +18,7 @@ import { isApiError } from '@hisaberp/shared-api';
     ButtonModule, InputTextModule, PasswordModule, LocaleSwitcherComponent,
   ],
   template: `
-    <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-700 to-primary-900 p-4">
+    <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0E6E5A] to-[#0B5546] p-4">
       <form
         [formGroup]="form"
         (ngSubmit)="submit()"
@@ -26,7 +26,10 @@ import { isApiError } from '@hisaberp/shared-api';
         novalidate
       >
         <div class="flex items-center justify-between">
-          <h1 class="text-xl font-bold">POS</h1>
+          <div class="flex items-center gap-2">
+            <img src="assets/brand/hisab-logo.svg" alt="HisabERP" class="h-8 w-auto" />
+            <span class="text-[10px] font-bold tracking-widest text-[#0E6E5A] bg-[#E8F2EE] rounded px-1.5 py-0.5">POS</span>
+          </div>
           <me-locale-switcher />
         </div>
 
