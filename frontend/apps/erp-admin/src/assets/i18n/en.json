@@ -189,7 +189,28 @@
     "file": "Proof (payment screenshot)",
     "fileHint": "Image or PDF.",
     "durationRequired": "Enter at least 1 month or 1 year.",
+    "cancel": "Cancel",
+    "cancelled": "Cancelled",
+    "confirmCancel": "Cancel this payment? The subscription will be shortened accordingly.",
     "unit": { "years": "yr", "months": "mo" }
+  },
+  "subPaymentsAdmin": {
+    "title": "Subscription payments",
+    "subtitle": "Global view of payments and revenue (all tenants)",
+    "tabList": "All payments",
+    "tabRevenue": "Revenue",
+    "tenant": "Tenant",
+    "plan": "Plan",
+    "from": "From",
+    "to": "To",
+    "includeCancelled": "Include cancelled",
+    "total": "Filtered total",
+    "allTenants": "All tenants",
+    "allPlans": "All plans",
+    "totalRevenue": "Total revenue",
+    "byMonth": "By month",
+    "byPlan": "By plan",
+    "byTenant": "By tenant"
   },
   "platform": {
     "login": {
@@ -233,6 +254,7 @@
     "organizations": "Organizations",
     "orgTypes": "Organization types",
     "plans": "Plans",
+    "subPaymentsAdmin": "Subscription payments",
     "users": "Users",
     "audit": "Audit log",
     "settings": "Settings",

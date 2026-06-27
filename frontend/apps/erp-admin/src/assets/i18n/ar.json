@@ -189,7 +189,28 @@
     "file": "إثبات (لقطة شاشة للدفع)",
     "fileHint": "صورة أو PDF.",
     "durationRequired": "أدخل شهرًا واحدًا أو سنة على الأقل.",
+    "cancel": "إلغاء",
+    "cancelled": "ملغاة",
+    "confirmCancel": "إلغاء هذه الدفعة؟ سيتم تقليص الاشتراك بما يعادلها.",
     "unit": { "years": "سنة", "months": "شهر" }
+  },
+  "subPaymentsAdmin": {
+    "title": "مدفوعات الاشتراكات",
+    "subtitle": "عرض شامل للمدفوعات والإيرادات (جميع المستأجرين)",
+    "tabList": "كل المدفوعات",
+    "tabRevenue": "الإيرادات",
+    "tenant": "المستأجر",
+    "plan": "الباقة",
+    "from": "من",
+    "to": "إلى",
+    "includeCancelled": "تضمين الملغاة",
+    "total": "الإجمالي المُصفّى",
+    "allTenants": "كل المستأجرين",
+    "allPlans": "كل الباقات",
+    "totalRevenue": "إجمالي الإيرادات",
+    "byMonth": "حسب الشهر",
+    "byPlan": "حسب الباقة",
+    "byTenant": "حسب المستأجر"
   },
   "platform": {
     "login": {
@@ -233,6 +254,7 @@
     "organizations": "المنظمات",
     "orgTypes": "أنواع المنظمات",
     "plans": "الباقات",
+    "subPaymentsAdmin": "مدفوعات الاشتراكات",
     "users": "المستخدمون",
     "audit": "سجل التدقيق",
     "settings": "الإعدادات",

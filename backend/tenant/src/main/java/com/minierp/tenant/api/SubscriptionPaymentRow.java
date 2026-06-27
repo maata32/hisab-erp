@@ -5,10 +5,13 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
-/** A recorded subscription payment for a tenant (super-admin ledger). */
-public record SubscriptionPaymentDto(
+/** A subscription payment enriched with its organization + plan, for the global super-admin ledger. */
+public record SubscriptionPaymentRow(
         UUID id,
         UUID organizationId,
+        String organizationCode,
+        String organizationName,
+        String planCode,
         int years,
         int months,
         BigDecimal amount,

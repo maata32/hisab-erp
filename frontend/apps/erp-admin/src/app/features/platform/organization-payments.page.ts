@@ -5,11 +5,12 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { DialogModule } from 'primeng/dialog';
 import { TooltipModule } from 'primeng/tooltip';
-import { MessageService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { LoadingSpinnerComponent } from '@minierp/shared-ui';
 import { isApiError } from '@minierp/shared-api';
 import { firstValueFrom } from 'rxjs';
@@ -24,6 +25,7 @@ interface Payment {
   periodStart: string;
   periodEnd: string;
   attachmentUrl: string | null;
+  cancelled: boolean;
 }
 
 /** Super-admin ledger of a tenant's subscription payments (records extend the subscription). */
@@ -32,7 +34,7 @@ interface Payment {
   standalone: true,
   imports: [
     CommonModule, FormsModule, RouterLink, TranslateModule,
-    TableModule, ButtonModule, InputTextModule, DialogModule, TooltipModule,
+    TableModule, TagModule, ButtonModule, InputTextModule, DialogModule, TooltipModule,
     LoadingSpinnerComponent,
   ],
   template: `
@@ -65,13 +67,14 @@ interface Payment {
                 <th class="text-right">{{ 'subPayments.amount' | translate }}</th>
                 <th>{{ 'subPayments.period' | translate }}</th>
                 <th class="text-center">{{ 'subPayments.justification' | translate }}</th>
+                <th class="text-right">{{ 'common.actions' | translate }}</th>
               </tr>
             </ng-template>
             <ng-template pTemplate="body" let-p>
-              <tr>
-                <td>{{ p.paidAt | date: 'mediumDate' }}</td>
-                <td>{{ durationLabel(p) }}</td>
-                <td class="text-right font-medium">{{ p.amount }} {{ p.currency }}</td>
+              <tr [class.opacity-50]="p.cancelled">
+                <td [class.line-through]="p.cancelled">{{ p.paidAt | date: 'mediumDate' }}</td>
+                <td [class.line-through]="p.cancelled">{{ durationLabel(p) }}</td>
+                <td class="text-right font-medium" [class.line-through]="p.cancelled">{{ p.amount }} {{ p.currency }}</td>
                 <td class="text-sm text-gray-600">
                   {{ p.periodStart | date: 'shortDate' }} → {{ p.periodEnd | date: 'shortDate' }}
                 </td>
@@ -84,10 +87,18 @@ interface Payment {
                     <span class="text-gray-300">—</span>
                   }
                 </td>
+                <td class="text-right whitespace-nowrap">
+                  @if (p.cancelled) {
+                    <p-tag [value]="'subPayments.cancelled' | translate" severity="danger" />
+                  } @else {
+                    <button pButton icon="pi pi-times" class="p-button-text p-button-sm p-button-danger"
+                            [pTooltip]="'subPayments.cancel' | translate" (click)="cancel(p)"></button>
+                  }
+                </td>
               </tr>
             </ng-template>
             <ng-template pTemplate="emptymessage">
-              <tr><td colspan="5" class="text-center text-gray-400 py-8">
+              <tr><td colspan="6" class="text-center text-gray-400 py-8">
                 {{ 'subPayments.empty' | translate }}
               </td></tr>
             </ng-template>
@@ -149,6 +160,7 @@ export class OrganizationPaymentsPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly http = inject(HttpClient);
   private readonly toast = inject(MessageService);
+  private readonly confirm = inject(ConfirmationService);
   private readonly translate = inject(TranslateService);
 
   protected readonly orgId = this.route.snapshot.paramMap.get('id') ?? '';
@@ -251,6 +263,27 @@ export class OrganizationPaymentsPage implements OnInit {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  protected cancel(p: Payment): void {
+    this.confirm.confirm({
+      header: this.t('common.confirmation'),
+      message: this.translate.instant('subPayments.confirmCancel'),
+      icon: 'pi pi-times-circle',
+      accept: async () => {
+        try {
+          await firstValueFrom(this.http.post(`/api/v1/subscription-payments/${p.id}/cancel`, {}));
+          this.toast.add({ severity: 'success', summary: this.t('common.success'), detail: this.t('common.success') });
+          void this.load();
+        } catch (err: unknown) {
+          const body = (err as { error?: unknown })?.error;
+          this.toast.add({
+            severity: 'error', summary: this.t('common.error'),
+            detail: isApiError(body) ? body.message : this.t('common.error_generic'),
+          });
+        }
+      },
+    });
   }
 
   private t(key: string): string {
