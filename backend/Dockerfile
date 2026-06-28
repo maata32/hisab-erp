@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM eclipse-temurin:21-jdk-alpine AS build
+FROM eclipse-temurin:25-jdk-alpine AS build
 WORKDIR /workspace
 RUN apk add --no-cache maven
 COPY pom.xml .
@@ -50,7 +50,7 @@ COPY bootstrap/src bootstrap/src
 RUN mvn -B -ntp -pl bootstrap -am package -DskipTests
 RUN cp bootstrap/target/bootstrap-*.jar /workspace/app.jar
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 RUN apk add --no-cache curl tzdata gcompat argon2-libs && \
     cp /usr/share/zoneinfo/Africa/Nouakchott /etc/localtime && \
     echo "Africa/Nouakchott" > /etc/timezone && \
