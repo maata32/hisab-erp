@@ -233,6 +233,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                     <td class="p-2 text-right text-gray-500">{{ l.remaining }}</td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="l.quantityOrdered" [min]="0" [max]="l.remaining"
+                                     [attr.aria-label]="'reception.quantityToReceive' | translate"
                                      [minFractionDigits]="0" [maxFractionDigits]="3"
                                      inputStyleClass="w-full text-right"
                                      [styleClass]="'w-full' + (createLinesInvalid() ? ' ng-invalid ng-dirty' : '')" />
@@ -281,6 +282,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <td class="p-1">
                     @if (l.trackExpiry) {
                       <input pInputText [(ngModel)]="l.lotNumber" class="w-full"
+                             [attr.aria-label]="'reception.lotNumber' | translate"
                              [placeholder]="'reception.lotNumber' | translate" />
                     } @else {
                       <span class="text-gray-300">—</span>
@@ -289,6 +291,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <td class="p-1">
                     @if (l.trackExpiry) {
                       <p-calendar [(ngModel)]="l.expirationDate" dateFormat="dd/mm/yy"
+                                  [attr.aria-label]="'reception.expirationDate' | translate"
                                   styleClass="w-full" appendTo="body" />
                     } @else {
                       <span class="text-gray-300">—</span>

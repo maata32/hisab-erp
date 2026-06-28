@@ -214,6 +214,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <tr class="border-t">
                     <td class="p-1">
                       <p-dropdown [(ngModel)]="line.productId" [options]="products()"
+                                  [attr.aria-label]="'sales.product' | translate"
                                   optionLabel="name" optionValue="id"
                                   [filter]="true" filterBy="name,sku"
                                   (onChange)="onProductChange(line)" appendTo="body"
@@ -234,16 +235,19 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.quantity" [minFractionDigits]="0" [maxFractionDigits]="3"
+                                     [attr.aria-label]="'sales.quantity' | translate"
                                      inputStyleClass="w-full text-right"
                                      [styleClass]="'w-full' + (lineQtyInvalid(line) ? ' ng-invalid ng-dirty' : '')" />
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.unitCost" [minFractionDigits]="0" [maxFractionDigits]="2"
+                                     [attr.aria-label]="'purchaseOrders.unitCost' | translate"
                                      inputStyleClass="w-full text-right"
                                      [styleClass]="'w-full' + (lineCostInvalid(line) ? ' ng-invalid ng-dirty' : '')" />
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.taxRate" [min]="0" [max]="1"
+                                     [attr.aria-label]="'sales.tax' | translate"
                                      [minFractionDigits]="0" [maxFractionDigits]="4"
                                      inputStyleClass="w-full text-right" styleClass="w-full" />
                     </td>

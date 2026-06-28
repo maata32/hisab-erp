@@ -210,6 +210,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <tr class="border-t">
                     <td class="p-1">
                       <p-dropdown [(ngModel)]="line.productId" [options]="products()"
+                                  [attr.aria-label]="'sales.product' | translate"
                                   optionLabel="name" optionValue="id"
                                   [filter]="true" filterBy="name,sku"
                                   (onChange)="onProductChange(line)" appendTo="body"
@@ -230,15 +231,18 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.quantity" [minFractionDigits]="0" [maxFractionDigits]="3"
+                                     [attr.aria-label]="'sales.quantity' | translate"
                                      inputStyleClass="w-full text-right"
                                      [styleClass]="'w-full' + (lineQtyInvalid(line) ? ' ng-invalid ng-dirty' : '')" />
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.unitPrice" [minFractionDigits]="0" [maxFractionDigits]="2"
+                                     [attr.aria-label]="'sales.unitPrice' | translate"
                                      inputStyleClass="w-full text-right" styleClass="w-full" />
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.discountPercent" [min]="0" [max]="100"
+                                     [attr.aria-label]="'sales.discount' | translate"
                                      [minFractionDigits]="0" [maxFractionDigits]="2"
                                      inputStyleClass="w-full text-right" styleClass="w-full" />
                     </td>

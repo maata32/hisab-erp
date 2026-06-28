@@ -158,6 +158,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <tr class="border-t">
                     <td class="p-1">
                       <p-dropdown [(ngModel)]="line.productId" [options]="products()"
+                                  [attr.aria-label]="'stockTransfers.product' | translate"
                                   optionLabel="name" optionValue="id"
                                   [filter]="true" filterBy="name,sku"
                                   (onChange)="onProductChange(line)" appendTo="body"
@@ -169,6 +170,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.quantity" [minFractionDigits]="0" [maxFractionDigits]="3"
+                                     [attr.aria-label]="'stockTransfers.quantity' | translate"
                                      inputStyleClass="w-full text-right"
                                      [styleClass]="'w-full' + (lineQtyInvalid(line) ? ' ng-invalid ng-dirty' : '')" />
                     </td>

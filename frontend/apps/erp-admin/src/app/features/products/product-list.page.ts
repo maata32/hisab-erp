@@ -357,16 +357,20 @@ const CURRENCY = 'MRU';
                       @for (v of dialogVariants(); track v.id) {
                         <tr class="border-t" [class.opacity-50]="!v.active">
                           <td class="p-2 whitespace-nowrap">{{ variantAttrLabel(v) }}</td>
-                          <td class="p-2"><input pInputText [(ngModel)]="v.sku" class="w-full p-inputtext-sm" /></td>
-                          <td class="p-2"><input pInputText [(ngModel)]="v.barcode" class="w-full p-inputtext-sm" /></td>
+                          <td class="p-2"><input pInputText [(ngModel)]="v.sku" class="w-full p-inputtext-sm"
+                                                 [attr.aria-label]="'products.sku' | translate" /></td>
+                          <td class="p-2"><input pInputText [(ngModel)]="v.barcode" class="w-full p-inputtext-sm"
+                                                 [attr.aria-label]="'products.barcode' | translate" /></td>
                           @if (!form.uniformPricing) {
                             <td class="p-2">
                               <p-inputNumber [(ngModel)]="v.price" mode="decimal" [minFractionDigits]="0"
+                                             [attr.aria-label]="'products.price' | translate"
                                              [maxFractionDigits]="2" [min]="0" [suffix]="' ' + currencyLabel"
                                              styleClass="w-full p-inputtext-sm" />
                             </td>
                           }
-                          <td class="p-2 text-center"><p-checkbox [(ngModel)]="v.active" [binary]="true" /></td>
+                          <td class="p-2 text-center"><p-checkbox [(ngModel)]="v.active" [binary]="true"
+                                                                  [attr.aria-label]="'common.active' | translate" /></td>
                           <td class="p-2 text-right">
                             <button pButton type="button" icon="pi pi-check"
                                     class="p-button-xs p-button-text"
@@ -399,6 +403,7 @@ const CURRENCY = 'MRU';
                           <td class="p-2 whitespace-nowrap">{{ row.label }}</td>
                           <td class="p-2">
                             <p-inputNumber [(ngModel)]="row.price" mode="decimal" [minFractionDigits]="0"
+                                           [attr.aria-label]="'products.price' | translate"
                                            [maxFractionDigits]="2" [min]="0" [suffix]="' ' + currencyLabel"
                                            [styleClass]="'w-full p-inputtext-sm' + (priceRowInvalid(row) ? ' ng-invalid ng-dirty' : '')" />
                           </td>
@@ -460,11 +465,13 @@ const CURRENCY = 'MRU';
                           <td class="p-2 whitespace-nowrap">{{ row.label }}</td>
                           <td class="p-2">
                             <p-inputNumber [(ngModel)]="row.qty" mode="decimal" [minFractionDigits]="0"
+                                           [attr.aria-label]="'stock.fields.qty' | translate"
                                            [maxFractionDigits]="3" [min]="0" styleClass="w-full p-inputtext-sm" />
                           </td>
                           @if (!form.uniformPricing) {
                             <td class="p-2">
                               <p-inputNumber [(ngModel)]="row.unitCost" mode="decimal" [minFractionDigits]="0"
+                                             [attr.aria-label]="'stock.fields.unitCost' | translate"
                                              [maxFractionDigits]="2" [min]="0"
                                              [styleClass]="'w-full p-inputtext-sm' + (rowCostInvalid(row) ? ' ng-invalid ng-dirty' : '')" />
                             </td>

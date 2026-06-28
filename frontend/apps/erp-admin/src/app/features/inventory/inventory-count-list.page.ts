@@ -201,6 +201,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                 <td class="text-right">
                   @if (editable()) {
                     <p-inputNumber [(ngModel)]="l.countedQty" mode="decimal"
+                                   [attr.aria-label]="'inventoryCounts.entry.counted' | translate"
                                    [minFractionDigits]="0" [maxFractionDigits]="3" [min]="0"
                                    inputStyleClass="w-28 text-right" />
                   } @else {
