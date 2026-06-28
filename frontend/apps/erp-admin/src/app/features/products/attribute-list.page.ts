@@ -106,7 +106,7 @@ interface AttributeForm {
                 [header]="(editing() ? 'attributes.editTitle' : 'attributes.createTitle') | translate"
                 [closable]="!saving()">
         <div class="space-y-4">
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div class="col-span-2">
               <label class="block text-sm font-medium mb-1">{{ 'attributes.name' | translate }} *</label>
               <input pInputText [(ngModel)]="form.name" class="w-full"

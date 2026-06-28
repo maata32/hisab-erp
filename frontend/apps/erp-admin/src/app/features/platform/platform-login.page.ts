@@ -49,9 +49,9 @@ import { LocaleService, SupportedLocale } from '@hisaberp/shared-i18n';
           aria-labelledby="platform-login-title"
         >
           <div class="flex items-center justify-between">
-            <h2 id="platform-login-title" class="text-2xl font-bold text-gray-800">
+            <h1 id="platform-login-title" class="text-2xl font-bold text-gray-800">
               {{ 'platform.login.title' | translate }}
-            </h2>
+            </h1>
             <me-locale-switcher />
           </div>
 

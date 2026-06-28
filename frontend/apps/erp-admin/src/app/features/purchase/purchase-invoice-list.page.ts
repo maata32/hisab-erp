@@ -195,7 +195,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                 [header]="('purchaseInvoices.detailTitle' | translate:{ number: detail()?.number || '' })">
         @if (detail(); as inv) {
           <div class="space-y-3">
-            <div class="grid grid-cols-3 gap-3 text-sm">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
               <div>
                 <span class="text-gray-500">{{ 'purchaseInvoices.supplier' | translate }} :</span>
                 <div class="font-medium">{{ inv.supplierName }}</div>
@@ -320,7 +320,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
       <p-dialog [(visible)]="createOpen" [modal]="true" [style]="{ width: '900px' }"
                 [header]="'purchaseInvoices.createTitle' | translate" [closable]="!saving()">
         <div class="space-y-3">
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'purchaseInvoices.supplier' | translate }} *</label>
               <p-dropdown [(ngModel)]="form.supplierId" [options]="suppliers()"

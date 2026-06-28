@@ -38,7 +38,7 @@ import { SyncedSale } from '../models/pos.models';
     <!-- No active session -->
     @if (!sessionSvc.isOpen()) {
       <div class="max-w-md mx-auto mt-8 p-4">
-        <h2 class="text-xl font-bold mb-4">{{ 'pos.session.open.title' | translate }}</h2>
+        <h1 class="text-xl font-bold mb-4">{{ 'pos.session.open.title' | translate }}</h1>
 
         @if (loading()) {
           <div class="text-center py-8">

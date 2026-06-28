@@ -42,7 +42,7 @@ import { PosSettingsService } from '../services/pos-settings.service';
     @if (!sessionSvc.isOpen()) {
       <div class="flex flex-col items-center justify-center h-full text-center p-8">
         <i class="pi pi-exclamation-circle text-5xl text-yellow-500 mb-4"></i>
-        <h2 class="text-xl font-bold mb-2">{{ 'pos.sale.no_session.title' | translate }}</h2>
+        <h1 class="text-xl font-bold mb-2">{{ 'pos.sale.no_session.title' | translate }}</h1>
         <p class="text-gray-600 mb-4">{{ 'pos.sale.no_session.description' | translate }}</p>
         <button pButton [label]="'pos.sale.go_to_session' | translate" icon="pi pi-arrow-right"
           (click)="goToSession()"></button>
@@ -94,42 +94,44 @@ import { PosSettingsService } from '../services/pos-settings.service';
               <div class="flex-1 overflow-y-auto p-3">
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                   @for (product of filteredProducts(); track product.id) {
-                    <button
-                      type="button"
-                      (click)="addToCart(product)"
-                      class="relative bg-white rounded-lg shadow p-3 text-left hover:bg-primary-50 border border-gray-200 hover:border-primary-400 transition-colors min-h-[80px] flex flex-col justify-between"
-                    >
+                    <div class="relative">
+                      <button
+                        type="button"
+                        (click)="addToCart(product)"
+                        class="w-full bg-white rounded-lg shadow p-3 text-left hover:bg-primary-50 border border-gray-200 hover:border-primary-400 transition-colors min-h-[80px] flex flex-col justify-between"
+                      >
+                        <div class="font-medium text-sm text-gray-800 line-clamp-2 leading-tight pe-8">{{ product.name }}</div>
+                        <div class="mt-2 flex items-end justify-between">
+                          <span class="text-xs text-gray-400">
+                            {{ product.sku }}
+                            <span class="ms-1"
+                                  [class.text-red-600]="stockOf(product.id) <= 0"
+                                  [class.font-semibold]="stockOf(product.id) <= 0">
+                              · {{ 'pos.sale.stock' | translate }} {{ stockOf(product.id) }}
+                            </span>
+                          </span>
+                          <span class="text-primary-700 font-bold text-sm">{{ fmtSvc.format(product.price) }}</span>
+                        </div>
+                      </button>
+                      <!-- Sibling of the card button (not nested) so it's a valid, keyboard-operable control. -->
                       @if (product.images?.length) {
-                        <span
-                          role="button"
-                          tabindex="0"
-                          class="absolute top-1.5 right-1.5 inline-flex items-center justify-center w-7 h-7 rounded
+                        <button
+                          type="button"
+                          class="absolute top-1.5 end-1.5 inline-flex items-center justify-center w-7 h-7 rounded
                                  bg-white/90 text-gray-600 hover:bg-primary-100 hover:text-primary-700 shadow-sm"
                           [attr.aria-label]="'pos.sale.view_images' | translate"
                           [title]="'pos.sale.view_images' | translate"
                           (click)="showImages($event, product, imagesOp)"
                         >
                           <i class="pi pi-images text-sm"></i>
-                          <span class="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-1 rounded-full
+                          <span class="absolute -top-1 -end-1 min-w-[14px] h-3.5 px-1 rounded-full
                                        bg-primary-500 text-white text-[9px] font-semibold
                                        flex items-center justify-center">
                             {{ product.images.length }}
                           </span>
-                        </span>
+                        </button>
                       }
-                      <div class="font-medium text-sm text-gray-800 line-clamp-2 leading-tight pr-8">{{ product.name }}</div>
-                      <div class="mt-2 flex items-end justify-between">
-                        <span class="text-xs text-gray-400">
-                          {{ product.sku }}
-                          <span class="ml-1"
-                                [class.text-red-600]="stockOf(product.id) <= 0"
-                                [class.font-semibold]="stockOf(product.id) <= 0">
-                            · {{ 'pos.sale.stock' | translate }} {{ stockOf(product.id) }}
-                          </span>
-                        </span>
-                        <span class="text-primary-700 font-bold text-sm">{{ fmtSvc.format(product.price) }}</span>
-                      </div>
-                    </button>
+                    </div>
                   }
                 </div>
               </div>

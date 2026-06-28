@@ -392,7 +392,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                 [header]="('payments.allocateTitle' | translate) + ' — ' + (allocatePayment()?.number ?? '')"
                 [closable]="!savingAllocate()">
         <div class="space-y-3">
-          <div class="grid grid-cols-3 gap-3 bg-gray-50 p-3 rounded border">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-gray-50 p-3 rounded border">
             <div>
               <div class="text-xs text-gray-500">{{ 'payments.amount' | translate }}</div>
               <div class="font-bold">{{ allocatePayment()?.amount | money }} {{ allocatePayment()?.currency }}</div>

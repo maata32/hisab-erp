@@ -46,9 +46,9 @@ import { LocaleService, SupportedLocale } from '@hisaberp/shared-i18n';
           aria-labelledby="login-title"
         >
           <div class="flex items-center justify-between">
-            <h2 id="login-title" class="text-2xl font-bold text-primary-600 brand-display">
+            <h1 id="login-title" class="text-2xl font-bold text-primary-600 brand-display">
               {{ 'auth.login.title' | translate }}
-            </h2>
+            </h1>
             <me-locale-switcher />
           </div>
 

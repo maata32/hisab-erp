@@ -181,7 +181,7 @@ const CURRENCY = 'MRU';
                           [pTooltip]="'products.viewImages' | translate"
                           (click)="showImages($event, p, imagesOp)">
                     <i class="pi pi-images text-base"></i>
-                    <span class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full
+                    <span class="absolute -top-1 -end-1 min-w-[16px] h-4 px-1 rounded-full
                                  bg-primary-500 text-white text-[10px] font-semibold
                                  flex items-center justify-center">
                       {{ p.images.length }}
@@ -502,7 +502,7 @@ const CURRENCY = 'MRU';
                   <img [src]="img.url" [alt]="img.altText || ''"
                        class="w-20 h-20 object-cover rounded border border-gray-200" />
                   <button type="button"
-                          class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white
+                          class="absolute -top-2 -end-2 w-6 h-6 rounded-full bg-red-500 text-white
                                  text-xs opacity-0 group-hover:opacity-100 transition"
                           [title]="'common.delete' | translate"
                           [attr.aria-label]="'common.remove' | translate"
@@ -516,7 +516,7 @@ const CURRENCY = 'MRU';
                   <img [src]="queued.previewUrl" [alt]="queued.file.name"
                        class="w-20 h-20 object-cover rounded border border-dashed border-primary-300" />
                   <button type="button"
-                          class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white
+                          class="absolute -top-2 -end-2 w-6 h-6 rounded-full bg-red-500 text-white
                                  text-xs opacity-0 group-hover:opacity-100 transition"
                           [title]="'common.delete' | translate"
                           [attr.aria-label]="'common.remove' | translate"

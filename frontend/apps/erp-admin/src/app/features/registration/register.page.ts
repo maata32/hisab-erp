@@ -53,7 +53,7 @@ interface Plan {
         @if (done()) {
           <div class="w-full max-w-md text-center space-y-5">
             <i class="pi pi-check-circle text-6xl text-green-500"></i>
-            <h2 class="text-2xl font-bold text-gray-800">{{ 'registration.success.title' | translate }}</h2>
+            <h1 class="text-2xl font-bold text-gray-800">{{ 'registration.success.title' | translate }}</h1>
             <p class="text-gray-600">
               {{ 'registration.success.message' | translate: { code: submittedCode() } }}
             </p>
@@ -69,9 +69,9 @@ interface Plan {
             aria-labelledby="register-title"
           >
             <div class="flex items-center justify-between">
-              <h2 id="register-title" class="text-2xl font-bold text-gray-800">
+              <h1 id="register-title" class="text-2xl font-bold text-gray-800">
                 {{ 'registration.title' | translate }}
-              </h2>
+              </h1>
               <me-locale-switcher />
             </div>
             <p class="text-sm text-gray-500">{{ 'registration.subtitle' | translate }}</p>

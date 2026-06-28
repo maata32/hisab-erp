@@ -25,6 +25,7 @@ import { isApiError } from '@hisaberp/shared-api';
         class="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6 space-y-5"
         novalidate
       >
+        <h1 class="sr-only">{{ 'auth.submit' | translate }}</h1>
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <img src="assets/brand/hisab-logo.svg" alt="HisabERP" class="h-8 w-auto" />

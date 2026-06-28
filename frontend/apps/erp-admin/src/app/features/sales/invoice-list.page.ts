@@ -253,7 +253,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
       <p-dialog [(visible)]="dialogOpen" [modal]="true" [style]="{ width: '900px' }"
                 [header]="'invoices.createTitle' | translate" [closable]="!saving()">
         <div class="space-y-3">
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div class="col-span-1">
               <label class="block text-sm font-medium mb-1">{{ 'sales.customer' | translate }} *</label>
               <p-dropdown [(ngModel)]="form.customerId" [options]="customers()"
@@ -282,7 +282,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               }
             </div>
           </div>
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'customers.currency' | translate }}</label>
               <input pInputText [(ngModel)]="form.currency" class="w-full" />
@@ -480,7 +480,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                 [header]="('invoices.detailTitle' | translate:{ number: detail()?.number || '' })">
         @if (detail(); as inv) {
           <div class="space-y-3">
-            <div class="grid grid-cols-3 gap-3 text-sm">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
               <div>
                 <span class="text-gray-500">{{ 'sales.customer' | translate }} :</span>
                 <div class="font-medium">{{ inv.customerName }}</div>
