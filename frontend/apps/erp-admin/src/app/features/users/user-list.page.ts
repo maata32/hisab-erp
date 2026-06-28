@@ -323,7 +323,7 @@ export class UserListPage implements OnInit {
 
   protected deactivate(u: User) {
     this.confirmation.confirm({
-      message: `Désactiver l'utilisateur « ${u.fullName} » ?`,
+      message: this.i18n.instant('users.deactivateConfirm', { name: u.fullName }),
       header: this.i18n.instant('common.confirmation'),
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: 'p-button-sm p-button-danger',
@@ -336,7 +336,7 @@ export class UserListPage implements OnInit {
 
   protected resetPassword(u: User) {
     this.confirmation.confirm({
-      message: `Réinitialiser le mot de passe de « ${u.fullName} » ?`,
+      message: this.i18n.instant('users.resetPasswordConfirm', { name: u.fullName }),
       header: this.i18n.instant('common.confirmation'),
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: 'p-button-sm',

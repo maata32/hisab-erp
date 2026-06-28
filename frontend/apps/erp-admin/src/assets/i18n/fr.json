@@ -10,6 +10,10 @@
     "tagline": "ERP commercial modulaire pour la Mauritanie"
   },
   "common": {
+    "saved": "Enregistré",
+    "saveFailed": "Sauvegarde échouée",
+    "failed": "Échec",
+    "ok": "OK",
     "loading": "Chargement…",
     "save": "Enregistrer",
     "cancel": "Annuler",
@@ -462,6 +466,8 @@
     }
   },
   "users": {
+    "deactivateConfirm": "Désactiver l'utilisateur « {{name}} » ?",
+    "resetPasswordConfirm": "Réinitialiser le mot de passe de « {{name}} » ?",
     "title": "Utilisateurs",
     "coming_soon": {
       "title": "Disponible bientôt",
@@ -504,6 +510,7 @@
     }
   },
   "settings": {
+    "creditLimitAction": { "WARN": "Avertir", "BLOCK": "Bloquer", "OFF": "Désactivé" },
     "title": "Paramètres",
     "subtitle": "Configurez votre organisation et les paramètres POS",
     "tab": {
@@ -862,6 +869,7 @@
     }
   },
   "payments": {
+    "cancelConfirm": "Annuler le paiement {{number}} ?",
     "title": "Paiements",
     "subtitle": "Encaissements clients et décaissements fournisseurs",
     "party": "Tiers",
@@ -953,6 +961,9 @@
     "valueInUse": "Cette valeur est utilisée et ne peut pas être supprimée."
   },
   "products": {
+    "activateConfirm": "Activer le produit « {{name}} » ?",
+    "deactivateConfirm": "Désactiver le produit « {{name}} » ?",
+    "deleteImageConfirm": "Supprimer cette image ?",
     "variants": {
       "title": "Variantes",
       "uniformPricing": "Même prix pour toutes les variantes",
@@ -1161,6 +1172,7 @@
     }
   },
   "lots": {
+    "blockReason": "Raison du blocage ?",
     "title": "Lots et expiration",
     "subtitle": "FEFO, alertes, destruction",
     "empty": "Aucun lot",
@@ -1345,6 +1357,8 @@
     "sortOrder": "Ordre"
   },
   "notifConfig": {
+    "advancedInfo": "Configuration avancée pour {{code}} — à implémenter (channels, recipients, custom roles).",
+    "resetConfirm": "Réinitialiser toutes les configurations aux valeurs par défaut ?",
     "title": "Configuration des notifications",
     "subtitle": "Activer / désactiver par événement, canaux, destinataires",
     "empty": "Aucun événement",
@@ -1359,6 +1373,7 @@
     "advanced": "Configuration avancée"
   },
   "expenseCategories": {
+    "deactivateConfirm": "Désactiver la catégorie « {{name}} » ?",
     "title": "Catégories de dépenses",
     "subtitle": "Organiser les dépenses par nature (loyer, salaires, fournitures...)",
     "create": "Nouvelle catégorie",
@@ -1379,6 +1394,12 @@
     "limitsHint": "Laisser vide pour ne pas exiger d'approbation."
   },
   "treasury": {
+    "toast": {
+      "sessionValidated": "Session validée",
+      "depositRecorded": "Dépôt enregistré",
+      "withdrawRecorded": "Retrait enregistré",
+      "adjustRecorded": "Ajustement enregistré"
+    },
     "title": "Trésorerie",
     "subtitle": "Coffre central et comptes bancaires — mouvements appairés",
     "vault": "Coffre central",

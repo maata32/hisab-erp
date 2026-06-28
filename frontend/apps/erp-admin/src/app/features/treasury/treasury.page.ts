@@ -1,7 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { HttpClient } from '@angular/common/http';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -500,6 +500,7 @@ interface CashSessionDto {
 export class TreasuryPage implements OnInit {
   private http = inject(HttpClient);
   private msg = inject(MessageService);
+  private i18n = inject(TranslateService);
 
   protected readonly vault = signal<VaultDto | null>(null);
   protected readonly banks = signal<BankAccountDto[]>([]);
@@ -588,10 +589,10 @@ export class TreasuryPage implements OnInit {
     this.validatingId.set(s.id);
     try {
       await firstValueFrom(this.http.post(`/api/v1/pos/sessions/${s.id}/validate`, {}));
-      this.msg.add({ severity: 'success', summary: 'Session validée', life: 2500 });
+      this.msg.add({ severity: 'success', summary: this.i18n.instant('treasury.toast.sessionValidated'), life: 2500 });
       await Promise.all([this.loadPendingSessions(), this.loadVault(), this.loadVaultMovements()]);
     } catch (e: unknown) {
-      this.msg.add({ severity: 'error', summary: 'Erreur', detail: (e as { error?: { message?: string } })?.error?.message ?? 'Échec', life: 4000 });
+      this.msg.add({ severity: 'error', summary: this.i18n.instant('common.error'), detail: (e as { error?: { message?: string } })?.error?.message ?? this.i18n.instant('common.failed'), life: 4000 });
     } finally {
       this.validatingId.set(null);
     }
@@ -693,11 +694,11 @@ export class TreasuryPage implements OnInit {
           openingBalance: this.bankForm.openingBalance,
         }));
       }
-      this.msg.add({ severity: 'success', summary: 'OK', life: 2500 });
+      this.msg.add({ severity: 'success', summary: this.i18n.instant('common.saved'), life: 2500 });
       this.bankDialogOpen = false;
       await this.loadBanks();
     } catch (e: unknown) {
-      this.msg.add({ severity: 'error', summary: 'Erreur', detail: (e as { error?: { message?: string } })?.error?.message ?? 'Échec', life: 4000 });
+      this.msg.add({ severity: 'error', summary: this.i18n.instant('common.error'), detail: (e as { error?: { message?: string } })?.error?.message ?? this.i18n.instant('common.failed'), life: 4000 });
     } finally {
       this.saving.set(false);
     }
@@ -723,11 +724,11 @@ export class TreasuryPage implements OnInit {
     this.saving.set(true);
     try {
       await firstValueFrom(this.http.post('/api/v1/treasury/deposit', this.transferForm));
-      this.msg.add({ severity: 'success', summary: 'Dépôt enregistré', life: 2500 });
+      this.msg.add({ severity: 'success', summary: this.i18n.instant('treasury.toast.depositRecorded'), life: 2500 });
       this.depositDialogOpen = false;
       await Promise.all([this.loadVault(), this.loadBanks(), this.loadVaultMovements()]);
     } catch (e: unknown) {
-      this.msg.add({ severity: 'error', summary: 'Erreur', detail: (e as { error?: { message?: string } })?.error?.message ?? 'Échec', life: 4000 });
+      this.msg.add({ severity: 'error', summary: this.i18n.instant('common.error'), detail: (e as { error?: { message?: string } })?.error?.message ?? this.i18n.instant('common.failed'), life: 4000 });
     } finally {
       this.saving.set(false);
     }
@@ -739,11 +740,11 @@ export class TreasuryPage implements OnInit {
     this.saving.set(true);
     try {
       await firstValueFrom(this.http.post('/api/v1/treasury/withdraw', this.transferForm));
-      this.msg.add({ severity: 'success', summary: 'Retrait enregistré', life: 2500 });
+      this.msg.add({ severity: 'success', summary: this.i18n.instant('treasury.toast.withdrawRecorded'), life: 2500 });
       this.withdrawDialogOpen = false;
       await Promise.all([this.loadVault(), this.loadBanks(), this.loadVaultMovements()]);
     } catch (e: unknown) {
-      this.msg.add({ severity: 'error', summary: 'Erreur', detail: (e as { error?: { message?: string } })?.error?.message ?? 'Échec', life: 4000 });
+      this.msg.add({ severity: 'error', summary: this.i18n.instant('common.error'), detail: (e as { error?: { message?: string } })?.error?.message ?? this.i18n.instant('common.failed'), life: 4000 });
     } finally {
       this.saving.set(false);
     }
@@ -779,12 +780,12 @@ export class TreasuryPage implements OnInit {
           note: this.adjustForm.note,
         }));
       }
-      this.msg.add({ severity: 'success', summary: 'Ajustement enregistré', life: 2500 });
+      this.msg.add({ severity: 'success', summary: this.i18n.instant('treasury.toast.adjustRecorded'), life: 2500 });
       this.adjustDialogOpen = false;
       await Promise.all([this.loadVault(), this.loadBanks(), this.loadVaultMovements()]);
       if (this.selectedBankIdForHistory) await this.loadBankTxns();
     } catch (e: unknown) {
-      this.msg.add({ severity: 'error', summary: 'Erreur', detail: (e as { error?: { message?: string } })?.error?.message ?? 'Échec', life: 4000 });
+      this.msg.add({ severity: 'error', summary: this.i18n.instant('common.error'), detail: (e as { error?: { message?: string } })?.error?.message ?? this.i18n.instant('common.failed'), life: 4000 });
     } finally {
       this.saving.set(false);
     }

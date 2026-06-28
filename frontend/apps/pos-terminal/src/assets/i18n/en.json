@@ -1,5 +1,5 @@
 {
-  "common": { "loading": "Loading…", "logout": "Logout", "save": "Save", "cancel": "Cancel", "close": "Close", "refresh": "Refresh", "language": "Language" },
+  "common": { "loading": "Loading…", "logout": "Logout", "save": "Save", "cancel": "Cancel", "close": "Close", "refresh": "Refresh", "language": "Language", "error": "Error" },
   "auth": {
     "tenantCode": "Organization code",
     "email": "Email",
@@ -20,6 +20,7 @@
       "back_to_sale": "Back to sale"
     },
     "history": {
+      "loadFailed": "Could not load",
       "title": "Sales history",
       "subtitle": "Tickets from the current register",
       "number": "Number",
@@ -47,6 +48,8 @@
       "reason": "Reason (optional)"
     },
     "sale": {
+      "networkError": "Network error",
+      "savedLocally": "Sale saved locally",
       "no_session": {
         "title": "No active session",
         "description": "Open a cash session before making sales."
@@ -86,6 +89,11 @@
       }
     },
     "session": {
+      "opened": "Session opened",
+      "openFailed": "Could not open session",
+      "closed": "Session closed",
+      "closeFailed": "Close failed",
+      "voided": "Voided",
       "open": {
         "title": "Open cash session",
         "submit": "Open session",

@@ -1,7 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ButtonModule } from 'primeng/button';
 import { CalendarModule } from 'primeng/calendar';
 import { TableModule } from 'primeng/table';
@@ -140,6 +140,7 @@ export class HistoryPage implements OnInit {
   private readonly receiptSvc = inject(ReceiptService);
   protected readonly fmt = inject(PosSettingsService);
   private readonly msg = inject(MessageService);
+  private readonly i18n = inject(TranslateService);
 
   protected readonly sales = signal<SyncedSale[]>([]);
   protected readonly loading = signal(false);
@@ -232,7 +233,7 @@ export class HistoryPage implements OnInit {
       this.dateLoaded.set(true);
     } catch {
       this.sales.set([]);
-      this.msg.add({ severity: 'error', summary: 'Erreur', detail: 'Chargement impossible', life: 3000 });
+      this.msg.add({ severity: 'error', summary: this.i18n.instant('common.error'), detail: this.i18n.instant('pos.history.loadFailed'), life: 3000 });
     } finally {
       this.loading.set(false);
     }

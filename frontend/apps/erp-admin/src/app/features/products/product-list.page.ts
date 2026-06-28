@@ -695,9 +695,8 @@ export class ProductListPage implements OnInit {
   }
 
   protected toggleActive(p: Product) {
-    const verb = p.active ? 'Désactiver' : 'Activer';
     this.confirmation.confirm({
-      message: `${verb} le produit « ${p.name} » ?`,
+      message: this.i18n.instant(p.active ? 'products.deactivateConfirm' : 'products.activateConfirm', { name: p.name }),
       header: this.i18n.instant('common.confirmation'),
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: p.active ? 'p-button-sm p-button-danger' : 'p-button-sm',
@@ -842,7 +841,7 @@ export class ProductListPage implements OnInit {
     const id = this.editingId();
     if (!id) return;
     this.confirmation.confirm({
-      message: 'Supprimer cette image ?',
+      message: this.i18n.instant('products.deleteImageConfirm'),
       header: this.i18n.instant('common.confirmation'),
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: 'p-button-sm p-button-danger',

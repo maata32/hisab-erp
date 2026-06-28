@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -332,6 +332,7 @@ export class SalePage implements OnInit {
   protected readonly online = inject(OnlineStatusService);
   protected readonly fmtSvc = inject(PosSettingsService);
   private readonly msg = inject(MessageService);
+  private readonly i18n = inject(TranslateService);
   private readonly router = inject(Router);
 
   protected readonly loadingProducts = signal(false);
@@ -586,7 +587,7 @@ export class SalePage implements OnInit {
       this.lastSalePending = { ...pending, localId };
       this.lastSaleNumber.set(null);
       if (this.online.isOnline()) {
-        this.msg.add({ severity: 'warn', summary: 'Erreur réseau', detail: 'Vente sauvegardée localement', life: 4000 });
+        this.msg.add({ severity: 'warn', summary: this.i18n.instant('pos.sale.networkError'), detail: this.i18n.instant('pos.sale.savedLocally'), life: 4000 });
       }
     } finally {
       this.saving.set(false);

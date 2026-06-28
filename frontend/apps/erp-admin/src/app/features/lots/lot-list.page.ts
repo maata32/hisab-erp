@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { HttpClient } from '@angular/common/http';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -163,6 +163,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
 })
 export class LotListPage implements OnInit {
   private http = inject(HttpClient);
+  private i18n = inject(TranslateService);
 
   protected lots = signal<Lot[]>([]);
   protected expiring = signal<Lot[]>([]);
@@ -211,7 +212,7 @@ export class LotListPage implements OnInit {
   }
 
   protected async block(id: string) {
-    const reason = prompt('Raison du blocage ?') ?? 'Quality issue';
+    const reason = prompt(this.i18n.instant('lots.blockReason')) ?? 'Quality issue';
     await firstValueFrom(this.http.post(
       `/api/v1/lots/${id}/block?reason=${encodeURIComponent(reason)}`, {}
     ));

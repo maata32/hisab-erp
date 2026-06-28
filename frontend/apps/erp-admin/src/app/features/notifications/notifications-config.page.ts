@@ -160,10 +160,10 @@ export class NotificationsConfigPage implements OnInit {
 
   protected openAdvanced(e: EventDefinition) {
     this.confirmation.confirm({
-      message: `Configuration avancée pour ${e.code} — à implémenter (channels, recipients, custom roles).`,
+      message: this.i18n.instant('notifConfig.advancedInfo', { code: e.code }),
       header: this.i18n.instant('common.confirmation'),
       icon: 'pi pi-info-circle',
-      acceptLabel: 'OK',
+      acceptLabel: this.i18n.instant('common.ok'),
       rejectVisible: false,
       acceptButtonStyleClass: 'p-button-sm',
       accept: () => { /* info only */ },
@@ -172,7 +172,7 @@ export class NotificationsConfigPage implements OnInit {
 
   protected reset() {
     this.confirmation.confirm({
-      message: 'Réinitialiser toutes les configurations aux valeurs par défaut ?',
+      message: this.i18n.instant('notifConfig.resetConfirm'),
       header: this.i18n.instant('common.confirmation'),
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: 'p-button-sm p-button-danger',

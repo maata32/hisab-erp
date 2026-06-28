@@ -6,7 +6,8 @@
     "cancel": "Annuler",
     "close": "Fermer",
     "refresh": "Rafraîchir",
-    "language": "Langue"
+    "language": "Langue",
+    "error": "Erreur"
   },
   "auth": {
     "tenantCode": "Code organisation",
@@ -33,6 +34,7 @@
       "back_to_sale": "Retour à la vente"
     },
     "history": {
+      "loadFailed": "Chargement impossible",
       "title": "Historique des ventes",
       "subtitle": "Tickets de la caisse courante",
       "number": "Numéro",
@@ -60,6 +62,8 @@
       "refund_confirm_btn": "Confirmer le remboursement"
     },
     "sale": {
+      "networkError": "Erreur réseau",
+      "savedLocally": "Vente sauvegardée localement",
       "no_session": {
         "title": "Aucune session active",
         "description": "Ouvrez une session de caisse avant d'effectuer des ventes."
@@ -99,6 +103,11 @@
       }
     },
     "session": {
+      "opened": "Session ouverte",
+      "openFailed": "Impossible d'ouvrir la session",
+      "closed": "Session clôturée",
+      "closeFailed": "Clôture échouée",
+      "voided": "Annulée",
       "open": {
         "title": "Ouvrir une session de caisse",
         "submit": "Ouvrir la session",
