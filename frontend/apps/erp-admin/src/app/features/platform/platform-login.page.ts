@@ -34,7 +34,7 @@ import { LocaleService, SupportedLocale } from '@hisaberp/shared-i18n';
         class="hidden md:flex md:w-1/2 bg-gradient-to-br from-gray-800 to-gray-900 text-white p-12 flex-col justify-between"
       >
         <div>
-          <img src="assets/brand/hisab-logo-ondark.svg" alt="HisabERP" class="h-14 w-auto" />
+          <img src="assets/brand/hisab-logo-ondark.svg" alt="HisabERP" class="h-20 w-auto" />
           <p class="mt-2 opacity-90">{{ 'platform.login.subtitle' | translate }}</p>
         </div>
         <p class="text-sm opacity-70">© Hisab ERP {{ year }}</p>

@@ -28,7 +28,7 @@ import { isApiError } from '@hisaberp/shared-api';
         <h1 class="sr-only">{{ 'auth.submit' | translate }}</h1>
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <img src="assets/brand/hisab-logo.svg" alt="HisabERP" class="h-8 w-auto" />
+            <img src="assets/brand/hisab-logo.svg" alt="HisabERP" class="h-10 w-auto" />
             <span class="text-[10px] font-bold tracking-widest text-primary-600 bg-primary-50 rounded px-1.5 py-0.5">POS</span>
           </div>
           <me-locale-switcher />
