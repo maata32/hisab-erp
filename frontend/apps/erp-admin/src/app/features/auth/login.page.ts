@@ -162,8 +162,11 @@ export class LoginPage {
       error: (err) => {
         this.loading.set(false);
         const apiError = isApiError(err.error) ? err.error : null;
-        const code = apiError?.code ?? 'auth.bad_credentials';
-        this.errorMessage.set(this.translate.instant(code));
+        // Prefer the server-localized message (it carries args, e.g. the lock
+        // duration); fall back to translating the code, then to a generic error.
+        this.errorMessage.set(
+          apiError?.message || this.translate.instant(apiError?.code ?? 'auth.bad_credentials'),
+        );
       },
     });
   }
