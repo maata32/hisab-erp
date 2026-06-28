@@ -13,7 +13,7 @@ COPY apps apps
 COPY libs libs
 RUN npx nx build pos-terminal --configuration=production
 
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.31-alpine AS runtime
 RUN apk add --no-cache curl && \
     addgroup -S app && adduser -S -G app app
 COPY --from=build /workspace/dist/apps/pos-terminal/ /usr/share/nginx/html/
