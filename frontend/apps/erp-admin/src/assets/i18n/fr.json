@@ -39,7 +39,13 @@
     "mustBePositive": "La valeur doit être positive",
     "mustBeNonNegative": "La valeur ne peut pas être négative",
     "atLeastOneLine": "Ajoutez au moins une ligne",
-    "actions": "Actions"
+    "actions": "Actions",
+    "noData": "Aucune donnée",
+    "openMenu": "Ouvrir le menu",
+    "mainNav": "Navigation principale",
+    "quickNav": "Navigation rapide",
+    "language": "Langue",
+    "remove": "Retirer"
   },
   "error": {
     "data_integrity": "Cette valeur existe déjà.",

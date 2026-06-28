@@ -59,9 +59,10 @@ interface UserForm {
       <div class="bg-white rounded-lg border border-gray-200 p-4">
         <div class="mb-3">
           <span class="relative block w-full sm:w-72">
-            <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+            <i class="pi pi-search absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
             <input pInputText type="text" [placeholder]="'common.search' | translate"
-                   (input)="onSearch($event)" class="w-full !pl-9" />
+                   [attr.aria-label]="'common.search' | translate"
+                   (input)="onSearch($event)" class="w-full !ps-9" />
           </span>
         </div>
 

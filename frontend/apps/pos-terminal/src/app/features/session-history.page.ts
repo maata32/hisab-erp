@@ -52,6 +52,7 @@ import { CashSession } from '../models/pos.models';
           [loading]="loadingPending()"
           stripedRows
           responsiveLayout="scroll"
+          responsiveLayout="scroll"
           styleClass="p-datatable-sm"
         >
           <ng-template pTemplate="header">
@@ -110,6 +111,7 @@ import { CashSession } from '../models/pos.models';
           [value]="validatedSessions()"
           [loading]="loadingValidated()"
           stripedRows
+          responsiveLayout="scroll"
           responsiveLayout="scroll"
           styleClass="p-datatable-sm"
         >

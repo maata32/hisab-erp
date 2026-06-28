@@ -134,6 +134,7 @@ interface AttributeForm {
                     <span class="flex-1" [class.line-through]="!v.active" [class.text-gray-400]="!v.active">{{ v.value }}</span>
                     @if (v.code) { <span class="font-mono text-xs text-gray-400">{{ v.code }}</span> }
                     <button pButton icon="pi pi-trash" class="p-button-xs p-button-text p-button-danger"
+                            [attr.aria-label]="'common.delete' | translate"
                             (click)="removeValue(v)"></button>
                   </div>
                 }

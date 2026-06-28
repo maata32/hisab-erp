@@ -459,6 +459,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                     <td class="p-2 text-right">{{ lineTotal(line) | money }}</td>
                     <td class="p-1 text-center">
                       <button pButton icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
+                              [attr.aria-label]="'common.delete' | translate"
                               (click)="removeLine(i)"></button>
                     </td>
                   </tr>

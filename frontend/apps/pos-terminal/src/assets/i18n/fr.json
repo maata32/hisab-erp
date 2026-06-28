@@ -5,7 +5,8 @@
     "save": "Enregistrer",
     "cancel": "Annuler",
     "close": "Fermer",
-    "refresh": "Rafraîchir"
+    "refresh": "Rafraîchir",
+    "language": "Langue"
   },
   "auth": {
     "tenantCode": "Code organisation",
@@ -67,6 +68,11 @@
       "search_placeholder": "Rechercher un article ou scanner un code-barres…",
       "no_products": "Aucun article trouvé",
       "view_images": "Voir les images",
+      "clear_search": "Effacer la recherche",
+      "clear_cart": "Vider le panier",
+      "remove_line": "Retirer l'article",
+      "decrease_qty": "Diminuer la quantité",
+      "increase_qty": "Augmenter la quantité",
       "stock": "Stock",
       "cart": "Panier",
       "cart_empty": "Le panier est vide",

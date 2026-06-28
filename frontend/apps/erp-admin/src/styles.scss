@@ -221,3 +221,14 @@ $primary: "#{$filled}:not(.p-button-secondary):not(.p-button-success):not(.p-but
 .settings-save-btn .p-button-label {
   flex: 0 1 auto;
 }
+
+/* Responsive dialogs — PrimeNG sets a fixed pixel width inline via [style].
+   Cap it to the viewport on small screens so wide dialogs (700–960px) never
+   overflow on tablet/mobile. max-width constrains the inline width globally,
+   so no per-dialog [breakpoints] config is needed. */
+@media (max-width: 640px) {
+  .p-dialog { max-width: 95vw !important; }
+}
+@media (min-width: 641px) and (max-width: 960px) {
+  .p-dialog { max-width: 90vw !important; }
+}

@@ -62,7 +62,7 @@ import { PosSettingsService } from '../services/pos-settings.service';
         <div class="flex-1 flex overflow-hidden">
 
           <!-- Products panel -->
-          <div class="flex-1 flex flex-col overflow-hidden border-r border-gray-200">
+          <div class="flex-1 flex flex-col overflow-hidden border-e border-gray-200">
             <div class="p-3 bg-white border-b flex gap-2 shrink-0">
               <input
                 pInputText
@@ -74,6 +74,7 @@ import { PosSettingsService } from '../services/pos-settings.service';
               />
               @if (searchQuery) {
                 <button pButton icon="pi pi-times" severity="secondary" text
+                  [attr.aria-label]="'pos.sale.clear_search' | translate"
                   (click)="clearSearch()"></button>
               }
             </div>
@@ -152,6 +153,7 @@ import { PosSettingsService } from '../services/pos-settings.service';
               <h3 class="font-bold text-gray-800">{{ 'pos.sale.cart' | translate }} ({{ cartLines().length }})</h3>
               @if (cartLines().length > 0) {
                 <button pButton icon="pi pi-trash" severity="danger" text size="small"
+                  [attr.aria-label]="'pos.sale.clear_cart' | translate"
                   (click)="clearCart()"></button>
               }
             </div>
@@ -168,14 +170,17 @@ import { PosSettingsService } from '../services/pos-settings.service';
                   <div class="flex items-start justify-between gap-1 mb-2">
                     <p class="text-sm font-medium flex-1 leading-tight line-clamp-2">{{ line.productName }}</p>
                     <button pButton icon="pi pi-times" severity="danger" text size="small" class="shrink-0 -mt-1"
+                      [attr.aria-label]="'pos.sale.remove_line' | translate"
                       (click)="removeLine(line)"></button>
                   </div>
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-1">
                       <button pButton icon="pi pi-minus" severity="secondary" text size="small"
+                        [attr.aria-label]="'pos.sale.decrease_qty' | translate"
                         (click)="changeQty(line, -1)"></button>
                       <span class="w-8 text-center text-sm font-bold">{{ line.quantity }}</span>
                       <button pButton icon="pi pi-plus" severity="secondary" text size="small"
+                        [attr.aria-label]="'pos.sale.increase_qty' | translate"
                         (click)="changeQty(line, 1)"></button>
                     </div>
                     <span class="text-primary-700 font-bold text-sm">

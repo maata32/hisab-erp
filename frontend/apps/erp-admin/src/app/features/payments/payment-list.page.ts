@@ -403,7 +403,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             </div>
             <div>
               <div class="text-xs text-gray-500">{{ 'payments.remaining' | translate }}</div>
-              <div class="font-bold text-blue-600">{{ remainingToAllocate() | money }}</div>
+              <div class="font-bold text-primary-600">{{ remainingToAllocate() | money }}</div>
             </div>
           </div>
 

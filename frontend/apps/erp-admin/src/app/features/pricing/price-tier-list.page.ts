@@ -28,7 +28,7 @@ interface PriceTier {
       </header>
 
       <div class="bg-white rounded-lg border border-gray-200 p-4">
-        <p-table [value]="tiers()" [loading]="loading()" stripedRows styleClass="p-datatable-sm">
+        <p-table [value]="tiers()" [loading]="loading()" stripedRows responsiveLayout="scroll" styleClass="p-datatable-sm">
           <ng-template pTemplate="header">
             <tr>
               <th>{{ 'priceTiers.code' | translate }}</th>

@@ -139,9 +139,10 @@ const CURRENCY = 'MRU';
       <div class="bg-white rounded-lg border border-gray-200 p-4">
         <div class="mb-3 flex items-center justify-between gap-4 flex-wrap">
           <span class="relative block w-full sm:w-72">
-            <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+            <i class="pi pi-search absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
             <input pInputText type="text" [placeholder]="'common.search' | translate"
-                   (input)="onSearch($event)" class="w-full !pl-9" />
+                   [attr.aria-label]="'common.search' | translate"
+                   (input)="onSearch($event)" class="w-full !ps-9" />
           </span>
           <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <p-checkbox [(ngModel)]="showInactive" [binary]="true"
@@ -369,6 +370,7 @@ const CURRENCY = 'MRU';
                           <td class="p-2 text-right">
                             <button pButton type="button" icon="pi pi-check"
                                     class="p-button-xs p-button-text"
+                                    [attr.aria-label]="'common.confirm' | translate"
                                     [loading]="savingVariantId() === v.id"
                                     (click)="saveVariantRow(v)"></button>
                           </td>
@@ -496,6 +498,7 @@ const CURRENCY = 'MRU';
                           class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white
                                  text-xs opacity-0 group-hover:opacity-100 transition"
                           [title]="'common.delete' | translate"
+                          [attr.aria-label]="'common.remove' | translate"
                           (click)="removeImage(img)">
                     <i class="pi pi-times"></i>
                   </button>
@@ -509,6 +512,7 @@ const CURRENCY = 'MRU';
                           class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white
                                  text-xs opacity-0 group-hover:opacity-100 transition"
                           [title]="'common.delete' | translate"
+                          [attr.aria-label]="'common.remove' | translate"
                           (click)="removePending(queued)">
                     <i class="pi pi-times"></i>
                   </button>

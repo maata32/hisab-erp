@@ -39,7 +39,13 @@
     "mustBeNonNegative": "لا يمكن أن تكون القيمة سالبة",
     "atLeastOneLine": "أضف سطراً واحداً على الأقل",
     "confirm": "تأكيد",
-    "actions": "إجراءات"
+    "actions": "إجراءات",
+    "noData": "لا توجد بيانات",
+    "openMenu": "فتح القائمة",
+    "mainNav": "التنقل الرئيسي",
+    "quickNav": "تنقل سريع",
+    "language": "اللغة",
+    "remove": "إزالة"
   },
   "error": {
     "data_integrity": "هذه القيمة موجودة بالفعل.",

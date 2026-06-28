@@ -85,6 +85,7 @@ interface SessionOption {
             [loading]="loading()"
             stripedRows
             responsiveLayout="scroll"
+            responsiveLayout="scroll"
             [rowHover]="true"
             styleClass="p-datatable-sm"
           >

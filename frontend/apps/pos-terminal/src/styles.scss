@@ -124,3 +124,12 @@ $primary: "#{$filled}:not(.p-button-secondary):not(.p-button-success):not(.p-but
    crowd the label "Session HH:mm – HH:mm". */
 .session-filter.p-dropdown .p-dropdown-label { padding-right: 1.5rem; }
 [dir='rtl'] .session-filter.p-dropdown .p-dropdown-label { padding-right: 0.75rem; padding-left: 1.5rem; }
+
+/* Responsive dialogs — cap PrimeNG's inline pixel width to the viewport on small
+   screens so dialogs never overflow on tablet/phone. */
+@media (max-width: 640px) {
+  .p-dialog { max-width: 95vw !important; }
+}
+@media (min-width: 641px) and (max-width: 960px) {
+  .p-dialog { max-width: 90vw !important; }
+}

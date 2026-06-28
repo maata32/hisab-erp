@@ -1,5 +1,5 @@
 {
-  "common": { "loading": "Loading…", "logout": "Logout", "save": "Save", "cancel": "Cancel", "close": "Close", "refresh": "Refresh" },
+  "common": { "loading": "Loading…", "logout": "Logout", "save": "Save", "cancel": "Cancel", "close": "Close", "refresh": "Refresh", "language": "Language" },
   "auth": {
     "tenantCode": "Organization code",
     "email": "Email",
@@ -55,6 +55,11 @@
       "search_placeholder": "Search product or scan barcode…",
       "no_products": "No products found",
       "view_images": "View images",
+      "clear_search": "Clear search",
+      "clear_cart": "Clear cart",
+      "remove_line": "Remove item",
+      "decrease_qty": "Decrease quantity",
+      "increase_qty": "Increase quantity",
       "stock": "Stock",
       "cart": "Cart",
       "cart_empty": "Cart is empty",

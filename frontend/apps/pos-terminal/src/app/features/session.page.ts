@@ -99,6 +99,7 @@ import { SyncedSale } from '../models/pos.models';
               [loading]="loadingPending()"
               stripedRows
               responsiveLayout="scroll"
+              responsiveLayout="scroll"
               styleClass="p-datatable-sm"
             >
               <ng-template pTemplate="header">
@@ -186,6 +187,7 @@ import { SyncedSale } from '../models/pos.models';
             [value]="sales()"
             [loading]="loadingSales()"
             stripedRows
+            responsiveLayout="scroll"
             responsiveLayout="scroll"
             [rowHover]="true"
             styleClass="p-datatable-sm"

@@ -77,6 +77,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <td class="text-right">{{ r.grossProfit | money }}</td>
                 </tr>
               </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="4" class="text-center text-gray-400 py-6">{{ 'common.noData' | translate }}</td></tr>
+              </ng-template>
             </p-table>
           </p-tabPanel>
 
@@ -100,6 +103,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <td class="text-right font-semibold">{{ r.totalRevenue | money }}</td>
                   <td class="text-right">{{ r.avgTicket | number:'1.0-2' }}</td>
                 </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="5" class="text-center text-gray-400 py-6">{{ 'common.noData' | translate }}</td></tr>
               </ng-template>
             </p-table>
           </p-tabPanel>
@@ -129,6 +135,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   </td>
                 </tr>
               </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="4" class="text-center text-gray-400 py-6">{{ 'common.noData' | translate }}</td></tr>
+              </ng-template>
             </p-table>
           </p-tabPanel>
 
@@ -155,13 +164,16 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <td><p-tag [value]="r.riskLevel" [severity]="riskSeverity(r.riskLevel)" /></td>
                 </tr>
               </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="6" class="text-center text-gray-400 py-6">{{ 'common.noData' | translate }}</td></tr>
+              </ng-template>
             </p-table>
 
             <div *ngIf="expiryRisk().length" class="mt-6">
               <h3 class="text-sm font-semibold text-gray-700 mb-2">
                 {{ 'reporting.valueAtRisk' | translate }}
               </h3>
-              <p-table [value]="expiryRisk()" stripedRows styleClass="p-datatable-sm">
+              <p-table [value]="expiryRisk()" stripedRows responsiveLayout="scroll" styleClass="p-datatable-sm">
                 <ng-template pTemplate="header">
                   <tr>
                     <th>{{ 'reporting.risk' | translate }}</th>
@@ -203,11 +215,14 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <td class="text-right font-semibold">{{ r.totalAmount | money }}</td>
                 </tr>
               </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="5" class="text-center text-gray-400 py-6">{{ 'common.noData' | translate }}</td></tr>
+              </ng-template>
             </p-table>
           </p-tabPanel>
 
           <p-tabPanel [header]="'reporting.tabs.deliveries' | translate">
-            <p-table [value]="deliveries()" [loading]="loading()" stripedRows styleClass="p-datatable-sm">
+            <p-table [value]="deliveries()" [loading]="loading()" stripedRows responsiveLayout="scroll" styleClass="p-datatable-sm">
               <ng-template pTemplate="header">
                 <tr>
                   <th>{{ 'reporting.status' | translate }}</th>
@@ -223,6 +238,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <td class="text-right text-green-600">{{ r.onTimeCount }}</td>
                   <td class="text-right text-red-600">{{ r.lateCount }}</td>
                 </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="4" class="text-center text-gray-400 py-6">{{ 'common.noData' | translate }}</td></tr>
               </ng-template>
             </p-table>
           </p-tabPanel>
@@ -251,6 +269,9 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <td class="text-right text-red-600 font-semibold">{{ r.d90plus | money }}</td>
                   <td class="text-right font-bold">{{ r.totalOutstanding | money }}</td>
                 </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="7" class="text-center text-gray-400 py-6">{{ 'common.noData' | translate }}</td></tr>
               </ng-template>
             </p-table>
           </p-tabPanel>

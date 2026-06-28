@@ -39,7 +39,13 @@
     "mustBeNonNegative": "Value cannot be negative",
     "atLeastOneLine": "Add at least one line",
     "confirm": "Confirm",
-    "actions": "Actions"
+    "actions": "Actions",
+    "noData": "No data",
+    "openMenu": "Open menu",
+    "mainNav": "Main navigation",
+    "quickNav": "Quick navigation",
+    "language": "Language",
+    "remove": "Remove"
   },
   "error": {
     "data_integrity": "This value already exists.",
