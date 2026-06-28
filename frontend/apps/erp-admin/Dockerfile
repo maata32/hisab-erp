@@ -14,7 +14,7 @@ COPY apps apps
 COPY libs libs
 RUN npx nx build "$APP" --configuration=production
 
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.31-alpine AS runtime
 ARG APP=erp-admin
 RUN apk add --no-cache curl && \
     addgroup -S app && adduser -S -G app app
