@@ -2,6 +2,7 @@ package com.hisaberp.tenant.internal;
 
 import com.hisaberp.shared.error.NotFoundException;
 import com.hisaberp.shared.error.ValidationException;
+import com.hisaberp.shared.storage.StoragePresigner;
 import com.hisaberp.tenant.api.SubscriptionPaymentDto;
 import com.hisaberp.tenant.api.SubscriptionPaymentRow;
 import com.hisaberp.tenant.api.SubscriptionRevenueDto;
@@ -38,6 +39,7 @@ public class SubscriptionPaymentService {
     private final SubscriptionPlanRepository plans;
     private final OrganizationService organizationService;
     private final PaymentAttachmentStorageService storage;
+    private final StoragePresigner presigner;
     private final ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
@@ -160,7 +162,7 @@ public class SubscriptionPaymentService {
                 p.getId(), p.getOrganizationId(),
                 o != null ? o.getCode() : null, o != null ? o.getName() : null, plan,
                 p.getYears(), p.getMonths(), p.getAmount(), p.getCurrency(), p.getPaidAt(),
-                p.getPeriodStart(), p.getPeriodEnd(), p.getAttachmentUrl(),
+                p.getPeriodStart(), p.getPeriodEnd(), presigner.presign(p.getAttachmentUrl()),
                 p.isCancelled(), p.getCancelledAt(), p.getCreatedAt());
     }
 
@@ -170,6 +172,6 @@ public class SubscriptionPaymentService {
                 p.getYears(), p.getMonths(),
                 p.getAmount(), p.getCurrency(),
                 p.getPaidAt(), p.getPeriodStart(), p.getPeriodEnd(),
-                p.getAttachmentUrl(), p.isCancelled(), p.getCancelledAt(), p.getCreatedAt());
+                presigner.presign(p.getAttachmentUrl()), p.isCancelled(), p.getCancelledAt(), p.getCreatedAt());
     }
 }

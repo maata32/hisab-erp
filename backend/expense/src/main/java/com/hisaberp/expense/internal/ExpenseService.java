@@ -7,6 +7,7 @@ import com.hisaberp.expense.api.ExpenseOperations;
 import com.hisaberp.shared.error.NotFoundException;
 import com.hisaberp.shared.persistence.TenantGuard;
 import com.hisaberp.shared.security.CurrentUserHolder;
+import com.hisaberp.shared.storage.StoragePresigner;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +33,7 @@ public class ExpenseService implements ExpenseOperations {
     private final IncomeCategoryRepository incomeCategories;
     private final IncomeRepository incomes;
     private final AttachmentStorageService storage;
+    private final StoragePresigner presigner;
     private final DocumentRenderer documentRenderer;
 
     // ── Categories ──────────────────────────────────────────────────────────
@@ -136,12 +138,12 @@ public class ExpenseService implements ExpenseOperations {
     @Transactional
     public String uploadAttachment(UUID expenseId, MultipartFile file) {
         Expense expense = getEntity(expenseId);
-        String url = storage.upload("expenses/" + expenseId, file);
+        String key = storage.upload("expenses/" + expenseId, file);
         List<String> attachments = expense.getAttachments() != null
                 ? new ArrayList<>(expense.getAttachments()) : new ArrayList<>();
-        attachments.add(url);
+        attachments.add(key);
         expense.setAttachments(attachments);
-        return url;
+        return presigner.presign(key);
     }
 
     @Transactional
@@ -325,7 +327,7 @@ public class ExpenseService implements ExpenseOperations {
                 e.getAmount(), e.getExpenseDate(), e.getDescription(),
                 e.getPaymentMethod() != null ? e.getPaymentMethod().name() : null,
                 e.getPaymentStatus() != null ? e.getPaymentStatus().name() : null,
-                e.getPaidAmount(), e.getBalance(), e.getAttachments(),
+                e.getPaidAmount(), e.getBalance(), presigner.presignAll(e.getAttachments()),
                 e.isRecurring(), e.getRecurrenceRule(), e.getNextRecurrenceDate(),
                 e.getParentRecurrenceId(),
                 e.getApprovalStatus() != null ? e.getApprovalStatus().name() : null,
@@ -336,6 +338,6 @@ public class ExpenseService implements ExpenseOperations {
         return new ExpenseDto.IncomeResponse(
                 i.getId(), i.getIncomeNumber(), i.getCategoryId(), i.getPartyId(),
                 i.getAmount(), i.getReceivedDate(), i.getDescription(),
-                i.getSource(), i.getPaymentMethod(), i.getAttachments());
+                i.getSource(), i.getPaymentMethod(), presigner.presignAll(i.getAttachments()));
     }
 }

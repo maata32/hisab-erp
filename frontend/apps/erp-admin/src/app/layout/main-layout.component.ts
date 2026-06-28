@@ -44,7 +44,7 @@ interface NavItem {
             <i class="pi pi-bars text-xl"></i>
           </button>
           <a routerLink="/dashboard" class="flex items-center" aria-label="HisabERP">
-            <img src="assets/brand/hisab-logo.svg" alt="HisabERP" class="h-8 w-auto" />
+            <img src="assets/brand/hisab-logo.svg" alt="HisabERP" class="h-10 w-auto" />
           </a>
         </div>
         <div class="flex items-center gap-3">

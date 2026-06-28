@@ -31,7 +31,7 @@ import { LocaleService, SupportedLocale } from '@hisaberp/shared-i18n';
         class="hidden md:flex md:w-1/2 bg-gradient-to-br from-primary-600 to-primary-700 text-white p-12 flex-col justify-between"
       >
         <div>
-          <img src="assets/brand/hisab-logo-ondark.svg" alt="HisabERP" class="h-14 w-auto" />
+          <img src="assets/brand/hisab-logo-ondark.svg" alt="HisabERP" class="h-20 w-auto" />
           <p class="mt-4 opacity-90">{{ 'app.tagline' | translate }}</p>
         </div>
         <p class="text-sm opacity-70">© HisabERP {{ year }}</p>
@@ -162,8 +162,11 @@ export class LoginPage {
       error: (err) => {
         this.loading.set(false);
         const apiError = isApiError(err.error) ? err.error : null;
-        const code = apiError?.code ?? 'auth.bad_credentials';
-        this.errorMessage.set(this.translate.instant(code));
+        // Prefer the server-localized message (it carries args, e.g. the lock
+        // duration); fall back to translating the code, then to a generic error.
+        this.errorMessage.set(
+          apiError?.message || this.translate.instant(apiError?.code ?? 'auth.bad_credentials'),
+        );
       },
     });
   }

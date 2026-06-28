@@ -142,6 +142,9 @@
     },
     "bad_credentials": "Identifiants invalides",
     "account_locked": "Compte verrouillé. Réessayez plus tard.",
+    "tenant_pending": "Votre inscription est en attente de validation par un administrateur.",
+    "tenant_suspended": "Votre espace a été suspendu. Contactez votre administrateur.",
+    "tenant_archived": "Votre espace a été archivé. Contactez votre administrateur.",
     "required": "Authentification requise"
   },
   "plans": {

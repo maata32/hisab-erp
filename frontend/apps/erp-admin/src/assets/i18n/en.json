@@ -142,6 +142,9 @@
     },
     "bad_credentials": "Invalid credentials",
     "account_locked": "Account locked. Try again later.",
+    "tenant_pending": "Your registration is awaiting administrator approval.",
+    "tenant_suspended": "Your workspace has been suspended. Contact your administrator.",
+    "tenant_archived": "Your workspace has been archived. Contact your administrator.",
     "required": "Authentication required"
   },
   "plans": {
