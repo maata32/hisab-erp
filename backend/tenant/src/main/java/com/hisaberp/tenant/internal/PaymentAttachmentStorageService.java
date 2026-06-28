@@ -43,7 +43,7 @@ class PaymentAttachmentStorageService {
         }
     }
 
-    /** Uploads a justification file and returns its public object URL. */
+    /** Uploads a justification file and returns its object KEY (presigned on read). */
     String upload(MultipartFile file) {
         if (file.getSize() > props.maxFileSizeBytes()) {
             throw new BusinessException("error.attachment.too_large",
@@ -61,7 +61,8 @@ class PaymentAttachmentStorageService {
         } catch (Exception e) {
             throw new BusinessException("error.attachment.upload_failed", Map.of("cause", e.getMessage()));
         }
-        return props.resolvedPublicEndpoint() + "/" + props.bucket() + "/" + objectName;
+        // Store the object key; private bucket → URL is presigned at read time (StoragePresigner).
+        return objectName;
     }
 
     private static String sanitize(String name) {

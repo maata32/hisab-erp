@@ -112,17 +112,22 @@ curl -fsS https://api.<domain>/api/v1/health
 
 ### Object storage & file URLs (`files.<domain>`)
 
-Uploaded files (product images, expense/subscription attachments) live in MinIO. Its S3 read API
-is exposed via Traefik at `files.<domain>` (needs the `files.` A record), and the app builds
-browser URLs as `https://files.<domain>/<bucket>/<object>`. The `minio-init` one-shot grants the
-bucket an anonymous **download** policy so those URLs resolve. The backend talks to MinIO using
-the `MINIO_*` env vars (do **not** use `S3_*` — they are ignored and the app falls back to
-insecure localhost defaults).
+Uploaded files live in MinIO, whose S3 read API is exposed via Traefik at `files.<domain>` (needs
+the `files.` A record). The backend talks to MinIO via the `MINIO_*` env vars (do **not** use
+`S3_*` — they are ignored and the app falls back to insecure localhost defaults).
 
-> ⚠️ Objects are readable by anyone holding the (unguessable, UUID-based) URL — same posture as the
-> dev stack. For sensitive documents prefer **presigned, time-limited URLs** served through the
-> backend (a small change in the three `*StorageService` classes). Bucket listing is already
-> disabled by the download policy.
+Access is split by sensitivity (policy set by the `minio-init` one-shot):
+- **Product images** (`product-images/` prefix) — anonymously downloadable and browser-cacheable;
+  the catalog stores a direct `https://files.<domain>/<bucket>/<object>` URL.
+- **Sensitive documents** (subscription justificatifs, expense attachments) — the bucket is
+  **private**. The backend stores only the object **key** and returns a short-lived **presigned**
+  URL generated on each read (`StoragePresigner`, TTL `STORAGE_PRESIGN_TTL_SECONDS`, default 1 h).
+  No anonymous access; the bucket cannot be listed. Legacy rows holding a full URL are tolerated
+  (the key is extracted and re-signed).
+
+> Presigning signs against the **public** host (`files.<domain>`), so that A record + Traefik route
+> are required even for the private objects. Keep Traefik's `Host` header pass-through (default) so
+> MinIO validates the SigV4 signature against the same host.
 
 ## 4. Bootstrap the first super-admin
 
@@ -223,7 +228,7 @@ Practice this every month — schedule a drill in Grafana alerts.
 - [ ] Set `allowed_admin_cidrs` in `terraform.tfvars` to your office VPN (empty = SSH closed)
 - [ ] Configure `BACKUP_S3_*` for off-host backups; add WAL archiving for RPO ≈ 1 min
 - [ ] Unset `BOOTSTRAP_ADMIN_*` after the first deploy and rotate the super-admin password
-- [ ] Prefer presigned URLs for sensitive files over anonymous `files.<domain>` reads
+- [ ] Sensitive files already use presigned URLs; tune `STORAGE_PRESIGN_TTL_SECONDS`, and presign product images too if your catalog must be private
 - [ ] Rotate JWT_SECRET quarterly (forces all users to re-login)
 - [ ] Enable MFA on the Hetzner account + SSH key only (no password auth — already in the cloud-init)
 - [ ] Review `audit_log` weekly via the `/api/v1/audit` endpoint
