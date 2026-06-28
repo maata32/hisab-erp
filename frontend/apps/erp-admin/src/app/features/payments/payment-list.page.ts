@@ -392,7 +392,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                 [header]="('payments.allocateTitle' | translate) + ' — ' + (allocatePayment()?.number ?? '')"
                 [closable]="!savingAllocate()">
         <div class="space-y-3">
-          <div class="grid grid-cols-3 gap-3 bg-gray-50 p-3 rounded border">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-gray-50 p-3 rounded border">
             <div>
               <div class="text-xs text-gray-500">{{ 'payments.amount' | translate }}</div>
               <div class="font-bold">{{ allocatePayment()?.amount | money }} {{ allocatePayment()?.currency }}</div>
@@ -403,7 +403,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
             </div>
             <div>
               <div class="text-xs text-gray-500">{{ 'payments.remaining' | translate }}</div>
-              <div class="font-bold text-blue-600">{{ remainingToAllocate() | money }}</div>
+              <div class="font-bold text-primary-600">{{ remainingToAllocate() | money }}</div>
             </div>
           </div>
 
@@ -680,13 +680,15 @@ export class PaymentListPage implements OnInit {
     return this.directionOptions.find(o => o.value === dir)?.label ?? '';
   }
 
-  protected readonly methodOptions = [
-    { value: 'CASH', label: 'Espèces' },
-    { value: 'BANK_TRANSFER', label: 'Virement' },
-    { value: 'CHECK', label: 'Chèque' },
-    { value: 'MOBILE_MONEY', label: 'Mobile Money' },
-    { value: 'CARD', label: 'Carte' },
-  ];
+  protected get methodOptions() {
+    return [
+      { value: 'CASH', label: this.i18n.instant('payments.methods.CASH') },
+      { value: 'BANK_TRANSFER', label: this.i18n.instant('payments.methods.BANK_TRANSFER') },
+      { value: 'CHECK', label: this.i18n.instant('payments.methods.CHECK') },
+      { value: 'MOBILE_MONEY', label: this.i18n.instant('payments.methods.MOBILE_MONEY') },
+      { value: 'CARD', label: this.i18n.instant('payments.methods.CARD') },
+    ];
+  }
 
   protected form = this.emptyForm();
   private allocationsUserEdited = false;
@@ -1201,7 +1203,7 @@ export class PaymentListPage implements OnInit {
 
   protected cancelPayment(p: Payment) {
     this.confirmation.confirm({
-      message: `Annuler le paiement ${p.number} ?`,
+      message: this.i18n.instant('payments.cancelConfirm', { number: p.number }),
       header: this.i18n.instant('common.confirmation'),
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: 'p-button-sm p-button-danger',

@@ -206,7 +206,7 @@ interface Phase {
             @for (d of kpis()?.sales7Days; track d.day) {
               <div class="flex-1 flex flex-col items-center gap-1 justify-end h-full">
                 <div class="text-[10px] text-gray-500 truncate">{{ d.amount | money }}</div>
-                <div class="w-full bg-blue-500 rounded-t"
+                <div class="w-full bg-primary-500 rounded-t"
                      [style.height.%]="sparkBarHeight(d.amount)"
                      [style.min-height.px]="d.amount > 0 ? 2 : 0"></div>
                 <div class="text-xs text-gray-600">{{ d.day | date:'EEE dd' }}</div>

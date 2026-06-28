@@ -253,7 +253,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
       <p-dialog [(visible)]="dialogOpen" [modal]="true" [style]="{ width: '900px' }"
                 [header]="'invoices.createTitle' | translate" [closable]="!saving()">
         <div class="space-y-3">
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div class="col-span-1">
               <label class="block text-sm font-medium mb-1">{{ 'sales.customer' | translate }} *</label>
               <p-dropdown [(ngModel)]="form.customerId" [options]="customers()"
@@ -282,7 +282,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
               }
             </div>
           </div>
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'customers.currency' | translate }}</label>
               <input pInputText [(ngModel)]="form.currency" class="w-full" />
@@ -322,6 +322,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                       <td class="p-2 text-right text-gray-700">{{ item.amountOpen | money }}</td>
                       <td class="p-1">
                         <p-inputNumber [(ngModel)]="item.amount" [min]="0" [max]="item.amountOpen"
+                                       [attr.aria-label]="'compensate.colImpute' | translate"
                                        [minFractionDigits]="2" [maxFractionDigits]="2"
                                        [disabled]="!item.selected"
                                        inputStyleClass="w-full text-right" styleClass="w-full" />
@@ -360,6 +361,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <tr class="border-t">
                     <td class="p-1">
                       <p-dropdown [(ngModel)]="line.productId" [options]="products()"
+                                  [attr.aria-label]="'sales.product' | translate"
                                   optionLabel="name" optionValue="id"
                                   [filter]="true" filterBy="name,sku"
                                   (onChange)="onProductChange(line)" appendTo="body"
@@ -380,21 +382,25 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.quantity" [minFractionDigits]="0" [maxFractionDigits]="3"
+                                     [attr.aria-label]="'sales.quantity' | translate"
                                      inputStyleClass="w-full text-right"
                                      [styleClass]="'w-full' + (lineQtyInvalid(line) ? ' ng-invalid ng-dirty' : '')" />
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.unitPrice" [minFractionDigits]="0" [maxFractionDigits]="2"
+                                     [attr.aria-label]="'sales.unitPrice' | translate"
                                      inputStyleClass="w-full text-right" styleClass="w-full" />
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.discountPercent" [min]="0" [max]="100"
+                                     [attr.aria-label]="'sales.discount' | translate"
                                      [minFractionDigits]="0" [maxFractionDigits]="2"
                                      inputStyleClass="w-full text-right" styleClass="w-full" />
                     </td>
                     <td class="p-2 text-right">{{ lineTotal(line) | money }}</td>
                     <td class="p-1 text-center">
                       <button pButton icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
+                              [attr.aria-label]="'common.delete' | translate"
                               (click)="removeLine(i)"></button>
                     </td>
                   </tr>
@@ -474,7 +480,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                 [header]="('invoices.detailTitle' | translate:{ number: detail()?.number || '' })">
         @if (detail(); as inv) {
           <div class="space-y-3">
-            <div class="grid grid-cols-3 gap-3 text-sm">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
               <div>
                 <span class="text-gray-500">{{ 'sales.customer' | translate }} :</span>
                 <div class="font-medium">{{ inv.customerName }}</div>

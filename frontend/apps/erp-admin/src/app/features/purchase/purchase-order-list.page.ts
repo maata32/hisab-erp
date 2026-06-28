@@ -149,7 +149,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
       <p-dialog [(visible)]="createOpen" [modal]="true" [style]="{ width: '900px' }"
                 [header]="'purchaseOrders.createTitle' | translate" [closable]="!saving()">
         <div class="space-y-3">
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label class="block text-sm font-medium mb-1">{{ 'purchaseOrders.supplier' | translate }} *</label>
               <p-dropdown [(ngModel)]="form.supplierId" [options]="suppliers()"
@@ -214,6 +214,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                   <tr class="border-t">
                     <td class="p-1">
                       <p-dropdown [(ngModel)]="line.productId" [options]="products()"
+                                  [attr.aria-label]="'sales.product' | translate"
                                   optionLabel="name" optionValue="id"
                                   [filter]="true" filterBy="name,sku"
                                   (onChange)="onProductChange(line)" appendTo="body"
@@ -234,22 +235,26 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.quantity" [minFractionDigits]="0" [maxFractionDigits]="3"
+                                     [attr.aria-label]="'sales.quantity' | translate"
                                      inputStyleClass="w-full text-right"
                                      [styleClass]="'w-full' + (lineQtyInvalid(line) ? ' ng-invalid ng-dirty' : '')" />
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.unitCost" [minFractionDigits]="0" [maxFractionDigits]="2"
+                                     [attr.aria-label]="'purchaseOrders.unitCost' | translate"
                                      inputStyleClass="w-full text-right"
                                      [styleClass]="'w-full' + (lineCostInvalid(line) ? ' ng-invalid ng-dirty' : '')" />
                     </td>
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="line.taxRate" [min]="0" [max]="1"
+                                     [attr.aria-label]="'sales.tax' | translate"
                                      [minFractionDigits]="0" [maxFractionDigits]="4"
                                      inputStyleClass="w-full text-right" styleClass="w-full" />
                     </td>
                     <td class="p-2 text-right">{{ lineTotal(line) | money }}</td>
                     <td class="p-1 text-center">
                       <button pButton icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
+                              [attr.aria-label]="'common.delete' | translate"
                               (click)="removeLine(i)"></button>
                     </td>
                   </tr>

@@ -139,9 +139,10 @@ const CURRENCY = 'MRU';
       <div class="bg-white rounded-lg border border-gray-200 p-4">
         <div class="mb-3 flex items-center justify-between gap-4 flex-wrap">
           <span class="relative block w-full sm:w-72">
-            <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+            <i class="pi pi-search absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
             <input pInputText type="text" [placeholder]="'common.search' | translate"
-                   (input)="onSearch($event)" class="w-full !pl-9" />
+                   [attr.aria-label]="'common.search' | translate"
+                   (input)="onSearch($event)" class="w-full !ps-9" />
           </span>
           <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <p-checkbox [(ngModel)]="showInactive" [binary]="true"
@@ -180,7 +181,7 @@ const CURRENCY = 'MRU';
                           [pTooltip]="'products.viewImages' | translate"
                           (click)="showImages($event, p, imagesOp)">
                     <i class="pi pi-images text-base"></i>
-                    <span class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full
+                    <span class="absolute -top-1 -end-1 min-w-[16px] h-4 px-1 rounded-full
                                  bg-primary-500 text-white text-[10px] font-semibold
                                  flex items-center justify-center">
                       {{ p.images.length }}
@@ -356,19 +357,24 @@ const CURRENCY = 'MRU';
                       @for (v of dialogVariants(); track v.id) {
                         <tr class="border-t" [class.opacity-50]="!v.active">
                           <td class="p-2 whitespace-nowrap">{{ variantAttrLabel(v) }}</td>
-                          <td class="p-2"><input pInputText [(ngModel)]="v.sku" class="w-full p-inputtext-sm" /></td>
-                          <td class="p-2"><input pInputText [(ngModel)]="v.barcode" class="w-full p-inputtext-sm" /></td>
+                          <td class="p-2"><input pInputText [(ngModel)]="v.sku" class="w-full p-inputtext-sm"
+                                                 [attr.aria-label]="'products.sku' | translate" /></td>
+                          <td class="p-2"><input pInputText [(ngModel)]="v.barcode" class="w-full p-inputtext-sm"
+                                                 [attr.aria-label]="'products.barcode' | translate" /></td>
                           @if (!form.uniformPricing) {
                             <td class="p-2">
                               <p-inputNumber [(ngModel)]="v.price" mode="decimal" [minFractionDigits]="0"
+                                             [attr.aria-label]="'products.price' | translate"
                                              [maxFractionDigits]="2" [min]="0" [suffix]="' ' + currencyLabel"
                                              styleClass="w-full p-inputtext-sm" />
                             </td>
                           }
-                          <td class="p-2 text-center"><p-checkbox [(ngModel)]="v.active" [binary]="true" /></td>
+                          <td class="p-2 text-center"><p-checkbox [(ngModel)]="v.active" [binary]="true"
+                                                                  [attr.aria-label]="'common.active' | translate" /></td>
                           <td class="p-2 text-right">
                             <button pButton type="button" icon="pi pi-check"
                                     class="p-button-xs p-button-text"
+                                    [attr.aria-label]="'common.confirm' | translate"
                                     [loading]="savingVariantId() === v.id"
                                     (click)="saveVariantRow(v)"></button>
                           </td>
@@ -397,6 +403,7 @@ const CURRENCY = 'MRU';
                           <td class="p-2 whitespace-nowrap">{{ row.label }}</td>
                           <td class="p-2">
                             <p-inputNumber [(ngModel)]="row.price" mode="decimal" [minFractionDigits]="0"
+                                           [attr.aria-label]="'products.price' | translate"
                                            [maxFractionDigits]="2" [min]="0" [suffix]="' ' + currencyLabel"
                                            [styleClass]="'w-full p-inputtext-sm' + (priceRowInvalid(row) ? ' ng-invalid ng-dirty' : '')" />
                           </td>
@@ -458,11 +465,13 @@ const CURRENCY = 'MRU';
                           <td class="p-2 whitespace-nowrap">{{ row.label }}</td>
                           <td class="p-2">
                             <p-inputNumber [(ngModel)]="row.qty" mode="decimal" [minFractionDigits]="0"
+                                           [attr.aria-label]="'stock.fields.qty' | translate"
                                            [maxFractionDigits]="3" [min]="0" styleClass="w-full p-inputtext-sm" />
                           </td>
                           @if (!form.uniformPricing) {
                             <td class="p-2">
                               <p-inputNumber [(ngModel)]="row.unitCost" mode="decimal" [minFractionDigits]="0"
+                                             [attr.aria-label]="'stock.fields.unitCost' | translate"
                                              [maxFractionDigits]="2" [min]="0"
                                              [styleClass]="'w-full p-inputtext-sm' + (rowCostInvalid(row) ? ' ng-invalid ng-dirty' : '')" />
                             </td>
@@ -493,9 +502,10 @@ const CURRENCY = 'MRU';
                   <img [src]="img.url" [alt]="img.altText || ''"
                        class="w-20 h-20 object-cover rounded border border-gray-200" />
                   <button type="button"
-                          class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white
+                          class="absolute -top-2 -end-2 w-6 h-6 rounded-full bg-red-500 text-white
                                  text-xs opacity-0 group-hover:opacity-100 transition"
                           [title]="'common.delete' | translate"
+                          [attr.aria-label]="'common.remove' | translate"
                           (click)="removeImage(img)">
                     <i class="pi pi-times"></i>
                   </button>
@@ -506,9 +516,10 @@ const CURRENCY = 'MRU';
                   <img [src]="queued.previewUrl" [alt]="queued.file.name"
                        class="w-20 h-20 object-cover rounded border border-dashed border-primary-300" />
                   <button type="button"
-                          class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white
+                          class="absolute -top-2 -end-2 w-6 h-6 rounded-full bg-red-500 text-white
                                  text-xs opacity-0 group-hover:opacity-100 transition"
                           [title]="'common.delete' | translate"
+                          [attr.aria-label]="'common.remove' | translate"
                           (click)="removePending(queued)">
                     <i class="pi pi-times"></i>
                   </button>
@@ -691,9 +702,8 @@ export class ProductListPage implements OnInit {
   }
 
   protected toggleActive(p: Product) {
-    const verb = p.active ? 'Désactiver' : 'Activer';
     this.confirmation.confirm({
-      message: `${verb} le produit « ${p.name} » ?`,
+      message: this.i18n.instant(p.active ? 'products.deactivateConfirm' : 'products.activateConfirm', { name: p.name }),
       header: this.i18n.instant('common.confirmation'),
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: p.active ? 'p-button-sm p-button-danger' : 'p-button-sm',
@@ -838,7 +848,7 @@ export class ProductListPage implements OnInit {
     const id = this.editingId();
     if (!id) return;
     this.confirmation.confirm({
-      message: 'Supprimer cette image ?',
+      message: this.i18n.instant('products.deleteImageConfirm'),
       header: this.i18n.instant('common.confirmation'),
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: 'p-button-sm p-button-danger',

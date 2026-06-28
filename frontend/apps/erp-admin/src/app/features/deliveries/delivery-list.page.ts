@@ -242,6 +242,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                     <td class="p-1">
                       <p-inputNumber [(ngModel)]="l.quantityOrdered" [min]="0"
                                      [max]="remainingByProduct[l.productId] ?? 0"
+                                     [attr.aria-label]="'deliveries.quantityToShip' | translate"
                                      [minFractionDigits]="0" [maxFractionDigits]="3"
                                      inputStyleClass="w-full text-right"
                                      [styleClass]="'w-full' + (createLinesInvalid() ? ' ng-invalid ng-dirty' : '')" />

@@ -106,7 +106,7 @@ interface AttributeForm {
                 [header]="(editing() ? 'attributes.editTitle' : 'attributes.createTitle') | translate"
                 [closable]="!saving()">
         <div class="space-y-4">
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div class="col-span-2">
               <label class="block text-sm font-medium mb-1">{{ 'attributes.name' | translate }} *</label>
               <input pInputText [(ngModel)]="form.name" class="w-full"
@@ -134,6 +134,7 @@ interface AttributeForm {
                     <span class="flex-1" [class.line-through]="!v.active" [class.text-gray-400]="!v.active">{{ v.value }}</span>
                     @if (v.code) { <span class="font-mono text-xs text-gray-400">{{ v.code }}</span> }
                     <button pButton icon="pi pi-trash" class="p-button-xs p-button-text p-button-danger"
+                            [attr.aria-label]="'common.delete' | translate"
                             (click)="removeValue(v)"></button>
                   </div>
                 }

@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputSwitchModule } from 'primeng/inputswitch';
@@ -278,6 +278,7 @@ interface PaymentSettings {
 export class SettingsPage implements OnInit {
   private readonly http = inject(HttpClient);
   private readonly msg = inject(MessageService);
+  private readonly i18n = inject(TranslateService);
   private readonly auth = inject(AUTH_SERVICE);
 
   protected readonly loading = signal(true);
@@ -334,18 +335,22 @@ export class SettingsPage implements OnInit {
     { label: '80 mm (48 colonnes)', value: 80 },
   ];
 
-  protected readonly paymentMethodOptions = [
-    { label: 'Espèces', value: 'CASH' },
-    { label: 'Carte', value: 'CARD' },
-    { label: 'Mobile Money', value: 'MOBILE_MONEY' },
-    { label: 'Virement', value: 'BANK_TRANSFER' },
-  ];
+  protected get paymentMethodOptions() {
+    return [
+      { label: this.i18n.instant('payments.methods.CASH'), value: 'CASH' },
+      { label: this.i18n.instant('payments.methods.CARD'), value: 'CARD' },
+      { label: this.i18n.instant('payments.methods.MOBILE_MONEY'), value: 'MOBILE_MONEY' },
+      { label: this.i18n.instant('payments.methods.BANK_TRANSFER'), value: 'BANK_TRANSFER' },
+    ];
+  }
 
-  protected readonly creditLimitOptions = [
-    { label: 'Avertir', value: 'WARN' },
-    { label: 'Bloquer', value: 'BLOCK' },
-    { label: 'Désactivé', value: 'OFF' },
-  ];
+  protected get creditLimitOptions() {
+    return [
+      { label: this.i18n.instant('settings.creditLimitAction.WARN'), value: 'WARN' },
+      { label: this.i18n.instant('settings.creditLimitAction.BLOCK'), value: 'BLOCK' },
+      { label: this.i18n.instant('settings.creditLimitAction.OFF'), value: 'OFF' },
+    ];
+  }
 
   async ngOnInit(): Promise<void> {
     await Promise.all([this.loadOrg(), this.loadSettings()]);
@@ -409,9 +414,9 @@ export class SettingsPage implements OnInit {
           timezone: this.org.timezone,
         })
       );
-      this.msg.add({ severity: 'success', summary: 'Enregistré', life: 3000 });
+      this.msg.add({ severity: 'success', summary: this.i18n.instant('common.saved'), life: 3000 });
     } catch {
-      this.msg.add({ severity: 'error', summary: 'Erreur', detail: 'Sauvegarde échouée', life: 4000 });
+      this.msg.add({ severity: 'error', summary: this.i18n.instant('common.error'), detail: this.i18n.instant('common.saveFailed'), life: 4000 });
     } finally {
       this.saving.set(false);
     }
@@ -427,9 +432,9 @@ export class SettingsPage implements OnInit {
           paymentSettings: this.paymentSettings,
         })
       );
-      this.msg.add({ severity: 'success', summary: 'Enregistré', life: 3000 });
+      this.msg.add({ severity: 'success', summary: this.i18n.instant('common.saved'), life: 3000 });
     } catch {
-      this.msg.add({ severity: 'error', summary: 'Erreur', detail: 'Sauvegarde échouée', life: 4000 });
+      this.msg.add({ severity: 'error', summary: this.i18n.instant('common.error'), detail: this.i18n.instant('common.saveFailed'), life: 4000 });
     } finally {
       this.saving.set(false);
     }

@@ -1,7 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ButtonModule } from 'primeng/button';
 import { CalendarModule } from 'primeng/calendar';
 import { DialogModule } from 'primeng/dialog';
@@ -38,7 +38,7 @@ import { SyncedSale } from '../models/pos.models';
     <!-- No active session -->
     @if (!sessionSvc.isOpen()) {
       <div class="max-w-md mx-auto mt-8 p-4">
-        <h2 class="text-xl font-bold mb-4">{{ 'pos.session.open.title' | translate }}</h2>
+        <h1 class="text-xl font-bold mb-4">{{ 'pos.session.open.title' | translate }}</h1>
 
         @if (loading()) {
           <div class="text-center py-8">
@@ -98,6 +98,7 @@ import { SyncedSale } from '../models/pos.models';
               [value]="pendingSessions()"
               [loading]="loadingPending()"
               stripedRows
+              responsiveLayout="scroll"
               responsiveLayout="scroll"
               styleClass="p-datatable-sm"
             >
@@ -186,6 +187,7 @@ import { SyncedSale } from '../models/pos.models';
             [value]="sales()"
             [loading]="loadingSales()"
             stripedRows
+            responsiveLayout="scroll"
             responsiveLayout="scroll"
             [rowHover]="true"
             styleClass="p-datatable-sm"
@@ -303,6 +305,7 @@ export class SessionPage implements OnInit {
   protected readonly fmtSvc = inject(PosSettingsService);
   private readonly sync = inject(SyncService);
   private readonly msg = inject(MessageService);
+  private readonly i18n = inject(TranslateService);
   private readonly api = inject(PosApiService);
   private readonly receiptSvc = inject(ReceiptService);
 
@@ -380,10 +383,10 @@ export class SessionPage implements OnInit {
     try {
       // Sessions always start at zero — opening float is no longer transferred from the vault.
       await this.sessionSvc.openSession(this.selectedRegisterId, 0);
-      this.msg.add({ severity: 'success', summary: 'Session ouverte', life: 3000 });
+      this.msg.add({ severity: 'success', summary: this.i18n.instant('pos.session.opened'), life: 3000 });
       await this.loadSessionSales();
     } catch {
-      this.msg.add({ severity: 'error', summary: 'Erreur', detail: 'Impossible d\'ouvrir la session', life: 4000 });
+      this.msg.add({ severity: 'error', summary: this.i18n.instant('common.error'), detail: this.i18n.instant('pos.session.openFailed'), life: 4000 });
     } finally {
       this.saving.set(false);
     }
@@ -401,10 +404,10 @@ export class SessionPage implements OnInit {
       await this.sessionSvc.closeSession(this.countedClosing, this.closeNote || undefined);
       this.showCloseDialog.set(false);
       this.sales.set([]);
-      this.msg.add({ severity: 'success', summary: 'Session clôturée', life: 3000 });
+      this.msg.add({ severity: 'success', summary: this.i18n.instant('pos.session.closed'), life: 3000 });
       await this.loadPendingSessions();
     } catch {
-      this.msg.add({ severity: 'error', summary: 'Erreur', detail: 'Clôture échouée', life: 4000 });
+      this.msg.add({ severity: 'error', summary: this.i18n.instant('common.error'), detail: this.i18n.instant('pos.session.closeFailed'), life: 4000 });
     } finally {
       this.saving.set(false);
     }
@@ -437,7 +440,7 @@ export class SessionPage implements OnInit {
     this.busy.set(true);
     try {
       await firstValueFrom(this.api.voidSale(target.id, this.voidReason || null));
-      this.msg.add({ severity: 'success', summary: 'Annulée', life: 2500 });
+      this.msg.add({ severity: 'success', summary: this.i18n.instant('pos.session.voided'), life: 2500 });
       this.voidDialogOpen = false;
       await this.loadSessionSales();
       await this.sessionSvc.refreshSession();

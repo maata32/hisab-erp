@@ -18,17 +18,18 @@ import { isApiError } from '@hisaberp/shared-api';
     ButtonModule, InputTextModule, PasswordModule, LocaleSwitcherComponent,
   ],
   template: `
-    <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0E6E5A] to-[#0B5546] p-4">
+    <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-600 to-primary-700 p-4">
       <form
         [formGroup]="form"
         (ngSubmit)="submit()"
         class="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6 space-y-5"
         novalidate
       >
+        <h1 class="sr-only">{{ 'auth.submit' | translate }}</h1>
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <img src="assets/brand/hisab-logo.svg" alt="HisabERP" class="h-8 w-auto" />
-            <span class="text-[10px] font-bold tracking-widest text-[#0E6E5A] bg-[#E8F2EE] rounded px-1.5 py-0.5">POS</span>
+            <span class="text-[10px] font-bold tracking-widest text-primary-600 bg-primary-50 rounded px-1.5 py-0.5">POS</span>
           </div>
           <me-locale-switcher />
         </div>

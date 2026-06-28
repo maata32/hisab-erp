@@ -39,7 +39,7 @@ interface NavItem {
             type="button"
             class="md:hidden btn-touch flex items-center justify-center text-gray-700"
             (click)="toggleSidebar()"
-            aria-label="Open menu"
+            [attr.aria-label]="'common.openMenu' | translate"
           >
             <i class="pi pi-bars text-xl"></i>
           </button>
@@ -66,15 +66,15 @@ interface NavItem {
         <nav
           [class.hidden]="!sidebarOpen()"
           [class.flex]="sidebarOpen()"
-          class="md:flex flex-col w-64 bg-white border-r border-gray-200 fixed md:sticky top-14 bottom-0 md:h-[calc(100vh-3.5rem)] z-20"
-          aria-label="Main navigation"
+          class="md:flex flex-col w-64 bg-white border-e border-gray-200 fixed md:sticky top-14 bottom-0 md:h-[calc(100vh-3.5rem)] z-20"
+          [attr.aria-label]="'common.mainNav' | translate"
         >
           <ul class="flex-1 overflow-y-auto py-2">
             @for (item of visibleItems(); track item.path) {
               <li>
                 <a
                   [routerLink]="item.path"
-                  routerLinkActive="bg-primary-50 text-primary-700 border-r-2 border-primary-600"
+                  routerLinkActive="bg-primary-50 text-primary-700 border-e-2 border-primary-600"
                   (click)="closeSidebarMobile()"
                   class="flex items-center gap-3 px-4 py-3 min-h-touch text-gray-700 hover:bg-gray-50"
                 >
@@ -104,7 +104,7 @@ interface NavItem {
       <!-- Mobile bottom nav -->
       <nav
         class="md:hidden bg-white border-t border-gray-200 grid grid-cols-5 sticky bottom-0 z-20"
-        aria-label="Quick navigation"
+        [attr.aria-label]="'common.quickNav' | translate"
       >
         @for (item of visibleItems().slice(0, 5); track item.path) {
           <a

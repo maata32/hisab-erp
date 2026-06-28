@@ -1,5 +1,5 @@
 {
-  "common": { "loading": "جار التحميل…", "logout": "تسجيل الخروج", "save": "حفظ", "cancel": "إلغاء", "close": "إغلاق", "refresh": "تحديث" },
+  "common": { "loading": "جار التحميل…", "logout": "تسجيل الخروج", "save": "حفظ", "cancel": "إلغاء", "close": "إغلاق", "refresh": "تحديث", "language": "اللغة", "error": "خطأ" },
   "auth": {
     "tenantCode": "رمز المنظمة",
     "email": "البريد الإلكتروني",
@@ -20,6 +20,7 @@
       "back_to_sale": "العودة إلى البيع"
     },
     "history": {
+      "loadFailed": "تعذّر التحميل",
       "title": "سجل المبيعات",
       "subtitle": "التذاكر من الصندوق الحالي",
       "number": "الرقم",
@@ -47,6 +48,8 @@
       "reason": "السبب (اختياري)"
     },
     "sale": {
+      "networkError": "خطأ في الشبكة",
+      "savedLocally": "تم حفظ البيع محلياً",
       "no_session": {
         "title": "لا توجد جلسة نشطة",
         "description": "افتح جلسة صندوق قبل إجراء المبيعات."
@@ -55,6 +58,11 @@
       "search_placeholder": "البحث عن منتج أو مسح الباركود…",
       "no_products": "لم يتم العثور على منتجات",
       "view_images": "عرض الصور",
+      "clear_search": "مسح البحث",
+      "clear_cart": "إفراغ السلة",
+      "remove_line": "إزالة العنصر",
+      "decrease_qty": "إنقاص الكمية",
+      "increase_qty": "زيادة الكمية",
       "stock": "المخزون",
       "cart": "السلة",
       "cart_empty": "السلة فارغة",
@@ -81,6 +89,11 @@
       }
     },
     "session": {
+      "opened": "تم فتح الجلسة",
+      "openFailed": "تعذّر فتح الجلسة",
+      "closed": "تم إغلاق الجلسة",
+      "closeFailed": "فشل الإغلاق",
+      "voided": "ملغاة",
       "open": {
         "title": "فتح جلسة صندوق",
         "submit": "فتح الجلسة",

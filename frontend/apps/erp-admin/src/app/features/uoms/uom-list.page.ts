@@ -55,7 +55,7 @@ interface ConvGroup { label: string; items: { label: string; value: string }[]; 
                         (click)="openCreateUnit()" class="p-button-sm"></button>
               </div>
             }
-            <p-table [value]="groupedUoms()" [loading]="loading()" stripedRows
+            <p-table [value]="groupedUoms()" [loading]="loading()" stripedRows responsiveLayout="scroll"
                      rowGroupMode="subheader" groupRowsBy="categoryCode"
                      sortField="categoryCode" [sortOrder]="1" styleClass="p-datatable-sm">
               <ng-template pTemplate="header">
@@ -118,7 +118,7 @@ interface ConvGroup { label: string; items: { label: string; value: string }[]; 
                         (click)="openCreateCategory()" class="p-button-sm"></button>
               </div>
             }
-            <p-table [value]="categories()" stripedRows styleClass="p-datatable-sm">
+            <p-table [value]="categories()" stripedRows responsiveLayout="scroll" styleClass="p-datatable-sm">
               <ng-template pTemplate="header">
                 <tr>
                   <th>{{ 'uoms.categoryCode' | translate }}</th>

@@ -106,7 +106,7 @@ type Severity = 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contr
                 [header]="detail()?.number || ''">
         @if (detail(); as cn) {
           <div class="space-y-3">
-            <div class="grid grid-cols-3 gap-3 text-sm">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
               <div>
                 <span class="text-gray-500">{{ 'creditNotes.invoiceNumber' | translate }} :</span>
                 <div class="font-mono">{{ cn.invoiceNumber }}</div>

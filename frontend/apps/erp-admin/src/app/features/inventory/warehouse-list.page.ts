@@ -144,12 +144,14 @@ export class WarehouseListPage implements OnInit {
   protected codeInvalid(): boolean { return this.submitted() && !this.form.code?.trim(); }
   protected nameInvalid(): boolean { return this.submitted() && !this.form.name?.trim(); }
 
-  protected readonly typeOptions = [
-    { value: 'MAIN', label: 'Principal' },
-    { value: 'SECONDARY', label: 'Secondaire' },
-    { value: 'TRANSIT', label: 'Transit' },
-    { value: 'RETURN', label: 'Retours' },
-  ];
+  protected get typeOptions() {
+    return [
+      { value: 'MAIN', label: this.translate.instant('warehouses.types.MAIN') },
+      { value: 'SECONDARY', label: this.translate.instant('warehouses.types.SECONDARY') },
+      { value: 'TRANSIT', label: this.translate.instant('warehouses.types.TRANSIT') },
+      { value: 'RETURN', label: this.translate.instant('warehouses.types.RETURN') },
+    ];
+  }
 
   protected form = this.emptyForm();
 

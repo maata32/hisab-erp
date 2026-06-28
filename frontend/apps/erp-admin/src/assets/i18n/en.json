@@ -10,6 +10,10 @@
     "tagline": "Modular commercial ERP for Mauritania"
   },
   "common": {
+    "saved": "Saved",
+    "saveFailed": "Save failed",
+    "failed": "Failed",
+    "ok": "OK",
     "loading": "Loading…",
     "save": "Save",
     "cancel": "Cancel",
@@ -39,7 +43,13 @@
     "mustBeNonNegative": "Value cannot be negative",
     "atLeastOneLine": "Add at least one line",
     "confirm": "Confirm",
-    "actions": "Actions"
+    "actions": "Actions",
+    "noData": "No data",
+    "openMenu": "Open menu",
+    "mainNav": "Main navigation",
+    "quickNav": "Quick navigation",
+    "language": "Language",
+    "remove": "Remove"
   },
   "error": {
     "data_integrity": "This value already exists.",
@@ -456,6 +466,8 @@
     }
   },
   "users": {
+    "deactivateConfirm": "Deactivate user “{{name}}”?",
+    "resetPasswordConfirm": "Reset password for “{{name}}”?",
     "title": "Users",
     "coming_soon": {
       "title": "Coming soon",
@@ -498,6 +510,7 @@
     }
   },
   "settings": {
+    "creditLimitAction": { "WARN": "Warn", "BLOCK": "Block", "OFF": "Off" },
     "title": "Settings",
     "subtitle": "Configure your organization and POS settings",
     "tab": {
@@ -856,6 +869,7 @@
     }
   },
   "payments": {
+    "cancelConfirm": "Cancel payment {{number}}?",
     "title": "Payments",
     "subtitle": "Customer receipts and supplier disbursements",
     "party": "Party",
@@ -947,6 +961,9 @@
     "valueInUse": "This value is used and cannot be deleted."
   },
   "products": {
+    "activateConfirm": "Activate product “{{name}}”?",
+    "deactivateConfirm": "Deactivate product “{{name}}”?",
+    "deleteImageConfirm": "Delete this image?",
     "variants": {
       "title": "Variants",
       "uniformPricing": "Same price for all variants",
@@ -1155,6 +1172,7 @@
     }
   },
   "lots": {
+    "blockReason": "Block reason?",
     "title": "Lots and expiry",
     "subtitle": "FEFO, alerts, destruction",
     "empty": "No lots",
@@ -1339,6 +1357,8 @@
     "sortOrder": "Order"
   },
   "notifConfig": {
+    "advancedInfo": "Advanced configuration for {{code}} — to be implemented (channels, recipients, custom roles).",
+    "resetConfirm": "Reset all configurations to defaults?",
     "title": "Notification settings",
     "subtitle": "Enable / disable per event, channels, recipients",
     "empty": "No events",
@@ -1353,6 +1373,7 @@
     "advanced": "Advanced"
   },
   "expenseCategories": {
+    "deactivateConfirm": "Deactivate category “{{name}}”?",
     "title": "Expense categories",
     "subtitle": "Organize expenses by nature (rent, salaries, supplies...)",
     "create": "New category",
@@ -1373,6 +1394,12 @@
     "limitsHint": "Leave blank for no approval requirement."
   },
   "treasury": {
+    "toast": {
+      "sessionValidated": "Session validated",
+      "depositRecorded": "Deposit recorded",
+      "withdrawRecorded": "Withdrawal recorded",
+      "adjustRecorded": "Adjustment recorded"
+    },
     "title": "Treasury",
     "subtitle": "Central vault and bank accounts — paired movements",
     "vault": "Central vault",

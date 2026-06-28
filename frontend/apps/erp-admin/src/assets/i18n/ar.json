@@ -10,6 +10,10 @@
     "tagline": "نظام تخطيط موارد المؤسسات التجاري المعياري لموريتانيا"
   },
   "common": {
+    "saved": "تم الحفظ",
+    "saveFailed": "فشل الحفظ",
+    "failed": "فشل",
+    "ok": "حسناً",
     "loading": "جار التحميل…",
     "save": "حفظ",
     "cancel": "إلغاء",
@@ -39,7 +43,13 @@
     "mustBeNonNegative": "لا يمكن أن تكون القيمة سالبة",
     "atLeastOneLine": "أضف سطراً واحداً على الأقل",
     "confirm": "تأكيد",
-    "actions": "إجراءات"
+    "actions": "إجراءات",
+    "noData": "لا توجد بيانات",
+    "openMenu": "فتح القائمة",
+    "mainNav": "التنقل الرئيسي",
+    "quickNav": "تنقل سريع",
+    "language": "اللغة",
+    "remove": "إزالة"
   },
   "error": {
     "data_integrity": "هذه القيمة موجودة بالفعل.",
@@ -456,6 +466,8 @@
     }
   },
   "users": {
+    "deactivateConfirm": "تعطيل المستخدم «{{name}}»؟",
+    "resetPasswordConfirm": "إعادة تعيين كلمة مرور «{{name}}»؟",
     "title": "المستخدمون",
     "coming_soon": {
       "title": "قريبًا",
@@ -498,6 +510,7 @@
     }
   },
   "settings": {
+    "creditLimitAction": { "WARN": "تحذير", "BLOCK": "حظر", "OFF": "معطّل" },
     "title": "الإعدادات",
     "subtitle": "تكوين إعدادات منظمتك ونقطة البيع",
     "tab": {
@@ -856,6 +869,7 @@
     }
   },
   "payments": {
+    "cancelConfirm": "إلغاء الدفعة {{number}}؟",
     "title": "المدفوعات",
     "subtitle": "تحصيلات العملاء ومدفوعات الموردين",
     "party": "الطرف",
@@ -947,6 +961,9 @@
     "valueInUse": "هذه القيمة مستخدمة ولا يمكن حذفها."
   },
   "products": {
+    "activateConfirm": "تفعيل المنتج «{{name}}»؟",
+    "deactivateConfirm": "تعطيل المنتج «{{name}}»؟",
+    "deleteImageConfirm": "حذف هذه الصورة؟",
     "variants": {
       "title": "التنويعات",
       "uniformPricing": "نفس السعر لكل التنويعات",
@@ -1155,6 +1172,7 @@
     }
   },
   "lots": {
+    "blockReason": "سبب الحظر؟",
     "title": "الدفعات والصلاحية",
     "subtitle": "FEFO، تنبيهات، إتلاف",
     "empty": "لا توجد دفعات",
@@ -1339,6 +1357,8 @@
     "sortOrder": "الترتيب"
   },
   "notifConfig": {
+    "advancedInfo": "إعدادات متقدمة لـ {{code}} — قيد التنفيذ (القنوات، المستلمون، الأدوار المخصصة).",
+    "resetConfirm": "إعادة ضبط جميع الإعدادات إلى القيم الافتراضية؟",
     "title": "إعدادات الإشعارات",
     "subtitle": "تفعيل/تعطيل حسب الحدث، القنوات، المستلمون",
     "empty": "لا توجد أحداث",
@@ -1353,6 +1373,7 @@
     "advanced": "إعدادات متقدمة"
   },
   "expenseCategories": {
+    "deactivateConfirm": "تعطيل الفئة «{{name}}»؟",
     "title": "فئات المصاريف",
     "subtitle": "تصنيف المصاريف حسب طبيعتها (إيجار، رواتب، لوازم...)",
     "create": "فئة جديدة",
@@ -1373,6 +1394,12 @@
     "limitsHint": "اتركه فارغًا لعدم اشتراط الموافقة."
   },
   "treasury": {
+    "toast": {
+      "sessionValidated": "تم التحقق من الجلسة",
+      "depositRecorded": "تم تسجيل الإيداع",
+      "withdrawRecorded": "تم تسجيل السحب",
+      "adjustRecorded": "تم تسجيل التسوية"
+    },
     "title": "الخزينة",
     "subtitle": "الخزينة المركزية والحسابات المصرفية — حركات مزدوجة",
     "vault": "الخزينة المركزية",

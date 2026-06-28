@@ -256,7 +256,7 @@ export class ExpenseCategoryListPage implements OnInit {
 
   protected deactivate(c: ExpenseCategory) {
     this.confirmation.confirm({
-      message: `Désactiver la catégorie « ${c.name} » ?`,
+      message: this.i18n.instant('expenseCategories.deactivateConfirm', { name: c.name }),
       header: this.i18n.instant('common.confirmation'),
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: 'p-button-sm p-button-danger',

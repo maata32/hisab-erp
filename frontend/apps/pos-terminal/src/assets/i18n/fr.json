@@ -5,7 +5,9 @@
     "save": "Enregistrer",
     "cancel": "Annuler",
     "close": "Fermer",
-    "refresh": "Rafraîchir"
+    "refresh": "Rafraîchir",
+    "language": "Langue",
+    "error": "Erreur"
   },
   "auth": {
     "tenantCode": "Code organisation",
@@ -32,6 +34,7 @@
       "back_to_sale": "Retour à la vente"
     },
     "history": {
+      "loadFailed": "Chargement impossible",
       "title": "Historique des ventes",
       "subtitle": "Tickets de la caisse courante",
       "number": "Numéro",
@@ -59,6 +62,8 @@
       "refund_confirm_btn": "Confirmer le remboursement"
     },
     "sale": {
+      "networkError": "Erreur réseau",
+      "savedLocally": "Vente sauvegardée localement",
       "no_session": {
         "title": "Aucune session active",
         "description": "Ouvrez une session de caisse avant d'effectuer des ventes."
@@ -67,6 +72,11 @@
       "search_placeholder": "Rechercher un article ou scanner un code-barres…",
       "no_products": "Aucun article trouvé",
       "view_images": "Voir les images",
+      "clear_search": "Effacer la recherche",
+      "clear_cart": "Vider le panier",
+      "remove_line": "Retirer l'article",
+      "decrease_qty": "Diminuer la quantité",
+      "increase_qty": "Augmenter la quantité",
       "stock": "Stock",
       "cart": "Panier",
       "cart_empty": "Le panier est vide",
@@ -93,6 +103,11 @@
       }
     },
     "session": {
+      "opened": "Session ouverte",
+      "openFailed": "Impossible d'ouvrir la session",
+      "closed": "Session clôturée",
+      "closeFailed": "Clôture échouée",
+      "voided": "Annulée",
       "open": {
         "title": "Ouvrir une session de caisse",
         "submit": "Ouvrir la session",

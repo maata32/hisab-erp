@@ -28,7 +28,7 @@ import { LocaleService, SupportedLocale } from '@hisaberp/shared-i18n';
   template: `
     <div class="min-h-screen flex flex-col md:flex-row">
       <aside
-        class="hidden md:flex md:w-1/2 bg-gradient-to-br from-[#0E6E5A] to-[#0B5546] text-white p-12 flex-col justify-between"
+        class="hidden md:flex md:w-1/2 bg-gradient-to-br from-primary-600 to-primary-700 text-white p-12 flex-col justify-between"
       >
         <div>
           <img src="assets/brand/hisab-logo-ondark.svg" alt="HisabERP" class="h-14 w-auto" />
@@ -46,9 +46,9 @@ import { LocaleService, SupportedLocale } from '@hisaberp/shared-i18n';
           aria-labelledby="login-title"
         >
           <div class="flex items-center justify-between">
-            <h2 id="login-title" class="text-2xl font-bold text-[#0E6E5A] brand-display">
+            <h1 id="login-title" class="text-2xl font-bold text-primary-600 brand-display">
               {{ 'auth.login.title' | translate }}
-            </h2>
+            </h1>
             <me-locale-switcher />
           </div>
 

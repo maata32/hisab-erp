@@ -59,9 +59,10 @@ interface UserForm {
       <div class="bg-white rounded-lg border border-gray-200 p-4">
         <div class="mb-3">
           <span class="relative block w-full sm:w-72">
-            <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+            <i class="pi pi-search absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
             <input pInputText type="text" [placeholder]="'common.search' | translate"
-                   (input)="onSearch($event)" class="w-full !pl-9" />
+                   [attr.aria-label]="'common.search' | translate"
+                   (input)="onSearch($event)" class="w-full !ps-9" />
           </span>
         </div>
 
@@ -322,7 +323,7 @@ export class UserListPage implements OnInit {
 
   protected deactivate(u: User) {
     this.confirmation.confirm({
-      message: `Désactiver l'utilisateur « ${u.fullName} » ?`,
+      message: this.i18n.instant('users.deactivateConfirm', { name: u.fullName }),
       header: this.i18n.instant('common.confirmation'),
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: 'p-button-sm p-button-danger',
@@ -335,7 +336,7 @@ export class UserListPage implements OnInit {
 
   protected resetPassword(u: User) {
     this.confirmation.confirm({
-      message: `Réinitialiser le mot de passe de « ${u.fullName} » ?`,
+      message: this.i18n.instant('users.resetPasswordConfirm', { name: u.fullName }),
       header: this.i18n.instant('common.confirmation'),
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: 'p-button-sm',
