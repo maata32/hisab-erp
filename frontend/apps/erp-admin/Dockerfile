@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:20-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /workspace
 COPY package.json package-lock.json ./
 COPY nx.json tsconfig.base.json .eslintrc.json .prettierrc tailwind.config.js postcss.config.js ./
