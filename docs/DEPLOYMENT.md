@@ -11,7 +11,7 @@ End-to-end procedure for deploying Hisab ERP to a fresh Hetzner Cloud VPS using 
 | Local | OpenSSL | for generating secrets |
 | Local | Docker (or just rsync + ssh) | only needed if you want to test the prod compose locally |
 | Account | Hetzner Cloud | API token (read+write) |
-| Account | Domain registrar OR Cloudflare | DNS A records for `app.<domain>`, `pos.<domain>`, `api.<domain>`, `grafana.<domain>` |
+| Account | Domain registrar OR Cloudflare | DNS A records for `app.<domain>`, `pos.<domain>`, `api.<domain>`, `files.<domain>`, `grafana.<domain>` |
 | Account | GitHub | for GHCR images |
 
 ## 0. Build & publish images
@@ -57,7 +57,7 @@ terraform output
 
 Terraform creates: a private network, a firewall (only 22/80/443 from `allowed_admin_cidrs` for SSH), one `cx32` server, a 100 GB block volume mounted at `/var/lib/docker`, and (if Cloudflare token provided) the four DNS A records.
 
-If you don't use Cloudflare, **manually** add A records pointing `app.<domain>`, `pos.<domain>`, `api.<domain>` (and optionally `grafana.<domain>`) to the server's IPv4 address from `terraform output server_ipv4`.
+If you don't use Cloudflare, **manually** add A records pointing `app.<domain>`, `pos.<domain>`, `api.<domain>`, `files.<domain>` (and optionally `grafana.<domain>`) to the server's IPv4 address from `terraform output server_ipv4`. `files.<domain>` is REQUIRED — it serves stored files (product images, attachments).
 
 ## 2. Bootstrap secrets on the server
 
@@ -110,26 +110,47 @@ curl -fsS https://api.<domain>/api/v1/health
 # {"status":"UP","timestamp":"...","service":"hisab-erp"}
 ```
 
+### Object storage & file URLs (`files.<domain>`)
+
+Uploaded files (product images, expense/subscription attachments) live in MinIO. Its S3 read API
+is exposed via Traefik at `files.<domain>` (needs the `files.` A record), and the app builds
+browser URLs as `https://files.<domain>/<bucket>/<object>`. The `minio-init` one-shot grants the
+bucket an anonymous **download** policy so those URLs resolve. The backend talks to MinIO using
+the `MINIO_*` env vars (do **not** use `S3_*` — they are ignored and the app falls back to
+insecure localhost defaults).
+
+> ⚠️ Objects are readable by anyone holding the (unguessable, UUID-based) URL — same posture as the
+> dev stack. For sensitive documents prefer **presigned, time-limited URLs** served through the
+> backend (a small change in the three `*StorageService` classes). Bucket listing is already
+> disabled by the download policy.
+
 ## 4. Bootstrap the first super-admin
 
-Production does NOT auto-seed a tenant (the dev seeder only runs in the `dev` profile). Create the first organization + super-admin via:
+Production does NOT auto-seed (the dev seeder is `@Profile("dev")`). The backend ships an
+**idempotent, env-driven bootstrap** (`ProdAdminBootstrap`): set two env vars for the FIRST deploy
+and it creates the reserved platform organization + a platform super-admin at startup. It no-ops
+once a super-admin exists (safe across redeploys). Recommended flow:
 
-```bash
-# SSH to the server, then from inside the backend container:
-sudo docker compose --env-file /etc/hisaberp/.env exec backend sh -c '
-  apk add --no-cache postgresql-client
-  PGPASSWORD=$SPRING_DATASOURCE_PASSWORD psql -h postgres -U hisaberp -d hisaberp <<SQL
-    -- 1. Create the org (use the API instead in normal cases)
-    INSERT INTO organizations (id, code, name, type, currency, locale, timezone, status)
-    VALUES (gen_random_uuid(), '\''platform'\'', '\''Platform'\'', '\''BOUTIQUE'\'',
-            '\''MRU'\'', '\''fr'\'', '\''Africa/Nouakchott'\'', '\''ACTIVE'\'')
-    RETURNING id;
-SQL'
-```
+1. Before the first `compose up`, add to `/etc/hisaberp/.env`:
 
-Then make a one-shot HTTP call against the new org to create the SUPER_ADMIN — easier path: temporarily set `SPRING_PROFILES_ACTIVE=prod,bootstrap`, expose a one-time `/api/v1/admin/bootstrap` endpoint (TODO in Phase 1).
+   ```
+   BOOTSTRAP_ADMIN_EMAIL=you@yourcompany.com
+   BOOTSTRAP_ADMIN_PASSWORD=<a strong secret, ≥ 12 chars>
+   ```
 
-> A clean **bootstrap CLI** is on the Phase 1 backlog. Until then this manual SQL is the path.
+2. Start the stack (section 3) and watch the backend log for:
+   `Prod admin bootstrap: created platform super-admin '...'`.
+
+3. Sign in at `https://app.<domain>` via the **platform login**
+   (`POST /api/v1/auth/platform-login`, no tenant code).
+
+4. **Blank** `BOOTSTRAP_ADMIN_EMAIL`/`BOOTSTRAP_ADMIN_PASSWORD` in `.env`, rotate the password
+   from the console, and redeploy.
+
+Real business tenants are then created from the super-admin console (which starts them in TRIAL).
+
+> The password is hashed with the app's Argon2id encoder — do **not** try to `INSERT` a user with
+> a plaintext or pre-hashed password directly in SQL.
 
 ## 5. Observability (optional)
 
@@ -145,27 +166,29 @@ sudo docker compose \
 
 ## 6. Backups
 
-Automated daily `pg_dump`:
+**Daily `pg_dump`** (the `pgbackup` sidecar): stored in the `pgbackup-data` volume, retention
+14 days daily / 8 weeks weekly / 12 months monthly.
 
-- Stored in the `pgbackup-data` volume at `/var/lib/docker/volumes/hisaberp-prod_pgbackup-data/_data/last/`.
-- 14 days daily / 8 weeks weekly / 12 months monthly retention.
+**Off-host copy — enable this.** The `backup-offsite` sidecar (rclone) replicates those dumps to
+S3-compatible object storage. Without it, backups live only on the same VM and are lost with it.
+Create a bucket + S3 keys in the Hetzner console, then set in `/etc/hisaberp/.env`:
 
-**To meet the spec's RPO 1-min target you must enable WAL archiving** to off-host storage (Hetzner Object Storage or external S3). Add the following to the `postgres` service in `docker-compose.yml`:
-
-```yaml
-command:
-  - "postgres"
-  - "-c"
-  - "archive_mode=on"
-  - "-c"
-  - "archive_command=test ! -f /backups/wal/%f && cp %p /backups/wal/%f"
-  - "-c"
-  - "wal_level=replica"
-volumes:
-  - /var/lib/hisaberp/wal:/backups/wal
+```
+BACKUP_S3_ENDPOINT=https://<region>.your-objectstorage.com
+BACKUP_S3_BUCKET=hisaberp-backups
+BACKUP_S3_ACCESS_KEY=...
+BACKUP_S3_SECRET_KEY=...
 ```
 
-And run a sidecar that uploads `/var/lib/hisaberp/wal/*` to S3 every minute (e.g. `restic backup` or `rclone sync`).
+The sidecar no-ops (exits 0) until these are set. **Also back up MinIO object data off-host**
+(e.g. `mc mirror` to the same bucket) — the pg dumps do **not** include uploaded files.
+
+**RPO ≈ 1 min** needs continuous **WAL archiving**, not just daily dumps (which give RPO up to 24h).
+Use pgBackRest or wal-g shipping WAL to the same object storage. (Minimal manual variant — set
+`archive_mode=on`, `wal_level=replica`, an `archive_command` writing to a mounted dir, plus a
+1-minute uploader sidecar — also works.)
+
+**Always rehearse a restore** (section 8) — an untested backup is not a backup.
 
 ## 7. Rolling upgrade
 
@@ -197,10 +220,30 @@ Practice this every month — schedule a drill in Grafana alerts.
 
 ## 9. Hardening checklist
 
-- [ ] Set `allowed_admin_cidrs` in `terraform.tfvars` to your office VPN
-- [ ] Enable WAL archiving + off-host backup (S3)
+- [ ] Set `allowed_admin_cidrs` in `terraform.tfvars` to your office VPN (empty = SSH closed)
+- [ ] Configure `BACKUP_S3_*` for off-host backups; add WAL archiving for RPO ≈ 1 min
+- [ ] Unset `BOOTSTRAP_ADMIN_*` after the first deploy and rotate the super-admin password
+- [ ] Prefer presigned URLs for sensitive files over anonymous `files.<domain>` reads
 - [ ] Rotate JWT_SECRET quarterly (forces all users to re-login)
 - [ ] Enable MFA on the Hetzner account + SSH key only (no password auth — already in the cloud-init)
 - [ ] Review `audit_log` weekly via the `/api/v1/audit` endpoint
 - [ ] Set up alerts in Grafana for: 5xx rate > 1%, DB pool exhausted, backend memory > 80%
 - [ ] Schedule monthly DR drill (restore backup to a throwaway env, verify smoke test passes)
+
+## 10. Scale-out prerequisites (before running >1 backend replica)
+
+The single-node compose stack is **not** safe to scale horizontally as-is. Fix two things first:
+
+1. **Liquibase migrations** run at every backend boot. With multiple replicas this races
+   (concurrent DDL on one schema). Move migrations to a dedicated **pre-deploy job**: set
+   `spring.liquibase.enabled=false` on the app replicas and run Liquibase once, as the owner role,
+   before rolling the new image.
+
+2. **`@Scheduled` jobs** (tenant expiry, recurring expenses, overdue-invoice detection, lot
+   expiry) have **no leader election** — every replica would run them, double-firing side effects
+   and emails. Add **ShedLock** (a DB-backed lock) around the scheduled methods so exactly one
+   replica runs each.
+
+Also keep every replica's datasource on the non-superuser `hisaberp_app` role (RLS depends on it),
+distribute the same `JWT_SECRET` to all replicas, and consider moving Postgres to managed Hetzner
+PG with PITR at this point.

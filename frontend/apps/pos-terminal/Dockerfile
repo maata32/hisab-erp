@@ -2,9 +2,10 @@
 
 FROM node:20-alpine AS deps
 WORKDIR /workspace
-COPY package.json ./
+COPY package.json package-lock.json ./
 COPY nx.json tsconfig.base.json .eslintrc.json .prettierrc tailwind.config.js postcss.config.js ./
-RUN npm install --no-audit --fund=false --prefer-offline
+# npm ci + committed lockfile = reproducible builds that match CI (npm install would re-resolve).
+RUN npm ci --no-audit --fund=false
 
 FROM deps AS build
 WORKDIR /workspace

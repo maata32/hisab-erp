@@ -1,0 +1,18 @@
+# Keep the Docker build context small and deterministic. Dependencies are installed inside the
+# image (npm ci) and the app is built there, so none of these belong in the context.
+node_modules
+**/node_modules
+dist
+**/dist
+.nx
+.angular
+coverage
+**/*.log
+.git
+.github
+.vscode
+.idea
+.DS_Store
+Dockerfile
+**/Dockerfile
+.dockerignore

@@ -1,6 +1,13 @@
 # Hisab ERP — production stack
 # Designed for a single Hetzner CX31/CX41 node (8GB+) with Docker Compose.
-# Scale-out: split DB to Hetzner-managed PG, run multiple backend replicas behind Traefik.
+#
+# DNS: point A records for app. / pos. / api. / files. (and grafana. for the obs addon) at the
+#      host IPv4. files.<domain> serves stored files (MinIO S3 read API) — REQUIRED for the app.
+#
+# Scale-out is NOT supported by this single-node stack as-is. Running >1 backend replica needs:
+#   (1) Liquibase migrations moved to a dedicated pre-deploy job (not run at every boot), and
+#   (2) leader election for the @Scheduled jobs (e.g. ShedLock) to avoid double side effects.
+#   See docs/DEPLOYMENT.md §"Scale-out prerequisites" before adding replicas.
 #
 # Required env vars (set in /etc/hisaberp/.env on the host, root-only readable):
 #   ROOT_DOMAIN              hisaberp.example.com
@@ -14,6 +21,10 @@
 #   GRAFANA_ADMIN_PASSWORD   strong random
 #   APP_VERSION              git tag
 #   IMAGE_REGISTRY           ghcr.io/your-org           (or registry.hetzner.com/...)
+# First deploy only (then blank): BOOTSTRAP_ADMIN_EMAIL, BOOTSTRAP_ADMIN_PASSWORD
+# Email (when SMTP chosen):       MAIL_HOST, MAIL_USERNAME, MAIL_PASSWORD
+# Off-host backups (recommended): BACKUP_S3_ENDPOINT, BACKUP_S3_BUCKET, BACKUP_S3_ACCESS_KEY,
+#                                 BACKUP_S3_SECRET_KEY (Hetzner Object Storage, S3-compatible)
 
 name: hisaberp-prod
 
@@ -106,10 +117,39 @@ services:
       interval: 30s
       timeout: 5s
       retries: 6
-    networks: [hisaberp-internal]
+    networks: [hisaberp-internal, hisaberp-public]
+    labels:
+      # Expose ONLY the S3 object API (:9000) at files.<domain> so MINIO_PUBLIC_ENDPOINT URLs
+      # resolve in the browser. The app bucket carries an anonymous "download" policy (set by
+      # minio-init): objects are GETtable by exact key, but the bucket cannot be listed.
+      # NOTE: this is anonymous-read-by-unguessable-key (same posture as dev). For sensitive
+      # files prefer presigned URLs — see docs/DEPLOYMENT.md §"Object storage".
+      - "traefik.enable=true"
+      - "traefik.docker.network=hisaberp_hisaberp-public"
+      - "traefik.http.routers.files.rule=Host(`files.${ROOT_DOMAIN}`)"
+      - "traefik.http.routers.files.entrypoints=websecure"
+      - "traefik.http.routers.files.tls.certresolver=le"
+      - "traefik.http.services.files.loadbalancer.server.port=9000"
     deploy:
       resources:
         limits: { memory: 768M }
+
+  # One-shot: create the app bucket and grant anonymous GET-by-key (download) so the
+  # MINIO_PUBLIC_ENDPOINT URLs resolve in the browser. Listing stays disabled. Exits when done.
+  minio-init:
+    image: minio/mc:latest
+    container_name: minio-init
+    depends_on:
+      minio: { condition: service_healthy }
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minio ${MINIO_ROOT_PASSWORD} &&
+      mc mb -p local/hisaberp-documents || true &&
+      mc anonymous set download local/hisaberp-documents &&
+      echo 'MinIO bucket ready';
+      "
+    networks: [hisaberp-internal]
+    restart: "no"
 
   backend:
     image: ${IMAGE_REGISTRY}/hisaberp-backend:${APP_VERSION}
@@ -142,15 +182,29 @@ services:
       JWT_ACCESS_TTL: PT15M
       JWT_REFRESH_TTL: P7D
       PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY}
-      S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY: minio
-      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
-      S3_BUCKET: hisaberp-documents
+      # Object storage (MinIO, S3-compatible). The app binds app.storage.* from MINIO_* — these
+      # MUST be MINIO_* (NOT S3_*) or the app silently falls back to insecure localhost defaults
+      # (http://localhost:9000 / minioadmin) and uploads break.
+      MINIO_ENDPOINT: http://minio:9000
+      # Browser-facing base URL for stored files. MinIO's S3 API is exposed read-only via Traefik
+      # at files.${ROOT_DOMAIN} (see the minio service labels). URLs are <public>/<bucket>/<object>.
+      MINIO_PUBLIC_ENDPOINT: https://files.${ROOT_DOMAIN}
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: hisaberp-documents
       MAIL_HOST: ${MAIL_HOST:-}
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_FROM: noreply@${ROOT_DOMAIN}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-true}
+      MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-true}
+      # First-run platform super-admin bootstrap (prod ships no seed). Set for the FIRST deploy
+      # only, then blank them and rotate the password. Idempotent: no-ops once a super-admin
+      # exists. Sign in via POST /api/v1/auth/platform-login.
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      BOOTSTRAP_ADMIN_NAME: ${BOOTSTRAP_ADMIN_NAME:-Platform Super Admin}
       JAVA_OPTS: "-XX:+UseG1GC -XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
       LOG_LEVEL_ROOT: WARN
       LOG_LEVEL_APP: INFO
@@ -171,6 +225,24 @@ services:
       - "traefik.http.middlewares.api-ratelimit.ratelimit.average=100"
       - "traefik.http.middlewares.api-ratelimit.ratelimit.burst=200"
       - "traefik.http.routers.api.middlewares=api-ratelimit"
+      # Keep the main API router low priority so the /actuator routers below take precedence.
+      - "traefik.http.routers.api.priority=1"
+      # Hide management endpoints (/actuator/prometheus, /actuator/info, /actuator/modulith…) from
+      # the public Internet — they are permitAll in SecurityConfig so Prometheus can scrape them,
+      # but that scrape goes to backend:8080 over hisaberp-internal, NOT via this public router.
+      # /actuator/health/* stays public (uptime probes); everything else under /actuator → 403.
+      - "traefik.http.middlewares.actuator-deny.ipallowlist.sourcerange=127.0.0.1/32"
+      - "traefik.http.routers.api-actuator.rule=Host(`api.${ROOT_DOMAIN}`) && PathPrefix(`/actuator`)"
+      - "traefik.http.routers.api-actuator.entrypoints=websecure"
+      - "traefik.http.routers.api-actuator.tls.certresolver=le"
+      - "traefik.http.routers.api-actuator.priority=50"
+      - "traefik.http.routers.api-actuator.service=api"
+      - "traefik.http.routers.api-actuator.middlewares=actuator-deny"
+      - "traefik.http.routers.api-actuator-health.rule=Host(`api.${ROOT_DOMAIN}`) && PathPrefix(`/actuator/health`)"
+      - "traefik.http.routers.api-actuator-health.entrypoints=websecure"
+      - "traefik.http.routers.api-actuator-health.tls.certresolver=le"
+      - "traefik.http.routers.api-actuator-health.priority=100"
+      - "traefik.http.routers.api-actuator-health.service=api"
     deploy:
       resources:
         limits: { memory: 1.5G }
@@ -232,6 +304,47 @@ services:
     deploy:
       resources:
         limits: { memory: 256M }
+
+  # Off-host backup: replicate the daily pg dumps to S3-compatible object storage (Hetzner
+  # Object Storage by default). The single-host pgbackup volume is lost if the VM dies, so this
+  # is what actually protects against host loss. On hisaberp-public for egress to the Internet.
+  # No-ops (and exits 0) until BACKUP_S3_* are configured. NOTE: this ships pg DUMPS off-host;
+  # true RPO≈1min still needs WAL archiving (pgBackRest/wal-g) — see docs/DEPLOYMENT.md §Backups.
+  backup-offsite:
+    image: rclone/rclone:1.68
+    container_name: backup-offsite
+    restart: unless-stopped
+    depends_on:
+      pgbackup: { condition: service_started }
+    environment:
+      RCLONE_CONFIG_OFFSITE_TYPE: s3
+      RCLONE_CONFIG_OFFSITE_PROVIDER: Other
+      RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY:-}
+      RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_KEY:-}
+      RCLONE_CONFIG_OFFSITE_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      RCLONE_CONFIG_OFFSITE_REGION: ${BACKUP_S3_REGION:-eu-central}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_SYNC_INTERVAL: ${BACKUP_SYNC_INTERVAL:-86400}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ -z "$$BACKUP_S3_BUCKET" ] || [ -z "$$RCLONE_CONFIG_OFFSITE_ENDPOINT" ]; then
+          echo "backup-offsite: BACKUP_S3_* not set — offsite backups DISABLED. Exiting.";
+          exit 0;
+        fi;
+        while true; do
+          echo "[offsite] $$(date -u) syncing pg dumps to OFFSITE:$$BACKUP_S3_BUCKET/pg";
+          rclone sync /backups "OFFSITE:$$BACKUP_S3_BUCKET/pg" --s3-no-check-bucket --stats-one-line \
+            || echo "[offsite] sync FAILED";
+          sleep "$$BACKUP_SYNC_INTERVAL";
+        done
+    volumes:
+      - pgbackup-data:/backups:ro
+    networks: [hisaberp-public]
+    deploy:
+      resources:
+        limits: { memory: 128M }
 
 networks:
   hisaberp-public:

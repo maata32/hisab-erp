@@ -24,7 +24,33 @@ jobs:
   build-test:
     name: Build & test (Java 21)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
+    # The integration tests (*IT) are NOT Testcontainers — the 'test' profile points at a real
+    # Postgres (:5433/hisaberp_test), Redis (:6380) and MinIO (:9000). Provide them here, else the
+    # failsafe ITs fail to start a context and `mvn verify` does not actually exercise them.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: hisaberp
+          POSTGRES_USER: hisaberp
+          POSTGRES_PASSWORD: hisaberp
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U hisaberp"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -35,7 +61,31 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Build & unit tests
+      - name: Start MinIO (object storage for ITs)
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:RELEASE.2024-09-13T20-26-02Z server /data
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:9000/minio/health/ready && break || sleep 2
+          done
+
+      - name: Provision test DB (runtime role + hisaberp_test, mirrors postgres-init.sh)
+        env:
+          PGPASSWORD: hisaberp
+        run: |
+          # Runtime role: NON-superuser / NOBYPASSRLS so the ITs exercise PostgreSQL RLS like prod.
+          # Fresh service container each run, so a plain CREATE ROLE is enough (no IF-EXISTS).
+          psql -h localhost -p 5433 -U hisaberp -d hisaberp -v ON_ERROR_STOP=1 \
+            -c "CREATE ROLE hisaberp_app LOGIN PASSWORD 'hisaberp' NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;"
+          # Test DB owned by the admin role (Liquibase runs as 'hisaberp'); extensions come from
+          # changelog 0001, table/sequence grants to hisaberp_app from changelog 0078.
+          psql -h localhost -p 5433 -U hisaberp -d hisaberp -v ON_ERROR_STOP=1 \
+            -c "CREATE DATABASE hisaberp_test WITH OWNER hisaberp ENCODING 'UTF8' TEMPLATE template0;"
+          psql -h localhost -p 5433 -U hisaberp -d hisaberp_test -v ON_ERROR_STOP=1 \
+            -c "GRANT CONNECT ON DATABASE hisaberp_test TO hisaberp_app;"
+
+      - name: Build, unit + integration tests
         working-directory: backend
         run: mvn -B -ntp -pl bootstrap -am verify
 
