@@ -42,7 +42,7 @@
     "dexie": "^4.0.8",
     "lucide-angular": "^0.453.0",
     "primeicons": "^7.0.0",
-    "primeng": "^17.18.0",
+    "primeng": "^21.1.9",
     "rxjs": "~7.8.0",
     "tslib": "^2.7.0",
     "zone.js": "~0.14.10"
